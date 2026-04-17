@@ -35,15 +35,25 @@
 
 ### Diferenciadores Clave
 
-| Característica                         | MusicFlow | Competencia (Spotify, Poweramp, etc.) |
-| --------------------------------------- | --------- | ------------------------------------- |
-| EQ global                               | ✅        | ✅                                    |
-| EQ por playlist                         | ✅        | ❌                                    |
-| EQ por canción                         | ✅        | Parcial                               |
-| **EQ por segmento temporal**      | ✅        | ❌                                    |
-| **Agente IA para configurar EQ**  | ✅        | ❌                                    |
-| Modo híbrido (local + cloud)           | ✅        | Parcial                               |
-| Multiplataforma real (Desktop + Mobile) | ✅        | Parcial                               |
+| Característica                                | MusicFlow | Competencia (Spotify, Poweramp, etc.) |
+| ---------------------------------------------- | --------- | ------------------------------------- |
+| EQ global                                      | ✅        | ✅                                    |
+| EQ por playlist                                | ✅        | ❌                                    |
+| EQ por canción                                | ✅        | Parcial                               |
+| **EQ por segmento temporal**             | ✅        | ❌                                    |
+| **Agente IA para configurar EQ**         | ✅        | ❌                                    |
+| Modo híbrido (local + cloud)                  | ✅        | Parcial                               |
+| **Disponible en Web + Desktop + Mobile** | ✅        | Parcial                               |
+
+### 🌐 Disponibilidad Multiplataforma
+
+MusicFlow se distribuye en **3 formatos** con un código base compartido al máximo:
+
+1. **🌐 Web (PWA)** — Accesible desde cualquier navegador en `app.musicflow.com`. Instalable como PWA. Ideal para prueba rápida y uso ocasional.
+2. **🖥️ Desktop (Electron)** — Aplicación nativa para Windows, macOS y Linux con acceso completo al sistema de archivos, widgets, atajos globales y mejor rendimiento.
+3. **📱 Mobile (Flutter)** — App nativa para Android e iOS con features específicas de móvil (widgets, Android Auto, CarPlay, background playback optimizado).
+
+> La versión **web y desktop comparten el 95% del código** (React + TypeScript). Solo cambia la capa de acceso al sistema (archivos, DB local, notificaciones) mediante una abstracción.
 
 ### Mercado Objetivo
 
@@ -106,10 +116,12 @@ Audio metadata: mutagen
 Testing: pytest, pytest-django, factory_boy
 ```
 
-### 🟢 Frontend Desktop (Electron + React)
+### 🟢 Frontend Web + Desktop (React + Electron)
+
+> **Estrategia dual:** el mismo código React se despliega como **aplicación web** (navegador) y se empaqueta con **Electron** para Windows, macOS y Linux. Se usa una capa de abstracción para acceder a capacidades específicas de cada entorno.
 
 ```yaml
-Shell: Electron 30+
+# Código compartido (web + desktop)
 Framework: React 19 + TypeScript 5
 Bundler: Vite
 Estado: Zustand
@@ -117,8 +129,43 @@ Routing: React Router 6
 UI: TailwindCSS + shadcn/ui
 Cliente HTTP: TanStack Query + Axios
 Audio: Web Audio API (ecualización en tiempo real)
-DB local: SQLite (vía better-sqlite3) para modo offline
 Testing: Vitest + React Testing Library + Playwright (E2E)
+
+# Específico Desktop
+Shell: Electron 30+
+DB local: SQLite (vía better-sqlite3) con IPC
+File System: Node.js fs (acceso completo)
+Auto-updater: electron-updater
+Build: electron-builder
+
+# Específico Web
+PWA: Workbox (service workers para offline parcial)
+DB local: IndexedDB con Dexie.js
+File System: File System Access API (donde disponible)
+Deployment: Nginx + CDN (Cloudflare)
+Hosting sugerido: Vercel, Netlify o VPS propio
+```
+
+### 🔀 Estrategia Multi-Target
+
+```typescript
+// src/shared/platform/detector.ts
+export const platform = {
+  isElectron: typeof window !== 'undefined' && !!window.electronAPI,
+  isWeb: typeof window !== 'undefined' && !window.electronAPI,
+  isPWAInstalled: window.matchMedia('(display-mode: standalone)').matches,
+};
+
+// src/shared/services/localDB.ts - Abstracción
+export interface LocalDB {
+  getTrack(id: string): Promise<Track | null>;
+  saveTrack(track: Track): Promise<void>;
+  // ...
+}
+
+export const localDB: LocalDB = platform.isElectron
+  ? new ElectronSQLiteDB()
+  : new WebIndexedDB();
 ```
 
 ### 🟣 Frontend Mobile (Flutter)
@@ -153,21 +200,30 @@ Dominio / CDN: Cloudflare
 ### 5.1 Diagrama de Componentes
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                         CAPA CLIENTE                            │
-│                                                                 │
-│  ┌──────────────────┐  ┌──────────────────┐  ┌───────────────┐  │
-│  │ Electron + React │  │ Electron + React │  │    Flutter    │  │
-│  │      ADMIN       │  │     CLIENTE      │  │    CLIENTE    │  │
-│  │   (Desktop)      │  │   (Desktop)      │  │   (Mobile)    │  │
-│  └────────┬─────────┘  └────────┬─────────┘  └───────┬───────┘  │
-│           │ SQLite local        │ SQLite local       │ Drift    │
-└───────────┼─────────────────────┼────────────────────┼──────────┘
-            │                     │                    │
-            │     HTTPS / JWT     │                    │
-            └─────────────────────┼────────────────────┘
-                                  │
-┌─────────────────────────────────▼──────────────────────────────┐
+┌─────────────────────────────────────────────────────────────────────────┐
+│                            CAPA CLIENTE                                 │
+│                                                                         │
+│  ┌─────────────────────────────────────────┐  ┌───────────────┐         │
+│  │     REACT + TYPESCRIPT (mismo código)   │  │    Flutter    │         │
+│  │                                         │  │    CLIENTE    │         │
+│  │  ┌───────────────┐  ┌────────────────┐  │  │   (Mobile)    │         │
+│  │  │   WEB (PWA)   │  │   DESKTOP      │  │  │               │         │
+│  │  │   navegador   │  │  (Electron)    │  │  │ Android / iOS │         │
+│  │  │               │  │                │  │  │               │         │
+│  │  │ Admin+Cliente │  │ Admin+Cliente  │  │  │ Solo Cliente  │         │
+│  │  │               │  │                │  │  │               │         │
+│  │  │  IndexedDB    │  │  SQLite nativo │  │  │  Drift (SQL)  │         │
+│  │  └───────────────┘  └────────────────┘  │  └───────┬───────┘         │
+│  │     Deployment:        Deployment:      │          │                 │
+│  │  Vercel/Nginx+CDN   electron-builder    │          │                 │
+│  │                     (.exe, .dmg, .deb)  │          │                 │
+│  └──────────────────┬──────────────────────┘          │                 │
+│                     │                                 │                 │
+└─────────────────────┼─────────────────────────────────┼─────────────────┘
+                      │     HTTPS / JWT                 │
+                      └────────────────┬────────────────┘
+                                       │
+┌──────────────────────────────────────▼─────────────────────────┐
 │                        CAPA BACKEND                            │
 │                                                                │
 │  ┌────────────────────────────────────────────────────────────┐│
@@ -806,23 +862,55 @@ def resolve_eq_for_playback(user, track, current_ms, active_playlist=None):
 
 ## 7. Épicas del Producto
 
-| #   | Épica                                  | Story Points  | Sprint(s)            |
-| --- | --------------------------------------- | ------------- | -------------------- |
-| E01 | Infraestructura y Arquitectura Base     | 28            | 1                    |
-| E02 | Autenticación y Gestión de Usuarios   | 34            | 1-2                  |
-| E03 | Gestión de Biblioteca Musical          | 42            | 2-3                  |
-| E04 | Reproductor Core Multiplataforma        | 50            | 3-4                  |
-| E05 | Sistema de Ecualización Multi-Nivel ⭐ | 55            | 4-5                  |
-| E06 | EQ por Segmentos Temporales ⭐⭐        | 42            | 5-6                  |
-| E07 | Agente IA de Ecualización ⭐⭐         | 50            | 6-7                  |
-| E08 | Playlists, Búsqueda y Organización    | 34            | 7                    |
-| E09 | Sincronización Híbrida                | 42            | 7-8                  |
-| E10 | Personalización Visual                 | 34            | 8                    |
-| E11 | Features Complementarias                | 42            | 9                    |
-| E12 | Panel de Administración                | 34            | 9                    |
-| E13 | Mobile App Flutter                      | 55            | 8-10                 |
-| E14 | Testing, QA y Despliegue                | 38            | 10                   |
-|     | **TOTAL**                         | **580** | **10 sprints** |
+### 🎯 Matriz de Cobertura por Plataforma
+
+| Feature                           | Web (PWA)                              | Desktop (Electron)    | Mobile (Flutter)  |
+| --------------------------------- | -------------------------------------- | --------------------- | ----------------- |
+| Auth y gestión de cuenta         | ✅                                     | ✅                    | ✅                |
+| Biblioteca desde servidor         | ✅                                     | ✅                    | ✅                |
+| Escaneo de archivos locales       | ⚠️ limitado (File System Access API) | ✅ completo           | ✅ completo       |
+| Upload de tracks al servidor      | ✅                                     | ✅                    | ✅                |
+| Reproducción de audio            | ✅                                     | ✅                    | ✅                |
+| **Ecualizador 10 bandas**⭐ | ✅                                     | ✅                    | ✅                |
+| **EQ multi-nivel**⭐        | ✅                                     | ✅                    | ✅                |
+| **EQ por segmentos**⭐⭐    | ✅                                     | ✅                    | ✅                |
+| **Agente IA**⭐⭐           | ✅                                     | ✅                    | ✅                |
+| Playlists y búsqueda             | ✅                                     | ✅                    | ✅                |
+| Sincronización híbrida          | ✅                                     | ✅                    | ✅                |
+| SQLite local offline              | ❌ (usa IndexedDB)                     | ✅                    | ✅                |
+| Background playback               | ⚠️ (si tab activa)                   | ✅                    | ✅                |
+| Notificaciones del sistema        | ⚠️ (del navegador)                   | ✅ nativas            | ✅ nativas        |
+| Panel de administración          | ✅                                     | ✅                    | ❌ (solo cliente) |
+| Widgets de escritorio/inicio      | ❌                                     | ✅                    | ✅                |
+| Atajos globales de teclado        | ❌                                     | ✅                    | ❌                |
+| Android Auto / CarPlay            | ❌                                     | ❌                    | ✅                |
+| Instalación como app             | ⚠️ PWA                               | ✅ instalador         | ✅ stores         |
+| Auto-actualización               | ✅ (instantánea)                      | ✅ (electron-updater) | ✅ (stores)       |
+
+**Leyenda:** ✅ completo · ⚠️ limitado · ❌ no disponible
+
+---
+
+## 7.1 Listado de Épicas
+
+| #   | Épica                                      | Story Points  | Sprint(s)            |
+| --- | ------------------------------------------- | ------------- | -------------------- |
+| E01 | Infraestructura y Arquitectura Base         | 32            | 1                    |
+| E02 | Autenticación y Gestión de Usuarios       | 34            | 1-2                  |
+| E03 | Gestión de Biblioteca Musical              | 45            | 2-3                  |
+| E04 | Reproductor Core Multiplataforma            | 50            | 3-4                  |
+| E05 | Sistema de Ecualización Multi-Nivel ⭐     | 55            | 4-5                  |
+| E06 | EQ por Segmentos Temporales ⭐⭐            | 42            | 5-6                  |
+| E07 | Agente IA de Ecualización ⭐⭐             | 50            | 6-7                  |
+| E08 | Playlists, Búsqueda y Organización        | 34            | 7                    |
+| E09 | Sincronización Híbrida                    | 45            | 7-8                  |
+| E10 | Personalización Visual                     | 34            | 8                    |
+| E11 | Features Complementarias                    | 42            | 9                    |
+| E12 | Panel de Administración                    | 34            | 9                    |
+| E13 | Mobile App Flutter                          | 55            | 8-10                 |
+| E14 | **Features Web Específicas (PWA)**🆕 | 21            | 8-9                  |
+| E15 | Testing, QA y Despliegue                    | 42            | 10                   |
+|     | **TOTAL**                             | **615** | **10 sprints** |
 
 ---
 
@@ -832,14 +920,15 @@ def resolve_eq_for_playback(user, track, current_ms, active_playlist=None):
 
 #### PB-001: Setup del Monorepo (5 SP)
 
-**Como** desarrollador, **quiero** un monorepo con los tres proyectos (`backend`, `desktop`, `mobile`) **para** mantener versiones coordinadas.
+**Como** desarrollador, **quiero** un monorepo con los tres proyectos (`backend`, `frontend`, `mobile`) **para** mantener versiones coordinadas.
 
 **Criterios de aceptación:**
 
-* Estructura: `/backend`, `/desktop`, `/mobile`, `/docs`, `/infra`
-* README principal con instrucciones de setup
+* Estructura: `/backend`, `/frontend` (React para web + desktop), `/mobile` (Flutter), `/docs`, `/infra`
+* README principal con instrucciones de setup para cada target
 * `.gitignore`, `.editorconfig`, convenciones de commits (Conventional Commits)
 * Husky + lint-staged configurados
+* Variables de entorno separadas por target (`.env.web`, `.env.electron`, `.env.mobile`)
 
 #### PB-002: Backend Django inicial (8 SP)
 
@@ -854,13 +943,17 @@ def resolve_eq_for_playback(user, track, current_ms, active_playlist=None):
 * CORS configurado
 * Swagger/OpenAPI con `drf-spectacular`
 
-#### PB-003: Frontend Electron + React inicial (5 SP)
+#### PB-003: Frontend React inicial (web + desktop) (8 SP)
 
-* Electron 30 + React 19 + TypeScript + Vite
+* Proyecto React 19 + TypeScript + Vite
 * TailwindCSS + shadcn/ui
 * Rutas base: `/login`, `/app/*` (cliente), `/admin/*` (admin)
 * Zustand + TanStack Query configurados
-* Build para Windows/Mac/Linux
+* **Capa de abstracción de plataforma** (`platform/detector.ts`)
+* **Wrapper Electron** con `electron-builder` para Windows/Mac/Linux
+* **Configuración PWA** con Workbox (manifest, service worker básico)
+* Scripts de build separados: `build:web`, `build:electron`, `dev:web`, `dev:electron`
+* Preload script de Electron con API segura (`contextBridge`)
 
 #### PB-004: Frontend Flutter inicial (3 SP)
 
@@ -1427,52 +1520,95 @@ Responde SIEMPRE en este formato JSON:
 
 ---
 
-### 🧪 ÉPICA E14 — Testing, QA y Despliegue (38 SP)
+### 🌐 ÉPICA E14 — Features Web Específicas (PWA) 🆕 (21 SP)
 
-#### PB-085: Tests unitarios backend (8 SP)
+> **Objetivo:** asegurar que la versión web tenga la mejor experiencia posible dentro de las limitaciones del navegador, y que sea instalable como PWA.
+
+#### PB-085: Configuración PWA completa (5 SP)
+
+* `manifest.json` con iconos, splash screen, theme color
+* Service Worker con Workbox (cache de assets, estrategia stale-while-revalidate)
+* Botón "Instalar app" cuando el navegador lo permite
+* Funcionamiento offline básico (UI cargada, sin conexión al backend)
+
+#### PB-086: Abstracción de File System (5 SP)
+
+* Wrapper que usa `File System Access API` en Chrome/Edge
+* Fallback a `<input type="file" multiple>` en navegadores sin soporte
+* Guardado de handles con IndexedDB para re-acceso
+* UI que explica limitaciones al usuario
+
+#### PB-087: IndexedDB con Dexie para cache local (5 SP)
+
+* Implementar interfaz `LocalDB` con Dexie
+* Mismo esquema que SQLite (Tracks, Playlists, EQConfigs, etc.)
+* Migración de versiones de esquema
+* Cuota de almacenamiento con `navigator.storage.estimate()`
+
+#### PB-088: Media Session API (3 SP)
+
+* Controles de media en el navegador y OS (notificación, lockscreen en mobile web)
+* Metadata (título, artista, portada)
+* Handlers para play/pause/next/prev
+
+#### PB-089: Deployment web automatizado (3 SP)
+
+* Pipeline CI/CD para deploy web a Vercel/Nginx
+* Versiones separadas: `app.musicflow.com` (web) y releases de desktop
+* Analytics (Plausible o similar, respetando privacidad)
+
+---
+
+### 🧪 ÉPICA E15 — Testing, QA y Despliegue (42 SP)
+
+#### PB-090: Tests unitarios backend (8 SP)
 
 * pytest con ≥80% coverage
 * Factories con factory_boy
 * Mocks de Claude API
 
-#### PB-086: Tests de integración backend (5 SP)
+#### PB-091: Tests de integración backend (5 SP)
 
 * Tests de endpoints con APIClient
 * Casos de autorización
 
-#### PB-087: Tests frontend desktop (5 SP)
+#### PB-092: Tests frontend (web + desktop) (8 SP)
 
-* Vitest + React Testing Library
-* Playwright E2E (login, reproducción, EQ, AI)
+* Vitest + React Testing Library (unit)
+* Playwright E2E con dos configuraciones: web y Electron
+* Casos: login, reproducción, EQ, editor de segmentos, agente IA
 
-#### PB-088: Tests mobile Flutter (5 SP)
+#### PB-093: Tests mobile Flutter (5 SP)
 
 * Widget tests
 * Integration tests
 
-#### PB-089: Performance benchmarks (3 SP)
+#### PB-094: Performance benchmarks (3 SP)
 
-* Carga de 1000 tracks <3s
-* Latencia EQ <20ms
+* Carga de 1000 tracks <3s (web y desktop)
+* Latencia EQ <20ms en Web Audio API
 * Tiempo de respuesta IA <5s
+* Lighthouse score web >90
 
-#### PB-090: Documentación completa (5 SP)
+#### PB-095: Documentación completa (5 SP)
 
 * `ARCHITECTURE.md`, `API.md`, `DEPLOYMENT.md`
 * Swagger autogenerado
 * Videos de features clave
 
-#### PB-091: Setup de producción (5 SP)
+#### PB-096: Setup de producción (5 SP)
 
-* Servidores, certificados, dominios
+* Servidores backend, certificados, dominios
+* CDN para web (Cloudflare)
 * Monitoring con Sentry + Grafana
 * Backups automáticos
 
-#### PB-092: Release a stores (2 SP)
+#### PB-097: Release a stores y distribución (3 SP)
 
 * Google Play (Android)
 * App Store (iOS)
-* GitHub Releases (Desktop)
+* GitHub Releases (Desktop: .exe, .dmg, .deb, .AppImage)
+* Deploy web productivo (app.musicflow.com)
 
 ---
 
@@ -1482,19 +1618,19 @@ Responde SIEMPRE en este formato JSON:
 > **Velocidad estimada:** 55-60 SP por sprint (equipo de 6-8 personas)
 > **Duración total:** ~20 semanas (5 meses)
 
-| Sprint              | Semanas | Objetivo Principal                 | SP            | Entregables Clave                                             |
-| ------------------- | ------- | ---------------------------------- | ------------- | ------------------------------------------------------------- |
-| **Sprint 1**  | 1-2     | Fundamentos e infraestructura      | 55            | Monorepo, Django, React, Flutter, Docker, Auth básica        |
-| **Sprint 2**  | 3-4     | Auth completa + biblioteca básica | 58            | Login JWT, registro, upload de tracks, modelo Track           |
-| **Sprint 3**  | 5-6     | Biblioteca + player básico        | 60            | Escaneo local (desktop+mobile), listado, playback básico     |
-| **Sprint 4**  | 7-8     | Player completo + EQ base          | 58            | Mini player, cola, EQ 10 bandas global + presets              |
-| **Sprint 5**  | 9-10    | EQ multi-nivel                     | 60            | EQ por playlist/track, prioridad jerárquica, presets custom  |
-| **Sprint 6**  | 11-12   | EQ por segmentos ⭐                | 55            | Modelo EQSegment, editor timeline, aplicación en tiempo real |
-| **Sprint 7**  | 13-14   | Agente IA ⭐                       | 60            | Integración Claude, chat UI, preview, feedback loop          |
-| **Sprint 8**  | 15-16   | Sincronización + personalización | 58            | Sync delta, conflict resolution, temas, layouts               |
-| **Sprint 9**  | 17-18   | Features complementarias + admin   | 55            | Lyrics, sleep timer, stats, scrobbling, dashboard admin       |
-| **Sprint 10** | 19-20   | QA, mobile avanzado y release      | 61            | Tests, widgets, Android Auto/CarPlay, deploy producción      |
-|                     |         | **TOTAL**                    | **580** |                                                               |
+| Sprint              | Semanas | Objetivo Principal                       | SP            | Entregables Clave                                                     |
+| ------------------- | ------- | ---------------------------------------- | ------------- | --------------------------------------------------------------------- |
+| **Sprint 1**  | 1-2     | Fundamentos e infraestructura            | 58            | Monorepo, Django, React (web+desktop), Flutter, Docker, Auth básica  |
+| **Sprint 2**  | 3-4     | Auth completa + biblioteca básica       | 60            | Login JWT, registro, upload de tracks, modelo Track                   |
+| **Sprint 3**  | 5-6     | Biblioteca + player básico              | 62            | Escaneo local (desktop+mobile, web limitado), listado, playback       |
+| **Sprint 4**  | 7-8     | Player completo + EQ base                | 60            | Mini player, cola, EQ 10 bandas global + presets                      |
+| **Sprint 5**  | 9-10    | EQ multi-nivel                           | 62            | EQ por playlist/track, prioridad jerárquica, presets custom          |
+| **Sprint 6**  | 11-12   | EQ por segmentos ⭐                      | 58            | Modelo EQSegment, editor timeline, aplicación en tiempo real         |
+| **Sprint 7**  | 13-14   | Agente IA ⭐                             | 62            | Integración Claude, chat UI, preview, feedback loop                  |
+| **Sprint 8**  | 15-16   | Sincronización + personalización + PWA | 62            | Sync delta, resolución de conflictos, temas, layouts, PWA setup      |
+| **Sprint 9**  | 17-18   | Features complementarias + admin         | 60            | Lyrics, sleep timer, stats, scrobbling, dashboard admin, features web |
+| **Sprint 10** | 19-20   | QA, mobile avanzado y release            | 71            | Tests, widgets, Android Auto/CarPlay, deploy web+desktop+mobile       |
+|                     |         | **TOTAL**                          | **615** |                                                                       |
 
 ### 🎯 Milestones Clave
 
@@ -1580,18 +1716,20 @@ Responde SIEMPRE en este formato JSON:
 
 ## 13. Gestión de Riesgos
 
-| #   | Riesgo                                        | Probabilidad | Impacto | Mitigación                                                       |
-| --- | --------------------------------------------- | ------------ | ------- | ----------------------------------------------------------------- |
-| R1  | Calidad del agente IA insuficiente            | Media        | Alto    | Prompt engineering iterativo, feedback loop temprano, A/B testing |
-| R2  | Performance del EQ en tiempo real en mobile   | Media        | Alto    | Usar plugins nativos (no JS bridge), benchmarks desde sprint 4    |
-| R3  | Conflictos de sincronización complejos       | Alta         | Medio   | Estrategia LWW simple, logs detallados, UI de resolución manual  |
-| R4  | Costos de la API de Claude inesperados        | Media        | Medio   | Rate limiting, límites por plan, caché de respuestas similares  |
-| R5  | Complejidad del editor de segmentos (UX)      | Alta         | Alto    | Prototipos tempranos con usuarios, iteración de diseño          |
-| R6  | Retrasos en aprobación de stores             | Media        | Bajo    | Empezar submit 2 semanas antes, tener fallback web                |
-| R7  | Dependencia de plugins nativos Flutter        | Media        | Alto    | Spikes tempranos (sprint 3), buscar alternativas                  |
-| R8  | Escalabilidad del backend con muchos usuarios | Baja         | Alto    | Diseño stateless, caché Redis, read replicas PostgreSQL         |
-| R9  | Privacidad de datos (GDPR/LGPD)               | Media        | Alto    | Consentimiento explícito, export/delete de datos, legal review   |
-| R10 | Churn del equipo                              | Baja         | Alto    | Documentación exhaustiva, pair programming, knowledge sharing    |
+| #   | Riesgo                                          | Probabilidad | Impacto | Mitigación                                                                                        |
+| --- | ----------------------------------------------- | ------------ | ------- | -------------------------------------------------------------------------------------------------- |
+| R1  | Calidad del agente IA insuficiente              | Media        | Alto    | Prompt engineering iterativo, feedback loop temprano, A/B testing                                  |
+| R2  | Performance del EQ en tiempo real en mobile     | Media        | Alto    | Usar plugins nativos (no JS bridge), benchmarks desde sprint 4                                     |
+| R3  | Conflictos de sincronización complejos         | Alta         | Medio   | Estrategia LWW simple, logs detallados, UI de resolución manual                                   |
+| R4  | Costos de la API de Claude inesperados          | Media        | Medio   | Rate limiting, límites por plan, caché de respuestas similares                                   |
+| R5  | Complejidad del editor de segmentos (UX)        | Alta         | Alto    | Prototipos tempranos con usuarios, iteración de diseño                                           |
+| R6  | Retrasos en aprobación de stores               | Media        | Bajo    | Empezar submit 2 semanas antes, tener fallback web                                                 |
+| R7  | Dependencia de plugins nativos Flutter          | Media        | Alto    | Spikes tempranos (sprint 3), buscar alternativas                                                   |
+| R8  | Escalabilidad del backend con muchos usuarios   | Baja         | Alto    | Diseño stateless, caché Redis, read replicas PostgreSQL                                          |
+| R9  | Privacidad de datos (GDPR/LGPD)                 | Media        | Alto    | Consentimiento explícito, export/delete de datos, legal review                                    |
+| R10 | Churn del equipo                                | Baja         | Alto    | Documentación exhaustiva, pair programming, knowledge sharing                                     |
+| R11 | Limitaciones del navegador para features core   | Alta         | Medio   | Abstracción de plataforma, UI que comunica limitaciones al usuario web, promover descarga desktop |
+| R12 | Diferencias de comportamiento entre navegadores | Media        | Medio   | Tests E2E multi-browser con Playwright, browserslist estricto                                      |
 
 ---
 
@@ -1650,38 +1788,92 @@ backend/
 └── Dockerfile
 ```
 
-### C. Estructura Desktop (Electron + React)
+### C. Estructura Frontend React (Web + Desktop con Electron)
 
 ```
-desktop/
-├── electron/               # proceso principal de Electron
-│   ├── main.ts
-│   ├── preload.ts
-│   └── ipc/
+frontend/
+├── electron/                   # Proceso principal de Electron (solo desktop)
+│   ├── main.ts                 # Entry point de Electron
+│   ├── preload.ts              # Bridge seguro con contextBridge
+│   ├── ipc/                    # Handlers IPC
+│   │   ├── fileSystem.ts       # Acceso a archivos locales
+│   │   ├── sqlite.ts           # Queries a SQLite
+│   │   └── shortcuts.ts        # Atajos globales
+│   └── updater.ts              # Auto-updater
+│
+├── public/
+│   ├── manifest.json           # PWA manifest
+│   └── sw.js                   # Service worker (Workbox)
+│
 ├── src/
-│   ├── admin/              # vista admin
+│   ├── admin/                  # Vista administrador (web + desktop)
 │   │   ├── pages/
+│   │   │   ├── DashboardPage.tsx
+│   │   │   ├── UsersPage.tsx
+│   │   │   ├── AIRequestsPage.tsx
+│   │   │   └── PresetsPage.tsx
 │   │   └── components/
-│   ├── client/             # vista cliente
+│   │
+│   ├── client/                 # Vista cliente (web + desktop)
 │   │   ├── pages/
+│   │   │   ├── LibraryPage.tsx
+│   │   │   ├── PlaylistsPage.tsx
+│   │   │   ├── NowPlayingPage.tsx
+│   │   │   └── SettingsPage.tsx
 │   │   ├── features/
 │   │   │   ├── player/
 │   │   │   ├── equalizer/
-│   │   │   ├── segments/
-│   │   │   ├── ai-agent/
+│   │   │   ├── segments/       # ⭐ Editor de segmentos EQ
+│   │   │   ├── ai-agent/       # ⭐ Chat con agente IA
 │   │   │   ├── library/
 │   │   │   └── playlists/
 │   │   └── components/
-│   ├── shared/             # compartido admin + cliente
-│   │   ├── ui/             # shadcn components
-│   │   ├── api/            # clientes HTTP
-│   │   ├── stores/         # Zustand
+│   │
+│   ├── shared/                 # Compartido admin + cliente + web + desktop
+│   │   ├── ui/                 # shadcn components
+│   │   ├── api/                # Clientes HTTP (TanStack Query)
+│   │   ├── stores/             # Zustand stores
 │   │   ├── hooks/
 │   │   └── utils/
-│   ├── db/                 # SQLite local
+│   │
+│   ├── platform/               # 🔑 Abstracción web vs desktop
+│   │   ├── detector.ts         # isElectron, isWeb, isPWA
+│   │   ├── types.ts            # Interfaces comunes
+│   │   ├── web/                # Implementaciones web
+│   │   │   ├── fileSystem.ts   # File System Access API
+│   │   │   ├── localDB.ts      # IndexedDB + Dexie
+│   │   │   └── notifications.ts
+│   │   └── desktop/            # Implementaciones Electron
+│   │       ├── fileSystem.ts   # window.electronAPI.fs
+│   │       ├── localDB.ts      # window.electronAPI.sqlite
+│   │       └── notifications.ts
+│   │
+│   ├── audio/                  # Motor de audio (Web Audio API, compartido)
+│   │   ├── engine.ts
+│   │   ├── equalizer.ts
+│   │   ├── segments.ts         # Aplicación de EQ por segmento
+│   │   └── effects.ts
+│   │
 │   └── App.tsx
-├── public/
+│
+├── electron-builder.yml        # Config de empaquetado desktop
+├── vite.config.ts              # Build web
+├── vite.config.electron.ts     # Build para Electron
 └── package.json
+```
+
+**Scripts `package.json` sugeridos:**
+
+```json
+{
+  "scripts": {
+    "dev:web": "vite",
+    "dev:electron": "vite --config vite.config.electron.ts & electron .",
+    "build:web": "vite build",
+    "build:electron": "vite build --config vite.config.electron.ts && electron-builder",
+    "build:all": "npm run build:web && npm run build:electron"
+  }
+}
 ```
 
 ### D. Estructura Mobile (Flutter)
