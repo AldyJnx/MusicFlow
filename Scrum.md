@@ -9,21 +9,19 @@
 
 ## 📑 Tabla de Contenidos
 
-1. [Visión del Producto](https://claude.ai/chat/447945ae-068f-4233-9a4b-f3d9f1a8d385#1-visi%C3%B3n-del-producto)
-2. [Objetivos SMART](https://claude.ai/chat/447945ae-068f-4233-9a4b-f3d9f1a8d385#2-objetivos-smart)
-3. [Stakeholders y Roles](https://claude.ai/chat/447945ae-068f-4233-9a4b-f3d9f1a8d385#3-stakeholders-y-roles)
-4. [Stack Tecnológico](https://claude.ai/chat/447945ae-068f-4233-9a4b-f3d9f1a8d385#4-stack-tecnol%C3%B3gico)
-5. [Arquitectura General](https://claude.ai/chat/447945ae-068f-4233-9a4b-f3d9f1a8d385#5-arquitectura-general)
-6. [Modelo de Datos Completo](https://claude.ai/chat/447945ae-068f-4233-9a4b-f3d9f1a8d385#6-modelo-de-datos-completo)
-7. [Épicas del Producto](https://claude.ai/chat/447945ae-068f-4233-9a4b-f3d9f1a8d385#7-%C3%A9picas-del-producto)
-8. [Product Backlog Detallado](https://claude.ai/chat/447945ae-068f-4233-9a4b-f3d9f1a8d385#8-product-backlog-detallado)
-9. [Roadmap de Sprints](https://claude.ai/chat/447945ae-068f-4233-9a4b-f3d9f1a8d385#9-roadmap-de-sprints)
-10. [Definition of Ready / Done](https://claude.ai/chat/447945ae-068f-4233-9a4b-f3d9f1a8d385#10-definition-of-ready--done)
-11. [Ceremonias Scrum](https://claude.ai/chat/447945ae-068f-4233-9a4b-f3d9f1a8d385#11-ceremonias-scrum)
-12. [Métricas y KPIs](https://claude.ai/chat/447945ae-068f-4233-9a4b-f3d9f1a8d385#12-m%C3%A9tricas-y-kpis)
-13. [Gestión de Riesgos](https://claude.ai/chat/447945ae-068f-4233-9a4b-f3d9f1a8d385#13-gesti%C3%B3n-de-riesgos)
-
----
+1. Visión del Producto
+2. Objetivos SMART
+3. Stakeholders y Roles
+4. Stack Tecnológico
+5. Arquitectura General
+6. Modelo de Datos Completo
+7. Épicas del Producto
+8. Product Backlog
+9. DetalladoRoadmap de Sprints
+10. Definition of Ready / Done
+11. Ceremonias Scrum
+12. Métricas y KPIs
+13. Gestión de Riesgos
 
 ## 1. Visión del Producto
 
@@ -171,7 +169,7 @@ export const localDB: LocalDB = platform.isElectron
 ### 🟣 Frontend Mobile (Flutter)
 
 ```yaml
-Framework: Flutter 3.22+ / Dart 3.4+
+Framework: Flutter 3.41 / Dart 3.11.1
 Estado: Riverpod 2.x
 Audio: just_audio + audio_service
 EQ: plugin nativo custom (Android AudioEffects / iOS AVAudioUnitEQ)
@@ -1823,8 +1821,8 @@ frontend/
 │   │   ├── features/
 │   │   │   ├── player/
 │   │   │   ├── equalizer/
-│   │   │   ├── segments/       # ⭐ Editor de segmentos EQ
-│   │   │   ├── ai-agent/       # ⭐ Chat con agente IA
+│   │   │   ├── segments/       # Editor de segmentos EQ
+│   │   │   ├── ai-agent/       # Chat con agente IA
 │   │   │   ├── library/
 │   │   │   └── playlists/
 │   │   └── components/
@@ -1909,7 +1907,7 @@ mobile/
 
 ---
 
-## 🎯 Conclusión
+## pConclusión
 
 Este documento es la **fuente de verdad** del proyecto MusicFlow. Debe vivir en el repositorio (`/docs/SCRUM.md`) y actualizarse al final de cada sprint con:
 
