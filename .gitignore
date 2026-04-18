@@ -1,0 +1,89 @@
+# Dependencies
+node_modules/
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+*.so
+.eggs/
+*.egg-info/
+*.egg
+
+# Virtual environments
+venv/
+ENV/
+env/
+.venv/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Environment files
+.env
+.env.local
+.env.*.local
+*.local
+
+# Build outputs
+dist/
+build/
+out/
+*.log
+
+# Testing
+coverage/
+.coverage
+htmlcov/
+.pytest_cache/
+.nyc_output/
+
+# Docker
+docker-compose.override.yml
+
+# Database
+*.sqlite3
+*.db
+
+# Secrets
+*.pem
+*.key
+credentials.json
+
+# OS files
+Thumbs.db
+ehthumbs.db
+
+# Compiled files
+*.class
+*.dll
+*.exe
+*.o
+*.so
+
+# Package files
+*.jar
+*.war
+*.nar
+*.ear
+*.zip
+*.tar.gz
+*.rar
+
+# Mobile
+/mobile/.dart_tool/
+/mobile/.packages
+/mobile/build/
+/mobile/ios/Pods/
+
+# Frontend
+/frontend/dist-electron/
+/frontend/dist/
+
+# Backend
+/backend/staticfiles/
+/backend/media/
