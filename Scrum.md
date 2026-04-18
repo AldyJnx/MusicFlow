@@ -916,71 +916,71 @@ def resolve_eq_for_playback(user, track, current_ms, active_playlist=None):
 
 ### 🏗️ ÉPICA E01 — Infraestructura y Arquitectura Base (28 SP)
 
-#### PB-001: Setup del Monorepo (5 SP)
+#### PB-001: Setup del Monorepo (5 SP) - COMPLETADO
 
 **Como** desarrollador, **quiero** un monorepo con los tres proyectos (`backend`, `frontend`, `mobile`) **para** mantener versiones coordinadas.
 
 **Criterios de aceptación:**
 
-* Estructura: `/backend`, `/frontend` (React para web + desktop), `/mobile` (Flutter), `/docs`, `/infra`
-* README principal con instrucciones de setup para cada target
-* `.gitignore`, `.editorconfig`, convenciones de commits (Conventional Commits)
-* Husky + lint-staged configurados
-* Variables de entorno separadas por target (`.env.web`, `.env.electron`, `.env.mobile`)
+* [x] Estructura: `/backend`, `/frontend` (React para web + desktop), `/mobile` (Flutter), `/docs`, `/infra`
+* [x] README principal con instrucciones de setup para cada target
+* [x] `.gitignore`, `.editorconfig`, convenciones de commits (Conventional Commits)
+* [ ] Husky + lint-staged configurados
+* [x] Variables de entorno separadas por target (`.env.web`, `.env.electron`, `.env.mobile`)
 
-#### PB-002: Backend Django inicial (8 SP)
+#### PB-002: Backend Django inicial (8 SP) - COMPLETADO
 
 **Como** desarrollador, **quiero** un proyecto Django con DRF configurado **para** empezar a construir la API.
 
 **Criterios de aceptación:**
 
-* Django 5.x + DRF + PostgreSQL + Redis configurados
-* Estructura modular: `apps/auth`, `apps/library`, `apps/equalizer`, `apps/ai_agent`, `apps/analytics`, `apps/sync`, `apps/preferences`, `apps/admin_dashboard`
-* Settings separados por ambiente (`base`, `dev`, `staging`, `prod`)
-* Variables de entorno con `django-environ`
-* CORS configurado
-* Swagger/OpenAPI con `drf-spectacular`
+* [x] Django 5.x + DRF + PostgreSQL + Redis configurados
+* [x] Estructura modular: `apps/auth`, `apps/library`, `apps/equalizer`, `apps/ai_agent`, `apps/analytics`, `apps/sync`, `apps/preferences`, `apps/admin_dashboard`
+* [x] Settings separados por ambiente (`base`, `dev`, `staging`, `prod`)
+* [x] Variables de entorno con `django-environ`
+* [x] CORS configurado
+* [x] Swagger/OpenAPI con `drf-spectacular`
 
-#### PB-003: Frontend React inicial (web + desktop) (8 SP)
+#### PB-003: Frontend React inicial (web + desktop) (8 SP) - COMPLETADO
 
-* Proyecto React 19 + TypeScript + Vite
-* TailwindCSS + shadcn/ui
-* Rutas base: `/login`, `/app/*` (cliente), `/admin/*` (admin)
-* Zustand + TanStack Query configurados
-* **Capa de abstracción de plataforma** (`platform/detector.ts`)
-* **Wrapper Electron** con `electron-builder` para Windows/Mac/Linux
-* **Configuración PWA** con Workbox (manifest, service worker básico)
-* Scripts de build separados: `build:web`, `build:electron`, `dev:web`, `dev:electron`
-* Preload script de Electron con API segura (`contextBridge`)
+* [x] Proyecto React 19 + TypeScript + Vite
+* [x] TailwindCSS + shadcn/ui
+* [x] Rutas base: `/login`, `/app/*` (cliente), `/admin/*` (admin)
+* [x] Zustand + TanStack Query configurados
+* [x] **Capa de abstracción de plataforma** (`platform/detector.ts`)
+* [x] **Wrapper Electron** con `electron-builder` para Windows/Mac/Linux
+* [x] **Configuración PWA** con Workbox (manifest, service worker básico)
+* [x] Scripts de build separados: `build:web`, `build:electron`, `dev:web`, `dev:electron`
+* [x] Preload script de Electron con API segura (`contextBridge`)
 
-#### PB-004: Frontend Flutter inicial (3 SP)
+#### PB-004: Frontend Flutter inicial (3 SP) - COMPLETADO
 
-* Flutter 3.22 + Dart 3.4
-* Riverpod + Dio + Drift
-* Rutas base con `go_router`
-* Build Android e iOS
+* [x] Flutter 3.22 + Dart 3.4
+* [x] Riverpod + Dio + Drift
+* [x] Rutas base con `go_router`
+* [ ] Build Android e iOS
 
-#### PB-005: Docker Compose y CI/CD (5 SP)
+#### PB-005: Docker Compose y CI/CD (5 SP) - EN PROGRESO
 
-* `docker-compose.yml` con Django, PostgreSQL, Redis, Celery, MinIO
-* GitHub Actions: lint + test en PRs
-* Build automático de imágenes Docker
+* [x] `docker-compose.yml` con Django, PostgreSQL, Redis, Celery, MinIO
+* [ ] GitHub Actions: lint + test en PRs
+* [ ] Build automático de imágenes Docker
 
-#### PB-006: Documentación inicial (2 SP)
+#### PB-006: Documentación inicial (2 SP) - EN PROGRESO
 
-* `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`
-* Diagramas de arquitectura en `/docs`
-* Guía de onboarding
+* [ ] `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`
+* [ ] Diagramas de arquitectura en `/docs`
+* [x] Guía de onboarding (README.md completo)
 
 ---
 
 ### 🔐 ÉPICA E02 — Autenticación y Gestión de Usuarios (34 SP)
 
-#### PB-007: Modelo User custom con roles (5 SP)
+#### PB-007: Modelo User custom con roles (5 SP) - COMPLETADO
 
-* Implementar `User` con UUID, `role`, `is_premium`
-* Migración inicial
-* Admin de Django personalizado
+* [x] Implementar `User` con UUID, `role`, `is_premium`
+* [ ] Migración inicial
+* [x] Admin de Django personalizado
 
 #### PB-008: Registro de usuarios (5 SP)
 
@@ -1022,11 +1022,11 @@ def resolve_eq_for_playback(user, track, current_ms, active_playlist=None):
 
 ### 📚 ÉPICA E03 — Gestión de Biblioteca Musical (42 SP)
 
-#### PB-014: Modelo Track completo (5 SP)
+#### PB-014: Modelo Track completo (5 SP) - COMPLETADO
 
-* Campos completos (metadata + archivos + híbrido)
-* Validaciones
-* Admin
+* [x] Campos completos (metadata + archivos + híbrido)
+* [x] Validaciones
+* [x] Admin
 
 #### PB-015: Upload de tracks desde desktop (8 SP)
 
@@ -1118,15 +1118,17 @@ def resolve_eq_for_playback(user, track, current_ms, active_playlist=None):
 
 ### 🎛️ ÉPICA E05 — Sistema de Ecualización Multi-Nivel ⭐ (55 SP)
 
-#### PB-028: Modelo EQPreset + presets del sistema (5 SP)
+#### PB-028: Modelo EQPreset + presets del sistema (5 SP) - EN PROGRESO
 
-* Crear los 10 presets globales (Flat, Rock, Jazz, Pop, Classical, Electronic, Hip-Hop, Metal, Vocal Boost, Bass Heavy)
-* Fixture / data migration
+* [x] Modelo EQPreset creado con todos los campos
+* [ ] Crear los 10 presets globales (Flat, Rock, Jazz, Pop, Classical, Electronic, Hip-Hop, Metal, Vocal Boost, Bass Heavy)
+* [ ] Fixture / data migration
 
-#### PB-029: Modelo EQConfig con scope_type (8 SP)
+#### PB-029: Modelo EQConfig con scope_type (8 SP) - EN PROGRESO
 
-* Migración + validaciones
-* Manager custom con método `resolve_for()`
+* [x] Modelo EQConfig creado con scope_type
+* [ ] Migración + validaciones
+* [ ] Manager custom con método `resolve_for()`
 
 #### PB-030: Ecualizador en Desktop (Web Audio API) (13 SP)
 
@@ -1168,11 +1170,12 @@ def resolve_eq_for_playback(user, track, current_ms, active_playlist=None):
 
 ### ⏱️ ÉPICA E06 — EQ por Segmentos Temporales ⭐⭐ (42 SP)
 
-#### PB-036: Modelo EQSegment completo (5 SP)
+#### PB-036: Modelo EQSegment completo (5 SP) - EN PROGRESO
 
-* Migración con índices
-* Validación de no superposición
-* Manager con método `active_at(ms)`
+* [x] Modelo EQSegment creado con todos los campos
+* [ ] Migración con índices
+* [x] Validación de no superposición
+* [ ] Manager con método `active_at(ms)`
 
 #### PB-037: Editor de segmentos en Desktop (13 SP)
 
