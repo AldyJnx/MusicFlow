@@ -110,8 +110,8 @@ class HomeScreen extends StatelessWidget {
                 Row(
                   children: [
                     Container(
-                      width: 56,
-                      height: 56,
+                      width: 52,
+                      height: 52,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         gradient: const LinearGradient(
@@ -134,6 +134,12 @@ class HomeScreen extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 12),
+                    Expanded(child: _buildTopBrandBar(theme)),
+                  ],
+                ),
+                const SizedBox(height: 18),
+                Row(
+                  children: [
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -474,6 +480,66 @@ class HomeScreen extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildTopBrandBar(ThemeData theme) {
+    return Row(
+      children: [
+        Text(
+          'MusicFlow',
+          style: theme.textTheme.titleLarge?.copyWith(
+            color: _lightBlue,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.06),
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(
+                color: Colors.white.withOpacity(0.05),
+              ),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.workspace_premium_rounded,
+                  size: 16,
+                  color: _accentCyan.withOpacity(0.95),
+                ),
+                const SizedBox(width: 8),
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'PLAN',
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: Colors.white54,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 1,
+                      ),
+                    ),
+                    Text(
+                      'GRATUITO',
+                      style: theme.textTheme.labelMedium?.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.4,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
