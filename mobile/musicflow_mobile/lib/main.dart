@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:musicflow_mobile/features/player/screens/now_playing_screen.dart';
+import 'package:musicflow_mobile/features/ai_agent/screens/ai_chat_screen.dart';
+//import 'package:musicflow_mobile/features/player/screens/now_playing_screen.dart';
 //import 'package:musicflow_mobile/features/auth/register_screen.dart';
 //import 'package:musicflow_mobile/features/profile/screens/profile_screen.dart';
 //import 'package:musicflow_mobile/features/auth/login_screen.dart';
@@ -21,7 +22,7 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
       ),
-      home: const NowPlayingScreen(),
+      home: const AiChatScreen(),
     );
   }
 }
