@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:musicflow_mobile/features/auth/login_screen.dart';
 //import 'package:musicflow_mobile/features/library/screens/biblioteca_screens.dart';
-import 'package:musicflow_mobile/features/library/screens/home_screen.dart';
+//import 'package:musicflow_mobile/features/library/screens/home_screen.dart';
 //import 'package:musicflow_mobile/features/premium/screens/premium_screen.dart';
 
 void main() {
@@ -17,7 +18,7 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
       ),
-      home: const HomeScreen(),
+      home: const LoginScreen(),
     );
   }
 }
