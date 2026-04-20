@@ -125,6 +125,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         const SizedBox(height: 10),
                         _InputContainer(
                           child: TextField(
+                            cursorColor: _accentCyan,
                             keyboardType: TextInputType.emailAddress,
                             style: const TextStyle(color: Colors.white),
                             decoration: _inputDecoration(
@@ -141,6 +142,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         const SizedBox(height: 10),
                         _InputContainer(
                           child: TextField(
+                            cursorColor: _accentCyan,
                             obscureText: _obscurePassword,
                             style: const TextStyle(color: Colors.white),
                             decoration: _inputDecoration(
