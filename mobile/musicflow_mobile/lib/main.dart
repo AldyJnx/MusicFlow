@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 //import 'package:musicflow_mobile/features/library/screens/biblioteca_screens.dart';
-//import 'package:musicflow_mobile/features/library/screens/home_screen.dart';
-import 'package:musicflow_mobile/features/premium/screens/premium_screen.dart';
+import 'package:musicflow_mobile/features/library/screens/home_screen.dart';
+//import 'package:musicflow_mobile/features/premium/screens/premium_screen.dart';
 
 void main() {
   runApp(const MyApp());
@@ -17,7 +17,7 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
       ),
-      home: const PremiumScreen(),
+      home: const HomeScreen(),
     );
   }
 }
