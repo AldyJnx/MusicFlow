@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:musicflow_mobile/features/auth/register_screen.dart';
+//import 'package:musicflow_mobile/features/auth/register_screen.dart';
+import 'package:musicflow_mobile/features/profile/screens/profile_screen.dart';
 //import 'package:musicflow_mobile/features/auth/login_screen.dart';
 //import 'package:musicflow_mobile/features/library/screens/biblioteca_screens.dart';
 //import 'package:musicflow_mobile/features/library/screens/home_screen.dart';
@@ -19,7 +20,7 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
       ),
-      home: const RegisterScreen(),
+      home: const ProfileScreen(),
     );
   }
 }
