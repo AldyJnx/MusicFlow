@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-class BibliotecaScreen extends StatelessWidget {
-  const BibliotecaScreen({super.key});
+class PlaylistScreen extends StatelessWidget {
+  const PlaylistScreen({super.key});
 
   static const Color _primaryBlue = Color(0xFF1E90FF);
   static const Color _accentCyan = Color(0xFF00CFFF);
@@ -495,7 +495,7 @@ class _FilterChip extends StatelessWidget {
         borderRadius: BorderRadius.circular(999),
         gradient: selected
             ? const LinearGradient(
-                colors: [BibliotecaScreen._primaryBlue, BibliotecaScreen._accentCyan],
+                colors: [PlaylistScreen._primaryBlue, PlaylistScreen._accentCyan],
               )
             : null,
         color: selected ? null : Colors.white.withOpacity(0.04),
@@ -508,11 +508,11 @@ class _FilterChip extends StatelessWidget {
                 ),
               ]
             : null,
-      ),
+    ),
         child: Text(
         label,
         style: TextStyle(
-          color: selected ? BibliotecaScreen._bgDark : Colors.white70,
+          color: selected ? PlaylistScreen._bgDark : Colors.white70,
           fontWeight: FontWeight.w700,
         ),
       ),
@@ -608,7 +608,7 @@ class _TrackTile extends StatelessWidget {
           onPressed: () {},
           icon: Icon(
             favorite ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-            color: favorite ? BibliotecaScreen._lightBlue : Colors.white70,
+            color: favorite ? PlaylistScreen._lightBlue : Colors.white70,
           ),
         ),
         IconButton(
