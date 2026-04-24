@@ -1,30 +1,53 @@
-# Backend Dockerfile
-FROM python:3.12-slim
+# =============================================
+# MusicFlow Backend - NestJS + Prisma
+# =============================================
 
-# Set environment variables
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
+# Build stage
+FROM node:20-alpine AS builder
 
-# Set work directory
 WORKDIR /app
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    gcc \
-    libpq-dev \
-    libmagic1 \
-    && rm -rf /var/lib/apt/lists/*
+# Install dependencies
+COPY package*.json ./
+RUN npm ci
 
-# Install Python dependencies
-COPY requirements/base.txt requirements/base.txt
-COPY requirements/prod.txt requirements/prod.txt
-RUN pip install --no-cache-dir -r requirements/prod.txt
-
-# Copy project
+# Copy source
 COPY . .
 
-# Collect static files
-RUN python manage.py collectstatic --noinput
+# Generate Prisma client
+RUN npx prisma generate
 
-# Run gunicorn
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "config.wsgi:application"]
+# Build application
+RUN npm run build
+
+# Production stage
+FROM node:20-alpine AS production
+
+WORKDIR /app
+
+# Create non-root user
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S nestjs -u 1001
+
+# Copy necessary files from builder
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/package*.json ./
+COPY --from=builder /app/prisma ./prisma
+
+# Set environment
+ENV NODE_ENV=production
+ENV PORT=8000
+
+# Switch to non-root user
+USER nestjs
+
+# Expose port
+EXPOSE 8000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:8000/api/health || exit 1
+
+# Run migrations and start app
+CMD ["sh", "-c", "npx prisma migrate deploy && node dist/main.js"]

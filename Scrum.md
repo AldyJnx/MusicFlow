@@ -81,7 +81,7 @@ MusicFlow se distribuye en **3 formatos** con un código base compartido al máx
 | ------------------------------------ | ---------------------------------------------------- | ------------- |
 | **Product Owner**              | Prioriza backlog, define visión, valida entregables | 1             |
 | **Scrum Master**               | Facilita ceremonias, elimina bloqueos                | 1             |
-| **Backend Developer**          | Django, DRF, PostgreSQL, Celery, integración IA     | 2             |
+| **Backend Developer**          | NestJS, Prisma, PostgreSQL, Redis, integración IA   | 2             |
 | **Frontend Desktop Developer** | Electron + React (admin + cliente)                   | 2             |
 | **Mobile Developer**           | Flutter (cliente)                                    | 1-2           |
 | **UX/UI Designer**             | Diseño de interfaces, wireframes, prototipos        | 1             |
@@ -101,17 +101,18 @@ MusicFlow se distribuye en **3 formatos** con un código base compartido al máx
 ### 🔵 Backend
 
 ```yaml
-Framework: Django 5.x + Django REST Framework 3.x
-Lenguaje: Python 3.12+
+Framework: NestJS 10.x
+Lenguaje: TypeScript 5.x / Node.js 20+
+ORM: Prisma 5.x
 Base de datos: PostgreSQL 16
-Cache / Broker: Redis 7
-Task Queue: Celery 5
-Auth: djangorestframework-simplejwt (JWT)
+Cache / Queue: Redis 7 (con BullMQ para jobs)
+Auth: Passport.js + JWT (@nestjs/jwt, @nestjs/passport)
 Storage: AWS S3 / MinIO (archivos de audio)
-WebSockets: Django Channels (opcional, para sync en tiempo real)
+WebSockets: @nestjs/websockets (Socket.IO)
 IA: Claude API (Anthropic) vía anthropic SDK
-Audio metadata: mutagen
-Testing: pytest, pytest-django, factory_boy
+Validación: class-validator + class-transformer
+API Docs: Swagger (@nestjs/swagger)
+Testing: Jest + Supertest
 ```
 
 ### 🟢 Frontend Web + Desktop (React + Electron)

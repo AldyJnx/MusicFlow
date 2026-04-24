@@ -1,0 +1,527 @@
+// ===========================================
+// MusicFlow - Prisma Schema
+// ===========================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ===========================================
+// AUTH - Users & Devices
+// ===========================================
+
+enum UserRole {
+  ADMIN
+  CLIENT
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  username  String   @unique
+  password  String
+  role      UserRole @default(CLIENT)
+  avatar    String?
+  isPremium Boolean  @default(false) @map("is_premium")
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  devices       Device[]
+  tracks        Track[]
+  playlists     Playlist[]
+  eqPresets     EQPreset[]
+  eqConfigs     EQConfig[]
+  eqSegments    EQSegment[]
+  aiRequests    AIRequest[]
+  playHistory   PlayHistory[]
+  listeningStats ListeningStats[]
+  syncLogs      SyncLog[]
+  conflictLogs  ConflictLog[]
+  preferences   UserPreferences?
+
+  @@index([email, role])
+  @@map("users")
+}
+
+enum DeviceType {
+  DESKTOP_WIN
+  DESKTOP_MAC
+  DESKTOP_LINUX
+  WEB
+  MOBILE_ANDROID
+  MOBILE_IOS
+}
+
+model Device {
+  id         String     @id @default(uuid())
+  userId     String     @map("user_id")
+  deviceType DeviceType @map("device_type")
+  deviceName String     @map("device_name")
+  lastSyncAt DateTime?  @map("last_sync_at")
+  fcmToken   String?    @map("fcm_token")
+  isActive   Boolean    @default(true) @map("is_active")
+  createdAt  DateTime   @default(now()) @map("created_at")
+
+  // Relations
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  syncLogs SyncLog[]
+
+  @@map("devices")
+}
+
+// ===========================================
+// LIBRARY - Tracks & Playlists
+// ===========================================
+
+enum TrackSource {
+  LOCAL
+  SYNCED
+  BOTH
+}
+
+enum SyncStatus {
+  PENDING
+  SYNCED
+  FAILED
+}
+
+model Track {
+  id        String @id @default(uuid())
+  userId    String @map("user_id")
+
+  // Metadata
+  title       String
+  artist      String
+  album       String   @default("")
+  albumArtist String   @default("") @map("album_artist")
+  genre       String   @default("")
+  year        Int?
+  trackNumber Int?     @map("track_number")
+  discNumber  Int?     @map("disc_number")
+  composer    String   @default("")
+  comment     String   @default("")
+  durationMs  Int      @map("duration_ms")
+
+  // Files
+  filePathLocal  String?  @map("file_path_local")
+  fileUrlRemote  String?  @map("file_url_remote")
+  fileHash       String   @map("file_hash")
+  fileSizeBytes  BigInt?  @map("file_size_bytes")
+  codec          String   @default("")
+  bitrate        Int?
+  sampleRate     Int?     @map("sample_rate")
+  coverArt       String?  @map("cover_art")
+
+  // Hybrid storage
+  source     TrackSource @default(LOCAL)
+  syncStatus SyncStatus  @default(PENDING) @map("sync_status")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  playlistTracks PlaylistTrack[]
+  segments       EQSegment[]
+  aiRequests     AIRequest[]
+  playHistory    PlayHistory[]
+
+  @@unique([userId, fileHash])
+  @@index([artist])
+  @@index([album])
+  @@index([genre])
+  @@index([userId, fileHash])
+  @@index([userId, syncStatus])
+  @@index([userId, updatedAt(sort: Desc)])
+  @@map("tracks")
+}
+
+model Playlist {
+  id          String  @id @default(uuid())
+  userId      String  @map("user_id")
+  name        String
+  description String  @default("")
+  coverArt    String? @map("cover_art")
+  isPublic    Boolean @default(false) @map("is_public")
+  shareToken  String? @unique @map("share_token")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  user   User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tracks PlaylistTrack[]
+
+  @@index([userId, updatedAt(sort: Desc)])
+  @@map("playlists")
+}
+
+model PlaylistTrack {
+  id         String   @id @default(uuid())
+  playlistId String   @map("playlist_id")
+  trackId    String   @map("track_id")
+  position   Int
+  addedAt    DateTime @default(now()) @map("added_at")
+
+  // Relations
+  playlist Playlist @relation(fields: [playlistId], references: [id], onDelete: Cascade)
+  track    Track    @relation(fields: [trackId], references: [id], onDelete: Cascade)
+
+  @@unique([playlistId, trackId])
+  @@map("playlist_tracks")
+}
+
+// ===========================================
+// EQUALIZER - Presets, Configs & Segments
+// ===========================================
+
+enum ReverbPreset {
+  NONE
+  SMALL_ROOM
+  MEDIUM_ROOM
+  LARGE_ROOM
+  SMALL_HALL
+  LARGE_HALL
+  CATHEDRAL
+  PLATE
+  SPRING
+}
+
+model EQPreset {
+  id       String  @id @default(uuid())
+  userId   String? @map("user_id")
+  name     String
+  isGlobal Boolean @default(false) @map("is_global")
+
+  // 10 bands: [31Hz, 62Hz, 125Hz, 250Hz, 500Hz, 1k, 2k, 4k, 8k, 16k]
+  // Values: -15 to +15 dB
+  bands Json @default("[]")
+
+  bassBoost    Int          @default(0) @map("bass_boost")     // 0-100
+  virtualizer  Int          @default(0)                        // 0-100
+  loudness     Int          @default(0)                        // 0-100
+  reverbPreset ReverbPreset @default(NONE) @map("reverb_preset")
+  reverbAmount Int          @default(0) @map("reverb_amount")  // 0-100
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  user    User?      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  configs EQConfig[]
+
+  @@index([userId, isGlobal])
+  @@map("eq_presets")
+}
+
+enum EQScopeType {
+  GLOBAL
+  PLAYLIST
+  TRACK
+  SEGMENT
+}
+
+model EQConfig {
+  id       String      @id @default(uuid())
+  userId   String      @map("user_id")
+  scopeType EQScopeType @map("scope_type")
+  scopeId  String?     @map("scope_id")
+
+  presetId String? @map("preset_id")
+
+  // Custom config (when preset is null)
+  bands        Json         @default("[]")
+  bassBoost    Int          @default(0) @map("bass_boost")
+  virtualizer  Int          @default(0)
+  loudness     Int          @default(0)
+  reverbPreset ReverbPreset @default(NONE) @map("reverb_preset")
+  reverbAmount Int          @default(0) @map("reverb_amount")
+
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  preset      EQPreset?    @relation(fields: [presetId], references: [id], onDelete: SetNull)
+  segment     EQSegment?
+  playHistory PlayHistory[]
+
+  @@unique([userId, scopeType, scopeId])
+  @@index([userId, scopeType, scopeId])
+  @@index([userId, updatedAt(sort: Desc)])
+  @@map("eq_configs")
+}
+
+enum EQSegmentCreatedBy {
+  MANUAL
+  AI
+}
+
+model EQSegment {
+  id           String   @id @default(uuid())
+  trackId      String   @map("track_id")
+  userId       String   @map("user_id")
+  eqConfigId   String   @unique @map("eq_config_id")
+
+  label        String   @default("")
+  startMs      Int      @map("start_ms")
+  endMs        Int      @map("end_ms")
+  transitionMs Int      @default(500) @map("transition_ms")
+
+  createdBy    EQSegmentCreatedBy @default(MANUAL) @map("created_by")
+  aiRequestId  String?            @map("ai_request_id")
+
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  track     Track      @relation(fields: [trackId], references: [id], onDelete: Cascade)
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  eqConfig  EQConfig   @relation(fields: [eqConfigId], references: [id], onDelete: Cascade)
+  aiRequest AIRequest? @relation(fields: [aiRequestId], references: [id], onDelete: SetNull)
+
+  @@index([trackId, startMs, endMs])
+  @@index([userId, updatedAt(sort: Desc)])
+  @@map("eq_segments")
+}
+
+// ===========================================
+// AI AGENT
+// ===========================================
+
+enum AIAppliedTo {
+  GLOBAL
+  PLAYLIST
+  TRACK
+  SEGMENT
+}
+
+enum AIFeedback {
+  GOOD
+  BAD
+  NEUTRAL
+}
+
+model AIRequest {
+  id      String  @id @default(uuid())
+  userId  String  @map("user_id")
+  trackId String? @map("track_id")
+
+  prompt      String
+  context     Json   @default("{}")
+  response    Json   @default("{}")
+  explanation String @default("")
+
+  appliedTo AIAppliedTo? @map("applied_to")
+  appliedId String?      @map("applied_id")
+
+  wasAccepted     Boolean     @default(false) @map("was_accepted")
+  feedback        AIFeedback?
+  feedbackComment String      @default("") @map("feedback_comment")
+
+  tokensInput    Int     @default(0) @map("tokens_input")
+  tokensOutput   Int     @default(0) @map("tokens_output")
+  costUsd        Decimal @default(0) @map("cost_usd") @db.Decimal(10, 6)
+  responseTimeMs Int     @default(0) @map("response_time_ms")
+  modelUsed      String  @default("claude-sonnet-4-20250514") @map("model_used")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  track     Track?      @relation(fields: [trackId], references: [id], onDelete: SetNull)
+  segments  EQSegment[]
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([feedback, createdAt(sort: Desc)])
+  @@map("ai_requests")
+}
+
+// ===========================================
+// ANALYTICS
+// ===========================================
+
+enum PlayDevice {
+  DESKTOP
+  WEB
+  MOBILE
+  AUTO
+}
+
+model PlayHistory {
+  id      String @id @default(uuid())
+  userId  String @map("user_id")
+  trackId String @map("track_id")
+
+  playedAt           DateTime @map("played_at")
+  durationListenedMs Int      @map("duration_listened_ms")
+  completed          Boolean  @default(false)
+  skipped            Boolean  @default(false)
+
+  eqConfigUsedId String?    @map("eq_config_used_id")
+  device         PlayDevice
+
+  // Relations
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  track        Track     @relation(fields: [trackId], references: [id], onDelete: Cascade)
+  eqConfigUsed EQConfig? @relation(fields: [eqConfigUsedId], references: [id], onDelete: SetNull)
+
+  @@index([userId, playedAt(sort: Desc)])
+  @@index([trackId, playedAt(sort: Desc)])
+  @@map("play_history")
+}
+
+enum StatsPeriod {
+  DAY
+  WEEK
+  MONTH
+  ALL_TIME
+}
+
+model ListeningStats {
+  id          String      @id @default(uuid())
+  userId      String      @map("user_id")
+  period      StatsPeriod
+  periodStart DateTime    @map("period_start") @db.Date
+
+  totalPlays    Int    @default(0) @map("total_plays")
+  totalTimeMs   BigInt @default(0) @map("total_time_ms")
+  uniqueTracks  Int    @default(0) @map("unique_tracks")
+  uniqueArtists Int    @default(0) @map("unique_artists")
+
+  topTracks    Json @default("[]") @map("top_tracks")
+  topArtists   Json @default("[]") @map("top_artists")
+  topAlbums    Json @default("[]") @map("top_albums")
+  topEqPresets Json @default("[]") @map("top_eq_presets")
+
+  computedAt DateTime @updatedAt @map("computed_at")
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, period, periodStart])
+  @@index([userId, period, periodStart(sort: Desc)])
+  @@map("listening_stats")
+}
+
+// ===========================================
+// SYNC
+// ===========================================
+
+model SyncLog {
+  id       String @id @default(uuid())
+  userId   String @map("user_id")
+  deviceId String @map("device_id")
+
+  startedAt  DateTime  @default(now()) @map("started_at")
+  finishedAt DateTime? @map("finished_at")
+
+  entitiesUploaded   Int @default(0) @map("entities_uploaded")
+  entitiesDownloaded Int @default(0) @map("entities_downloaded")
+  conflictsDetected  Int @default(0) @map("conflicts_detected")
+
+  success      Boolean @default(false)
+  errorMessage String  @default("") @map("error_message")
+
+  // Relations
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  device Device @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@map("sync_logs")
+}
+
+enum ConflictResolution {
+  LOCAL_WINS
+  SERVER_WINS
+  MERGE
+}
+
+model ConflictLog {
+  id     String @id @default(uuid())
+  userId String @map("user_id")
+
+  entityType String @map("entity_type")
+  entityId   String @map("entity_id")
+
+  localVersion  Json @map("local_version")
+  serverVersion Json @map("server_version")
+
+  resolved   Boolean             @default(false)
+  resolution ConflictResolution?
+  resolvedAt DateTime?           @map("resolved_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("conflict_logs")
+}
+
+// ===========================================
+// PREFERENCES
+// ===========================================
+
+enum PlayerLayout {
+  COMPACT
+  STANDARD
+  EXPANDED
+  MINIMAL
+}
+
+enum LibraryLayout {
+  LIST
+  GRID
+  CARD
+}
+
+model UserPreferences {
+  userId String @id @map("user_id")
+
+  // Visual theme
+  theme                  String  @default("dark_default")
+  dynamicThemeEnabled    Boolean @default(false) @map("dynamic_theme_enabled")
+  dynamicThemeIntensity  Int     @default(50) @map("dynamic_theme_intensity")
+
+  // Layouts
+  playerLayout   PlayerLayout  @default(STANDARD) @map("player_layout")
+  libraryLayout  LibraryLayout @default(LIST) @map("library_layout")
+  showAlbumArt   Boolean       @default(true) @map("show_album_art")
+  showVisualizer Boolean       @default(false) @map("show_visualizer")
+  visualizerType String        @default("bars") @map("visualizer_type")
+
+  // Playback
+  crossfadeEnabled    Boolean @default(false) @map("crossfade_enabled")
+  crossfadeDurationMs Int     @default(3000) @map("crossfade_duration_ms")
+  gaplessEnabled      Boolean @default(true) @map("gapless_enabled")
+  replayGain          Boolean @default(false) @map("replay_gain")
+  skipSilence         Boolean @default(false) @map("skip_silence")
+
+  // Sleep timer
+  sleepTimerDefaultMin Int?    @map("sleep_timer_default_min")
+  sleepTimerFadeOut    Boolean @default(true) @map("sleep_timer_fade_out")
+
+  // Scrobbling
+  lastfmUsername   String  @default("") @map("lastfm_username")
+  lastfmSessionKey String  @default("") @map("lastfm_session_key")
+  scrobbleEnabled  Boolean @default(false) @map("scrobble_enabled")
+  scrobbleThreshold Int    @default(50) @map("scrobble_threshold")
+
+  // Lyrics
+  lyricsFontSize  Int     @default(16) @map("lyrics_font_size")
+  lyricsAutoScroll Boolean @default(true) @map("lyrics_auto_scroll")
+
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_preferences")
+}
