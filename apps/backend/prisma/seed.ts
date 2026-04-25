@@ -44,7 +44,7 @@ async function main() {
   console.log(`Created ${globalPresets.length} global EQ presets`);
 
   // Create demo admin user (password: Admin123!)
-  const bcrypt = await import('bcrypt');
+  const bcrypt = await import('bcryptjs');
   const adminPassword = await bcrypt.hash('Admin123!', 10);
 
   await prisma.user.upsert({
