@@ -29,6 +29,11 @@ model User {
   avatar    String?
   isPremium Boolean  @default(false) @map("is_premium")
   isActive  Boolean  @default(true) @map("is_active")
+
+  // Password reset
+  passwordResetToken   String?   @map("password_reset_token")
+  passwordResetExpires DateTime? @map("password_reset_expires")
+
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
