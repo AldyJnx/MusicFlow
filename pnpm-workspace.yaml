@@ -1,0 +1,5 @@
+packages:
+  - 'apps/*'
+  - 'packages/*'
+  # Flutter app is external to pnpm
+  - '!apps/mobile'

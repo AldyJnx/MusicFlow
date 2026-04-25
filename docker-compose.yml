@@ -55,19 +55,19 @@ services:
   # NestJS Backend
   backend:
     build:
-      context: ./backend
+      context: ./apps/backend
       dockerfile: Dockerfile
     container_name: musicflow-backend
     environment:
       - NODE_ENV=development
-      - PORT=8000
+      - PORT=3000
       - DATABASE_URL=postgresql://musicflow:musicflow_dev@db:5432/musicflow_db?schema=public
       - JWT_SECRET=dev-jwt-secret-change-in-production
-      - JWT_EXPIRES_IN=7d
+      - JWT_EXPIRES_IN=15m
       - JWT_REFRESH_SECRET=dev-refresh-secret-change-in-production
-      - JWT_REFRESH_EXPIRES_IN=30d
+      - JWT_REFRESH_EXPIRES_IN=7d
       - REDIS_URL=redis://redis:6379
-      - CORS_ORIGINS=http://localhost:3000,http://localhost:5173
+      - CORS_ORIGINS=http://localhost:5173
       - AWS_S3_ENDPOINT=http://minio:9000
       - AWS_ACCESS_KEY_ID=minioadmin
       - AWS_SECRET_ACCESS_KEY=minioadmin
@@ -75,10 +75,10 @@ services:
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
       - ANTHROPIC_MODEL=claude-sonnet-4-20250514
     volumes:
-      - ./backend:/app
+      - ./apps/backend:/app
       - /app/node_modules
     ports:
-      - "8000:8000"
+      - "3000:3000"
     depends_on:
       db:
         condition: service_healthy
@@ -87,19 +87,19 @@ services:
     command: npm run start:dev
 
   # Frontend (React + Vite)
-  frontend:
+  web:
     build:
-      context: ./frontend
+      context: ./apps/web
       dockerfile: Dockerfile
       target: development
-    container_name: musicflow-frontend
+    container_name: musicflow-web
     volumes:
-      - ./frontend:/app
+      - ./apps/web:/app
       - /app/node_modules
     ports:
       - "5173:5173"
     environment:
-      - VITE_API_URL=http://localhost:8000/api
+      - VITE_API_URL=http://localhost:3000
     depends_on:
       - backend
 

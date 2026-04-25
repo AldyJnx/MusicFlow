@@ -74,16 +74,25 @@ ehthumbs.db
 *.tar.gz
 *.rar
 
-# Mobile
-/mobile/.dart_tool/
-/mobile/.packages
-/mobile/build/
-/mobile/ios/Pods/
+# Mobile (Flutter)
+apps/mobile/.dart_tool/
+apps/mobile/.packages
+apps/mobile/build/
+apps/mobile/ios/Pods/
+apps/mobile/.flutter-plugins
+apps/mobile/.flutter-plugins-dependencies
 
-# Frontend
-/frontend/dist-electron/
-/frontend/dist/
+# Frontend (React + Electron)
+apps/web/dist-electron/
+apps/web/dist/
 
-# Backend
-/backend/staticfiles/
-/backend/media/
+# Backend (NestJS)
+apps/backend/dist/
+
+# Monorepo
+.turbo/
+*.tsbuildinfo
+
+# AI Assistant (private)
+.claude/
+CLAUDE.md

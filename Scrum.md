@@ -98,21 +98,35 @@ MusicFlow se distribuye en **3 formatos** con un código base compartido al máx
 
 ## 4. Stack Tecnológico
 
-### 🔵 Backend
+### 🔵 Backend (NestJS + Prisma) ✅ MIGRADO
 
 ```yaml
 Framework: NestJS 10.x
-Lenguaje: TypeScript 5.x / Node.js 20+
+Lenguaje: TypeScript 5.x / Node.js 20 LTS
 ORM: Prisma 5.x
 Base de datos: PostgreSQL 16
 Cache / Queue: Redis 7 (con BullMQ para jobs)
 Auth: Passport.js + JWT (@nestjs/jwt, @nestjs/passport)
 Storage: AWS S3 / MinIO (archivos de audio)
 WebSockets: @nestjs/websockets (Socket.IO)
-IA: Claude API (Anthropic) vía anthropic SDK
+IA: Claude API (Anthropic) vía @anthropic-ai/sdk
 Validación: class-validator + class-transformer
 API Docs: Swagger (@nestjs/swagger)
 Testing: Jest + Supertest
+```
+
+### 📦 Estructura Monorepo ✅ IMPLEMENTADO
+
+```yaml
+Package Manager: pnpm 9.x
+Build Orchestration: Turborepo 2.x
+Workspaces:
+  - apps/backend      # @musicflow/backend (NestJS)
+  - apps/web          # @musicflow/web (React + Electron)
+  - apps/mobile       # Flutter (externo a pnpm)
+  - packages/shared   # @musicflow/shared (tipos, utils)
+  - packages/ui       # @musicflow/ui (shadcn/ui)
+  - packages/config   # @musicflow/config (TSConfig, ESLint)
 ```
 
 ### 🟢 Frontend Web + Desktop (React + Electron)
@@ -196,7 +210,7 @@ Dominio / CDN: Cloudflare
 
 ## 5. Arquitectura General
 
-### 5.1 Diagrama de Componentes
+### 5.1 Diagrama de Componentes ✅ ACTUALIZADO
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
@@ -226,7 +240,7 @@ Dominio / CDN: Cloudflare
 │                        CAPA BACKEND                            │
 │                                                                │
 │  ┌────────────────────────────────────────────────────────────┐│
-│  │             Django REST API (Gunicorn + Nginx)             ││
+│  │              NestJS REST API (Node.js + Nginx)             ││
 │  │  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────────┐   ││
 │  │  │   Auth   │ │ Library  │ │    EQ    │ │  AI Agent    │   ││
 │  │  │  Module  │ │  Module  │ │  Module  │ │   Module     │   ││
@@ -238,8 +252,8 @@ Dominio / CDN: Cloudflare
 │        │              │                │                │      │
 │        ▼              ▼                ▼                ▼      │
 │  ┌──────────┐ ┌──────────────┐ ┌──────────┐ ┌───────────────┐  │
-│  │PostgreSQL│ │  Redis Cache │ │  Celery  │ │   S3/MinIO    │  │
-│  │          │ │   + Broker   │ │  Workers │ │(archivos audio│  │
+│  │PostgreSQL│ │  Redis Cache │ │  BullMQ  │ │   S3/MinIO    │  │
+│  │ + Prisma │ │  + BullMQ    │ │  Workers │ │(archivos audio│  │
 │  └──────────┘ └──────────────┘ └────┬─────┘ └───────────────┘  │
 │                                     │                          │
 │                                     ▼                          │
@@ -250,28 +264,29 @@ Dominio / CDN: Cloudflare
 └────────────────────────────────────────────────────────────────┘
 ```
 
-### 5.2 Flujo de Datos Clave — Agente IA
+### 5.2 Flujo de Datos Clave — Agente IA ✅ ACTUALIZADO
 
 ```
 Usuario: "Quiero más bajos en el coro del minuto 1:30 al 2:10"
    │
    ▼
 Cliente (React/Flutter) → POST /api/ai/eq-suggest
-   │ {prompt, track_id, current_eq, context}
+   │ {prompt, trackId, currentEq, context}
    ▼
-Django View (AIAgentView)
+NestJS Controller (AIAgentController)
    │
-   ├─► Construye prompt enriquecido (contexto de canción, género, EQ actual)
+   ├─► AIAgentService construye prompt enriquecido
+   │   (contexto de canción, género, EQ actual)
    │
    ▼
-Claude API (función específica: generate_eq_config)
+Claude API (@anthropic-ai/sdk)
    │ Respuesta JSON estructurada:
    │ { "bands": [-2, 0, 3, 5, 4, 2, 0, 0, 0, 0], "segment": {"start": 90000, "end": 130000}, "explanation": "..." }
    ▼
-Parser + Validador (Pydantic schema)
+Parser + Validador (class-validator DTO)
    │
-   ├─► Guarda AIRequest en DB
-   ├─► Crea/actualiza EQSegment
+   ├─► Prisma: Guarda AIRequest en DB
+   ├─► Prisma: Crea/actualiza EQSegment
    │
    ▼
 Respuesta al cliente con preview aplicable
@@ -400,461 +415,609 @@ erDiagram
     }
 ```
 
-### 6.2 Definición Detallada de Modelos (Django)
+### 6.2 Definición Detallada de Modelos (Prisma) ✅ MIGRADO
 
-#### 📘 `auth_app/models.py`
+> **Archivo:** `apps/backend/prisma/schema.prisma`
 
-```python
-from django.contrib.auth.models import AbstractUser
-from django.db import models
-import uuid
+#### 📘 User & Device
 
-class User(AbstractUser):
-    ROLE_CHOICES = [('admin', 'Administrador'), ('client', 'Cliente')]
+```prisma
+// Enums
+enum Role {
+  ADMIN
+  CLIENT
+}
 
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    email = models.EmailField(unique=True)
-    role = models.CharField(max_length=10, choices=ROLE_CHOICES, default='client')
-    avatar = models.ImageField(upload_to='avatars/', null=True, blank=True)
-    is_premium = models.BooleanField(default=False)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+enum DeviceType {
+  DESKTOP_WIN
+  DESKTOP_MAC
+  DESKTOP_LINUX
+  MOBILE_ANDROID
+  MOBILE_IOS
+}
 
-    USERNAME_FIELD = 'email'
-    REQUIRED_FIELDS = ['username']
+// User Model
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  username      String    @unique
+  passwordHash  String    @map("password_hash")
+  role          Role      @default(CLIENT)
+  avatar        String?
+  isPremium     Boolean   @default(false) @map("is_premium")
+  isActive      Boolean   @default(true) @map("is_active")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
 
-    class Meta:
-        indexes = [models.Index(fields=['email', 'role'])]
+  // Relations
+  devices       Device[]
+  tracks        Track[]
+  playlists     Playlist[]
+  eqPresets     EQPreset[]
+  eqConfigs     EQConfig[]
+  eqSegments    EQSegment[]
+  aiRequests    AIRequest[]
+  playHistory   PlayHistory[]
+  preferences   UserPreferences?
+  stats         ListeningStats[]
+  syncLogs      SyncLog[]
+  conflicts     ConflictLog[]
 
+  @@index([email, role])
+  @@map("users")
+}
 
-class Device(models.Model):
-    """Registra dispositivos del usuario para sincronización multi-device."""
-    DEVICE_TYPES = [
-        ('desktop_win', 'Desktop Windows'),
-        ('desktop_mac', 'Desktop macOS'),
-        ('desktop_linux', 'Desktop Linux'),
-        ('mobile_android', 'Mobile Android'),
-        ('mobile_ios', 'Mobile iOS'),
-    ]
+// Device Model
+model Device {
+  id          String      @id @default(uuid())
+  userId      String      @map("user_id")
+  deviceType  DeviceType  @map("device_type")
+  deviceName  String      @map("device_name")
+  lastSyncAt  DateTime?   @map("last_sync_at")
+  fcmToken    String?     @map("fcm_token")
+  createdAt   DateTime    @default(now()) @map("created_at")
 
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4)
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='devices')
-    device_type = models.CharField(max_length=20, choices=DEVICE_TYPES)
-    device_name = models.CharField(max_length=100)
-    last_sync_at = models.DateTimeField(null=True, blank=True)
-    fcm_token = models.CharField(max_length=255, null=True, blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
+  // Relations
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  syncLogs    SyncLog[]
+
+  @@map("devices")
+}
 ```
 
-#### 📘 `library/models.py`
+#### 📘 Track & Playlist
 
-```python
-class Track(models.Model):
-    SOURCE_CHOICES = [('local', 'Local'), ('synced', 'Sincronizado'), ('both', 'Ambos')]
-    SYNC_STATUS = [('pending', 'Pendiente'), ('synced', 'Sincronizado'), ('failed', 'Fallido')]
+```prisma
+enum TrackSource {
+  LOCAL
+  SYNCED
+  BOTH
+}
 
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4)
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='tracks')
+enum SyncStatus {
+  PENDING
+  SYNCED
+  FAILED
+}
 
-    # Metadata
-    title = models.CharField(max_length=255)
-    artist = models.CharField(max_length=255, db_index=True)
-    album = models.CharField(max_length=255, db_index=True)
-    album_artist = models.CharField(max_length=255, blank=True)
-    genre = models.CharField(max_length=100, blank=True, db_index=True)
-    year = models.IntegerField(null=True, blank=True)
-    track_number = models.IntegerField(null=True, blank=True)
-    disc_number = models.IntegerField(null=True, blank=True)
-    composer = models.CharField(max_length=255, blank=True)
-    comment = models.TextField(blank=True)
-    duration_ms = models.IntegerField()
+model Track {
+  id              String      @id @default(uuid())
+  userId          String      @map("user_id")
 
-    # Archivos
-    file_path_local = models.CharField(max_length=500, null=True, blank=True)
-    file_url_remote = models.URLField(null=True, blank=True)
-    file_hash = models.CharField(max_length=64, db_index=True)
-    file_size_bytes = models.BigIntegerField(null=True)
-    codec = models.CharField(max_length=20, blank=True)  # mp3, flac, wav, etc.
-    bitrate = models.IntegerField(null=True)
-    sample_rate = models.IntegerField(null=True)
+  // Metadata
+  title           String
+  artist          String
+  album           String
+  albumArtist     String?     @map("album_artist")
+  genre           String?
+  year            Int?
+  trackNumber     Int?        @map("track_number")
+  discNumber      Int?        @map("disc_number")
+  composer        String?
+  comment         String?
+  durationMs      Int         @map("duration_ms")
 
-    cover_art = models.ImageField(upload_to='covers/', null=True, blank=True)
+  // Files
+  filePathLocal   String?     @map("file_path_local")
+  fileUrlRemote   String?     @map("file_url_remote")
+  fileHash        String      @map("file_hash")
+  fileSizeBytes   BigInt?     @map("file_size_bytes")
+  codec           String?
+  bitrate         Int?
+  sampleRate      Int?        @map("sample_rate")
+  coverArt        String?     @map("cover_art")
 
-    # Híbrido
-    source = models.CharField(max_length=10, choices=SOURCE_CHOICES, default='local')
-    sync_status = models.CharField(max_length=10, choices=SYNC_STATUS, default='pending')
+  // Hybrid sync
+  source          TrackSource @default(LOCAL)
+  syncStatus      SyncStatus  @default(PENDING) @map("sync_status")
 
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+  createdAt       DateTime    @default(now()) @map("created_at")
+  updatedAt       DateTime    @updatedAt @map("updated_at")
 
-    class Meta:
-        indexes = [
-            models.Index(fields=['user', 'file_hash']),
-            models.Index(fields=['user', 'sync_status']),
-            models.Index(fields=['user', '-updated_at']),
-        ]
-        unique_together = [('user', 'file_hash')]
+  // Relations
+  user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  playlists       PlaylistTrack[]
+  segments        EQSegment[]
+  playHistory     PlayHistory[]
+  aiRequests      AIRequest[]
 
+  @@unique([userId, fileHash])
+  @@index([artist])
+  @@index([album])
+  @@index([genre])
+  @@index([userId, fileHash])
+  @@index([userId, syncStatus])
+  @@index([userId, updatedAt(sort: Desc)])
+  @@map("tracks")
+}
 
-class Playlist(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4)
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='playlists')
-    name = models.CharField(max_length=150)
-    description = models.TextField(blank=True)
-    cover_art = models.ImageField(upload_to='playlist_covers/', null=True, blank=True)
-    is_public = models.BooleanField(default=False)
-    share_token = models.CharField(max_length=32, unique=True, null=True, blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+model Playlist {
+  id          String    @id @default(uuid())
+  userId      String    @map("user_id")
+  name        String
+  description String?
+  coverArt    String?   @map("cover_art")
+  isPublic    Boolean   @default(false) @map("is_public")
+  shareToken  String?   @unique @map("share_token")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
 
-    tracks = models.ManyToManyField(Track, through='PlaylistTrack', related_name='playlists')
+  // Relations
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tracks      PlaylistTrack[]
 
-    class Meta:
-        indexes = [models.Index(fields=['user', '-updated_at'])]
+  @@index([userId, updatedAt(sort: Desc)])
+  @@map("playlists")
+}
 
+model PlaylistTrack {
+  id          String    @id @default(uuid())
+  playlistId  String    @map("playlist_id")
+  trackId     String    @map("track_id")
+  position    Int
+  addedAt     DateTime  @default(now()) @map("added_at")
 
-class PlaylistTrack(models.Model):
-    playlist = models.ForeignKey(Playlist, on_delete=models.CASCADE)
-    track = models.ForeignKey(Track, on_delete=models.CASCADE)
-    position = models.IntegerField()
-    added_at = models.DateTimeField(auto_now_add=True)
+  // Relations
+  playlist    Playlist  @relation(fields: [playlistId], references: [id], onDelete: Cascade)
+  track       Track     @relation(fields: [trackId], references: [id], onDelete: Cascade)
 
-    class Meta:
-        ordering = ['position']
-        unique_together = [('playlist', 'track')]
+  @@unique([playlistId, trackId])
+  @@index([position])
+  @@map("playlist_tracks")
+}
 ```
 
-#### 📘 `equalizer/models.py`
+#### 📘 EQ Models (Preset, Config, Segment)
 
-```python
-class EQPreset(models.Model):
-    REVERB_CHOICES = [
-        ('none', 'None'), ('small_room', 'Small Room'),
-        ('medium_room', 'Medium Room'), ('large_room', 'Large Room'),
-        ('small_hall', 'Small Hall'), ('large_hall', 'Large Hall'),
-        ('cathedral', 'Cathedral'), ('plate', 'Plate'), ('spring', 'Spring'),
-    ]
+```prisma
+enum ReverbPreset {
+  NONE
+  SMALL_ROOM
+  MEDIUM_ROOM
+  LARGE_ROOM
+  SMALL_HALL
+  LARGE_HALL
+  CATHEDRAL
+  PLATE
+  SPRING
+}
 
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4)
-    user = models.ForeignKey(User, on_delete=models.CASCADE,
-                              null=True, blank=True, related_name='eq_presets')
-    name = models.CharField(max_length=100)
-    is_global = models.BooleanField(default=False)  # True para presets del sistema
+enum ScopeType {
+  GLOBAL
+  PLAYLIST
+  TRACK
+  SEGMENT
+}
 
-    # 10 bandas: 31Hz, 62Hz, 125Hz, 250Hz, 500Hz, 1k, 2k, 4k, 8k, 16k
-    # Valores entre -15 y +15 dB
-    bands = models.JSONField(default=list)  # [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+enum CreatedBy {
+  MANUAL
+  AI
+}
 
-    bass_boost = models.IntegerField(default=0)   # 0-100
-    virtualizer = models.IntegerField(default=0)  # 0-100
-    loudness = models.IntegerField(default=0)     # 0-100
-    reverb_preset = models.CharField(max_length=20, choices=REVERB_CHOICES, default='none')
-    reverb_amount = models.IntegerField(default=0)  # 0-100
+// ⭐ EQ Preset - Plantillas de ecualización
+model EQPreset {
+  id            String        @id @default(uuid())
+  userId        String?       @map("user_id")
+  name          String
+  isGlobal      Boolean       @default(false) @map("is_global")
 
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+  // 10 bands: 31Hz, 62Hz, 125Hz, 250Hz, 500Hz, 1k, 2k, 4k, 8k, 16k
+  // Values: -15 to +15 dB
+  bands         Json          @default("[0,0,0,0,0,0,0,0,0,0]")
 
-    class Meta:
-        indexes = [models.Index(fields=['user', 'is_global'])]
+  bassBoost     Int           @default(0) @map("bass_boost")
+  virtualizer   Int           @default(0)
+  loudness      Int           @default(0)
+  reverbPreset  ReverbPreset  @default(NONE) @map("reverb_preset")
+  reverbAmount  Int           @default(0) @map("reverb_amount")
 
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
 
-class EQConfig(models.Model):
-    """Configuración EQ aplicada a un scope específico."""
-    SCOPE_CHOICES = [
-        ('global', 'Global del usuario'),
-        ('playlist', 'Por playlist'),
-        ('track', 'Por canción'),
-        ('segment', 'Por segmento (uso interno)'),
-    ]
+  // Relations
+  user          User?         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  configs       EQConfig[]
 
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4)
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='eq_configs')
+  @@index([userId, isGlobal])
+  @@map("eq_presets")
+}
 
-    scope_type = models.CharField(max_length=10, choices=SCOPE_CHOICES)
-    scope_id = models.UUIDField(null=True, blank=True)  # ID de playlist/track/segment
+// ⭐ EQ Config - Configuración aplicada a un scope específico
+model EQConfig {
+  id            String        @id @default(uuid())
+  userId        String        @map("user_id")
+  scopeType     ScopeType     @map("scope_type")
+  scopeId       String?       @map("scope_id")
 
-    # Opción 1: usar un preset existente
-    preset = models.ForeignKey(EQPreset, on_delete=models.SET_NULL,
-                                null=True, blank=True, related_name='configs')
+  // Option 1: Use existing preset
+  presetId      String?       @map("preset_id")
 
-    # Opción 2: configuración custom (si preset es null)
-    bands = models.JSONField(default=list)
-    bass_boost = models.IntegerField(default=0)
-    virtualizer = models.IntegerField(default=0)
-    loudness = models.IntegerField(default=0)
-    reverb_preset = models.CharField(max_length=20, default='none')
-    reverb_amount = models.IntegerField(default=0)
+  // Option 2: Custom config (if preset is null)
+  bands         Json          @default("[0,0,0,0,0,0,0,0,0,0]")
+  bassBoost     Int           @default(0) @map("bass_boost")
+  virtualizer   Int           @default(0)
+  loudness      Int           @default(0)
+  reverbPreset  ReverbPreset  @default(NONE) @map("reverb_preset")
+  reverbAmount  Int           @default(0) @map("reverb_amount")
 
-    is_active = models.BooleanField(default=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+  isActive      Boolean       @default(true) @map("is_active")
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
 
-    class Meta:
-        indexes = [
-            models.Index(fields=['user', 'scope_type', 'scope_id']),
-            models.Index(fields=['user', '-updated_at']),
-        ]
-        unique_together = [('user', 'scope_type', 'scope_id')]
+  // Relations
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  preset        EQPreset?     @relation(fields: [presetId], references: [id], onDelete: SetNull)
+  segment       EQSegment?
+  playHistory   PlayHistory[]
 
+  @@unique([userId, scopeType, scopeId])
+  @@index([userId, scopeType, scopeId])
+  @@index([userId, updatedAt(sort: Desc)])
+  @@map("eq_configs")
+}
 
-class EQSegment(models.Model):
-    """⭐ Feature estrella: EQ específico para un rango de tiempo dentro de una canción."""
-    CREATED_BY = [('manual', 'Manual'), ('ai', 'Agente IA')]
+// ⭐⭐ EQ Segment - FEATURE ESTRELLA: EQ por rango de tiempo
+model EQSegment {
+  id            String      @id @default(uuid())
+  trackId       String      @map("track_id")
+  userId        String      @map("user_id")
+  eqConfigId    String      @unique @map("eq_config_id")
 
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4)
-    track = models.ForeignKey(Track, on_delete=models.CASCADE, related_name='segments')
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
+  label         String?     // "Coro", "Puente", "Intro", etc.
+  startMs       Int         @map("start_ms")
+  endMs         Int         @map("end_ms")
+  transitionMs  Int         @default(500) @map("transition_ms")
 
-    label = models.CharField(max_length=50, blank=True)  # "Coro", "Puente", etc.
-    start_ms = models.IntegerField()
-    end_ms = models.IntegerField()
-    transition_ms = models.IntegerField(default=500)  # fade entre segmentos
+  createdBy     CreatedBy   @default(MANUAL) @map("created_by")
+  aiRequestId   String?     @map("ai_request_id")
 
-    eq_config = models.OneToOneField(EQConfig, on_delete=models.CASCADE,
-                                       related_name='segment')
+  createdAt     DateTime    @default(now()) @map("created_at")
+  updatedAt     DateTime    @updatedAt @map("updated_at")
 
-    created_by = models.CharField(max_length=10, choices=CREATED_BY, default='manual')
-    ai_request = models.ForeignKey('ai_agent.AIRequest', on_delete=models.SET_NULL,
-                                     null=True, blank=True)
+  // Relations
+  track         Track       @relation(fields: [trackId], references: [id], onDelete: Cascade)
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  eqConfig      EQConfig    @relation(fields: [eqConfigId], references: [id], onDelete: Cascade)
+  aiRequest     AIRequest?  @relation(fields: [aiRequestId], references: [id], onDelete: SetNull)
 
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        ordering = ['start_ms']
-        indexes = [
-            models.Index(fields=['track', 'start_ms', 'end_ms']),
-            models.Index(fields=['user', '-updated_at']),
-        ]
-
-    def clean(self):
-        if self.start_ms >= self.end_ms:
-            raise ValidationError("start_ms debe ser menor que end_ms")
-        if self.end_ms > self.track.duration_ms:
-            raise ValidationError("end_ms excede la duración del track")
+  @@index([trackId, startMs, endMs])
+  @@index([userId, updatedAt(sort: Desc)])
+  @@map("eq_segments")
+}
 ```
 
-#### 📘 `ai_agent/models.py`
+#### 📘 AI Agent
 
-```python
-class AIRequest(models.Model):
-    APPLIED_TO = [
-        ('global', 'Global'), ('playlist', 'Playlist'),
-        ('track', 'Track'), ('segment', 'Segmento'),
-    ]
-    FEEDBACK = [('good', 'Buena'), ('bad', 'Mala'), ('neutral', 'Neutral')]
+```prisma
+enum AppliedTo {
+  GLOBAL
+  PLAYLIST
+  TRACK
+  SEGMENT
+}
 
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4)
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='ai_requests')
-    track = models.ForeignKey(Track, on_delete=models.SET_NULL, null=True, blank=True)
+enum Feedback {
+  GOOD
+  BAD
+  NEUTRAL
+}
 
-    prompt = models.TextField()
-    context = models.JSONField(default=dict)  # género, EQ actual, mood, etc.
-    response = models.JSONField(default=dict)  # EQ generado por la IA
-    explanation = models.TextField(blank=True)  # explicación humana de la IA
+// ⭐⭐ AI Request - Registro de peticiones al agente IA
+model AIRequest {
+  id              String      @id @default(uuid())
+  userId          String      @map("user_id")
+  trackId         String?     @map("track_id")
 
-    applied_to = models.CharField(max_length=10, choices=APPLIED_TO, null=True, blank=True)
-    applied_id = models.UUIDField(null=True, blank=True)
+  prompt          String
+  context         Json        @default("{}")  // genre, current EQ, mood, etc.
+  response        Json        @default("{}")  // EQ generated by AI
+  explanation     String?
 
-    was_accepted = models.BooleanField(default=False)
-    feedback = models.CharField(max_length=10, choices=FEEDBACK, null=True, blank=True)
-    feedback_comment = models.TextField(blank=True)
+  appliedTo       AppliedTo?  @map("applied_to")
+  appliedId       String?     @map("applied_id")
 
-    tokens_input = models.IntegerField(default=0)
-    tokens_output = models.IntegerField(default=0)
-    cost_usd = models.DecimalField(max_digits=10, decimal_places=6, default=0)
-    response_time_ms = models.IntegerField(default=0)
-    model_used = models.CharField(max_length=50, default='claude-opus-4-7')
+  wasAccepted     Boolean     @default(false) @map("was_accepted")
+  feedback        Feedback?
+  feedbackComment String?     @map("feedback_comment")
 
-    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+  tokensInput     Int         @default(0) @map("tokens_input")
+  tokensOutput    Int         @default(0) @map("tokens_output")
+  costUsd         Decimal     @default(0) @map("cost_usd") @db.Decimal(10, 6)
+  responseTimeMs  Int         @default(0) @map("response_time_ms")
+  modelUsed       String      @default("claude-sonnet-4-20250514") @map("model_used")
 
-    class Meta:
-        indexes = [
-            models.Index(fields=['user', '-created_at']),
-            models.Index(fields=['feedback', '-created_at']),
-        ]
+  createdAt       DateTime    @default(now()) @map("created_at")
+
+  // Relations
+  user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  track           Track?      @relation(fields: [trackId], references: [id], onDelete: SetNull)
+  segments        EQSegment[]
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([feedback, createdAt(sort: Desc)])
+  @@map("ai_requests")
+}
 ```
 
-#### 📘 `analytics/models.py`
+#### 📘 Analytics
 
-```python
-class PlayHistory(models.Model):
-    DEVICES = [('desktop', 'Desktop'), ('mobile', 'Mobile'), ('auto', 'Auto')]
+```prisma
+enum PlayDevice {
+  DESKTOP
+  MOBILE
+  AUTO
+}
 
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4)
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='play_history')
-    track = models.ForeignKey(Track, on_delete=models.CASCADE)
+enum StatsPeriod {
+  DAY
+  WEEK
+  MONTH
+  ALL_TIME
+}
 
-    played_at = models.DateTimeField(db_index=True)
-    duration_listened_ms = models.IntegerField()
-    completed = models.BooleanField(default=False)
-    skipped = models.BooleanField(default=False)
+model PlayHistory {
+  id                String      @id @default(uuid())
+  userId            String      @map("user_id")
+  trackId           String      @map("track_id")
 
-    eq_config_used = models.ForeignKey(EQConfig, on_delete=models.SET_NULL,
-                                         null=True, blank=True)
-    device = models.CharField(max_length=10, choices=DEVICES)
+  playedAt          DateTime    @map("played_at")
+  durationListenedMs Int        @map("duration_listened_ms")
+  completed         Boolean     @default(false)
+  skipped           Boolean     @default(false)
 
-    class Meta:
-        indexes = [
-            models.Index(fields=['user', '-played_at']),
-            models.Index(fields=['track', '-played_at']),
-        ]
+  eqConfigUsedId    String?     @map("eq_config_used_id")
+  device            PlayDevice
 
+  // Relations
+  user              User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  track             Track       @relation(fields: [trackId], references: [id], onDelete: Cascade)
+  eqConfigUsed      EQConfig?   @relation(fields: [eqConfigUsedId], references: [id], onDelete: SetNull)
 
-class ListeningStats(models.Model):
-    """Métricas agregadas pre-calculadas (Celery job)."""
-    PERIODS = [('day', 'Día'), ('week', 'Semana'),
-                ('month', 'Mes'), ('all_time', 'Todo el tiempo')]
+  @@index([userId, playedAt(sort: Desc)])
+  @@index([trackId, playedAt(sort: Desc)])
+  @@map("play_history")
+}
 
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='stats')
-    period = models.CharField(max_length=10, choices=PERIODS)
-    period_start = models.DateField()
+// Métricas agregadas pre-calculadas (BullMQ job)
+model ListeningStats {
+  id            String      @id @default(uuid())
+  userId        String      @map("user_id")
+  period        StatsPeriod
+  periodStart   DateTime    @map("period_start") @db.Date
 
-    total_plays = models.IntegerField(default=0)
-    total_time_ms = models.BigIntegerField(default=0)
-    unique_tracks = models.IntegerField(default=0)
-    unique_artists = models.IntegerField(default=0)
+  totalPlays    Int         @default(0) @map("total_plays")
+  totalTimeMs   BigInt      @default(0) @map("total_time_ms")
+  uniqueTracks  Int         @default(0) @map("unique_tracks")
+  uniqueArtists Int         @default(0) @map("unique_artists")
 
-    top_tracks = models.JSONField(default=list)    # [{track_id, count}, ...]
-    top_artists = models.JSONField(default=list)
-    top_albums = models.JSONField(default=list)
-    top_eq_presets = models.JSONField(default=list)
+  topTracks     Json        @default("[]") @map("top_tracks")
+  topArtists    Json        @default("[]") @map("top_artists")
+  topAlbums     Json        @default("[]") @map("top_albums")
+  topEqPresets  Json        @default("[]") @map("top_eq_presets")
 
-    computed_at = models.DateTimeField(auto_now=True)
+  computedAt    DateTime    @updatedAt @map("computed_at")
 
-    class Meta:
-        unique_together = [('user', 'period', 'period_start')]
-        indexes = [models.Index(fields=['user', 'period', '-period_start'])]
+  // Relations
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, period, periodStart])
+  @@index([userId, period, periodStart(sort: Desc)])
+  @@map("listening_stats")
+}
 ```
 
-#### 📘 `preferences/models.py`
+#### 📘 Preferences
 
-```python
-class UserPreferences(models.Model):
-    PLAYER_LAYOUTS = [('compact', 'Compact'), ('standard', 'Standard'),
-                       ('expanded', 'Expanded'), ('minimal', 'Minimal')]
-    LIBRARY_LAYOUTS = [('list', 'List'), ('grid', 'Grid'), ('card', 'Card')]
+```prisma
+enum PlayerLayout {
+  COMPACT
+  STANDARD
+  EXPANDED
+  MINIMAL
+}
 
-    user = models.OneToOneField(User, on_delete=models.CASCADE,
-                                 primary_key=True, related_name='preferences')
+enum LibraryLayout {
+  LIST
+  GRID
+  CARD
+}
 
-    # Tema visual
-    theme = models.CharField(max_length=30, default='dark_default')
-    dynamic_theme_enabled = models.BooleanField(default=False)
-    dynamic_theme_intensity = models.IntegerField(default=50)
+model UserPreferences {
+  userId                  String        @id @map("user_id")
 
-    # Layouts
-    player_layout = models.CharField(max_length=10, choices=PLAYER_LAYOUTS, default='standard')
-    library_layout = models.CharField(max_length=10, choices=LIBRARY_LAYOUTS, default='list')
-    show_album_art = models.BooleanField(default=True)
-    show_visualizer = models.BooleanField(default=False)
-    visualizer_type = models.CharField(max_length=20, default='bars')
+  // Visual theme
+  theme                   String        @default("dark_default")
+  dynamicThemeEnabled     Boolean       @default(false) @map("dynamic_theme_enabled")
+  dynamicThemeIntensity   Int           @default(50) @map("dynamic_theme_intensity")
 
-    # Playback
-    crossfade_enabled = models.BooleanField(default=False)
-    crossfade_duration_ms = models.IntegerField(default=3000)
-    gapless_enabled = models.BooleanField(default=True)
-    replay_gain = models.BooleanField(default=False)
-    skip_silence = models.BooleanField(default=False)
+  // Layouts
+  playerLayout            PlayerLayout  @default(STANDARD) @map("player_layout")
+  libraryLayout           LibraryLayout @default(LIST) @map("library_layout")
+  showAlbumArt            Boolean       @default(true) @map("show_album_art")
+  showVisualizer          Boolean       @default(false) @map("show_visualizer")
+  visualizerType          String        @default("bars") @map("visualizer_type")
 
-    # Sleep timer
-    sleep_timer_default_min = models.IntegerField(null=True, blank=True)
-    sleep_timer_fade_out = models.BooleanField(default=True)
+  // Playback
+  crossfadeEnabled        Boolean       @default(false) @map("crossfade_enabled")
+  crossfadeDurationMs     Int           @default(3000) @map("crossfade_duration_ms")
+  gaplessEnabled          Boolean       @default(true) @map("gapless_enabled")
+  replayGain              Boolean       @default(false) @map("replay_gain")
+  skipSilence             Boolean       @default(false) @map("skip_silence")
 
-    # Scrobbling
-    lastfm_username = models.CharField(max_length=100, blank=True)
-    lastfm_session_key = models.CharField(max_length=255, blank=True)
-    scrobble_enabled = models.BooleanField(default=False)
-    scrobble_threshold = models.IntegerField(default=50)  # %
+  // Sleep timer
+  sleepTimerDefaultMin    Int?          @map("sleep_timer_default_min")
+  sleepTimerFadeOut       Boolean       @default(true) @map("sleep_timer_fade_out")
 
-    # Letras
-    lyrics_font_size = models.IntegerField(default=16)
-    lyrics_auto_scroll = models.BooleanField(default=True)
+  // Scrobbling
+  lastfmUsername          String?       @map("lastfm_username")
+  lastfmSessionKey        String?       @map("lastfm_session_key")
+  scrobbleEnabled         Boolean       @default(false) @map("scrobble_enabled")
+  scrobbleThreshold       Int           @default(50) @map("scrobble_threshold")
 
-    updated_at = models.DateTimeField(auto_now=True)
+  // Lyrics
+  lyricsFontSize          Int           @default(16) @map("lyrics_font_size")
+  lyricsAutoScroll        Boolean       @default(true) @map("lyrics_auto_scroll")
+
+  updatedAt               DateTime      @updatedAt @map("updated_at")
+
+  // Relations
+  user                    User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_preferences")
+}
 ```
 
-#### 📘 `sync/models.py`
+#### 📘 Sync
 
-```python
-class SyncLog(models.Model):
-    """Registro de sincronizaciones para debugging y auditoría."""
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4)
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
-    device = models.ForeignKey(Device, on_delete=models.CASCADE)
+```prisma
+model SyncLog {
+  id                  String    @id @default(uuid())
+  userId              String    @map("user_id")
+  deviceId            String    @map("device_id")
 
-    started_at = models.DateTimeField(auto_now_add=True)
-    finished_at = models.DateTimeField(null=True, blank=True)
+  startedAt           DateTime  @default(now()) @map("started_at")
+  finishedAt          DateTime? @map("finished_at")
 
-    entities_uploaded = models.IntegerField(default=0)
-    entities_downloaded = models.IntegerField(default=0)
-    conflicts_detected = models.IntegerField(default=0)
+  entitiesUploaded    Int       @default(0) @map("entities_uploaded")
+  entitiesDownloaded  Int       @default(0) @map("entities_downloaded")
+  conflictsDetected   Int       @default(0) @map("conflicts_detected")
 
-    success = models.BooleanField(default=False)
-    error_message = models.TextField(blank=True)
+  success             Boolean   @default(false)
+  errorMessage        String?   @map("error_message")
 
+  // Relations
+  user                User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  device              Device    @relation(fields: [deviceId], references: [id], onDelete: Cascade)
 
-class ConflictLog(models.Model):
-    """Conflictos de sincronización para resolución manual."""
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4)
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
+  @@map("sync_logs")
+}
 
-    entity_type = models.CharField(max_length=50)  # 'EQConfig', 'Playlist', etc.
-    entity_id = models.UUIDField()
+model ConflictLog {
+  id            String    @id @default(uuid())
+  userId        String    @map("user_id")
 
-    local_version = models.JSONField()
-    server_version = models.JSONField()
+  entityType    String    @map("entity_type")  // 'EQConfig', 'Playlist', etc.
+  entityId      String    @map("entity_id")
 
-    resolved = models.BooleanField(default=False)
-    resolution = models.CharField(max_length=20, blank=True)  # 'local_wins', 'server_wins', 'merge'
+  localVersion  Json      @map("local_version")
+  serverVersion Json      @map("server_version")
 
-    created_at = models.DateTimeField(auto_now_add=True)
-    resolved_at = models.DateTimeField(null=True, blank=True)
+  resolved      Boolean   @default(false)
+  resolution    String?   // 'local_wins', 'server_wins', 'merge'
+
+  createdAt     DateTime  @default(now()) @map("created_at")
+  resolvedAt    DateTime? @map("resolved_at")
+
+  // Relations
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("conflict_logs")
+}
 ```
 
-### 6.3 Lógica de Aplicación EQ (Prioridad Jerárquica)
+### 6.3 Lógica de Aplicación EQ (Prioridad Jerárquica) ✅ MIGRADO
 
-```python
-def resolve_eq_for_playback(user, track, current_ms, active_playlist=None):
-    """
-    Resuelve qué configuración EQ aplicar en el momento actual.
-    Prioridad: Segmento > Track > Playlist activa > Global > Flat.
-    """
-    # 1. Buscar segmento activo en el momento actual
-    segment = EQSegment.objects.filter(
-        track=track,
-        user=user,
-        start_ms__lte=current_ms,
-        end_ms__gt=current_ms
-    ).first()
-    if segment:
-        return segment.eq_config, 'segment'
+```typescript
+// apps/backend/src/modules/equalizer/services/eq-resolver.service.ts
 
-    # 2. EQ específico del track
-    track_eq = EQConfig.objects.filter(
-        user=user, scope_type='track', scope_id=track.id, is_active=True
-    ).first()
-    if track_eq:
-        return track_eq, 'track'
+import { Injectable } from '@nestjs/common';
+import { PrismaService } from '@/prisma/prisma.service';
+import { EQConfig, ScopeType } from '@prisma/client';
 
-    # 3. EQ de la playlist activa
-    if active_playlist:
-        playlist_eq = EQConfig.objects.filter(
-            user=user, scope_type='playlist',
-            scope_id=active_playlist.id, is_active=True
-        ).first()
-        if playlist_eq:
-            return playlist_eq, 'playlist'
+type EQSource = 'segment' | 'track' | 'playlist' | 'global' | 'flat';
 
-    # 4. EQ global
-    global_eq = EQConfig.objects.filter(
-        user=user, scope_type='global', is_active=True
-    ).first()
-    if global_eq:
-        return global_eq, 'global'
+@Injectable()
+export class EQResolverService {
+  constructor(private prisma: PrismaService) {}
 
-    # 5. Fallback: Flat
-    return None, 'flat'
+  /**
+   * Resuelve qué configuración EQ aplicar en el momento actual.
+   * Prioridad: Segmento > Track > Playlist activa > Global > Flat.
+   */
+  async resolveEQForPlayback(
+    userId: string,
+    trackId: string,
+    currentMs: number,
+    activePlaylistId?: string,
+  ): Promise<{ config: EQConfig | null; source: EQSource }> {
+    // 1. Buscar segmento activo en el momento actual
+    const segment = await this.prisma.eQSegment.findFirst({
+      where: {
+        trackId,
+        userId,
+        startMs: { lte: currentMs },
+        endMs: { gt: currentMs },
+      },
+      include: { eqConfig: true },
+    });
+    if (segment) {
+      return { config: segment.eqConfig, source: 'segment' };
+    }
+
+    // 2. EQ específico del track
+    const trackEq = await this.prisma.eQConfig.findFirst({
+      where: {
+        userId,
+        scopeType: ScopeType.TRACK,
+        scopeId: trackId,
+        isActive: true,
+      },
+    });
+    if (trackEq) {
+      return { config: trackEq, source: 'track' };
+    }
+
+    // 3. EQ de la playlist activa
+    if (activePlaylistId) {
+      const playlistEq = await this.prisma.eQConfig.findFirst({
+        where: {
+          userId,
+          scopeType: ScopeType.PLAYLIST,
+          scopeId: activePlaylistId,
+          isActive: true,
+        },
+      });
+      if (playlistEq) {
+        return { config: playlistEq, source: 'playlist' };
+      }
+    }
+
+    // 4. EQ global
+    const globalEq = await this.prisma.eQConfig.findFirst({
+      where: {
+        userId,
+        scopeType: ScopeType.GLOBAL,
+        isActive: true,
+      },
+    });
+    if (globalEq) {
+      return { config: globalEq, source: 'global' };
+    }
+
+    // 5. Fallback: Flat
+    return { config: null, source: 'flat' };
+  }
+}
 ```
 
 ---
@@ -929,18 +1092,18 @@ def resolve_eq_for_playback(user, track, current_ms, active_playlist=None):
 * [ ] Husky + lint-staged configurados
 * [x] Variables de entorno separadas por target (`.env.web`, `.env.electron`, `.env.mobile`)
 
-#### PB-002: Backend Django inicial (8 SP) - COMPLETADO
+#### PB-002: Backend NestJS inicial (8 SP) - COMPLETADO ✅ MIGRADO
 
-**Como** desarrollador, **quiero** un proyecto Django con DRF configurado **para** empezar a construir la API.
+**Como** desarrollador, **quiero** un proyecto NestJS con Prisma configurado **para** empezar a construir la API.
 
 **Criterios de aceptación:**
 
-* [x] Django 5.x + DRF + PostgreSQL + Redis configurados
-* [x] Estructura modular: `apps/auth`, `apps/library`, `apps/equalizer`, `apps/ai_agent`, `apps/analytics`, `apps/sync`, `apps/preferences`, `apps/admin_dashboard`
-* [x] Settings separados por ambiente (`base`, `dev`, `staging`, `prod`)
-* [x] Variables de entorno con `django-environ`
-* [x] CORS configurado
-* [x] Swagger/OpenAPI con `drf-spectacular`
+* [x] NestJS 10.x + Prisma 5.x + PostgreSQL + Redis configurados
+* [x] Estructura modular: `src/modules/auth`, `src/modules/library`, `src/modules/equalizer`, `src/modules/ai-agent`, `src/modules/analytics`, `src/modules/sync`, `src/modules/admin`
+* [x] Configuración con `@nestjs/config` por ambiente
+* [x] Variables de entorno con `.env` y `ConfigService`
+* [x] CORS configurado en `main.ts`
+* [x] Swagger/OpenAPI con `@nestjs/swagger`
 
 #### PB-003: Frontend React inicial (web + desktop) (8 SP) - COMPLETADO
 
@@ -963,7 +1126,7 @@ def resolve_eq_for_playback(user, track, current_ms, active_playlist=None):
 
 #### PB-005: Docker Compose y CI/CD (5 SP) - EN PROGRESO
 
-* [x] `docker-compose.yml` con Django, PostgreSQL, Redis, Celery, MinIO
+* [x] `docker-compose.yml` con NestJS, PostgreSQL, Redis, MinIO ✅ MIGRADO
 * [ ] GitHub Actions: lint + test en PRs
 * [ ] Build automático de imágenes Docker
 
@@ -1757,51 +1920,71 @@ test(ai): añadir tests del parser de respuestas
 refactor(sync): simplificar lógica de conflictos
 ```
 
-### B. Estructura de Carpetas del Backend
+### B. Estructura de Carpetas del Backend ✅ MIGRADO (NestJS)
 
 ```
-backend/
-├── config/                 # settings, urls, asgi, wsgi
-│   ├── settings/
-│   │   ├── base.py
-│   │   ├── dev.py
-│   │   ├── staging.py
-│   │   └── prod.py
-│   └── urls.py
-├── apps/
-│   ├── auth_app/
-│   ├── library/
-│   ├── equalizer/
-│   ├── ai_agent/
-│   ├── analytics/
-│   ├── sync/
-│   ├── preferences/
-│   └── admin_dashboard/
-├── core/                   # utils compartidos
-│   ├── permissions.py
-│   ├── pagination.py
-│   └── utils.py
-├── tests/
-├── manage.py
-├── requirements/
-│   ├── base.txt
-│   ├── dev.txt
-│   └── prod.txt
+apps/backend/
+├── src/
+│   ├── main.ts                    # Entry point
+│   ├── app.module.ts              # Root module
+│   ├── prisma/
+│   │   ├── prisma.module.ts
+│   │   └── prisma.service.ts
+│   ├── common/                    # Shared utilities
+│   │   ├── decorators/
+│   │   │   └── current-user.decorator.ts
+│   │   ├── guards/
+│   │   │   ├── jwt-auth.guard.ts
+│   │   │   └── roles.guard.ts
+│   │   ├── filters/
+│   │   │   └── http-exception.filter.ts
+│   │   └── pipes/
+│   │       └── validation.pipe.ts
+│   └── modules/
+│       ├── auth/
+│       │   ├── auth.module.ts
+│       │   ├── auth.controller.ts
+│       │   ├── auth.service.ts
+│       │   ├── dto/
+│       │   └── strategies/
+│       ├── library/
+│       │   ├── tracks/
+│       │   └── playlists/
+│       ├── equalizer/
+│       │   ├── presets/
+│       │   ├── configs/
+│       │   └── segments/
+│       ├── ai-agent/
+│       │   ├── ai-agent.module.ts
+│       │   ├── ai-agent.controller.ts
+│       │   └── ai-agent.service.ts
+│       ├── analytics/
+│       ├── sync/
+│       └── admin/
+├── prisma/
+│   ├── schema.prisma
+│   ├── migrations/
+│   └── seed.ts
+├── test/
+│   ├── app.e2e-spec.ts
+│   └── jest-e2e.json
+├── nest-cli.json
+├── tsconfig.json
+├── package.json
 └── Dockerfile
 ```
 
-### C. Estructura Frontend React (Web + Desktop con Electron)
+### C. Estructura Frontend React (Web + Desktop con Electron) ✅ MIGRADO
 
 ```
-frontend/
+apps/web/
 ├── electron/                   # Proceso principal de Electron (solo desktop)
-│   ├── main.ts                 # Entry point de Electron
-│   ├── preload.ts              # Bridge seguro con contextBridge
-│   ├── ipc/                    # Handlers IPC
-│   │   ├── fileSystem.ts       # Acceso a archivos locales
-│   │   ├── sqlite.ts           # Queries a SQLite
-│   │   └── shortcuts.ts        # Atajos globales
-│   └── updater.ts              # Auto-updater
+│   ├── main.js                 # Entry point de Electron
+│   ├── preload.js              # Bridge seguro con contextBridge
+│   └── ipc/                    # Handlers IPC
+│       ├── fileSystem.ts       # Acceso a archivos locales
+│       ├── sqlite.ts           # Queries a SQLite
+│       └── shortcuts.ts        # Atajos globales
 │
 ├── public/
 │   ├── manifest.json           # PWA manifest
@@ -1832,7 +2015,7 @@ frontend/
 │   │   └── components/
 │   │
 │   ├── shared/                 # Compartido admin + cliente + web + desktop
-│   │   ├── ui/                 # shadcn components
+│   │   ├── ui/                 # shadcn components (via @musicflow/ui)
 │   │   ├── api/                # Clientes HTTP (TanStack Query)
 │   │   ├── stores/             # Zustand stores
 │   │   ├── hooks/
@@ -1858,30 +2041,34 @@ frontend/
 │   │
 │   └── App.tsx
 │
-├── electron-builder.yml        # Config de empaquetado desktop
-├── vite.config.ts              # Build web
-├── vite.config.electron.ts     # Build para Electron
-└── package.json
+├── vite.config.ts              # Build web + Electron
+├── tailwind.config.js
+├── tsconfig.json
+└── package.json                # @musicflow/web
 ```
 
-**Scripts `package.json` sugeridos:**
+**Scripts `package.json`:**
 
 ```json
 {
+  "name": "@musicflow/web",
   "scripts": {
-    "dev:web": "vite",
-    "dev:electron": "vite --config vite.config.electron.ts & electron .",
-    "build:web": "vite build",
-    "build:electron": "vite build --config vite.config.electron.ts && electron-builder",
-    "build:all": "npm run build:web && npm run build:electron"
+    "dev": "vite",
+    "dev:electron": "concurrently \"vite\" \"wait-on http://localhost:5173 && electron .\"",
+    "build": "tsc -b && vite build",
+    "build:electron": "tsc -b && vite build && electron-builder"
+  },
+  "dependencies": {
+    "@musicflow/shared": "workspace:*",
+    "@musicflow/ui": "workspace:*"
   }
 }
 ```
 
-### D. Estructura Mobile (Flutter)
+### D. Estructura Mobile (Flutter) ✅ MIGRADO
 
 ```
-mobile/
+apps/mobile/                    # Externo a pnpm workspaces
 ├── lib/
 │   ├── main.dart
 │   ├── app/
@@ -1902,11 +2089,54 @@ mobile/
 │   │   ├── audio/         # player engine
 │   │   └── widgets/
 │   └── shared/
-│       ├── models/
+│       ├── models/        # Mirrors @musicflow/shared types
 │       └── utils/
 ├── android/
 ├── ios/
 └── pubspec.yaml
+```
+
+### E. Estructura de Packages Compartidos ✅ NUEVO
+
+```
+packages/
+├── shared/                     # @musicflow/shared
+│   ├── src/
+│   │   ├── types/              # Interfaces TypeScript compartidas
+│   │   │   ├── index.ts
+│   │   │   ├── user.ts
+│   │   │   ├── track.ts
+│   │   │   ├── eq.ts
+│   │   │   └── ai.ts
+│   │   ├── constants/
+│   │   │   ├── index.ts
+│   │   │   └── eq.ts           # EQ_FREQUENCIES, EQ_PRESETS
+│   │   └── utils/
+│   │       ├── index.ts
+│   │       └── time.ts
+│   ├── package.json
+│   └── tsconfig.json
+│
+├── ui/                         # @musicflow/ui
+│   ├── src/
+│   │   ├── components/
+│   │   │   ├── button.tsx
+│   │   │   ├── input.tsx
+│   │   │   └── ...             # shadcn/ui components
+│   │   └── utils/
+│   │       └── cn.ts           # clsx + tailwind-merge
+│   ├── tailwind.config.js
+│   ├── package.json
+│   └── tsconfig.json
+│
+└── config/                     # @musicflow/config
+    ├── tsconfig/
+    │   ├── base.json
+    │   ├── react.json
+    │   └── node.json
+    ├── eslint/
+    │   └── index.js
+    └── package.json
 ```
 
 ---

@@ -1,0 +1,13 @@
+{
+  "name": "@musicflow/config",
+  "version": "0.0.0",
+  "private": true,
+  "exports": {
+    "./typescript/base": "./typescript/base.json",
+    "./typescript/react": "./typescript/react.json",
+    "./typescript/nestjs": "./typescript/nestjs.json",
+    "./eslint/base": "./eslint/base.js",
+    "./eslint/react": "./eslint/react.js",
+    "./eslint/nestjs": "./eslint/nestjs.js"
+  }
+}
