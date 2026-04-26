@@ -22,4 +22,6 @@ export type SidebarProps = {
   title?: string
   version?: string
   items: SidebarItem[]
+  collapsed?: boolean
+  onToggleCollapse?: () => void
 }
