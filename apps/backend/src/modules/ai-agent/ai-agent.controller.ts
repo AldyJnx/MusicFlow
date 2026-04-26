@@ -1,57 +1,91 @@
-import { Controller, Get, Post, Body, Param, Query, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
-import { AiAgentService } from './ai-agent.service';
-import { JwtAuthGuard } from '@/common/guards/jwt-auth.guard';
-import { CurrentUser } from '@/common/decorators/current-user.decorator';
-import { AIAppliedTo, AIFeedback } from '@prisma/client';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Param,
+  Query,
+  UseGuards,
+  HttpCode,
+  HttpStatus,
+} from "@nestjs/common";
+import {
+  ApiTags,
+  ApiOperation,
+  ApiBearerAuth,
+  ApiResponse,
+  ApiParam,
+  ApiQuery,
+} from "@nestjs/swagger";
+import { AiAgentService } from "./ai-agent.service";
+import { SuggestEQDto, AcceptSuggestionDto, ProvideFeedbackDto } from "./dto";
+import { JwtAuthGuard } from "@/common/guards/jwt-auth.guard";
+import { CurrentUser } from "@/common/decorators/current-user.decorator";
 
-@ApiTags('ai-agent')
+@ApiTags("ai-agent")
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
-@Controller('ai')
+@Controller("ai")
 export class AiAgentController {
   constructor(private readonly aiAgentService: AiAgentService) {}
 
-  @Post('suggest')
-  @ApiOperation({ summary: 'Get AI EQ suggestion' })
+  @Post("suggest")
+  @ApiOperation({ summary: "Get AI EQ suggestion" })
+  @ApiResponse({ status: 201, description: "EQ suggestion generated" })
   async suggestEQ(
-    @CurrentUser('id') userId: string,
-    @Body() data: {
-      prompt: string;
-      trackId?: string;
-      playlistId?: string;
-      context?: Record<string, unknown>;
-    },
+    @CurrentUser("id") userId: string,
+    @Body() dto: SuggestEQDto,
   ) {
-    return this.aiAgentService.suggestEQ(userId, data);
+    return this.aiAgentService.suggestEQ(userId, dto);
   }
 
-  @Post(':requestId/accept')
-  @ApiOperation({ summary: 'Accept AI suggestion' })
+  @Post(":requestId/accept")
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: "Accept AI suggestion" })
+  @ApiParam({ name: "requestId", description: "AI Request ID" })
+  @ApiResponse({ status: 200, description: "Suggestion accepted" })
+  @ApiResponse({ status: 404, description: "Request not found" })
   async acceptSuggestion(
-    @CurrentUser('id') userId: string,
-    @Param('requestId') requestId: string,
-    @Body() data: { appliedTo: AIAppliedTo; appliedId?: string },
+    @CurrentUser("id") userId: string,
+    @Param("requestId") requestId: string,
+    @Body() dto: AcceptSuggestionDto,
   ) {
-    return this.aiAgentService.acceptSuggestion(requestId, userId, data.appliedTo, data.appliedId);
+    return this.aiAgentService.acceptSuggestion(
+      requestId,
+      userId,
+      dto.appliedTo,
+      dto.appliedId,
+    );
   }
 
-  @Post(':requestId/feedback')
-  @ApiOperation({ summary: 'Provide feedback on AI suggestion' })
+  @Post(":requestId/feedback")
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: "Provide feedback on AI suggestion" })
+  @ApiParam({ name: "requestId", description: "AI Request ID" })
+  @ApiResponse({ status: 200, description: "Feedback recorded" })
+  @ApiResponse({ status: 404, description: "Request not found" })
   async provideFeedback(
-    @CurrentUser('id') userId: string,
-    @Param('requestId') requestId: string,
-    @Body() data: { feedback: AIFeedback; comment?: string },
+    @CurrentUser("id") userId: string,
+    @Param("requestId") requestId: string,
+    @Body() dto: ProvideFeedbackDto,
   ) {
-    return this.aiAgentService.provideFeedback(requestId, userId, data.feedback, data.comment);
+    return this.aiAgentService.provideFeedback(
+      requestId,
+      userId,
+      dto.feedback,
+      dto.comment,
+    );
   }
 
-  @Get('history')
-  @ApiOperation({ summary: 'Get AI suggestion history' })
+  @Get("history")
+  @ApiOperation({ summary: "Get AI suggestion history" })
+  @ApiQuery({ name: "skip", required: false, type: Number })
+  @ApiQuery({ name: "take", required: false, type: Number })
+  @ApiResponse({ status: 200, description: "History retrieved" })
   async getHistory(
-    @CurrentUser('id') userId: string,
-    @Query('skip') skip?: number,
-    @Query('take') take?: number,
+    @CurrentUser("id") userId: string,
+    @Query("skip") skip?: number,
+    @Query("take") take?: number,
   ) {
     return this.aiAgentService.getHistory(userId, { skip, take });
   }
