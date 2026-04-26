@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import ClientLayout from '../layout/ClientLayout'
 
 type LibraryTab = 'Songs' | 'Albums' | 'Artists' | 'Genres'
 type GenreFilter = 'All' | 'Indie' | 'Electronic' | 'Jazz' | 'Rock'
@@ -165,8 +166,8 @@ export default function LibraryPage() {
   }, [activeGenre])
 
   return (
-    <main className="min-h-screen bg-[#090914] text-slate-100">
-      <section className="min-h-screen w-full bg-[radial-gradient(circle_at_top_left,rgba(126,77,255,0.12),transparent_32%),linear-gradient(180deg,#0b0b14_0%,#080810_100%)] px-6 py-6 xl:px-8">
+    <ClientLayout>
+      <section className="min-h-screen w-full bg-[radial-gradient(circle_at_top_left,rgba(126,77,255,0.12),transparent_32%),linear-gradient(180deg,#0b0b14_0%,#080810_100%)] px-6 py-6 text-slate-100 xl:px-8">
         <div className="flex flex-col gap-6">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
             <div className="max-w-2xl">
@@ -363,6 +364,6 @@ export default function LibraryPage() {
           )}
         </div>
       </section>
-    </main>
+    </ClientLayout>
   )
 }
