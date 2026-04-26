@@ -25,22 +25,22 @@
 
 ## 1. Visión del Producto
 
-**MusicFlow** es una plataforma multiplataforma (Desktop + Mobile) de reproducción musical enfocada en la **personalización granular de la ecualización** asistida por un  **agente de inteligencia artificial** .
+**MusicFlow** es una plataforma multiplataforma (Desktop + Mobile) de reproducción musical enfocada en la **personalización granular de la ecualización** asistida por un **agente de inteligencia artificial** .
 
 ### Propuesta de Valor Única
 
-> *"El primer reproductor que entiende tu música a nivel de segundo. Ecualiza el coro distinto al puente, cada canción distinto al resto, cada playlist con su propia personalidad — todo manualmente o pidiéndoselo a una IA en lenguaje natural."*
+> _"El primer reproductor que entiende tu música a nivel de segundo. Ecualiza el coro distinto al puente, cada canción distinto al resto, cada playlist con su propia personalidad — todo manualmente o pidiéndoselo a una IA en lenguaje natural."_
 
 ### Diferenciadores Clave
 
-| Característica                                | MusicFlow | Competencia (Spotify, Poweramp, etc.) |
-| ---------------------------------------------- | --------- | ------------------------------------- |
-| EQ global                                      | ✅        | ✅                                    |
-| EQ por playlist                                | ✅        | ❌                                    |
-| EQ por canción                                | ✅        | Parcial                               |
+| Característica                           | MusicFlow | Competencia (Spotify, Poweramp, etc.) |
+| ---------------------------------------- | --------- | ------------------------------------- |
+| EQ global                                | ✅        | ✅                                    |
+| EQ por playlist                          | ✅        | ❌                                    |
+| EQ por canción                           | ✅        | Parcial                               |
 | **EQ por segmento temporal**             | ✅        | ❌                                    |
 | **Agente IA para configurar EQ**         | ✅        | ❌                                    |
-| Modo híbrido (local + cloud)                  | ✅        | Parcial                               |
+| Modo híbrido (local + cloud)             | ✅        | Parcial                               |
 | **Disponible en Web + Desktop + Mobile** | ✅        | Parcial                               |
 
 ### 🌐 Disponibilidad Multiplataforma
@@ -55,21 +55,21 @@ MusicFlow se distribuye en **3 formatos** con un código base compartido al máx
 
 ### Mercado Objetivo
 
-* **Primario:** Audiófilos y entusiastas de la música (18-45 años) que valoran la calidad de audio.
-* **Secundario:** Usuarios casuales que quieren una experiencia sonora mejorada sin conocimientos técnicos (uso del agente IA).
-* **Terciario:** Productores y DJs que buscan herramientas de personalización rápida.
+- **Primario:** Audiófilos y entusiastas de la música (18-45 años) que valoran la calidad de audio.
+- **Secundario:** Usuarios casuales que quieren una experiencia sonora mejorada sin conocimientos técnicos (uso del agente IA).
+- **Terciario:** Productores y DJs que buscan herramientas de personalización rápida.
 
 ---
 
 ## 2. Objetivos SMART
 
-| #  | Objetivo                                                         | Métrica                                    | Plazo     |
-| -- | ---------------------------------------------------------------- | ------------------------------------------- | --------- |
-| O1 | Lanzar MVP con EQ multi-nivel funcional en desktop y mobile      | App publicada en stores y descargable       | Sprint 7  |
-| O2 | Implementar agente IA con ≥85% de satisfacción de usuario      | Feedback `good`/`total`en `AIRequest` | Sprint 8  |
-| O3 | Lograr sincronización híbrida confiable con ≤2% de conflictos | Logs de sync exitosos                       | Sprint 9  |
-| O4 | Cubrir ≥80% del código backend con tests automatizados         | Coverage report                             | Sprint 10 |
-| O5 | Alcanzar tiempo de carga de biblioteca <3s para 1000 tracks      | Benchmark de performance                    | Sprint 10 |
+| #   | Objetivo                                                      | Métrica                               | Plazo     |
+| --- | ------------------------------------------------------------- | ------------------------------------- | --------- |
+| O1  | Lanzar MVP con EQ multi-nivel funcional en desktop y mobile   | App publicada en stores y descargable | Sprint 7  |
+| O2  | Implementar agente IA con ≥85% de satisfacción de usuario     | Feedback `good`/`total`en `AIRequest` | Sprint 8  |
+| O3  | Lograr sincronización híbrida confiable con ≤2% de conflictos | Logs de sync exitosos                 | Sprint 9  |
+| O4  | Cubrir ≥80% del código backend con tests automatizados        | Coverage report                       | Sprint 10 |
+| O5  | Alcanzar tiempo de carga de biblioteca <3s para 1000 tracks   | Benchmark de performance              | Sprint 10 |
 
 ---
 
@@ -77,22 +77,22 @@ MusicFlow se distribuye en **3 formatos** con un código base compartido al máx
 
 ### Equipo Scrum
 
-| Rol                                  | Responsabilidad                                      | Cantidad      |
-| ------------------------------------ | ---------------------------------------------------- | ------------- |
+| Rol                            | Responsabilidad                                     | Cantidad      |
+| ------------------------------ | --------------------------------------------------- | ------------- |
 | **Product Owner**              | Prioriza backlog, define visión, valida entregables | 1             |
-| **Scrum Master**               | Facilita ceremonias, elimina bloqueos                | 1             |
+| **Scrum Master**               | Facilita ceremonias, elimina bloqueos               | 1             |
 | **Backend Developer**          | NestJS, Prisma, PostgreSQL, Redis, integración IA   | 2             |
-| **Frontend Desktop Developer** | Electron + React (admin + cliente)                   | 2             |
-| **Mobile Developer**           | Flutter (cliente)                                    | 1-2           |
+| **Frontend Desktop Developer** | Electron + React (admin + cliente)                  | 2             |
+| **Mobile Developer**           | Flutter (cliente)                                   | 1-2           |
 | **UX/UI Designer**             | Diseño de interfaces, wireframes, prototipos        | 1             |
-| **QA Engineer**                | Testing manual y automatizado                        | 1             |
-| **DevOps**                     | CI/CD, infraestructura, monitoreo                    | 1 (part-time) |
+| **QA Engineer**                | Testing manual y automatizado                       | 1             |
+| **DevOps**                     | CI/CD, infraestructura, monitoreo                   | 1 (part-time) |
 
 ### Stakeholders Externos
 
-* Usuarios finales (beta testers)
-* Inversionistas / sponsors del proyecto
-* Proveedores: Anthropic (Claude API), proveedor de cloud (AWS/GCP)
+- Usuarios finales (beta testers)
+- Inversionistas / sponsors del proyecto
+- Proveedores: Anthropic (Claude API), proveedor de cloud (AWS/GCP)
 
 ---
 
@@ -121,12 +121,12 @@ Testing: Jest + Supertest
 Package Manager: pnpm 9.x
 Build Orchestration: Turborepo 2.x
 Workspaces:
-  - apps/backend      # @musicflow/backend (NestJS)
-  - apps/web          # @musicflow/web (React + Electron)
-  - apps/mobile       # Flutter (externo a pnpm)
-  - packages/shared   # @musicflow/shared (tipos, utils)
-  - packages/ui       # @musicflow/ui (shadcn/ui)
-  - packages/config   # @musicflow/config (TSConfig, ESLint)
+  - apps/backend # @musicflow/backend (NestJS)
+  - apps/web # @musicflow/web (React + Electron)
+  - apps/mobile # Flutter (externo a pnpm)
+  - packages/shared # @musicflow/shared (tipos, utils)
+  - packages/ui # @musicflow/ui (shadcn/ui)
+  - packages/config # @musicflow/config (TSConfig, ESLint)
 ```
 
 ### 🟢 Frontend Web + Desktop (React + Electron)
@@ -164,9 +164,9 @@ Hosting sugerido: Vercel, Netlify o VPS propio
 ```typescript
 // src/shared/platform/detector.ts
 export const platform = {
-  isElectron: typeof window !== 'undefined' && !!window.electronAPI,
-  isWeb: typeof window !== 'undefined' && !window.electronAPI,
-  isPWAInstalled: window.matchMedia('(display-mode: standalone)').matches,
+  isElectron: typeof window !== "undefined" && !!window.electronAPI,
+  isWeb: typeof window !== "undefined" && !window.electronAPI,
+  isPWAInstalled: window.matchMedia("(display-mode: standalone)").matches,
 };
 
 // src/shared/services/localDB.ts - Abstracción
@@ -298,9 +298,9 @@ Usuario acepta/rechaza → feedback loop
 ### 5.3 Estrategia de Sincronización Híbrida
 
 1. **Los archivos de audio** pueden vivir:
-   * Solo locales (`source=local`)
-   * Solo en servidor (`source=synced`)
-   * En ambos lados (`source=both`)
+   - Solo locales (`source=local`)
+   - Solo en servidor (`source=synced`)
+   - En ambos lados (`source=both`)
 2. **La metadata y configuraciones EQ** SIEMPRE viven en el servidor + caché local (SQLite/Drift).
 3. **Sync delta** : cada entidad tiene `updated_at`. El cliente pregunta `GET /api/sync?since=<timestamp>` y recibe solo los cambios.
 4. **Resolución de conflictos** : Last-Write-Wins por `updated_at`. En caso de edits críticos, se marca `conflict=true` para revisión manual.
@@ -940,11 +940,11 @@ model ConflictLog {
 ```typescript
 // apps/backend/src/modules/equalizer/services/eq-resolver.service.ts
 
-import { Injectable } from '@nestjs/common';
-import { PrismaService } from '@/prisma/prisma.service';
-import { EQConfig, ScopeType } from '@prisma/client';
+import { Injectable } from "@nestjs/common";
+import { PrismaService } from "@/prisma/prisma.service";
+import { EQConfig, ScopeType } from "@prisma/client";
 
-type EQSource = 'segment' | 'track' | 'playlist' | 'global' | 'flat';
+type EQSource = "segment" | "track" | "playlist" | "global" | "flat";
 
 @Injectable()
 export class EQResolverService {
@@ -971,7 +971,7 @@ export class EQResolverService {
       include: { eqConfig: true },
     });
     if (segment) {
-      return { config: segment.eqConfig, source: 'segment' };
+      return { config: segment.eqConfig, source: "segment" };
     }
 
     // 2. EQ específico del track
@@ -984,7 +984,7 @@ export class EQResolverService {
       },
     });
     if (trackEq) {
-      return { config: trackEq, source: 'track' };
+      return { config: trackEq, source: "track" };
     }
 
     // 3. EQ de la playlist activa
@@ -998,7 +998,7 @@ export class EQResolverService {
         },
       });
       if (playlistEq) {
-        return { config: playlistEq, source: 'playlist' };
+        return { config: playlistEq, source: "playlist" };
       }
     }
 
@@ -1011,11 +1011,11 @@ export class EQResolverService {
       },
     });
     if (globalEq) {
-      return { config: globalEq, source: 'global' };
+      return { config: globalEq, source: "global" };
     }
 
     // 5. Fallback: Flat
-    return { config: null, source: 'flat' };
+    return { config: null, source: "flat" };
   }
 }
 ```
@@ -1026,28 +1026,28 @@ export class EQResolverService {
 
 ### 🎯 Matriz de Cobertura por Plataforma
 
-| Feature                           | Web (PWA)                              | Desktop (Electron)    | Mobile (Flutter)  |
-| --------------------------------- | -------------------------------------- | --------------------- | ----------------- |
-| Auth y gestión de cuenta         | ✅                                     | ✅                    | ✅                |
-| Biblioteca desde servidor         | ✅                                     | ✅                    | ✅                |
-| Escaneo de archivos locales       | ⚠️ limitado (File System Access API) | ✅ completo           | ✅ completo       |
-| Upload de tracks al servidor      | ✅                                     | ✅                    | ✅                |
-| Reproducción de audio            | ✅                                     | ✅                    | ✅                |
-| **Ecualizador 10 bandas**⭐ | ✅                                     | ✅                    | ✅                |
-| **EQ multi-nivel**⭐        | ✅                                     | ✅                    | ✅                |
-| **EQ por segmentos**⭐⭐    | ✅                                     | ✅                    | ✅                |
-| **Agente IA**⭐⭐           | ✅                                     | ✅                    | ✅                |
-| Playlists y búsqueda             | ✅                                     | ✅                    | ✅                |
-| Sincronización híbrida          | ✅                                     | ✅                    | ✅                |
-| SQLite local offline              | ❌ (usa IndexedDB)                     | ✅                    | ✅                |
-| Background playback               | ⚠️ (si tab activa)                   | ✅                    | ✅                |
-| Notificaciones del sistema        | ⚠️ (del navegador)                   | ✅ nativas            | ✅ nativas        |
-| Panel de administración          | ✅                                     | ✅                    | ❌ (solo cliente) |
-| Widgets de escritorio/inicio      | ❌                                     | ✅                    | ✅                |
-| Atajos globales de teclado        | ❌                                     | ✅                    | ❌                |
-| Android Auto / CarPlay            | ❌                                     | ❌                    | ✅                |
-| Instalación como app             | ⚠️ PWA                               | ✅ instalador         | ✅ stores         |
-| Auto-actualización               | ✅ (instantánea)                      | ✅ (electron-updater) | ✅ (stores)       |
+| Feature                      | Web (PWA)                            | Desktop (Electron)    | Mobile (Flutter)  |
+| ---------------------------- | ------------------------------------ | --------------------- | ----------------- |
+| Auth y gestión de cuenta     | ✅                                   | ✅                    | ✅                |
+| Biblioteca desde servidor    | ✅                                   | ✅                    | ✅                |
+| Escaneo de archivos locales  | ⚠️ limitado (File System Access API) | ✅ completo           | ✅ completo       |
+| Upload de tracks al servidor | ✅                                   | ✅                    | ✅                |
+| Reproducción de audio        | ✅                                   | ✅                    | ✅                |
+| **Ecualizador 10 bandas**⭐  | ✅                                   | ✅                    | ✅                |
+| **EQ multi-nivel**⭐         | ✅                                   | ✅                    | ✅                |
+| **EQ por segmentos**⭐⭐     | ✅                                   | ✅                    | ✅                |
+| **Agente IA**⭐⭐            | ✅                                   | ✅                    | ✅                |
+| Playlists y búsqueda         | ✅                                   | ✅                    | ✅                |
+| Sincronización híbrida       | ✅                                   | ✅                    | ✅                |
+| SQLite local offline         | ❌ (usa IndexedDB)                   | ✅                    | ✅                |
+| Background playback          | ⚠️ (si tab activa)                   | ✅                    | ✅                |
+| Notificaciones del sistema   | ⚠️ (del navegador)                   | ✅ nativas            | ✅ nativas        |
+| Panel de administración      | ✅                                   | ✅                    | ❌ (solo cliente) |
+| Widgets de escritorio/inicio | ❌                                   | ✅                    | ✅                |
+| Atajos globales de teclado   | ❌                                   | ✅                    | ❌                |
+| Android Auto / CarPlay       | ❌                                   | ❌                    | ✅                |
+| Instalación como app         | ⚠️ PWA                               | ✅ instalador         | ✅ stores         |
+| Auto-actualización           | ✅ (instantánea)                     | ✅ (electron-updater) | ✅ (stores)       |
 
 **Leyenda:** ✅ completo · ⚠️ limitado · ❌ no disponible
 
@@ -1055,24 +1055,24 @@ export class EQResolverService {
 
 ## 7.1 Listado de Épicas
 
-| #   | Épica                                      | Story Points  | Sprint(s)            |
-| --- | ------------------------------------------- | ------------- | -------------------- |
-| E01 | Infraestructura y Arquitectura Base         | 32            | 1                    |
-| E02 | Autenticación y Gestión de Usuarios       | 34            | 1-2                  |
-| E03 | Gestión de Biblioteca Musical              | 45            | 2-3                  |
-| E04 | Reproductor Core Multiplataforma            | 50            | 3-4                  |
-| E05 | Sistema de Ecualización Multi-Nivel ⭐     | 55            | 4-5                  |
-| E06 | EQ por Segmentos Temporales ⭐⭐            | 42            | 5-6                  |
-| E07 | Agente IA de Ecualización ⭐⭐             | 50            | 6-7                  |
-| E08 | Playlists, Búsqueda y Organización        | 34            | 7                    |
-| E09 | Sincronización Híbrida                    | 45            | 7-8                  |
-| E10 | Personalización Visual                     | 34            | 8                    |
-| E11 | Features Complementarias                    | 42            | 9                    |
-| E12 | Panel de Administración                    | 34            | 9                    |
-| E13 | Mobile App Flutter                          | 55            | 8-10                 |
-| E14 | **Features Web Específicas (PWA)**🆕 | 21            | 8-9                  |
-| E15 | Testing, QA y Despliegue                    | 42            | 10                   |
-|     | **TOTAL**                             | **615** | **10 sprints** |
+| #   | Épica                                  | Story Points | Sprint(s)      |
+| --- | -------------------------------------- | ------------ | -------------- |
+| E01 | Infraestructura y Arquitectura Base    | 32           | 1              |
+| E02 | Autenticación y Gestión de Usuarios    | 34           | 1-2            |
+| E03 | Gestión de Biblioteca Musical          | 45           | 2-3            |
+| E04 | Reproductor Core Multiplataforma       | 50           | 3-4            |
+| E05 | Sistema de Ecualización Multi-Nivel ⭐ | 55           | 4-5            |
+| E06 | EQ por Segmentos Temporales ⭐⭐       | 42           | 5-6            |
+| E07 | Agente IA de Ecualización ⭐⭐         | 50           | 6-7            |
+| E08 | Playlists, Búsqueda y Organización     | 34           | 7              |
+| E09 | Sincronización Híbrida                 | 45           | 7-8            |
+| E10 | Personalización Visual                 | 34           | 8              |
+| E11 | Features Complementarias               | 42           | 9              |
+| E12 | Panel de Administración                | 34           | 9              |
+| E13 | Mobile App Flutter                     | 55           | 8-10           |
+| E14 | **Features Web Específicas (PWA)**🆕   | 21           | 8-9            |
+| E15 | Testing, QA y Despliegue               | 42           | 10             |
+|     | **TOTAL**                              | **615**      | **10 sprints** |
 
 ---
 
@@ -1086,11 +1086,11 @@ export class EQResolverService {
 
 **Criterios de aceptación:**
 
-* [x] Estructura: `/backend`, `/frontend` (React para web + desktop), `/mobile` (Flutter), `/docs`, `/infra`
-* [x] README principal con instrucciones de setup para cada target
-* [x] `.gitignore`, `.editorconfig`, convenciones de commits (Conventional Commits)
-* [ ] Husky + lint-staged configurados
-* [x] Variables de entorno separadas por target (`.env.web`, `.env.electron`, `.env.mobile`)
+- [x] Estructura: `/backend`, `/frontend` (React para web + desktop), `/mobile` (Flutter), `/docs`, `/infra`
+- [x] README principal con instrucciones de setup para cada target
+- [x] `.gitignore`, `.editorconfig`, convenciones de commits (Conventional Commits)
+- [x] Husky + lint-staged configurados
+- [x] Variables de entorno separadas por target (`.env.web`, `.env.electron`, `.env.mobile`)
 
 #### PB-002: Backend NestJS inicial (8 SP) - COMPLETADO ✅ MIGRADO
 
@@ -1098,43 +1098,44 @@ export class EQResolverService {
 
 **Criterios de aceptación:**
 
-* [x] NestJS 10.x + Prisma 5.x + PostgreSQL + Redis configurados
-* [x] Estructura modular: `src/modules/auth`, `src/modules/library`, `src/modules/equalizer`, `src/modules/ai-agent`, `src/modules/analytics`, `src/modules/sync`, `src/modules/admin`
-* [x] Configuración con `@nestjs/config` por ambiente
-* [x] Variables de entorno con `.env` y `ConfigService`
-* [x] CORS configurado en `main.ts`
-* [x] Swagger/OpenAPI con `@nestjs/swagger`
+- [x] NestJS 10.x + Prisma 5.x + PostgreSQL + Redis configurados
+- [x] Estructura modular: `src/modules/auth`, `src/modules/library`, `src/modules/equalizer`, `src/modules/ai-agent`, `src/modules/analytics`, `src/modules/sync`, `src/modules/admin`
+- [x] Configuración con `@nestjs/config` por ambiente
+- [x] Variables de entorno con `.env` y `ConfigService`
+- [x] CORS configurado en `main.ts`
+- [x] Swagger/OpenAPI con `@nestjs/swagger`
 
 #### PB-003: Frontend React inicial (web + desktop) (8 SP) - COMPLETADO
 
-* [x] Proyecto React 19 + TypeScript + Vite
-* [x] TailwindCSS + shadcn/ui
-* [x] Rutas base: `/login`, `/app/*` (cliente), `/admin/*` (admin)
-* [x] Zustand + TanStack Query configurados
-* [x] **Capa de abstracción de plataforma** (`platform/detector.ts`)
-* [x] **Wrapper Electron** con `electron-builder` para Windows/Mac/Linux
-* [x] **Configuración PWA** con Workbox (manifest, service worker básico)
-* [x] Scripts de build separados: `build:web`, `build:electron`, `dev:web`, `dev:electron`
-* [x] Preload script de Electron con API segura (`contextBridge`)
+- [x] Proyecto React 19 + TypeScript + Vite
+- [x] TailwindCSS + shadcn/ui
+- [x] Rutas base: `/login`, `/app/*` (cliente), `/admin/*` (admin)
+- [x] Zustand + TanStack Query configurados
+- [x] **Capa de abstracción de plataforma** (`platform/detector.ts`)
+- [x] **Wrapper Electron** con `electron-builder` para Windows/Mac/Linux
+- [x] **Configuración PWA** con Workbox (manifest, service worker básico)
+- [x] Scripts de build separados: `build:web`, `build:electron`, `dev:web`, `dev:electron`
+- [x] Preload script de Electron con API segura (`contextBridge`)
 
 #### PB-004: Frontend Flutter inicial (3 SP) - COMPLETADO
 
-* [x] Flutter 3.22 + Dart 3.4
-* [x] Riverpod + Dio + Drift
-* [x] Rutas base con `go_router`
-* [ ] Build Android e iOS
+- [x] Flutter 3.22 + Dart 3.4
+- [x] Riverpod + Dio + Drift
+- [x] Rutas base con `go_router`
+- [ ] Build Android e iOS
 
-#### PB-005: Docker Compose y CI/CD (5 SP) - EN PROGRESO
+#### PB-005: Docker Compose y CI/CD (5 SP) - COMPLETADO
 
-* [x] `docker-compose.yml` con NestJS, PostgreSQL, Redis, MinIO ✅ MIGRADO
-* [ ] GitHub Actions: lint + test en PRs
-* [ ] Build automático de imágenes Docker
+- [x] `docker-compose.yml` con NestJS, PostgreSQL, Redis, MinIO ✅ MIGRADO
+- [x] GitHub Actions: lint + test en PRs ✅
+- [x] Dependabot para actualizaciones automáticas ✅
+- [ ] Build automático de imágenes Docker (opcional)
 
 #### PB-006: Documentación inicial (2 SP) - EN PROGRESO
 
-* [ ] `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`
-* [ ] Diagramas de arquitectura en `/docs`
-* [x] Guía de onboarding (README.md completo)
+- [ ] `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`
+- [ ] Diagramas de arquitectura en `/docs`
+- [x] Guía de onboarding (README.md completo)
 
 ---
 
@@ -1142,45 +1143,45 @@ export class EQResolverService {
 
 #### PB-007: Modelo User custom con roles (5 SP) - COMPLETADO
 
-* [x] Implementar `User` con UUID, `role`, `is_premium`
-* [ ] Migración inicial
-* [x] Admin de Django personalizado
+- [x] Implementar `User` con UUID, `role`, `is_premium`
+- [ ] Migración inicial
+- [x] Admin de Django personalizado
 
-#### PB-008: Registro de usuarios (5 SP)
+#### PB-008: Registro de usuarios (5 SP) - COMPLETADO ✅
 
-* Endpoint `POST /api/auth/register`
-* Validación de email único, password fuerte
-* Email de verificación (Celery task)
+- [x] Endpoint `POST /api/auth/register`
+- [x] Validación de email único, password fuerte
+- [ ] Email de verificación (pendiente integración SMTP)
 
-#### PB-009: Login con JWT (5 SP)
+#### PB-009: Login con JWT (5 SP) - COMPLETADO ✅
 
-* Endpoints `/api/auth/login`, `/api/auth/refresh`, `/api/auth/logout`
-* JWT con refresh token rotativo
-* Almacenamiento seguro en cliente (httpOnly cookie o keychain)
+- [x] Endpoints `/api/auth/login`, `/api/auth/refresh`, `/api/auth/logout`
+- [x] JWT con refresh token rotativo
+- [x] Almacenamiento seguro en cliente (httpOnly cookie)
 
-#### PB-010: Recuperación de contraseña (5 SP)
+#### PB-010: Recuperación de contraseña (5 SP) - COMPLETADO ✅
 
-* Forgot password con token temporal (15 min)
-* Reset password endpoint
-* Email con link de reseteo
+- [x] Forgot password con token temporal
+- [x] Reset password endpoint
+- [ ] Email con link de reseteo (pendiente integración SMTP)
 
-#### PB-011: Perfil de usuario (5 SP)
+#### PB-011: Perfil de usuario (5 SP) - COMPLETADO ✅
 
-* `GET/PATCH /api/users/me`
-* Upload de avatar (S3/MinIO)
-* Cambio de password
+- [x] `GET/PATCH /api/users/me`
+- [x] Upload de avatar (S3/MinIO)
+- [x] Cambio de password
 
-#### PB-012: Gestión de dispositivos (4 SP)
+#### PB-012: Gestión de dispositivos (4 SP) - COMPLETADO ✅
 
-* Registro de `Device` al hacer login
-* Listado de dispositivos activos
-* Revocar sesión en dispositivo específico
+- [x] Registro de `Device` al hacer login
+- [x] Listado de dispositivos activos
+- [x] Revocar sesión en dispositivo específico
 
 #### PB-013: UI de autenticación (Desktop + Mobile) (5 SP)
 
-* Pantallas de login/registro/forgot
-* Validación de formularios
-* Manejo de errores visible
+- Pantallas de login/registro/forgot
+- Validación de formularios
+- Manejo de errores visible
 
 ---
 
@@ -1188,47 +1189,47 @@ export class EQResolverService {
 
 #### PB-014: Modelo Track completo (5 SP) - COMPLETADO
 
-* [x] Campos completos (metadata + archivos + híbrido)
-* [x] Validaciones
-* [x] Admin
+- [x] Campos completos (metadata + archivos + híbrido)
+- [x] Validaciones
+- [x] Admin
 
 #### PB-015: Upload de tracks desde desktop (8 SP)
 
-* Drag & drop de archivos de audio
-* Extracción de metadata con `mutagen`
-* Cálculo de `file_hash` para evitar duplicados
-* Subida a S3/MinIO (backend) con progreso
-* Feedback visual de progreso
+- Drag & drop de archivos de audio
+- Extracción de metadata con `mutagen`
+- Cálculo de `file_hash` para evitar duplicados
+- Subida a S3/MinIO (backend) con progreso
+- Feedback visual de progreso
 
 #### PB-016: Escaneo local en desktop (8 SP)
 
-* Electron accede al sistema de archivos
-* Recorre carpetas configuradas
-* Extrae metadata con `music-metadata`
-* Guarda Tracks con `source='local'`
+- Electron accede al sistema de archivos
+- Recorre carpetas configuradas
+- Extrae metadata con `music-metadata`
+- Guarda Tracks con `source='local'`
 
 #### PB-017: Escaneo local en mobile (8 SP)
 
-* Flutter con permisos de almacenamiento
-* Scan de audio files con `on_audio_query`
-* Almacena en Drift (local) y marca para sync
+- Flutter con permisos de almacenamiento
+- Scan de audio files con `on_audio_query`
+- Almacena en Drift (local) y marca para sync
 
 #### PB-018: Extracción de portadas (3 SP)
 
-* Extraer `cover_art` de ID3 tags
-* Fallback a placeholder
+- Extraer `cover_art` de ID3 tags
+- Fallback a placeholder
 
 #### PB-019: Listado de biblioteca (5 SP)
 
-* `GET /api/tracks?search=&artist=&album=&page=`
-* Paginación, filtros, orden
-* Respuesta optimizada con `only()`
+- `GET /api/tracks?search=&artist=&album=&page=`
+- Paginación, filtros, orden
+- Respuesta optimizada con `only()`
 
 #### PB-020: Vistas de biblioteca (5 SP)
 
-* Tabs: Songs, Albums, Artists
-* Grid de álbumes, avatares de artistas
-* Pull-to-refresh (mobile)
+- Tabs: Songs, Albums, Artists
+- Grid de álbumes, avatares de artistas
+- Pull-to-refresh (mobile)
 
 ---
 
@@ -1236,47 +1237,47 @@ export class EQResolverService {
 
 #### PB-021: Playback engine Desktop (Web Audio API) (13 SP)
 
-* Load, play, pause, seek, stop
-* Cola de reproducción con next/prev
-* Eventos (onEnded, onTimeUpdate)
-* Abstracción `PlayerEngine` para swap local/remote
+- Load, play, pause, seek, stop
+- Cola de reproducción con next/prev
+- Eventos (onEnded, onTimeUpdate)
+- Abstracción `PlayerEngine` para swap local/remote
 
 #### PB-022: Playback engine Mobile (Flutter) (13 SP)
 
-* `just_audio` + `audio_service`
-* Background playback
-* Notificación persistente con controles
-* Integración con controles de hardware (auriculares, etc.)
+- `just_audio` + `audio_service`
+- Background playback
+- Notificación persistente con controles
+- Integración con controles de hardware (auriculares, etc.)
 
 #### PB-023: Mini reproductor (5 SP)
 
-* Visible en todas las pantallas
-* Controles básicos + progreso
-* Tap para expandir
+- Visible en todas las pantallas
+- Controles básicos + progreso
+- Tap para expandir
 
 #### PB-024: Cola de reproducción (5 SP)
 
-* Modal con lista de canciones en cola
-* Reordenar (drag & drop)
-* Eliminar tracks de la cola
-* Indicador de canción actual
+- Modal con lista de canciones en cola
+- Reordenar (drag & drop)
+- Eliminar tracks de la cola
+- Indicador de canción actual
 
 #### PB-025: Reproductor expandido (8 SP)
 
-* Pantalla de "Now Playing"
-* Album art grande
-* Controles completos + shuffle + repeat
-* Acceso rápido a EQ y agente IA
+- Pantalla de "Now Playing"
+- Album art grande
+- Controles completos + shuffle + repeat
+- Acceso rápido a EQ y agente IA
 
 #### PB-026: Persistencia de estado del player (3 SP)
 
-* Al cerrar/abrir la app, recordar última canción y posición
-* Guardar cola actual
+- Al cerrar/abrir la app, recordar última canción y posición
+- Guardar cola actual
 
 #### PB-027: Streaming de tracks remotos (3 SP)
 
-* Cuando `source='synced'`, stream desde S3 con URL firmada
-* Manejo de buffering
+- Cuando `source='synced'`, stream desde S3 con URL firmada
+- Manejo de buffering
 
 ---
 
@@ -1284,51 +1285,51 @@ export class EQResolverService {
 
 #### PB-028: Modelo EQPreset + presets del sistema (5 SP) - EN PROGRESO
 
-* [x] Modelo EQPreset creado con todos los campos
-* [ ] Crear los 10 presets globales (Flat, Rock, Jazz, Pop, Classical, Electronic, Hip-Hop, Metal, Vocal Boost, Bass Heavy)
-* [ ] Fixture / data migration
+- [x] Modelo EQPreset creado con todos los campos
+- [ ] Crear los 10 presets globales (Flat, Rock, Jazz, Pop, Classical, Electronic, Hip-Hop, Metal, Vocal Boost, Bass Heavy)
+- [ ] Fixture / data migration
 
 #### PB-029: Modelo EQConfig con scope_type (8 SP) - EN PROGRESO
 
-* [x] Modelo EQConfig creado con scope_type
-* [ ] Migración + validaciones
-* [ ] Manager custom con método `resolve_for()`
+- [x] Modelo EQConfig creado con scope_type
+- [ ] Migración + validaciones
+- [ ] Manager custom con método `resolve_for()`
 
 #### PB-030: Ecualizador en Desktop (Web Audio API) (13 SP)
 
-* `BiquadFilterNode` x 10 bandas (31Hz, 62Hz, 125Hz, 250Hz, 500Hz, 1k, 2k, 4k, 8k, 16k)
-* Aplicación en tiempo real
-* Bass boost, virtualizer, loudness, reverb (ConvolverNode)
-* UI con sliders verticales
+- `BiquadFilterNode` x 10 bandas (31Hz, 62Hz, 125Hz, 250Hz, 500Hz, 1k, 2k, 4k, 8k, 16k)
+- Aplicación en tiempo real
+- Bass boost, virtualizer, loudness, reverb (ConvolverNode)
+- UI con sliders verticales
 
 #### PB-031: Ecualizador en Mobile (Flutter) (13 SP)
 
-* Plugin nativo: Android `Equalizer` + iOS `AVAudioUnitEQ`
-* Bridge con el player
-* UI responsive
+- Plugin nativo: Android `Equalizer` + iOS `AVAudioUnitEQ`
+- Bridge con el player
+- UI responsive
 
 #### PB-032: CRUD de EQConfig por scope (5 SP)
 
-* `POST/PATCH/DELETE /api/eq-configs`
-* `GET /api/eq-configs/resolve?track_id=&playlist_id=`
-* Validación de unicidad por scope
+- `POST/PATCH/DELETE /api/eq-configs`
+- `GET /api/eq-configs/resolve?track_id=&playlist_id=`
+- Validación de unicidad por scope
 
 #### PB-033: Gestión de presets personalizados (5 SP)
 
-* Guardar configuración actual como preset
-* Listar, editar, eliminar presets custom
-* Aplicar preset con un tap
+- Guardar configuración actual como preset
+- Listar, editar, eliminar presets custom
+- Aplicar preset con un tap
 
 #### PB-034: UI de selección de presets (3 SP)
 
-* Lista horizontal scrollable
-* Indicador visual de preset activo
-* Preview antes de aplicar
+- Lista horizontal scrollable
+- Indicador visual de preset activo
+- Preview antes de aplicar
 
 #### PB-035: Curva de frecuencia visual (3 SP)
 
-* Dibujo SVG de la respuesta del EQ
-* Animación al cambiar bandas
+- Dibujo SVG de la respuesta del EQ
+- Animación al cambiar bandas
 
 ---
 
@@ -1336,35 +1337,35 @@ export class EQResolverService {
 
 #### PB-036: Modelo EQSegment completo (5 SP) - EN PROGRESO
 
-* [x] Modelo EQSegment creado con todos los campos
-* [ ] Migración con índices
-* [x] Validación de no superposición
-* [ ] Manager con método `active_at(ms)`
+- [x] Modelo EQSegment creado con todos los campos
+- [ ] Migración con índices
+- [x] Validación de no superposición
+- [ ] Manager con método `active_at(ms)`
 
 #### PB-037: Editor de segmentos en Desktop (13 SP)
 
-* Timeline visual de la canción (forma de onda opcional)
-* Crear segmento: seleccionar rango de tiempo
-* Asignar EQConfig al segmento
-* Bloques de colores en timeline
-* Editar/eliminar segmentos existentes
+- Timeline visual de la canción (forma de onda opcional)
+- Crear segmento: seleccionar rango de tiempo
+- Asignar EQConfig al segmento
+- Bloques de colores en timeline
+- Editar/eliminar segmentos existentes
 
 #### PB-038: Editor de segmentos en Mobile (13 SP)
 
-* UI adaptada a móvil (touch-friendly)
-* Gesto de pinch para zoom en timeline
-* Creación de segmentos con selectores de tiempo
+- UI adaptada a móvil (touch-friendly)
+- Gesto de pinch para zoom en timeline
+- Creación de segmentos con selectores de tiempo
 
 #### PB-039: Aplicación de EQ por segmento en playback (8 SP)
 
-* Hook/servicio que escucha `onTimeUpdate`
-* Al cambiar de segmento, interpolar transición (fade de `transition_ms`)
-* Evitar glitches de audio
+- Hook/servicio que escucha `onTimeUpdate`
+- Al cambiar de segmento, interpolar transición (fade de `transition_ms`)
+- Evitar glitches de audio
 
 #### PB-040: Visualización de segmentos en el player (3 SP)
 
-* Barra de progreso con marcas de segmentos
-* Tooltip con nombre del segmento actual
+- Barra de progreso con marcas de segmentos
+- Tooltip con nombre del segmento actual
 
 ---
 
@@ -1372,18 +1373,18 @@ export class EQResolverService {
 
 #### PB-041: Setup de integración con Claude API (5 SP)
 
-* Configurar `anthropic` SDK en Django
-* Gestión de API key por variables de entorno
-* Cliente singleton con retry logic
-* Rate limiting por usuario
+- Configurar `anthropic` SDK en Django
+- Gestión de API key por variables de entorno
+- Cliente singleton con retry logic
+- Rate limiting por usuario
 
 #### PB-042: Diseño del prompt del agente (5 SP)
 
-* System prompt que define:
-  * Rol: "Eres un ingeniero de audio experto en ecualización"
-  * Formato de salida JSON estricto
-  * Rangos válidos de cada parámetro
-* Schema Pydantic para validar respuestas
+- System prompt que define:
+  - Rol: "Eres un ingeniero de audio experto en ecualización"
+  - Formato de salida JSON estricto
+  - Rangos válidos de cada parámetro
+- Schema Pydantic para validar respuestas
 
 **Ejemplo de system prompt:**
 
@@ -1410,49 +1411,49 @@ Responde SIEMPRE en este formato JSON:
 
 #### PB-043: Endpoint AI eq-suggest (8 SP)
 
-* `POST /api/ai/eq-suggest`
-* Body: `{prompt, track_id?, playlist_id?, current_eq?, context?}`
-* Enriquece contexto: género, BPM, EQ actual, duración
-* Llama a Claude, valida respuesta, guarda `AIRequest`
-* Devuelve `{eq_config, explanation, request_id}`
+- `POST /api/ai/eq-suggest`
+- Body: `{prompt, track_id?, playlist_id?, current_eq?, context?}`
+- Enriquece contexto: género, BPM, EQ actual, duración
+- Llama a Claude, valida respuesta, guarda `AIRequest`
+- Devuelve `{eq_config, explanation, request_id}`
 
 #### PB-044: Parser de tiempo en lenguaje natural (5 SP)
 
-* "del minuto 1:30 al 2:10" → `{start_ms: 90000, end_ms: 130000}`
-* "en el coro" → detectar con análisis de track (opcional, fase 2)
-* "al inicio" → `0 a 30000`
-* Usar el propio agente IA para hacer este parsing
+- "del minuto 1:30 al 2:10" → `{start_ms: 90000, end_ms: 130000}`
+- "en el coro" → detectar con análisis de track (opcional, fase 2)
+- "al inicio" → `0 a 30000`
+- Usar el propio agente IA para hacer este parsing
 
 #### PB-045: UI de chat con el agente (Desktop) (8 SP)
 
-* Panel de chat al lado del player o modal
-* Input de texto + sugerencias rápidas ("más bajos", "más cálido", etc.)
-* Muestra historial de la sesión
-* Preview del EQ sugerido antes de aplicar
+- Panel de chat al lado del player o modal
+- Input de texto + sugerencias rápidas ("más bajos", "más cálido", etc.)
+- Muestra historial de la sesión
+- Preview del EQ sugerido antes de aplicar
 
 #### PB-046: UI de chat con el agente (Mobile) (8 SP)
 
-* Bottom sheet o pantalla completa
-* Input de voz (opcional, con `speech_to_text`)
-* Aplicar sugerencia con un tap
+- Bottom sheet o pantalla completa
+- Input de voz (opcional, con `speech_to_text`)
+- Aplicar sugerencia con un tap
 
 #### PB-047: Feedback loop (5 SP)
 
-* Botones 👍 / 👎 después de aplicar sugerencia
-* Comentario opcional
-* Guardar en `AIRequest.feedback`
-* Dashboard admin para revisar feedbacks
+- Botones 👍 / 👎 después de aplicar sugerencia
+- Comentario opcional
+- Guardar en `AIRequest.feedback`
+- Dashboard admin para revisar feedbacks
 
 #### PB-048: Estimación de costos y límites (3 SP)
 
-* Calcular `cost_usd` por request
-* Límite diario/mensual por usuario (configurable por `is_premium`)
-* Avisar al usuario cuando se acerque al límite
+- Calcular `cost_usd` por request
+- Límite diario/mensual por usuario (configurable por `is_premium`)
+- Avisar al usuario cuando se acerque al límite
 
 #### PB-049: Shortcuts / plantillas predefinidas (3 SP)
 
-* Botones de un tap: "Cálido", "Brillante", "Cinemático", "Club", etc.
-* Internamente envían un prompt predefinido
+- Botones de un tap: "Cálido", "Brillante", "Cinemático", "Club", etc.
+- Internamente envían un prompt predefinido
 
 ---
 
@@ -1460,33 +1461,33 @@ Responde SIEMPRE en este formato JSON:
 
 #### PB-050: CRUD de Playlists (8 SP)
 
-* `POST/GET/PATCH/DELETE /api/playlists`
-* UI con modal de creación/edición
-* Long-press para menú contextual
+- `POST/GET/PATCH/DELETE /api/playlists`
+- UI con modal de creación/edición
+- Long-press para menú contextual
 
 #### PB-051: Agregar/quitar tracks de playlist (5 SP)
 
-* Endpoint `POST /api/playlists/{id}/tracks`
-* Multi-selección en biblioteca
-* Drag & drop para reordenar (desktop)
+- Endpoint `POST /api/playlists/{id}/tracks`
+- Multi-selección en biblioteca
+- Drag & drop para reordenar (desktop)
 
 #### PB-052: Búsqueda global (8 SP)
 
-* Backend: `GET /api/search?q=&type=`
-* Full-text search en PostgreSQL (`SearchVector`)
-* Filtros: All, Songs, Albums, Artists, Playlists
-* Resultados agrupados
+- Backend: `GET /api/search?q=&type=`
+- Full-text search en PostgreSQL (`SearchVector`)
+- Filtros: All, Songs, Albums, Artists, Playlists
+- Resultados agrupados
 
 #### PB-053: Playlists compartibles (5 SP)
 
-* `is_public=True` genera `share_token`
-* Link público: `/p/{share_token}`
-* Vista de solo lectura para no-dueños
+- `is_public=True` genera `share_token`
+- Link público: `/p/{share_token}`
+- Vista de solo lectura para no-dueños
 
 #### PB-054: Playlists inteligentes/automáticas (8 SP)
 
-* "Recién reproducidas", "Más escuchadas", "Descubrimientos" (random)
-* Generadas por backend con queries específicas
+- "Recién reproducidas", "Más escuchadas", "Descubrimientos" (random)
+- Generadas por backend con queries específicas
 
 ---
 
@@ -1494,43 +1495,43 @@ Responde SIEMPRE en este formato JSON:
 
 #### PB-055: Estrategia y diseño de sync (3 SP)
 
-* Documento técnico con flujo de sync
-* Definición de qué entidades se sincronizan
-* Orden de prioridad
+- Documento técnico con flujo de sync
+- Definición de qué entidades se sincronizan
+- Orden de prioridad
 
 #### PB-056: Endpoint de sync delta (8 SP)
 
-* `GET /api/sync/pull?since=<timestamp>&entities=track,eqconfig,...`
-* Devuelve cambios desde `since`
-* Paginación por cantidad de entidades
+- `GET /api/sync/pull?since=<timestamp>&entities=track,eqconfig,...`
+- Devuelve cambios desde `since`
+- Paginación por cantidad de entidades
 
 #### PB-057: Push de cambios locales (8 SP)
 
-* `POST /api/sync/push` con array de entidades modificadas
-* Detección de conflictos (comparar `updated_at`)
-* Response con conflictos sin resolver
+- `POST /api/sync/push` con array de entidades modificadas
+- Detección de conflictos (comparar `updated_at`)
+- Response con conflictos sin resolver
 
 #### PB-058: Cliente sync en Desktop (8 SP)
 
-* Cola de cambios pendientes en SQLite
-* Sync automático al reconectar
-* Progress UI
+- Cola de cambios pendientes en SQLite
+- Sync automático al reconectar
+- Progress UI
 
 #### PB-059: Cliente sync en Mobile (8 SP)
 
-* Equivalente en Drift
-* Sync en background
+- Equivalente en Drift
+- Sync en background
 
 #### PB-060: Resolución de conflictos (5 SP)
 
-* Last-Write-Wins por defecto
-* Para conflictos críticos, UI de resolución manual
-* Registro en `ConflictLog`
+- Last-Write-Wins por defecto
+- Para conflictos críticos, UI de resolución manual
+- Registro en `ConflictLog`
 
 #### PB-061: Sync de archivos de audio (2 SP)
 
-* Upload en background si `source=local` y usuario quiere backup
-* Download al detectar tracks `synced` sin archivo local
+- Upload en background si `source=local` y usuario quiere backup
+- Download al detectar tracks `synced` sin archivo local
 
 ---
 
@@ -1538,34 +1539,34 @@ Responde SIEMPRE en este formato JSON:
 
 #### PB-062: Motor de temas (Desktop + Mobile) (8 SP)
 
-* Sistema de tokens de diseño (colores, spacing, tipografía)
-* Context/Provider para tema activo
-* 8 temas predefinidos
+- Sistema de tokens de diseño (colores, spacing, tipografía)
+- Context/Provider para tema activo
+- 8 temas predefinidos
 
 #### PB-063: Tema dinámico desde album art (8 SP)
 
-* Extracción de colores dominantes (librería: `node-vibrant` / `palette_generator`)
-* Generación de paleta complementaria
-* Control de intensidad
-* Actualización al cambiar canción
+- Extracción de colores dominantes (librería: `node-vibrant` / `palette_generator`)
+- Generación de paleta complementaria
+- Control de intensidad
+- Actualización al cambiar canción
 
 #### PB-064: Layouts personalizables (8 SP)
 
-* 4 layouts de player + 3 de biblioteca
-* Toggles de album art, visualizer, mini player
-* Persistencia
+- 4 layouts de player + 3 de biblioteca
+- Toggles de album art, visualizer, mini player
+- Persistencia
 
 #### PB-065: Efectos visuales opcionales (5 SP)
 
-* Partículas animadas
-* Pulsos, transiciones
-* Toggle para deshabilitar (ahorrar batería)
+- Partículas animadas
+- Pulsos, transiciones
+- Toggle para deshabilitar (ahorrar batería)
 
 #### PB-066: Visualizadores de audio (5 SP)
 
-* Barras, circular, forma de onda
-* Web Audio API `AnalyserNode` (desktop)
-* Plugin nativo o FFT manual (mobile)
+- Barras, circular, forma de onda
+- Web Audio API `AnalyserNode` (desktop)
+- Plugin nativo o FFT manual (mobile)
 
 ---
 
@@ -1573,44 +1574,44 @@ Responde SIEMPRE en este formato JSON:
 
 #### PB-067: Letras sincronizadas (LRC) (8 SP)
 
-* Upload / paste de LRC
-* Parser de formato
-* Display sincronizado
+- Upload / paste de LRC
+- Parser de formato
+- Display sincronizado
 
 #### PB-068: Sleep timer (5 SP)
 
-* 6 presets (15, 30, 45, 60, 90, 120 min)
-* Fade out opcional
-* Persistencia
+- 6 presets (15, 30, 45, 60, 90, 120 min)
+- Fade out opcional
+- Persistencia
 
 #### PB-069: Estadísticas de escucha (8 SP)
 
-* Tracking en `PlayHistory`
-* Endpoint `GET /api/stats?period=`
-* Celery job para agregar en `ListeningStats`
-* Dashboard en cliente
+- Tracking en `PlayHistory`
+- Endpoint `GET /api/stats?period=`
+- Celery job para agregar en `ListeningStats`
+- Dashboard en cliente
 
 #### PB-070: Scrobbling a Last.fm (8 SP)
 
-* OAuth real con Last.fm
-* Envío de now playing + scrobbles
-* Cola con retry
+- OAuth real con Last.fm
+- Envío de now playing + scrobbles
+- Cola con retry
 
 #### PB-071: Editor de metadata (8 SP)
 
-* Edit por track o batch
-* Guardar en DB (no en archivo)
-* Historial (últimas 100) con undo
+- Edit por track o batch
+- Guardar en DB (no en archivo)
+- Historial (últimas 100) con undo
 
 #### PB-072: Crossfade y Gapless (3 SP)
 
-* Configuración desde settings
-* Implementación en engines
+- Configuración desde settings
+- Implementación en engines
 
 #### PB-073: Notificaciones push (2 SP)
 
-* FCM (mobile)
-* Notificaciones del sistema (desktop)
+- FCM (mobile)
+- Notificaciones del sistema (desktop)
 
 ---
 
@@ -1618,32 +1619,32 @@ Responde SIEMPRE en este formato JSON:
 
 #### PB-074: Dashboard principal admin (8 SP)
 
-* Métricas globales: usuarios activos, tracks totales, reproducciones/día
-* Gráficos con Recharts
-* Filtros por fecha
+- Métricas globales: usuarios activos, tracks totales, reproducciones/día
+- Gráficos con Recharts
+- Filtros por fecha
 
 #### PB-075: Gestión de usuarios (8 SP)
 
-* Listado paginado con filtros
-* Ver detalle, editar, bloquear, cambiar rol
-* Ver dispositivos de cada usuario
+- Listado paginado con filtros
+- Ver detalle, editar, bloquear, cambiar rol
+- Ver dispositivos de cada usuario
 
 #### PB-076: Gestión de presets globales (5 SP)
 
-* CRUD de presets del sistema
-* Publicar/despublicar
+- CRUD de presets del sistema
+- Publicar/despublicar
 
 #### PB-077: Logs del agente IA (8 SP)
 
-* Tabla de `AIRequest` con filtros
-* Detalle: prompt, response, feedback
-* Métricas: satisfacción, tokens, costo
-* Detección de prompts abusivos
+- Tabla de `AIRequest` con filtros
+- Detalle: prompt, response, feedback
+- Métricas: satisfacción, tokens, costo
+- Detección de prompts abusivos
 
 #### PB-078: Moderación de contenido (5 SP)
 
-* Playlists públicas reportadas
-* Tracks con metadata sospechosa
+- Playlists públicas reportadas
+- Tracks con metadata sospechosa
 
 ---
 
@@ -1653,35 +1654,35 @@ Responde SIEMPRE en este formato JSON:
 
 #### PB-079: Widgets de pantalla de inicio (Android) (13 SP)
 
-* 3 tamaños (2x2, 4x2, 4x4)
-* Actualización en tiempo real
-* Controles
+- 3 tamaños (2x2, 4x2, 4x4)
+- Actualización en tiempo real
+- Controles
 
 #### PB-080: Live Activities (iOS) (8 SP)
 
-* Equivalente a widgets en iOS 16+
-* Now playing en Dynamic Island
+- Equivalente a widgets en iOS 16+
+- Now playing en Dynamic Island
 
 #### PB-081: Android Auto (13 SP)
 
-* `MediaBrowserService`
-* Navegación por biblioteca
-* Voice commands
+- `MediaBrowserService`
+- Navegación por biblioteca
+- Voice commands
 
 #### PB-082: CarPlay (13 SP)
 
-* Integración con CarPlay
-* UI adaptada
+- Integración con CarPlay
+- UI adaptada
 
 #### PB-083: Compartir a redes sociales (5 SP)
 
-* "Escuchando ahora" con imagen
-* Link a playlist pública
+- "Escuchando ahora" con imagen
+- Link a playlist pública
 
 #### PB-084: Modo offline completo (3 SP)
 
-* Download de tracks para offline
-* Indicador visual
+- Download de tracks para offline
+- Indicador visual
 
 ---
 
@@ -1691,36 +1692,36 @@ Responde SIEMPRE en este formato JSON:
 
 #### PB-085: Configuración PWA completa (5 SP)
 
-* `manifest.json` con iconos, splash screen, theme color
-* Service Worker con Workbox (cache de assets, estrategia stale-while-revalidate)
-* Botón "Instalar app" cuando el navegador lo permite
-* Funcionamiento offline básico (UI cargada, sin conexión al backend)
+- `manifest.json` con iconos, splash screen, theme color
+- Service Worker con Workbox (cache de assets, estrategia stale-while-revalidate)
+- Botón "Instalar app" cuando el navegador lo permite
+- Funcionamiento offline básico (UI cargada, sin conexión al backend)
 
 #### PB-086: Abstracción de File System (5 SP)
 
-* Wrapper que usa `File System Access API` en Chrome/Edge
-* Fallback a `<input type="file" multiple>` en navegadores sin soporte
-* Guardado de handles con IndexedDB para re-acceso
-* UI que explica limitaciones al usuario
+- Wrapper que usa `File System Access API` en Chrome/Edge
+- Fallback a `<input type="file" multiple>` en navegadores sin soporte
+- Guardado de handles con IndexedDB para re-acceso
+- UI que explica limitaciones al usuario
 
 #### PB-087: IndexedDB con Dexie para cache local (5 SP)
 
-* Implementar interfaz `LocalDB` con Dexie
-* Mismo esquema que SQLite (Tracks, Playlists, EQConfigs, etc.)
-* Migración de versiones de esquema
-* Cuota de almacenamiento con `navigator.storage.estimate()`
+- Implementar interfaz `LocalDB` con Dexie
+- Mismo esquema que SQLite (Tracks, Playlists, EQConfigs, etc.)
+- Migración de versiones de esquema
+- Cuota de almacenamiento con `navigator.storage.estimate()`
 
 #### PB-088: Media Session API (3 SP)
 
-* Controles de media en el navegador y OS (notificación, lockscreen en mobile web)
-* Metadata (título, artista, portada)
-* Handlers para play/pause/next/prev
+- Controles de media en el navegador y OS (notificación, lockscreen en mobile web)
+- Metadata (título, artista, portada)
+- Handlers para play/pause/next/prev
 
 #### PB-089: Deployment web automatizado (3 SP)
 
-* Pipeline CI/CD para deploy web a Vercel/Nginx
-* Versiones separadas: `app.musicflow.com` (web) y releases de desktop
-* Analytics (Plausible o similar, respetando privacidad)
+- Pipeline CI/CD para deploy web a Vercel/Nginx
+- Versiones separadas: `app.musicflow.com` (web) y releases de desktop
+- Analytics (Plausible o similar, respetando privacidad)
 
 ---
 
@@ -1728,52 +1729,52 @@ Responde SIEMPRE en este formato JSON:
 
 #### PB-090: Tests unitarios backend (8 SP)
 
-* pytest con ≥80% coverage
-* Factories con factory_boy
-* Mocks de Claude API
+- pytest con ≥80% coverage
+- Factories con factory_boy
+- Mocks de Claude API
 
 #### PB-091: Tests de integración backend (5 SP)
 
-* Tests de endpoints con APIClient
-* Casos de autorización
+- Tests de endpoints con APIClient
+- Casos de autorización
 
 #### PB-092: Tests frontend (web + desktop) (8 SP)
 
-* Vitest + React Testing Library (unit)
-* Playwright E2E con dos configuraciones: web y Electron
-* Casos: login, reproducción, EQ, editor de segmentos, agente IA
+- Vitest + React Testing Library (unit)
+- Playwright E2E con dos configuraciones: web y Electron
+- Casos: login, reproducción, EQ, editor de segmentos, agente IA
 
 #### PB-093: Tests mobile Flutter (5 SP)
 
-* Widget tests
-* Integration tests
+- Widget tests
+- Integration tests
 
 #### PB-094: Performance benchmarks (3 SP)
 
-* Carga de 1000 tracks <3s (web y desktop)
-* Latencia EQ <20ms en Web Audio API
-* Tiempo de respuesta IA <5s
-* Lighthouse score web >90
+- Carga de 1000 tracks <3s (web y desktop)
+- Latencia EQ <20ms en Web Audio API
+- Tiempo de respuesta IA <5s
+- Lighthouse score web >90
 
 #### PB-095: Documentación completa (5 SP)
 
-* `ARCHITECTURE.md`, `API.md`, `DEPLOYMENT.md`
-* Swagger autogenerado
-* Videos de features clave
+- `ARCHITECTURE.md`, `API.md`, `DEPLOYMENT.md`
+- Swagger autogenerado
+- Videos de features clave
 
 #### PB-096: Setup de producción (5 SP)
 
-* Servidores backend, certificados, dominios
-* CDN para web (Cloudflare)
-* Monitoring con Sentry + Grafana
-* Backups automáticos
+- Servidores backend, certificados, dominios
+- CDN para web (Cloudflare)
+- Monitoring con Sentry + Grafana
+- Backups automáticos
 
 #### PB-097: Release a stores y distribución (3 SP)
 
-* Google Play (Android)
-* App Store (iOS)
-* GitHub Releases (Desktop: .exe, .dmg, .deb, .AppImage)
-* Deploy web productivo (app.musicflow.com)
+- Google Play (Android)
+- App Store (iOS)
+- GitHub Releases (Desktop: .exe, .dmg, .deb, .AppImage)
+- Deploy web productivo (app.musicflow.com)
 
 ---
 
@@ -1783,28 +1784,28 @@ Responde SIEMPRE en este formato JSON:
 > **Velocidad estimada:** 55-60 SP por sprint (equipo de 6-8 personas)
 > **Duración total:** ~20 semanas (5 meses)
 
-| Sprint              | Semanas | Objetivo Principal                       | SP            | Entregables Clave                                                     |
-| ------------------- | ------- | ---------------------------------------- | ------------- | --------------------------------------------------------------------- |
-| **Sprint 1**  | 1-2     | Fundamentos e infraestructura            | 58            | Monorepo, Django, React (web+desktop), Flutter, Docker, Auth básica  |
-| **Sprint 2**  | 3-4     | Auth completa + biblioteca básica       | 60            | Login JWT, registro, upload de tracks, modelo Track                   |
-| **Sprint 3**  | 5-6     | Biblioteca + player básico              | 62            | Escaneo local (desktop+mobile, web limitado), listado, playback       |
-| **Sprint 4**  | 7-8     | Player completo + EQ base                | 60            | Mini player, cola, EQ 10 bandas global + presets                      |
-| **Sprint 5**  | 9-10    | EQ multi-nivel                           | 62            | EQ por playlist/track, prioridad jerárquica, presets custom          |
-| **Sprint 6**  | 11-12   | EQ por segmentos ⭐                      | 58            | Modelo EQSegment, editor timeline, aplicación en tiempo real         |
-| **Sprint 7**  | 13-14   | Agente IA ⭐                             | 62            | Integración Claude, chat UI, preview, feedback loop                  |
-| **Sprint 8**  | 15-16   | Sincronización + personalización + PWA | 62            | Sync delta, resolución de conflictos, temas, layouts, PWA setup      |
-| **Sprint 9**  | 17-18   | Features complementarias + admin         | 60            | Lyrics, sleep timer, stats, scrobbling, dashboard admin, features web |
-| **Sprint 10** | 19-20   | QA, mobile avanzado y release            | 71            | Tests, widgets, Android Auto/CarPlay, deploy web+desktop+mobile       |
-|                     |         | **TOTAL**                          | **615** |                                                                       |
+| Sprint        | Semanas | Objetivo Principal                     | SP      | Entregables Clave                                                     |
+| ------------- | ------- | -------------------------------------- | ------- | --------------------------------------------------------------------- |
+| **Sprint 1**  | 1-2     | Fundamentos e infraestructura          | 58      | Monorepo, Django, React (web+desktop), Flutter, Docker, Auth básica   |
+| **Sprint 2**  | 3-4     | Auth completa + biblioteca básica      | 60      | Login JWT, registro, upload de tracks, modelo Track                   |
+| **Sprint 3**  | 5-6     | Biblioteca + player básico             | 62      | Escaneo local (desktop+mobile, web limitado), listado, playback       |
+| **Sprint 4**  | 7-8     | Player completo + EQ base              | 60      | Mini player, cola, EQ 10 bandas global + presets                      |
+| **Sprint 5**  | 9-10    | EQ multi-nivel                         | 62      | EQ por playlist/track, prioridad jerárquica, presets custom           |
+| **Sprint 6**  | 11-12   | EQ por segmentos ⭐                    | 58      | Modelo EQSegment, editor timeline, aplicación en tiempo real          |
+| **Sprint 7**  | 13-14   | Agente IA ⭐                           | 62      | Integración Claude, chat UI, preview, feedback loop                   |
+| **Sprint 8**  | 15-16   | Sincronización + personalización + PWA | 62      | Sync delta, resolución de conflictos, temas, layouts, PWA setup       |
+| **Sprint 9**  | 17-18   | Features complementarias + admin       | 60      | Lyrics, sleep timer, stats, scrobbling, dashboard admin, features web |
+| **Sprint 10** | 19-20   | QA, mobile avanzado y release          | 71      | Tests, widgets, Android Auto/CarPlay, deploy web+desktop+mobile       |
+|               |         | **TOTAL**                              | **615** |                                                                       |
 
 ### 🎯 Milestones Clave
 
-* **M1 (fin Sprint 2):** Usuario puede registrarse, loguearse y ver biblioteca vacía
-* **M2 (fin Sprint 4):** Usuario puede reproducir música con EQ global funcional
-* **M3 (fin Sprint 6):** **EQ por segmentos funcional (primera feature estrella)**
-* **M4 (fin Sprint 7):** **Agente IA operativo (segunda feature estrella) — MVP completo**
-* **M5 (fin Sprint 9):** Beta pública con admin y features complementarias
-* **M6 (fin Sprint 10):** Release 1.0 en producción
+- **M1 (fin Sprint 2):** Usuario puede registrarse, loguearse y ver biblioteca vacía
+- **M2 (fin Sprint 4):** Usuario puede reproducir música con EQ global funcional
+- **M3 (fin Sprint 6):** **EQ por segmentos funcional (primera feature estrella)**
+- **M4 (fin Sprint 7):** **Agente IA operativo (segunda feature estrella) — MVP completo**
+- **M5 (fin Sprint 9):** Beta pública con admin y features complementarias
+- **M6 (fin Sprint 10):** Release 1.0 en producción
 
 ---
 
@@ -1812,37 +1813,37 @@ Responde SIEMPRE en este formato JSON:
 
 ### ✅ Definition of Ready (DoR) — Una historia está lista para ser tomada si:
 
-* [ ] Tiene título, descripción y criterios de aceptación claros
-* [ ] Fue estimada en story points por el equipo
-* [ ] Dependencias identificadas y resueltas
-* [ ] Diseño/wireframes aprobados (si aplica UI)
-* [ ] Tamaño razonable (≤13 SP, idealmente 3-8)
-* [ ] El PO validó el valor de negocio
+- [ ] Tiene título, descripción y criterios de aceptación claros
+- [ ] Fue estimada en story points por el equipo
+- [ ] Dependencias identificadas y resueltas
+- [ ] Diseño/wireframes aprobados (si aplica UI)
+- [ ] Tamaño razonable (≤13 SP, idealmente 3-8)
+- [ ] El PO validó el valor de negocio
 
 ### ✅ Definition of Done (DoD) — Una historia está terminada si:
 
-* [ ] Código implementado y subido a rama feature
-* [ ] Tests unitarios escritos y pasando (≥80% coverage del nuevo código)
-* [ ] Code review aprobado por al menos 1 persona
-* [ ] Sin errores de linter ni warnings de tipos
-* [ ] Criterios de aceptación validados manualmente
-* [ ] Documentación actualizada (README, API docs, etc.)
-* [ ] Mergeado a `develop` vía PR
-* [ ] Desplegado en ambiente de staging
-* [ ] QA manual aprobado
-* [ ] PO acepta la historia en el Sprint Review
+- [ ] Código implementado y subido a rama feature
+- [ ] Tests unitarios escritos y pasando (≥80% coverage del nuevo código)
+- [ ] Code review aprobado por al menos 1 persona
+- [ ] Sin errores de linter ni warnings de tipos
+- [ ] Criterios de aceptación validados manualmente
+- [ ] Documentación actualizada (README, API docs, etc.)
+- [ ] Mergeado a `develop` vía PR
+- [ ] Desplegado en ambiente de staging
+- [ ] QA manual aprobado
+- [ ] PO acepta la historia en el Sprint Review
 
 ---
 
 ## 11. Ceremonias Scrum
 
-| Ceremonia                      | Cuándo                   | Duración | Participantes         | Objetivo                                           |
-| ------------------------------ | ------------------------- | --------- | --------------------- | -------------------------------------------------- |
-| **Sprint Planning**      | Lunes semana 1 del sprint | 3h        | Equipo completo       | Seleccionar historias del backlog y descomponerlas |
-| **Daily Standup**        | Cada día laboral, 9:30am | 15 min    | Dev team + SM         | Sincronizar avances, bloqueos, plan del día       |
-| **Refinement**           | Miércoles semana 1       | 1.5h      | PO + Dev team         | Refinar y estimar historias futuras                |
-| **Sprint Review**        | Viernes semana 2, 10am    | 1.5h      | Equipo + stakeholders | Demo del incremento, feedback del PO               |
-| **Sprint Retrospective** | Viernes semana 2, 2pm     | 1h        | Dev team + SM         | Qué funcionó, qué mejorar, acciones             |
+| Ceremonia                | Cuándo                    | Duración | Participantes         | Objetivo                                           |
+| ------------------------ | ------------------------- | -------- | --------------------- | -------------------------------------------------- |
+| **Sprint Planning**      | Lunes semana 1 del sprint | 3h       | Equipo completo       | Seleccionar historias del backlog y descomponerlas |
+| **Daily Standup**        | Cada día laboral, 9:30am  | 15 min   | Dev team + SM         | Sincronizar avances, bloqueos, plan del día        |
+| **Refinement**           | Miércoles semana 1        | 1.5h     | PO + Dev team         | Refinar y estimar historias futuras                |
+| **Sprint Review**        | Viernes semana 2, 10am    | 1.5h     | Equipo + stakeholders | Demo del incremento, feedback del PO               |
+| **Sprint Retrospective** | Viernes semana 2, 2pm     | 1h       | Dev team + SM         | Qué funcionó, qué mejorar, acciones                |
 
 ---
 
@@ -1850,51 +1851,51 @@ Responde SIEMPRE en este formato JSON:
 
 ### Métricas del Equipo (Scrum)
 
-* **Velocity:** SP completados por sprint (objetivo: 55-60)
-* **Burndown chart:** Progreso diario del sprint
-* **Cycle time:** Tiempo promedio de una historia en "In Progress" a "Done"
-* **Defect rate:** Bugs encontrados post-sprint / historias entregadas
-* **Code coverage:** ≥80% backend, ≥70% frontend
+- **Velocity:** SP completados por sprint (objetivo: 55-60)
+- **Burndown chart:** Progreso diario del sprint
+- **Cycle time:** Tiempo promedio de una historia en "In Progress" a "Done"
+- **Defect rate:** Bugs encontrados post-sprint / historias entregadas
+- **Code coverage:** ≥80% backend, ≥70% frontend
 
 ### Métricas de Producto (Post-launch)
 
-* **Usuarios activos mensuales (MAU)**
-* **Tasa de retención D7 / D30**
-* **Tiempo promedio de sesión**
-* **Canciones reproducidas por sesión**
-* **Adopción de features estrella:**
-  * % usuarios que usan EQ por segmentos
-  * % usuarios que usan el agente IA
-  * # requests al agente IA / usuario / semana
-* **Satisfacción del agente IA:** % de feedbacks `good`
-* **NPS (Net Promoter Score)**
+- **Usuarios activos mensuales (MAU)**
+- **Tasa de retención D7 / D30**
+- **Tiempo promedio de sesión**
+- **Canciones reproducidas por sesión**
+- **Adopción de features estrella:**
+  - % usuarios que usan EQ por segmentos
+  - % usuarios que usan el agente IA
+  - # requests al agente IA / usuario / semana
+- **Satisfacción del agente IA:** % de feedbacks `good`
+- **NPS (Net Promoter Score)**
 
 ### Métricas Técnicas
 
-* **Uptime:** ≥99.5%
-* **Latencia API (p95):** <200ms
-* **Latencia IA (p95):** <5s
-* **Tasa de errores:** <0.5%
-* **Tamaño de app:** <80MB (mobile), <150MB (desktop)
+- **Uptime:** ≥99.5%
+- **Latencia API (p95):** <200ms
+- **Latencia IA (p95):** <5s
+- **Tasa de errores:** <0.5%
+- **Tamaño de app:** <80MB (mobile), <150MB (desktop)
 
 ---
 
 ## 13. Gestión de Riesgos
 
 | #   | Riesgo                                          | Probabilidad | Impacto | Mitigación                                                                                        |
-| --- | ----------------------------------------------- | ------------ | ------- | -------------------------------------------------------------------------------------------------- |
-| R1  | Calidad del agente IA insuficiente              | Media        | Alto    | Prompt engineering iterativo, feedback loop temprano, A/B testing                                  |
-| R2  | Performance del EQ en tiempo real en mobile     | Media        | Alto    | Usar plugins nativos (no JS bridge), benchmarks desde sprint 4                                     |
-| R3  | Conflictos de sincronización complejos         | Alta         | Medio   | Estrategia LWW simple, logs detallados, UI de resolución manual                                   |
-| R4  | Costos de la API de Claude inesperados          | Media        | Medio   | Rate limiting, límites por plan, caché de respuestas similares                                   |
-| R5  | Complejidad del editor de segmentos (UX)        | Alta         | Alto    | Prototipos tempranos con usuarios, iteración de diseño                                           |
-| R6  | Retrasos en aprobación de stores               | Media        | Bajo    | Empezar submit 2 semanas antes, tener fallback web                                                 |
-| R7  | Dependencia de plugins nativos Flutter          | Media        | Alto    | Spikes tempranos (sprint 3), buscar alternativas                                                   |
-| R8  | Escalabilidad del backend con muchos usuarios   | Baja         | Alto    | Diseño stateless, caché Redis, read replicas PostgreSQL                                          |
+| --- | ----------------------------------------------- | ------------ | ------- | ------------------------------------------------------------------------------------------------- |
+| R1  | Calidad del agente IA insuficiente              | Media        | Alto    | Prompt engineering iterativo, feedback loop temprano, A/B testing                                 |
+| R2  | Performance del EQ en tiempo real en mobile     | Media        | Alto    | Usar plugins nativos (no JS bridge), benchmarks desde sprint 4                                    |
+| R3  | Conflictos de sincronización complejos          | Alta         | Medio   | Estrategia LWW simple, logs detallados, UI de resolución manual                                   |
+| R4  | Costos de la API de Claude inesperados          | Media        | Medio   | Rate limiting, límites por plan, caché de respuestas similares                                    |
+| R5  | Complejidad del editor de segmentos (UX)        | Alta         | Alto    | Prototipos tempranos con usuarios, iteración de diseño                                            |
+| R6  | Retrasos en aprobación de stores                | Media        | Bajo    | Empezar submit 2 semanas antes, tener fallback web                                                |
+| R7  | Dependencia de plugins nativos Flutter          | Media        | Alto    | Spikes tempranos (sprint 3), buscar alternativas                                                  |
+| R8  | Escalabilidad del backend con muchos usuarios   | Baja         | Alto    | Diseño stateless, caché Redis, read replicas PostgreSQL                                           |
 | R9  | Privacidad de datos (GDPR/LGPD)                 | Media        | Alto    | Consentimiento explícito, export/delete de datos, legal review                                    |
 | R10 | Churn del equipo                                | Baja         | Alto    | Documentación exhaustiva, pair programming, knowledge sharing                                     |
 | R11 | Limitaciones del navegador para features core   | Alta         | Medio   | Abstracción de plataforma, UI que comunica limitaciones al usuario web, promover descarga desktop |
-| R12 | Diferencias de comportamiento entre navegadores | Media        | Medio   | Tests E2E multi-browser con Playwright, browserslist estricto                                      |
+| R12 | Diferencias de comportamiento entre navegadores | Media        | Medio   | Tests E2E multi-browser con Playwright, browserslist estricto                                     |
 
 ---
 
@@ -1904,11 +1905,11 @@ Responde SIEMPRE en este formato JSON:
 
 **Branches:**
 
-* `main`: producción
-* `develop`: integración
-* `feature/PB-XXX-descripcion`: nuevas features
-* `bugfix/PB-XXX-descripcion`: correcciones
-* `hotfix/descripcion`: fixes urgentes en producción
+- `main`: producción
+- `develop`: integración
+- `feature/PB-XXX-descripcion`: nuevas features
+- `bugfix/PB-XXX-descripcion`: correcciones
+- `hotfix/descripcion`: fixes urgentes en producción
 
 **Commits (Conventional Commits):**
 
@@ -2145,10 +2146,10 @@ packages/
 
 Este documento es la **fuente de verdad** del proyecto MusicFlow. Debe vivir en el repositorio (`/docs/SCRUM.md`) y actualizarse al final de cada sprint con:
 
-* Historias completadas
-* Nuevas historias surgidas
-* Re-estimaciones
-* Lecciones aprendidas de las retrospectivas
+- Historias completadas
+- Nuevas historias surgidas
+- Re-estimaciones
+- Lecciones aprendidas de las retrospectivas
 
 **Siguientes pasos recomendados:**
 
@@ -2162,5 +2163,5 @@ Este documento es la **fuente de verdad** del proyecto MusicFlow. Debe vivir en 
 
 ---
 
-*Documento generado por el equipo de Scrum Master + Full Stack Architecture*
-*Última actualización: Abril 2026*
+_Documento generado por el equipo de Scrum Master + Full Stack Architecture_
+_Última actualización: Abril 2026_
