@@ -1,3 +1,4 @@
+import { NavLink } from 'react-router-dom'
 import type { SidebarIconKey, SidebarProps } from './types'
 
 function SidebarIcon({
@@ -126,11 +127,11 @@ export default function Sidebar({
 }: SidebarProps) {
   return (
     <aside
-      className={`flex min-h-screen flex-col border-r border-white/10 bg-[linear-gradient(180deg,#18162a_0%,#121120_100%)] py-4 text-white transition-all duration-300 ${
+      className={`sticky top-0 flex h-screen flex-col overflow-y-auto border-r border-white/10 bg-[linear-gradient(180deg,#18162a_0%,#121120_100%)] py-4 text-white transition-all duration-300 ${
         collapsed ? 'w-[92px] px-2' : 'w-[220px] px-3'
       }`}
     >
-      <div className={`mb-4 flex items-center ${collapsed ? 'justify-center' : 'gap-3 px-3'}`}>
+      <div className={`relative mb-4 flex items-center ${collapsed ? 'justify-center' : 'gap-3 px-3'}`}>
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[radial-gradient(circle_at_30%_30%,#b794ff,#6d4cff_60%,#4a2ba8)] shadow-[0_0_30px_rgba(140,92,255,0.35)]" />
         {!collapsed ? (
           <div className="min-w-0 flex-1">
@@ -160,46 +161,53 @@ export default function Sidebar({
         ) : null}
       </div>
 
-      <nav className="flex flex-1 flex-col gap-1">
+      <nav className="flex flex-col gap-1">
         {items.map((item) => (
-          <a
+          <NavLink
             key={item.path}
-            href={item.path}
-            className={`group flex items-center rounded-2xl transition ${
-              item.active
-                ? 'border border-white/40 bg-[#2a2440] text-white shadow-[0_0_0_1px_rgba(255,255,255,0.06)]'
-                : 'border border-transparent text-slate-300 hover:bg-white/[0.04]'
-            } ${collapsed ? 'justify-center px-2 py-3' : 'gap-3 px-3 py-3'}`}
+            to={item.path}
+            end={item.path === '/library'}
+            className={({ isActive }) =>
+              `group flex items-center rounded-2xl transition ${
+                isActive
+                  ? 'border border-white/40 bg-[#2a2440] text-white shadow-[0_0_0_1px_rgba(255,255,255,0.06)]'
+                  : 'border border-transparent text-slate-300 hover:bg-white/[0.04]'
+              } ${collapsed ? 'justify-center px-2 py-3' : 'gap-3 px-3 py-3'}`
+            }
             title={collapsed ? item.label : undefined}
           >
-            <SidebarIcon iconKey={item.iconKey} active={item.active} danger={item.danger} />
-
-            {!collapsed ? (
+            {({ isActive }) => (
               <>
-                <span
-                  className={`flex-1 text-sm font-medium ${
-                    item.danger
-                      ? item.active
-                        ? 'text-rose-300'
-                        : 'text-rose-400'
-                      : item.active
-                        ? 'text-white'
-                        : 'text-slate-300 group-hover:text-white'
-                  }`}
-                >
-                  {item.label}
-                </span>
+                <SidebarIcon iconKey={item.iconKey} active={isActive} danger={item.danger} />
 
-                {item.badge ? <span className="inline-flex h-2 w-2 rounded-full bg-rose-400" /> : null}
+                {!collapsed ? (
+                  <>
+                    <span
+                      className={`flex-1 text-sm font-medium ${
+                        item.danger
+                          ? isActive
+                            ? 'text-rose-300'
+                            : 'text-rose-400'
+                          : isActive
+                            ? 'text-white'
+                            : 'text-slate-300 group-hover:text-white'
+                      }`}
+                    >
+                      {item.label}
+                    </span>
+
+                    {item.badge ? <span className="inline-flex h-2 w-2 rounded-full bg-rose-400" /> : null}
+                  </>
+                ) : item.badge ? (
+                  <span className="absolute ml-5 -mt-4 inline-flex h-2 w-2 rounded-full bg-rose-400" />
+                ) : null}
               </>
-            ) : item.badge ? (
-              <span className="absolute ml-5 -mt-4 inline-flex h-2 w-2 rounded-full bg-rose-400" />
-            ) : null}
-          </a>
+            )}
+          </NavLink>
         ))}
       </nav>
 
-      <div className="mt-6 space-y-3">
+      <div className="mt-4 space-y-3">
         <button
           type="button"
           className={`flex w-full rounded-2xl border border-violet-500/20 bg-[linear-gradient(180deg,#1f1a35_0%,#171329_100%)] py-3 text-left transition hover:border-violet-400/30 ${

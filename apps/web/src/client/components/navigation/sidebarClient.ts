@@ -1,7 +1,7 @@
 import type { SidebarItem } from '../../../shared/ui/navigation/types'
 
 export const sidebarClient: SidebarItem[] = [
-  { label: 'Library', path: '/library', iconKey: 'library', active: true, badge: 'dot' },
+  { label: 'Library', path: '/library', iconKey: 'library', badge: 'dot' },
   { label: 'Search', path: '/search', iconKey: 'search' },
   { label: 'Playlists', path: '/playlists', iconKey: 'playlists' },
   { label: 'Now Playing', path: '/now-playing', iconKey: 'nowPlaying' },
