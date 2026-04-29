@@ -1,124 +1,97 @@
+import { CirclePlus, Plus } from 'lucide-react'
 import ClientLayout from '../layout/ClientLayout'
 
 type Playlist = {
   id: number
   title: string
-  tracks: number
-  description: string
-  eq?: boolean
+  curator: string
+  cover: string
+  isActive?: boolean
 }
 
 const playlists: Playlist[] = [
   {
     id: 1,
-    title: 'Late Commute',
-    tracks: 24,
-    description: 'Headphone-led evenings.',
-    eq: true,
+    title: 'Cyberpunk Resonance',
+    curator: 'Creado por Alex Flow',
+    cover: 'https://i.scdn.co/image/ab67616d0000b27332a7d87248d1b75463483df5',
+    isActive: true,
   },
   {
     id: 2,
-    title: 'Paper Lanterns',
-    tracks: 42,
-    description: 'Warm indie + folk.',
+    title: 'Minimal Tech Focus',
+    curator: 'MusicFlow Curated',
+    cover: 'https://upload.wikimedia.org/wikipedia/en/3/35/The_Eminem_Show.jpg',
   },
   {
     id: 3,
-    title: 'Studio B — Mixing',
-    tracks: 18,
-    description: 'Reference set for long sessions.',
-    eq: true,
+    title: 'Midnight Jazz AI',
+    curator: 'Algorithmic Soul',
+    cover: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT4P7DOE_-A4ad1a-KV3vmJdVPMGh4husVMuQ&s',
+    isActive: true,
   },
   {
     id: 4,
-    title: 'Thistle Garden',
-    tracks: 31,
-    description: 'Brittle, bright, acoustic.',
-    eq: true,
-  },
-  {
-    id: 5,
-    title: 'Ghost Rotations',
-    tracks: 56,
-    description: 'Electronic B-sides.',
-  },
-  {
-    id: 6,
-    title: 'Blue Hour',
-    tracks: 27,
-    description: 'Sunset drives.',
-    eq: true,
-  },
-  {
-    id: 7,
-    title: 'Room for One',
-    tracks: 19,
-    description: 'Solo evenings.',
-  },
-  {
-    id: 8,
-    title: 'Long Orbit',
-    tracks: 35,
-    description: 'Deep, slow, cinematic.',
-    eq: true,
+    title: 'Urban Night Drive',
+    curator: 'Sara Mendez',
+    cover: 'https://http2.mlstatic.com/D_NQ_NP_986580-MLA99990684673_112025-O.webp',
   },
 ]
-
-function PlusIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4">
-      <path d="M12 5v14" strokeLinecap="round" />
-      <path d="M5 12h14" strokeLinecap="round" />
-    </svg>
-  )
-}
 
 export default function PlaylistsPage() {
   return (
     <ClientLayout>
-      <section className="min-h-screen w-full bg-[radial-gradient(circle_at_top_left,rgba(126,77,255,0.11),transparent_28%),radial-gradient(circle_at_bottom_right,rgba(59,130,246,0.08),transparent_24%),linear-gradient(180deg,#090a13_0%,#090913_100%)] px-7 py-7 text-slate-100 xl:px-10">
-        <div className="mx-auto flex max-w-7xl flex-col gap-10">
+      <section className="min-h-screen w-full bg-[#111218] px-4 py-6 text-slate-100 sm:px-6 xl:px-8">
+        <div className="mx-auto max-w-7xl rounded-[28px] border border-white/5 bg-[linear-gradient(180deg,rgba(20,22,31,0.98)_0%,rgba(15,16,24,0.98)_100%)] p-6 shadow-[0_24px_80px_rgba(0,0,0,0.35)] sm:p-8">
           <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
             <div className="max-w-2xl">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.42em] text-rose-300/70">
-                Playlists
-              </p>
-              <h1 className="mt-3 text-4xl font-semibold tracking-tight text-white sm:text-[52px]">
-                Your sound signatures
+              <h1 className="text-3xl font-extrabold uppercase tracking-tight text-white sm:text-[38px]">
+                Mis playlists
               </h1>
-              <p className="mt-3 max-w-xl text-sm leading-7 text-slate-400 sm:text-base">
-                Every playlist can carry its own EQ. Open one to view its scoped curve.
+              <p className="mt-3 max-w-xl text-sm font-medium leading-7 text-slate-300 sm:text-base">
+                Organiza tu universo sonoro. Gestiona tus colecciones personalizadas con ingenieria de audio AI.
               </p>
             </div>
 
             <button
               type="button"
-              className="inline-flex items-center gap-2 self-start rounded-2xl bg-[linear-gradient(180deg,#8f5cff_0%,#6f3ff3_100%)] px-5 py-3 text-sm font-semibold text-white shadow-[0_12px_36px_rgba(111,63,243,0.35)] transition hover:brightness-110"
+              className="inline-flex items-center gap-2 self-start rounded-xl bg-[linear-gradient(180deg,#3576ff_0%,#2d5fe6_100%)] px-5 py-3 text-sm font-semibold text-white shadow-[0_10px_28px_rgba(53,118,255,0.35)] transition hover:brightness-110"
             >
-              <PlusIcon />
-              New playlist
+              <Plus className="h-4 w-4" strokeWidth={2.2} />
+              Crear playlist
             </button>
           </div>
 
-          <div className="grid grid-cols-1 gap-x-10 gap-y-8 md:grid-cols-2 xl:grid-cols-4">
+          <div className="mt-8 grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
             {playlists.map((playlist) => (
-              <article key={playlist.id} className="group">
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <h2 className="text-[28px] font-semibold leading-none tracking-tight text-white transition group-hover:text-fuchsia-100">
-                      {playlist.title}
-                    </h2>
-                    <p className="mt-3 text-sm text-slate-500">
-                      {playlist.tracks} tracks <span className="px-1.5">·</span>
-                      {playlist.description}
-                    </p>
-                  </div>
+              <article
+                key={playlist.id}
+                className={`group rounded-3xl border bg-white/[0.03] p-3 transition duration-200 hover:-translate-y-1 hover:border-white/15 hover:bg-white/[0.05] ${
+                  playlist.isActive
+                    ? 'border-dashed border-[#3b82f6]/70 shadow-[0_0_0_1px_rgba(59,130,246,0.12)]'
+                    : 'border-white/6'
+                }`}
+              >
+                <div className="relative overflow-hidden rounded-2xl">
+                  <img
+                    src={playlist.cover}
+                    alt={playlist.title}
+                    className="aspect-square w-full rounded-2xl object-cover transition duration-300 group-hover:scale-[1.03]"
+                  />
 
-                  {playlist.eq ? (
-                    <span className="rounded-md border border-violet-300/20 bg-violet-400/10 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.22em] text-violet-200">
-                      EQ
+                  {playlist.isActive ? (
+                    <span className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-full bg-[#3b82f6] px-2 py-1 text-[9px] font-bold uppercase tracking-[0.18em] text-white shadow-[0_6px_16px_rgba(59,130,246,0.4)]">
+                      <CirclePlus className="h-3 w-3" strokeWidth={2.2} />
+                      EQ Active
                     </span>
                   ) : null}
+                </div>
+
+                <div className="px-1 pb-1 pt-4">
+                  <h2 className="max-w-[11ch] text-lg font-semibold tracking-tight text-white">
+                    {playlist.title}
+                  </h2>
+                  <p className="mt-2 text-sm text-slate-500">{playlist.curator}</p>
                 </div>
               </article>
             ))}
