@@ -35,11 +35,18 @@ const eqBands: EqBand[] = [
   { id: 5, label: 'High', height: 48, offset: 15 },
 ]
 
-function PreviewToggle({ enabled }: { enabled: boolean }) {
+function PreviewToggle({
+  enabled,
+  onToggle,
+}: {
+  enabled: boolean
+  onToggle: () => void
+}) {
   return (
     <button
       type="button"
       aria-pressed={enabled}
+      onClick={onToggle}
       className={`inline-flex h-9 min-w-[96px] items-center gap-2 rounded-lg border px-3 text-[10px] font-bold uppercase tracking-[0.12em] transition ${
         enabled ? 'border-white/6 bg-[#232936] text-slate-300' : 'border-white/10 bg-white/[0.04] text-slate-500'
       }`}
@@ -110,7 +117,7 @@ function EqSlider({ band }: { band: EqBand }) {
 }
 
 export default function Segments() {
-  const [previewEnabled] = useState(true)
+  const [previewEnabled, setPreviewEnabled] = useState(true)
   const activeSegment = segments.find((segment) => segment.active) ?? segments[0]
 
   return (
@@ -126,7 +133,7 @@ export default function Segments() {
             </div>
 
             <div className="flex flex-wrap items-center gap-3">
-              <PreviewToggle enabled={previewEnabled} />
+              <PreviewToggle enabled={previewEnabled} onToggle={() => setPreviewEnabled((current) => !current)} />
               <button
                 type="button"
                 className="rounded-xl bg-[linear-gradient(180deg,#3576ff_0%,#2d5fe6_100%)] px-5 py-3 text-sm font-semibold text-white shadow-[0_10px_28px_rgba(53,118,255,0.35)] transition hover:brightness-110"

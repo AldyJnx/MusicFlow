@@ -53,11 +53,18 @@ function SectionTitle({
   )
 }
 
-function Toggle({ enabled }: { enabled: boolean }) {
+function Toggle({
+  enabled,
+  onToggle,
+}: {
+  enabled: boolean
+  onToggle: () => void
+}) {
   return (
     <button
       type="button"
       aria-pressed={enabled}
+      onClick={onToggle}
       className={`relative inline-flex h-7 w-12 items-center rounded-full border transition ${
         enabled ? 'border-[#2563eb] bg-[#2563eb]' : 'border-white/10 bg-white/10'
       }`}
@@ -72,8 +79,8 @@ function Toggle({ enabled }: { enabled: boolean }) {
 }
 
 export default function SettingsPage() {
-  const [normalizeVolume] = useState(true)
-  const [gaplessPlayback] = useState(true)
+  const [normalizeVolume, setNormalizeVolume] = useState(true)
+  const [gaplessPlayback, setGaplessPlayback] = useState(true)
 
   return (
     <ClientLayout>
@@ -137,7 +144,7 @@ export default function SettingsPage() {
                     <p className="mt-1 text-sm text-slate-500">Mismo nivel para todas las pistas</p>
                   </div>
 
-                  <Toggle enabled={normalizeVolume} />
+                  <Toggle enabled={normalizeVolume} onToggle={() => setNormalizeVolume((current) => !current)} />
                 </div>
               </div>
             </div>
@@ -172,7 +179,7 @@ export default function SettingsPage() {
                     <p className="mt-1 text-sm text-slate-500">Para albumes conceptuales</p>
                   </div>
 
-                  <Toggle enabled={gaplessPlayback} />
+                  <Toggle enabled={gaplessPlayback} onToggle={() => setGaplessPlayback((current) => !current)} />
                 </div>
               </div>
             </div>
