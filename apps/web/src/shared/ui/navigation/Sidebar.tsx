@@ -233,34 +233,45 @@ export default function Sidebar({
             )}
           </NavLink>
 
-          <div
-            className={`flex rounded-2xl border border-slate-800 bg-[#101218] ${
-              collapsed ? 'justify-center px-2 py-3' : 'items-center gap-3 px-4 py-3.5'
-            }`}
+          <NavLink
+            to="/profile"
+            className={({ isActive }) =>
+              `flex rounded-2xl border transition ${
+                isActive
+                  ? 'border-[#315cc7] bg-[#152446]'
+                  : 'border-slate-800 bg-[#101218] hover:border-slate-700 hover:bg-[#131722]'
+              } ${collapsed ? 'justify-center px-2 py-3' : 'items-center gap-3 px-4 py-3.5'}`
+            }
           >
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-fuchsia-500 to-violet-400 text-xs font-semibold text-white">
-              IV
-            </div>
-
-            {!collapsed ? (
+            {({ isActive }) => (
               <>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-[15px] font-semibold text-white">Ines Varga</p>
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-400">
-                    Studio
-                  </p>
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-fuchsia-500 to-violet-400 text-xs font-semibold text-white">
+                  IV
                 </div>
 
-                <button type="button" className="text-slate-500 transition hover:text-slate-300">
-                  <svg viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4">
-                    <circle cx="6" cy="12" r="1.6" />
-                    <circle cx="12" cy="12" r="1.6" />
-                    <circle cx="18" cy="12" r="1.6" />
-                  </svg>
-                </button>
+                {!collapsed ? (
+                  <>
+                    <div className="min-w-0 flex-1">
+                      <p className={`truncate text-[15px] font-semibold ${isActive ? 'text-white' : 'text-white'}`}>
+                        Ines Varga
+                      </p>
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-400">
+                        Studio
+                      </p>
+                    </div>
+
+                    <span className={`transition ${isActive ? 'text-[#7ba0ff]' : 'text-slate-500 hover:text-slate-300'}`}>
+                      <svg viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4">
+                        <circle cx="6" cy="12" r="1.6" />
+                        <circle cx="12" cy="12" r="1.6" />
+                        <circle cx="18" cy="12" r="1.6" />
+                      </svg>
+                    </span>
+                  </>
+                ) : null}
               </>
-            ) : null}
-          </div>
+            )}
+          </NavLink>
         </div>
       </div>
     </aside>

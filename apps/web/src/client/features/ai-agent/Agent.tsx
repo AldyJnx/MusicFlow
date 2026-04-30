@@ -56,9 +56,9 @@ export default function Agent() {
 
   return (
     <ClientLayout>
-      <section className="min-h-screen w-full bg-[radial-gradient(circle_at_top_left,rgba(80,94,255,0.08),transparent_24%),linear-gradient(180deg,#14141b_0%,#131319_100%)] px-8 py-8 text-slate-100">
-        <div className="mx-auto flex max-w-5xl flex-col gap-8">
-          <div className="flex flex-col gap-8">
+      <section className="flex h-screen w-full flex-col bg-[radial-gradient(circle_at_top_left,rgba(80,94,255,0.08),transparent_24%),linear-gradient(180deg,#14141b_0%,#131319_100%)] text-slate-100">
+        <div className="flex-1 overflow-y-auto px-8 py-8">
+          <div className="mx-auto flex max-w-5xl flex-col gap-8 pb-8">
             {messages.map((message) => (
               <div
                 key={message.id}
@@ -142,39 +142,41 @@ export default function Agent() {
                 </button>
               ))}
             </div>
-
-            <form
-              className="mt-6 rounded-2xl border border-white/6 bg-[#181920] p-3 shadow-[0_10px_24px_rgba(0,0,0,0.2)]"
-              onSubmit={(event) => {
-                event.preventDefault()
-                handleSend()
-              }}
-            >
-              <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  className="inline-flex h-10 w-10 items-center justify-center rounded-xl text-slate-500 transition hover:text-slate-200"
-                >
-                  <Mic className="h-4 w-4" strokeWidth={1.9} />
-                </button>
-
-                <input
-                  type="text"
-                  value={input}
-                  onChange={(event) => setInput(event.target.value)}
-                  placeholder="Quiero más bajos y sonido profundo..."
-                  className="h-12 flex-1 bg-transparent text-[15px] text-slate-300 outline-none placeholder:text-slate-500"
-                />
-
-                <button
-                  type="submit"
-                  className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-[linear-gradient(180deg,#4c74ff_0%,#5166f3_100%)] text-white shadow-[0_10px_24px_rgba(81,102,243,0.24)] transition hover:brightness-110"
-                >
-                  <SendHorizontal className="h-5 w-5" strokeWidth={2.1} />
-                </button>
-              </div>
-            </form>
           </div>
+        </div>
+
+        <div className="bg-[linear-gradient(180deg,rgba(20,20,27,0.72)_0%,rgba(19,19,25,0.96)_100%)] px-8 py-5 backdrop-blur">
+          <form
+            className="mx-auto max-w-5xl rounded-2xl border border-white/10 bg-[#181920] p-3 shadow-[0_10px_24px_rgba(0,0,0,0.2)]"
+            onSubmit={(event) => {
+              event.preventDefault()
+              handleSend()
+            }}
+          >
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 text-slate-500 transition hover:text-slate-200"
+              >
+                <Mic className="h-4 w-4" strokeWidth={1.9} />
+              </button>
+
+              <input
+                type="text"
+                value={input}
+                onChange={(event) => setInput(event.target.value)}
+                placeholder="Quiero más bajos y sonido profundo..."
+                className="h-12 flex-1 bg-transparent text-[15px] text-slate-300 outline-none placeholder:text-slate-500"
+              />
+
+              <button
+                type="submit"
+                className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-[linear-gradient(180deg,#4c74ff_0%,#5166f3_100%)] text-white shadow-[0_10px_24px_rgba(81,102,243,0.24)] transition hover:brightness-110"
+              >
+                <SendHorizontal className="h-5 w-5" strokeWidth={2.1} />
+              </button>
+            </div>
+          </form>
         </div>
       </section>
     </ClientLayout>
