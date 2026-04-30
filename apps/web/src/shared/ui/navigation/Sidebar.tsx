@@ -1,4 +1,5 @@
 import { NavLink } from 'react-router-dom'
+import musicFlowLogo from '../../assets/MusicFlowLogo.png'
 import type { SidebarIconKey, SidebarProps } from './types'
 
 function SidebarIcon({
@@ -13,7 +14,7 @@ function SidebarIcon({
   const colorClass = danger
     ? 'text-rose-400'
     : active
-      ? 'text-white'
+      ? 'text-[#3b82f6]'
       : 'text-slate-400 group-hover:text-slate-200'
 
   const baseProps = {
@@ -104,7 +105,6 @@ function SidebarIcon({
         </svg>
       )
 
-      
     case 'settings':
       return (
         <svg {...baseProps}>
@@ -120,31 +120,33 @@ function SidebarIcon({
 
 export default function Sidebar({
   title = 'MusicFlow',
-  version = 'v2.4 • STUDIO',
+  version = 'Client navigation',
   items,
   collapsed = false,
   onToggleCollapse,
 }: SidebarProps) {
   return (
     <aside
-      className={`sticky top-0 flex h-screen flex-col overflow-y-auto border-r border-white/10 bg-[linear-gradient(180deg,#18162a_0%,#121120_100%)] py-4 text-white transition-all duration-300 ${
-        collapsed ? 'w-[92px] px-2' : 'w-[220px] px-3'
+      className={`sticky top-0 flex h-screen flex-col overflow-x-visible overflow-y-auto border-r border-slate-800 bg-[#0b0d12] py-4 text-white transition-all duration-300 ${
+        collapsed ? 'w-[96px] px-2' : 'w-[236px] px-0'
       }`}
     >
-      <div className={`relative mb-4 flex items-center ${collapsed ? 'justify-center' : 'gap-3 px-3'}`}>
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[radial-gradient(circle_at_30%_30%,#b794ff,#6d4cff_60%,#4a2ba8)] shadow-[0_0_30px_rgba(140,92,255,0.35)]" />
+      <div className={`relative mb-5 flex items-center ${collapsed ? 'justify-center px-1' : 'gap-3 px-4'}`}>
+        <img src={musicFlowLogo} alt="MusicFlow" className="h-9 w-9 shrink-0 rounded-lg object-cover" />
+
         {!collapsed ? (
           <div className="min-w-0 flex-1">
-            <p className="truncate text-base font-semibold leading-none">{title}</p>
-            <p className="mt-1 text-[10px] uppercase tracking-[0.3em] text-slate-500">{version}</p>
+            <p className="truncate text-base font-semibold text-slate-200">{title}</p>
+            <p className="mt-1 text-[10px] text-slate-500">{version}</p>
           </div>
         ) : null}
+
         {onToggleCollapse ? (
           <button
             type="button"
             onClick={onToggleCollapse}
-            className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.03] text-slate-400 transition hover:bg-white/[0.08] hover:text-white ${
-              collapsed ? 'absolute left-[74px] top-6 z-10' : ''
+            className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-700 bg-[#0f1117] text-slate-400 transition hover:border-slate-500 hover:text-white ${
+              collapsed ? 'absolute -right-5 top-1/2 z-20 -translate-y-1/2' : ''
             }`}
             aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
@@ -161,18 +163,18 @@ export default function Sidebar({
         ) : null}
       </div>
 
-      <nav className="flex flex-col gap-1">
+      <nav className="mt-4 flex flex-col gap-1">
         {items.map((item) => (
           <NavLink
             key={item.path}
             to={item.path}
             end={item.path === '/library'}
             className={({ isActive }) =>
-              `group flex items-center rounded-2xl transition ${
+              `group relative flex items-center transition ${
                 isActive
-                  ? 'border border-white/40 bg-[#2a2440] text-white shadow-[0_0_0_1px_rgba(255,255,255,0.06)]'
-                  : 'border border-transparent text-slate-300 hover:bg-white/[0.04]'
-              } ${collapsed ? 'justify-center px-2 py-3' : 'gap-3 px-3 py-3'}`
+                  ? 'bg-[#10182d] text-[#3b82f6]'
+                  : 'text-slate-400 hover:bg-[#0f1218] hover:text-slate-200'
+              } ${collapsed ? 'justify-center px-2 py-3' : 'gap-3 px-4 py-4'}`
             }
             title={collapsed ? item.label : undefined}
           >
@@ -183,23 +185,23 @@ export default function Sidebar({
                 {!collapsed ? (
                   <>
                     <span
-                      className={`flex-1 text-sm font-medium ${
+                      className={`flex-1 text-[15px] font-medium ${
                         item.danger
                           ? isActive
                             ? 'text-rose-300'
                             : 'text-rose-400'
                           : isActive
-                            ? 'text-white'
-                            : 'text-slate-300 group-hover:text-white'
+                            ? 'text-[#3b82f6]'
+                            : 'text-slate-300 group-hover:text-slate-100'
                       }`}
                     >
                       {item.label}
                     </span>
 
-                    {item.badge ? <span className="inline-flex h-2 w-2 rounded-full bg-rose-400" /> : null}
+                    {item.badge ? <span className="inline-flex h-1.5 w-1.5 rounded-full bg-rose-400" /> : null}
                   </>
                 ) : item.badge ? (
-                  <span className="absolute ml-5 -mt-4 inline-flex h-2 w-2 rounded-full bg-rose-400" />
+                  <span className="absolute right-3 top-3 inline-flex h-1.5 w-1.5 rounded-full bg-rose-400" />
                 ) : null}
               </>
             )}
@@ -207,38 +209,58 @@ export default function Sidebar({
         ))}
       </nav>
 
-      <div className="mt-4 space-y-3">
-        <button
-          type="button"
-          className={`flex w-full rounded-2xl border border-violet-500/20 bg-[linear-gradient(180deg,#1f1a35_0%,#171329_100%)] py-3 text-left transition hover:border-violet-400/30 ${
-            collapsed ? 'justify-center px-2' : 'items-center justify-between px-4'
-          }`}
-        >
-          <span className="text-sm font-semibold text-violet-100">{collapsed ? 'AI' : 'AI Mixer'}</span>
-          {!collapsed ? <span className="text-[11px] text-slate-400">⌘K</span> : null}
-        </button>
+      <div className="mt-auto px-2 pt-6">
+        <div className="space-y-3">
+          <NavLink
+            to="/ai-mixer"
+            className={({ isActive }) =>
+              `flex w-full rounded-2xl border text-left transition ${
+                isActive
+                  ? 'border-[#315cc7] bg-[#152446]'
+                  : 'border-slate-800 bg-[#101218] hover:border-slate-700 hover:bg-[#131722]'
+              } ${collapsed ? 'justify-center px-2 py-3' : 'items-center justify-between px-4 py-3.5'}`
+            }
+          >
+            {({ isActive }) => (
+              <>
+                <span className={`text-[15px] font-semibold ${isActive ? 'text-white' : 'text-slate-100'}`}>
+                  {collapsed ? 'AI' : 'AI Mixer'}
+                </span>
+                {!collapsed ? (
+                  <span className={`text-[11px] ${isActive ? 'text-[#7ba0ff]' : 'text-slate-500'}`}>⌘K</span>
+                ) : null}
+              </>
+            )}
+          </NavLink>
 
-        <div
-          className={`flex rounded-2xl border border-white/10 bg-white/[0.03] py-3 ${
-            collapsed ? 'justify-center px-2' : 'items-center gap-3 px-3'
-          }`}
-        >
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-fuchsia-500 to-violet-400 text-xs font-semibold">
-            IV
+          <div
+            className={`flex rounded-2xl border border-slate-800 bg-[#101218] ${
+              collapsed ? 'justify-center px-2 py-3' : 'items-center gap-3 px-4 py-3.5'
+            }`}
+          >
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-fuchsia-500 to-violet-400 text-xs font-semibold text-white">
+              IV
+            </div>
+
+            {!collapsed ? (
+              <>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[15px] font-semibold text-white">Ines Varga</p>
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-400">
+                    Studio
+                  </p>
+                </div>
+
+                <button type="button" className="text-slate-500 transition hover:text-slate-300">
+                  <svg viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4">
+                    <circle cx="6" cy="12" r="1.6" />
+                    <circle cx="12" cy="12" r="1.6" />
+                    <circle cx="18" cy="12" r="1.6" />
+                  </svg>
+                </button>
+              </>
+            ) : null}
           </div>
-
-          {!collapsed ? (
-            <>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-semibold text-white">Ines Varga</p>
-                <p className="text-[10px] uppercase tracking-[0.2em] text-emerald-400">Studio</p>
-              </div>
-
-              <button type="button" className="text-slate-500 hover:text-slate-300">
-                •••
-              </button>
-            </>
-          ) : null}
         </div>
       </div>
     </aside>
