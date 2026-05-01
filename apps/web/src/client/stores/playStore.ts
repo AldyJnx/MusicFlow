@@ -11,6 +11,7 @@ export type PlayerTrack = {
 type PlayerState = {
   currentTrack: PlayerTrack | null
   isOpen: boolean
+  isExpanded: boolean
   isPlaying: boolean
   volume: number
   progress: number
@@ -20,6 +21,9 @@ type PlayerState = {
 type PlayerActions = {
   setTrack: (track: PlayerTrack) => void
   clearTrack: () => void
+  openExpanded: () => void
+  closeExpanded: () => void
+  toggleExpanded: () => void
   play: () => void
   pause: () => void
   togglePlay: () => void
@@ -35,6 +39,7 @@ const listeners = new Set<() => void>()
 const playerStoreState: PlayerState = {
   currentTrack: null,
   isOpen: false,
+  isExpanded: false,
   isPlaying: false,
   volume: 68,
   progress: 0,
@@ -55,6 +60,7 @@ const actions: PlayerActions = {
     updateState({
       currentTrack: track,
       isOpen: true,
+      isExpanded: false,
       isPlaying: true,
       progress: 0,
       currentTime: '0:00',
@@ -65,10 +71,31 @@ const actions: PlayerActions = {
     updateState({
       currentTrack: null,
       isOpen: false,
+      isExpanded: false,
       isPlaying: false,
       progress: 0,
       currentTime: '0:00',
     })
+  },
+
+  openExpanded() {
+    if (!playerStoreState.currentTrack) {
+      return
+    }
+
+    updateState({ isExpanded: true })
+  },
+
+  closeExpanded() {
+    updateState({ isExpanded: false })
+  },
+
+  toggleExpanded() {
+    if (!playerStoreState.currentTrack) {
+      return
+    }
+
+    updateState({ isExpanded: !playerStoreState.isExpanded })
   },
 
   play() {
