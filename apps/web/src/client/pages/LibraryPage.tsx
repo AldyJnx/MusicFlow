@@ -1,69 +1,13 @@
 import { Clock3, Equal, Music4, MoreHorizontal, Sparkles } from 'lucide-react'
 import { useMemo, useState } from 'react'
 
+import { librarySongs, type LibraryGenre, type LibrarySong } from '../features/library/librarySongs'
 import ClientLayout from '../layout/ClientLayout'
 import { playerStore } from '../stores/playStore'
 
 type LibraryTab = 'Canciones' | 'Álbumes' | 'Artistas'
-type GenreFilter = 'Indie' | 'Electronic' | 'Jazz' | 'Rock'
-
-type Song = {
-  id: number
-  title: string
-  artist: string
-  album: string
-  genre: GenreFilter
-  duration: string
-  cover: string
-  eqLabel?: string
-}
-
-const songs: Song[] = [
-  {
-    id: 1,
-    title: 'Neon Genesis',
-    artist: 'Cyber Architect',
-    album: 'Digital Frontier',
-    genre: 'Electronic',
-    duration: '3:42',
-    cover: 'https://i.scdn.co/image/ab67616d00001e02e2829416e5011fb749cc3fde',
-    eqLabel: 'PRO EQ',
-  },
-  {
-    id: 2,
-    title: 'Midnight Glitch',
-    artist: 'The Synthesizer',
-    album: 'Analog Dreams',
-    genre: 'Indie',
-    duration: '5:18',
-    cover:
-      'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQHjuAtK9I0-TYrXESEK0Q3ZLkD5TNm7e5-0Q&s',
-  },
-  {
-    id: 3,
-    title: 'Urban Pulse',
-    artist: 'Metric Flow',
-    album: 'City Rhythms',
-    genre: 'Jazz',
-    duration: '2:55',
-    cover:
-      'https://cdn-images.dzcdn.net/images/cover/3ee64426f51389cd6fce941a2fb87ba2/0x1900-000000-80-0-0.jpg',
-    eqLabel: 'VOCAL BOOST',
-  },
-  {
-    id: 4,
-    title: 'Static Bloom',
-    artist: 'Nova Sequence',
-    album: 'Afterimage',
-    genre: 'Rock',
-    duration: '4:11',
-    cover:
-      'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQzfP0M8hP_VVWj9WW9r5cXfav8npmI5wspDA&s',
-  },
-]
-
 const tabs: LibraryTab[] = ['Canciones', 'Álbumes', 'Artistas']
-const genres: GenreFilter[] = ['Indie', 'Electronic', 'Jazz', 'Rock']
+const genres: LibraryGenre[] = ['Indie', 'Electronic', 'Jazz', 'Rock']
 
 const statCards = [
   {
@@ -88,14 +32,14 @@ const statCards = [
 
 export default function LibraryPage() {
   const [activeTab, setActiveTab] = useState<LibraryTab>('Canciones')
-  const [activeGenre, setActiveGenre] = useState<GenreFilter | null>(null)
+  const [activeGenre, setActiveGenre] = useState<LibraryGenre | null>(null)
 
-  const filteredSongs = useMemo(() => {
+  const filteredSongs = useMemo<LibrarySong[]>(() => {
     if (!activeGenre) {
-      return songs
+      return librarySongs
     }
 
-    return songs.filter((song) => song.genre === activeGenre)
+    return librarySongs.filter((song) => song.genre === activeGenre)
   }, [activeGenre])
 
   return (

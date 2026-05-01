@@ -56,7 +56,7 @@ export default function Agent() {
 
   return (
     <ClientLayout>
-      <section className="flex h-screen w-full flex-col bg-[radial-gradient(circle_at_top_left,rgba(80,94,255,0.08),transparent_24%),linear-gradient(180deg,#14141b_0%,#131319_100%)] text-slate-100">
+      <section className="flex h-full min-h-0 w-full flex-col overflow-hidden bg-[radial-gradient(circle_at_top_left,rgba(80,94,255,0.08),transparent_24%),linear-gradient(180deg,#14141b_0%,#131319_100%)] text-slate-100">
         <div className="flex-1 overflow-y-auto px-8 py-8">
           <div className="mx-auto flex max-w-5xl flex-col gap-8 pb-8">
             {messages.map((message) => (
@@ -145,7 +145,7 @@ export default function Agent() {
           </div>
         </div>
 
-        <div className="bg-[linear-gradient(180deg,rgba(20,20,27,0.72)_0%,rgba(19,19,25,0.96)_100%)] px-8 py-5 backdrop-blur">
+        <div className="shrink-0 bg-[linear-gradient(180deg,rgba(20,20,27,0.72)_0%,rgba(19,19,25,0.96)_100%)] px-8 pb-10 pt-3 backdrop-blur">
           <form
             className="mx-auto max-w-5xl rounded-2xl border border-white/10 bg-[#181920] p-3 shadow-[0_10px_24px_rgba(0,0,0,0.2)]"
             onSubmit={(event) => {

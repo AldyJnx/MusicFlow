@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { useState } from 'react'
+import { librarySongs } from '../features/library/librarySongs'
 import ExpandedPlayer from '../features/player/ExpandedPlayer'
 import MiniPlayer from '../features/player/MiniPlayer'
 import Navbar from '../../shared/ui/navigation/Navbar'
@@ -18,7 +19,7 @@ export default function ClientLayout({ children }: { children: ReactNode }) {
         onToggleCollapse={() => setCollapsed((current) => !current)}
       />
       <div className="flex min-h-screen flex-1 flex-col">
-        <Navbar />
+        <Navbar searchSongs={librarySongs} />
         <main className="flex-1">{children}</main>
         <ExpandedPlayer sidebarOffset={sidebarWidth} />
         <MiniPlayer sidebarOffset={sidebarWidth} />

@@ -24,6 +24,7 @@ type PlayerActions = {
   openExpanded: () => void
   closeExpanded: () => void
   toggleExpanded: () => void
+  toggleMute: () => void
   play: () => void
   pause: () => void
   togglePlay: () => void
@@ -35,6 +36,7 @@ type PlayerActions = {
 export type PlayerStore = PlayerState & PlayerActions
 
 const listeners = new Set<() => void>()
+let lastVolumeBeforeMute = 68
 
 const playerStoreState: PlayerState = {
   currentTrack: null,
@@ -98,6 +100,16 @@ const actions: PlayerActions = {
     updateState({ isExpanded: !playerStoreState.isExpanded })
   },
 
+  toggleMute() {
+    if (playerStoreState.volume === 0) {
+      updateState({ volume: lastVolumeBeforeMute > 0 ? lastVolumeBeforeMute : 68 })
+      return
+    }
+
+    lastVolumeBeforeMute = playerStoreState.volume
+    updateState({ volume: 0 })
+  },
+
   play() {
     updateState({ isPlaying: true })
   },
@@ -112,6 +124,9 @@ const actions: PlayerActions = {
 
   setVolume(volume) {
     const nextVolume = Math.max(0, Math.min(100, volume))
+    if (nextVolume > 0) {
+      lastVolumeBeforeMute = nextVolume
+    }
     updateState({ volume: nextVolume })
   },
 

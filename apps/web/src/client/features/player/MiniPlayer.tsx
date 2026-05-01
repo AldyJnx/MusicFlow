@@ -1,5 +1,5 @@
 import type { MouseEvent } from 'react'
-import { Pause, Play, Repeat, SkipBack, SkipForward, Volume2 } from 'lucide-react'
+import { Pause, Play, Repeat, SkipBack, SkipForward, Volume2, VolumeX } from 'lucide-react'
 import { usePlayerStore } from '../../stores/playStore'
 
 type MiniPlayerProps = {
@@ -16,7 +16,9 @@ export default function MiniPlayer({ sidebarOffset = 0 }: MiniPlayerProps) {
   const currentTime = usePlayerStore((store) => store.currentTime)
   const openExpanded = usePlayerStore((store) => store.openExpanded)
   const togglePlay = usePlayerStore((store) => store.togglePlay)
+  const toggleMute = usePlayerStore((store) => store.toggleMute)
   const setVolume = usePlayerStore((store) => store.setVolume)
+  const isMuted = volume === 0
 
   function preventExpand(event: MouseEvent<HTMLElement>) {
     event.stopPropagation()
@@ -82,10 +84,21 @@ export default function MiniPlayer({ sidebarOffset = 0 }: MiniPlayerProps) {
         </div>
 
         <div className="flex min-w-0 items-center justify-end gap-3 text-slate-400">
-          <button type="button" onClick={preventExpand} className="transition hover:text-white">
-            <Volume2 className="h-4 w-4" strokeWidth={2.2} />
+          <button
+            type="button"
+            onClick={(event) => {
+              preventExpand(event)
+              toggleMute()
+            }}
+            className="inline-flex h-8 w-8 items-center justify-center self-center transition hover:text-white"
+          >
+            {isMuted ? (
+              <VolumeX className="h-4 w-4" strokeWidth={2.2} />
+            ) : (
+              <Volume2 className="h-4 w-4" strokeWidth={2.2} />
+            )}
           </button>
-          <div className="w-24">
+          <div className="flex h-8 items-center">
             <input
               type="range"
               min="0"
@@ -93,7 +106,7 @@ export default function MiniPlayer({ sidebarOffset = 0 }: MiniPlayerProps) {
               value={volume}
               onClick={preventExpand}
               onChange={(event) => setVolume(Number(event.target.value))}
-              className="mini-player-slider h-1 w-full cursor-pointer appearance-none rounded-full bg-white/10"
+              className="mini-player-slider h-1 w-24 cursor-pointer appearance-none rounded-full bg-white/10 align-middle"
             />
           </div>
         </div>

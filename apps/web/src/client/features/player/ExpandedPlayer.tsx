@@ -9,6 +9,7 @@ import {
   SkipBack,
   SkipForward,
   Volume2,
+  VolumeX,
 } from 'lucide-react'
 import { usePlayerStore } from '../../stores/playStore'
 
@@ -29,11 +30,13 @@ export default function ExpandedPlayer({ sidebarOffset = 0 }: ExpandedPlayerProp
   const volume = usePlayerStore((store) => store.volume)
   const closeExpanded = usePlayerStore((store) => store.closeExpanded)
   const togglePlay = usePlayerStore((store) => store.togglePlay)
+  const toggleMute = usePlayerStore((store) => store.toggleMute)
   const setProgress = usePlayerStore((store) => store.setProgress)
   const setVolume = usePlayerStore((store) => store.setVolume)
   const [favoriteTrackIds, setFavoriteTrackIds] = useState<number[]>([])
 
   const isFavorite = currentTrack ? favoriteTrackIds.includes(currentTrack.id) : false
+  const isMuted = volume === 0
 
   useEffect(() => {
     if (!isExpanded) {
@@ -212,10 +215,15 @@ export default function ExpandedPlayer({ sidebarOffset = 0 }: ExpandedPlayerProp
 
           <button
             type="button"
+            onClick={toggleMute}
             className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/[0.03] text-[#8fa6cc] transition hover:text-white"
-            aria-label="Volumen"
+            aria-label={isMuted ? 'Activar sonido' : 'Silenciar'}
           >
-            <Volume2 className="h-4 w-4" strokeWidth={2.2} />
+            {isMuted ? (
+              <VolumeX className="h-4 w-4" strokeWidth={2.2} />
+            ) : (
+              <Volume2 className="h-4 w-4" strokeWidth={2.2} />
+            )}
           </button>
         </div>
       </div>
