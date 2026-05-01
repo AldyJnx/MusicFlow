@@ -2,6 +2,7 @@ import { Clock3, Equal, Music4, MoreHorizontal, Sparkles } from 'lucide-react'
 import { useMemo, useState } from 'react'
 
 import ClientLayout from '../layout/ClientLayout'
+import { playerStore } from '../stores/playStore'
 
 type LibraryTab = 'Canciones' | 'Álbumes' | 'Artistas'
 type GenreFilter = 'Indie' | 'Electronic' | 'Jazz' | 'Rock'
@@ -183,7 +184,16 @@ export default function LibraryPage() {
                 {filteredSongs.map((song, index) => (
                   <article
                     key={song.id}
-                    className="grid grid-cols-[58px_minmax(260px,1.8fr)_minmax(170px,1.1fr)_160px_90px_48px] items-center gap-4 px-4 py-4 transition hover:bg-[#1a2637]"
+                    className="grid cursor-pointer grid-cols-[58px_minmax(260px,1.8fr)_minmax(170px,1.1fr)_160px_90px_48px] items-center gap-4 px-4 py-4 transition hover:bg-[#1a2637]"
+                    onClick={() =>
+                      playerStore.setTrack({
+                        id: song.id,
+                        title: song.title,
+                        artist: song.artist,
+                        cover: song.cover,
+                        duration: song.duration,
+                      })
+                    }
                   >
                     <span className="text-xs font-semibold text-slate-500">
                       {String(index + 1).padStart(2, '0')}
@@ -216,6 +226,7 @@ export default function LibraryPage() {
 
                     <button
                       type="button"
+                      onClick={(event) => event.stopPropagation()}
                       className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 transition hover:bg-white/5 hover:text-slate-300"
                     >
                       <MoreHorizontal className="h-4 w-4" strokeWidth={2.1} />
