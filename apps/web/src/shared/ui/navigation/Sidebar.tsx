@@ -127,12 +127,20 @@ export default function Sidebar({
 }: SidebarProps) {
   return (
     <aside
-      className={`sticky top-0 flex h-screen flex-col overflow-x-visible overflow-y-auto border-r border-slate-800 bg-[#0b0d12] py-4 text-white transition-all duration-300 ${
+      className={`sticky top-0 flex h-screen flex-col overflow-x-hidden overflow-y-auto border-r border-slate-800 bg-[#0b0d12] py-4 text-white transition-all duration-300 ${
         collapsed ? 'w-[96px] px-2' : 'w-[236px] px-0'
       }`}
     >
-      <div className={`relative mb-5 flex items-center ${collapsed ? 'justify-center px-1' : 'gap-3 px-4'}`}>
-        <img src={musicFlowLogo} alt="MusicFlow" className="h-9 w-9 shrink-0 rounded-lg object-cover" />
+      <div
+        className={`relative mb-5 flex items-center ${
+          collapsed ? 'justify-between gap-2 px-2' : 'gap-3 px-4'
+        }`}
+      >
+        <img
+          src={musicFlowLogo}
+          alt="MusicFlow"
+          className="h-9 w-9 shrink-0 rounded-lg object-cover"
+        />
 
         {!collapsed ? (
           <div className="min-w-0 flex-1">
@@ -146,7 +154,7 @@ export default function Sidebar({
             type="button"
             onClick={onToggleCollapse}
             className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-700 bg-[#0f1117] text-slate-400 transition hover:border-slate-500 hover:text-white ${
-              collapsed ? 'absolute -right-5 top-1/2 z-20 -translate-y-1/2' : ''
+              collapsed ? '' : ''
             }`}
             aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
