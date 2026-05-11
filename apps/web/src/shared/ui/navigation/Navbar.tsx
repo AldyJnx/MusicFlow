@@ -34,24 +34,24 @@ export default function Navbar({
   }, [query, searchSongs])
 
   return (
-    <header className="sticky top-0 z-30 flex items-center justify-between gap-4 bg-[#15161d] px-6 py-3">
+    <header className="sticky top-0 z-30 flex items-center justify-between gap-4 border-b border-[var(--color-border)] bg-[var(--color-navbar)] px-6 py-3">
       <div className="w-10 shrink-0" />
 
       <div className="flex flex-1 justify-center">
         <div className="relative w-full max-w-md">
-          <div className="flex items-center gap-3 rounded-full bg-[#1d1f26] px-4 py-2.5">
-            <Search className="h-4 w-4 text-slate-500" strokeWidth={2.2} />
+          <div className="flex items-center gap-3 rounded-full bg-[var(--color-page)]/70 px-4 py-2.5">
+            <Search className="h-4 w-4 text-[var(--color-muted)]" strokeWidth={2.2} />
             <input
               type="text"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder={placeholder}
-              className="w-full bg-transparent text-sm text-slate-200 outline-none placeholder:text-slate-500"
+              className="w-full bg-transparent text-sm text-[var(--color-text)] outline-none placeholder:text-[var(--color-muted)]"
             />
           </div>
 
           {filteredSongs.length > 0 ? (
-            <div className="absolute left-0 right-0 top-[calc(100%+10px)] overflow-hidden rounded-2xl border border-white/8 bg-[#171922] shadow-[0_18px_40px_rgba(0,0,0,0.34)]">
+            <div className="absolute left-0 right-0 top-[calc(100%+10px)] overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[0_18px_40px_rgba(0,0,0,0.34)]">
               {filteredSongs.map((song) => (
                 <button
                   key={song.id}
@@ -60,8 +60,8 @@ export default function Navbar({
                 >
                   <img src={song.cover} alt={song.title} className="h-10 w-10 rounded-lg object-cover" />
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold text-white">{song.title}</p>
-                    <p className="truncate text-xs text-slate-400">{song.artist}</p>
+                    <p className="truncate text-sm font-semibold text-[var(--color-text)]">{song.title}</p>
+                    <p className="truncate text-xs text-[var(--color-muted)]">{song.artist}</p>
                   </div>
                 </button>
               ))}
@@ -72,7 +72,7 @@ export default function Navbar({
 
       <button
         type="button"
-        className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-slate-300 transition hover:bg-white/[0.04] hover:text-white"
+        className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[var(--color-muted)] transition hover:bg-white/[0.04] hover:text-[var(--color-text)]"
         aria-label="Notificaciones"
       >
         <Bell className="h-4 w-4" strokeWidth={2.1} />

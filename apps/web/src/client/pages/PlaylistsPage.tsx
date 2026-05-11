@@ -41,21 +41,21 @@ const playlists: Playlist[] = [
 export default function PlaylistsPage() {
   return (
     <ClientLayout>
-      <section className="min-h-screen w-full bg-[#111218] px-4 py-6 text-slate-100 sm:px-6 xl:px-8">
-        <div className="mx-auto max-w-7xl rounded-[28px] border border-white/5 bg-[linear-gradient(180deg,rgba(20,22,31,0.98)_0%,rgba(15,16,24,0.98)_100%)] p-6 shadow-[0_24px_80px_rgba(0,0,0,0.35)] sm:p-8">
+      <section className="min-h-screen w-full bg-[var(--color-page)] px-4 py-6 text-[var(--color-text)] sm:px-6 xl:px-8">
+        <div className="mx-auto max-w-7xl rounded-[28px] border border-[var(--color-border)] bg-[linear-gradient(180deg,var(--color-surface)_0%,var(--color-page)_100%)] p-6 shadow-[0_24px_80px_rgba(0,0,0,0.35)] sm:p-8">
           <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
             <div className="max-w-2xl">
-              <h1 className="text-3xl font-extrabold uppercase tracking-tight text-white sm:text-[38px]">
+              <h1 className="text-3xl font-extrabold uppercase tracking-tight text-[var(--color-text)] sm:text-[38px]">
                 Mis playlists
               </h1>
-              <p className="mt-3 max-w-xl text-sm font-medium leading-7 text-slate-300 sm:text-base">
+              <p className="mt-3 max-w-xl text-sm font-medium leading-7 text-[var(--color-muted)] sm:text-base">
                 Organiza tu universo sonoro. Gestiona tus colecciones personalizadas con ingenieria de audio AI.
               </p>
             </div>
 
             <button
               type="button"
-              className="inline-flex items-center gap-2 self-start rounded-xl bg-[linear-gradient(180deg,#3576ff_0%,#2d5fe6_100%)] px-5 py-3 text-sm font-semibold text-white shadow-[0_10px_28px_rgba(53,118,255,0.35)] transition hover:brightness-110"
+              className="inline-flex items-center gap-2 self-start rounded-xl bg-[linear-gradient(180deg,var(--color-primary)_0%,var(--color-secondary)_100%)] px-5 py-3 text-sm font-semibold text-[var(--color-text)] shadow-[0_10px_28px_rgba(53,118,255,0.35)] transition hover:brightness-110"
             >
               <Plus className="h-4 w-4" strokeWidth={2.2} />
               Crear playlist
@@ -66,10 +66,10 @@ export default function PlaylistsPage() {
             {playlists.map((playlist) => (
               <article
                 key={playlist.id}
-                className={`group rounded-3xl border bg-white/[0.03] p-3 transition duration-200 hover:-translate-y-1 hover:border-white/15 hover:bg-white/[0.05] ${
+                className={`group rounded-3xl border bg-[var(--color-surface)] p-3 transition duration-200 hover:-translate-y-1 hover:border-[var(--color-primary)] hover:bg-[var(--color-surface-alt)] ${
                   playlist.isActive
-                    ? 'border-dashed border-[#3b82f6]/70 shadow-[0_0_0_1px_rgba(59,130,246,0.12)]'
-                    : 'border-white/6'
+                    ? 'border-dashed border-[var(--color-primary)] shadow-[0_0_0_1px_rgba(59,130,246,0.12)]'
+                    : 'border-[var(--color-border)]'
                 }`}
               >
                 <div className="relative overflow-hidden rounded-2xl">
@@ -80,7 +80,7 @@ export default function PlaylistsPage() {
                   />
 
                   {playlist.isActive ? (
-                    <span className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-full bg-[#3b82f6] px-2 py-1 text-[9px] font-bold uppercase tracking-[0.18em] text-white shadow-[0_6px_16px_rgba(59,130,246,0.4)]">
+                    <span className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-full bg-[var(--color-primary)] px-2 py-1 text-[9px] font-bold uppercase tracking-[0.18em] text-white shadow-[0_6px_16px_rgba(59,130,246,0.4)]">
                       <CirclePlus className="h-3 w-3" strokeWidth={2.2} />
                       EQ Active
                     </span>
@@ -88,10 +88,10 @@ export default function PlaylistsPage() {
                 </div>
 
                 <div className="px-1 pb-1 pt-4">
-                  <h2 className="max-w-[11ch] text-lg font-semibold tracking-tight text-white">
+                  <h2 className="max-w-[11ch] text-lg font-semibold tracking-tight text-[var(--color-text)]">
                     {playlist.title}
                   </h2>
-                  <p className="mt-2 text-sm text-slate-500">{playlist.curator}</p>
+                  <p className="mt-2 text-sm text-[var(--color-muted)]">{playlist.curator}</p>
                 </div>
               </article>
             ))}

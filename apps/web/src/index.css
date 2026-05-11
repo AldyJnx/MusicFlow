@@ -1,3 +1,32 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+:root {
+  --color-page: #16161d;
+  --color-sidebar: #090c12;
+  --color-navbar: #15161d;
+  --color-surface: #1c1d24;
+  --color-surface-alt: #10182d;
+  --color-text: #f8fafc;
+  --color-muted: #7e8aa3;
+  --color-border: #232836;
+  --color-primary: #3b82f6;
+  --color-secondary: #1a2230;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--color-page);
+  color: var(--color-text);
+}
+
+* {
+  box-sizing: border-box;
+}

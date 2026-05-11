@@ -12,7 +12,7 @@ export default function ClientLayout({ children }: { children: ReactNode }) {
   const sidebarWidth = collapsed ? 96 : 236
 
   return (
-    <div className="flex min-h-screen bg-[#090914]">
+    <div className="flex min-h-screen bg-[var(--color-page)] text-[var(--color-text)]">
       <Sidebar
         items={sidebarClient}
         collapsed={collapsed}

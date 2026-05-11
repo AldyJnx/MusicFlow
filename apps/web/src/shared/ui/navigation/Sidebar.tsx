@@ -14,8 +14,8 @@ function SidebarIcon({
   const colorClass = danger
     ? 'text-rose-400'
     : active
-      ? 'text-[#3b82f6]'
-      : 'text-slate-400 group-hover:text-slate-200'
+      ? 'text-[var(--color-primary)]'
+      : 'text-[var(--color-muted)] group-hover:text-[var(--color-text)]'
 
   const baseProps = {
     className: `h-4 w-4 ${colorClass}`,
@@ -127,7 +127,7 @@ export default function Sidebar({
 }: SidebarProps) {
   return (
     <aside
-      className={`sticky top-0 flex h-screen flex-col overflow-x-hidden overflow-y-auto border-r border-slate-800 bg-[#0b0d12] py-4 text-white transition-all duration-300 ${
+      className={`sticky top-0 flex h-screen flex-col overflow-x-hidden overflow-y-auto border-r border-[var(--color-border)] bg-[var(--color-sidebar)] py-4 text-[var(--color-text)] transition-all duration-300 ${
         collapsed ? 'w-[96px] px-2' : 'w-[236px] px-0'
       }`}
     >
@@ -144,8 +144,8 @@ export default function Sidebar({
 
         {!collapsed ? (
           <div className="min-w-0 flex-1">
-            <p className="truncate text-base font-semibold text-slate-200">{title}</p>
-            <p className="mt-1 text-[10px] text-slate-500">{version}</p>
+            <p className="truncate text-base font-semibold text-[var(--color-text)]">{title}</p>
+            <p className="mt-1 text-[10px] text-[var(--color-muted)]">{version}</p>
           </div>
         ) : null}
 
@@ -153,7 +153,7 @@ export default function Sidebar({
           <button
             type="button"
             onClick={onToggleCollapse}
-            className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-700 bg-[#0f1117] text-slate-400 transition hover:border-slate-500 hover:text-white ${
+            className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[var(--color-border)] bg-[var(--color-page)] text-[var(--color-muted)] transition hover:border-[var(--color-primary)] hover:text-[var(--color-text)] ${
               collapsed ? '' : ''
             }`}
             aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
@@ -180,8 +180,8 @@ export default function Sidebar({
             className={({ isActive }) =>
               `group relative flex items-center transition ${
                 isActive
-                  ? 'bg-[#10182d] text-[#3b82f6]'
-                  : 'text-slate-400 hover:bg-[#0f1218] hover:text-slate-200'
+                  ? 'bg-[var(--color-surface-alt)] text-[var(--color-primary)]'
+                  : 'text-[var(--color-muted)] hover:bg-[var(--color-page)]/50 hover:text-[var(--color-text)]'
               } ${collapsed ? 'justify-center px-2 py-3' : 'gap-3 px-4 py-4'}`
             }
             title={collapsed ? item.label : undefined}
@@ -199,8 +199,8 @@ export default function Sidebar({
                             ? 'text-rose-300'
                             : 'text-rose-400'
                           : isActive
-                            ? 'text-[#3b82f6]'
-                            : 'text-slate-300 group-hover:text-slate-100'
+                            ? 'text-[var(--color-primary)]'
+                            : 'text-[var(--color-text)] group-hover:text-[var(--color-text)]'
                       }`}
                     >
                       {item.label}
@@ -224,18 +224,18 @@ export default function Sidebar({
             className={({ isActive }) =>
               `flex w-full rounded-2xl border text-left transition ${
                 isActive
-                  ? 'border-[#315cc7] bg-[#152446]'
-                  : 'border-slate-800 bg-[#101218] hover:border-slate-700 hover:bg-[#131722]'
+                  ? 'border-[var(--color-primary)] bg-[var(--color-surface-alt)]'
+                  : 'border-[var(--color-border)] bg-[var(--color-page)]/60 hover:border-[var(--color-primary)]/50 hover:bg-[var(--color-page)]'
               } ${collapsed ? 'justify-center px-2 py-3' : 'items-center justify-between px-4 py-3.5'}`
             }
           >
             {({ isActive }) => (
               <>
-                <span className={`text-[15px] font-semibold ${isActive ? 'text-white' : 'text-slate-100'}`}>
+                <span className={`text-[15px] font-semibold ${isActive ? 'text-[var(--color-text)]' : 'text-[var(--color-text)]'}`}>
                   {collapsed ? 'AI' : 'AI Mixer'}
                 </span>
                 {!collapsed ? (
-                  <span className={`text-[11px] ${isActive ? 'text-[#7ba0ff]' : 'text-slate-500'}`}>⌘K</span>
+                  <span className={`text-[11px] ${isActive ? 'text-[var(--color-primary)]' : 'text-[var(--color-muted)]'}`}>⌘K</span>
                 ) : null}
               </>
             )}
@@ -246,8 +246,8 @@ export default function Sidebar({
             className={({ isActive }) =>
               `flex rounded-2xl border transition ${
                 isActive
-                  ? 'border-[#315cc7] bg-[#152446]'
-                  : 'border-slate-800 bg-[#101218] hover:border-slate-700 hover:bg-[#131722]'
+                  ? 'border-[var(--color-primary)] bg-[var(--color-surface-alt)]'
+                  : 'border-[var(--color-border)] bg-[var(--color-page)]/60 hover:border-[var(--color-primary)]/50 hover:bg-[var(--color-page)]'
               } ${collapsed ? 'justify-center px-2 py-3' : 'items-center gap-3 px-4 py-3.5'}`
             }
           >
@@ -260,7 +260,7 @@ export default function Sidebar({
                 {!collapsed ? (
                   <>
                     <div className="min-w-0 flex-1">
-                      <p className={`truncate text-[15px] font-semibold ${isActive ? 'text-white' : 'text-white'}`}>
+                      <p className={`truncate text-[15px] font-semibold ${isActive ? 'text-[var(--color-text)]' : 'text-[var(--color-text)]'}`}>
                         Ines Varga
                       </p>
                       <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-400">
@@ -268,7 +268,7 @@ export default function Sidebar({
                       </p>
                     </div>
 
-                    <span className={`transition ${isActive ? 'text-[#7ba0ff]' : 'text-slate-500 hover:text-slate-300'}`}>
+                    <span className={`transition ${isActive ? 'text-[var(--color-primary)]' : 'text-[var(--color-muted)] hover:text-[var(--color-text)]'}`}>
                       <svg viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4">
                         <circle cx="6" cy="12" r="1.6" />
                         <circle cx="12" cy="12" r="1.6" />
