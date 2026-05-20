@@ -1,0 +1,38 @@
+import 'package:flutter/material.dart';
+import 'package:musicflow_mobile/app/routes.dart';
+import 'package:musicflow_mobile/features/library/screens/home_screen.dart';
+import 'package:musicflow_mobile/features/playlists/screens/playlist_screens.dart';
+import 'package:musicflow_mobile/features/premium/screens/premium_screen.dart';
+import 'package:musicflow_mobile/features/profile/screens/profile_screen.dart';
+
+abstract final class AppRouter {
+  static Route<dynamic> onGenerateRoute(RouteSettings settings) {
+    switch (settings.name) {
+      case AppRoutes.home:
+        return MaterialPageRoute(
+          builder: (_) => const HomeScreen(),
+          settings: settings,
+        );
+      case AppRoutes.playlists:
+        return MaterialPageRoute(
+          builder: (_) => const PlaylistScreen(),
+          settings: settings,
+        );
+      case AppRoutes.profile:
+        return MaterialPageRoute(
+          builder: (_) => const ProfileScreen(),
+          settings: settings,
+        );
+      case AppRoutes.premium:
+        return MaterialPageRoute(
+          builder: (_) => const PremiumScreen(),
+          settings: settings,
+        );
+      default:
+        return MaterialPageRoute(
+          builder: (_) => const HomeScreen(),
+          settings: settings,
+        );
+    }
+  }
+}

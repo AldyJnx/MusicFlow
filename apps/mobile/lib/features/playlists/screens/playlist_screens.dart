@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:musicflow_mobile/app/routes.dart';
 
 class PlaylistScreen extends StatelessWidget {
   const PlaylistScreen({super.key});
@@ -10,6 +11,19 @@ class PlaylistScreen extends StatelessWidget {
   static const Color _bgMid = Color(0xFF0B1F2A);
   static const Color _bgTop = Color(0xFF103244);
   static const Color _cardSoft = Color(0xFF17242E);
+
+  void _handleBottomNavigation(BuildContext context, int index) {
+    switch (index) {
+      case 0:
+        Navigator.of(context).pushNamed(AppRoutes.home);
+        break;
+      case 3:
+        Navigator.of(context).pushNamed(AppRoutes.profile);
+        break;
+      default:
+        break;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -64,6 +78,7 @@ class PlaylistScreen extends StatelessWidget {
         ),
         child: BottomNavigationBar(
           currentIndex: 1,
+          onTap: (index) => _handleBottomNavigation(context, index),
           backgroundColor: Colors.transparent,
           elevation: 0,
           selectedItemColor: _accentCyan,

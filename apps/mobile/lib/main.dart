@@ -1,12 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:musicflow_mobile/features/ai_agent/screens/ai_chat_screen.dart';
-//import 'package:musicflow_mobile/features/player/screens/now_playing_screen.dart';
-//import 'package:musicflow_mobile/features/auth/register_screen.dart';
-//import 'package:musicflow_mobile/features/profile/screens/profile_screen.dart';
-//import 'package:musicflow_mobile/features/auth/login_screen.dart';
-//import 'package:musicflow_mobile/features/playlist/screens/playlist_screen.dart';
-//import 'package:musicflow_mobile/features/library/screens/home_screen.dart';
-//import 'package:musicflow_mobile/features/premium/screens/premium_screen.dart';
+import 'package:musicflow_mobile/app/router.dart';
+import 'package:musicflow_mobile/app/routes.dart';
 
 void main() {
   runApp(const MyApp());
@@ -22,7 +16,8 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
       ),
-      home: const AiChatScreen(),
+      initialRoute: AppRoutes.home,
+      onGenerateRoute: AppRouter.onGenerateRoute,
     );
   }
 }

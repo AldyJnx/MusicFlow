@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:musicflow_mobile/features/premium/screens/premium_screen.dart';
+import 'package:musicflow_mobile/app/routes.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -12,6 +12,27 @@ class HomeScreen extends StatelessWidget {
   static const Color _bgTop = Color(0xFF0E3447);
   static const Color _cardDark = Color(0xFF102734);
   static const Color _cardSoft = Color(0xFF132F3F);
+
+  void _openPlaylistScreen(BuildContext context) {
+    Navigator.of(context).pushNamed(AppRoutes.playlists);
+  }
+
+  void _openProfileScreen(BuildContext context) {
+    Navigator.of(context).pushNamed(AppRoutes.profile);
+  }
+
+  void _handleBottomNavigation(BuildContext context, int index) {
+    switch (index) {
+      case 1:
+        _openPlaylistScreen(context);
+        break;
+      case 3:
+        _openProfileScreen(context);
+        break;
+      default:
+        break;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -69,6 +90,7 @@ class HomeScreen extends StatelessWidget {
         ),
         child: BottomNavigationBar(
           currentIndex: 0,
+          onTap: (index) => _handleBottomNavigation(context, index),
           backgroundColor: Colors.transparent,
           elevation: 0,
           selectedItemColor: _accentCyan,
@@ -288,7 +310,7 @@ class HomeScreen extends StatelessWidget {
                 const SizedBox(height: 28),
                 _SectionHeader(
                   title: 'Playlists destacadas',
-                  onSeeAll: () {},
+                  onSeeAll: () => _openPlaylistScreen(context),
                 ),
                 const SizedBox(height: 16),
                 SizedBox(
@@ -301,56 +323,59 @@ class HomeScreen extends StatelessWidget {
                       final item = featuredPlaylists[index];
                       final colors = item['colors'] as List<Color>;
 
-                      return Container(
-                        width: 158,
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(24),
-                          gradient: LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: colors,
+                      return GestureDetector(
+                        onTap: () => _openPlaylistScreen(context),
+                        child: Container(
+                          width: 158,
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(24),
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: colors,
+                            ),
+                            boxShadow: const [
+                              BoxShadow(
+                                color: Color(0x2200CFFF),
+                                blurRadius: 18,
+                                offset: Offset(0, 8),
+                              ),
+                            ],
                           ),
-                          boxShadow: const [
-                            BoxShadow(
-                              color: Color(0x2200CFFF),
-                              blurRadius: 18,
-                              offset: Offset(0, 8),
-                            ),
-                          ],
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Container(
-                              width: 46,
-                              height: 46,
-                              decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.14),
-                                borderRadius: BorderRadius.circular(14),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Container(
+                                width: 46,
+                                height: 46,
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.14),
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                                child: const Icon(
+                                  Icons.graphic_eq_rounded,
+                                  color: Colors.white,
+                                ),
                               ),
-                              child: const Icon(
-                                Icons.graphic_eq_rounded,
-                                color: Colors.white,
+                              const Spacer(),
+                              Text(
+                                item['title'] as String,
+                                style: theme.textTheme.titleMedium?.copyWith(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w800,
+                                ),
                               ),
-                            ),
-                            const Spacer(),
-                            Text(
-                              item['title'] as String,
-                              style: theme.textTheme.titleMedium?.copyWith(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w800,
+                              const SizedBox(height: 6),
+                              Text(
+                                item['subtitle'] as String,
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: Colors.white70,
+                                  height: 1.3,
+                                ),
                               ),
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              item['subtitle'] as String,
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: Colors.white70,
-                                height: 1.3,
-                              ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       );
                     },
@@ -498,11 +523,7 @@ class HomeScreen extends StatelessWidget {
         Expanded(
           child: InkWell(
             onTap: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => const PremiumScreen(),
-                ),
-              );
+              Navigator.of(context).pushNamed(AppRoutes.premium);
             },
             borderRadius: BorderRadius.circular(999),
             child: Container(
