@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:musicflow_mobile/app/routes.dart';
+import 'package:musicflow_mobile/core/widgets/app_bottom_navigation.dart';
 
 class PlaylistScreen extends StatelessWidget {
   const PlaylistScreen({super.key});
@@ -12,18 +13,6 @@ class PlaylistScreen extends StatelessWidget {
   static const Color _bgTop = Color(0xFF103244);
   static const Color _cardSoft = Color(0xFF17242E);
 
-  void _handleBottomNavigation(BuildContext context, int index) {
-    switch (index) {
-      case 0:
-        Navigator.of(context).pushNamed(AppRoutes.home);
-        break;
-      case 3:
-        Navigator.of(context).pushNamed(AppRoutes.profile);
-        break;
-      default:
-        break;
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -71,41 +60,8 @@ class PlaylistScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: _bgDark,
       extendBody: true,
-      bottomNavigationBar: Container(
-        decoration: const BoxDecoration(
-          color: Color(0xFF0B1F2A),
-          border: Border(top: BorderSide(color: Color(0x223CCEFF))),
-        ),
-        child: BottomNavigationBar(
-          currentIndex: 1,
-          onTap: (index) => _handleBottomNavigation(context, index),
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          selectedItemColor: _accentCyan,
-          unselectedItemColor: Colors.white54,
-          type: BottomNavigationBarType.fixed,
-          items: const [
-            BottomNavigationBarItem(
-              icon: Icon(Icons.home_outlined),
-              activeIcon: Icon(Icons.home_rounded),
-              label: 'Inicio',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.library_music_outlined),
-              activeIcon: Icon(Icons.library_music_rounded),
-              label: 'Biblioteca',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.favorite_rounded),
-              label: 'Favoritos',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.person_outline_rounded),
-              activeIcon: Icon(Icons.person_rounded),
-              label: 'Perfil',
-            ),
-          ],
-        ),
+      bottomNavigationBar: const AppBottomNavigation(
+        currentRoute: AppRoutes.playlists,
       ),
       body: Container(
         decoration: const BoxDecoration(
@@ -637,3 +593,4 @@ class _TrackTile extends StatelessWidget {
     );
   }
 }
+

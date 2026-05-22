@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:musicflow_mobile/app/routes.dart';
+import 'package:musicflow_mobile/core/widgets/app_bottom_navigation.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -19,43 +21,8 @@ class ProfileScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: _bgDark,
-      bottomNavigationBar: Container(
-        decoration: const BoxDecoration(
-          color: Color(0xFF0B1F2A),
-          border: Border(
-            top: BorderSide(color: Color(0x223CCEFF)),
-          ),
-        ),
-        child: BottomNavigationBar(
-          currentIndex: 3,
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          selectedItemColor: _accentCyan,
-          unselectedItemColor: Colors.white54,
-          type: BottomNavigationBarType.fixed,
-          items: const [
-            BottomNavigationBarItem(
-              icon: Icon(Icons.explore_outlined),
-              activeIcon: Icon(Icons.explore_rounded),
-              label: 'Explorar',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.radio_outlined),
-              activeIcon: Icon(Icons.radio_rounded),
-              label: 'Radio',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.library_music_outlined),
-              activeIcon: Icon(Icons.library_music_rounded),
-              label: 'Libreria',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.person_outline_rounded),
-              activeIcon: Icon(Icons.person_rounded),
-              label: 'Perfil',
-            ),
-          ],
-        ),
+      bottomNavigationBar: const AppBottomNavigation(
+        currentRoute: AppRoutes.profile,
       ),
       body: Container(
         decoration: const BoxDecoration(
@@ -455,3 +422,4 @@ class _ProfileOptionTile extends StatelessWidget {
     );
   }
 }
+
