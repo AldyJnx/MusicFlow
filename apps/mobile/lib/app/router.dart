@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:musicflow_mobile/app/routes.dart';
+import 'package:musicflow_mobile/features/equalizer/screens/equalizer_screen.dart';
 import 'package:musicflow_mobile/features/library/screens/home_screen.dart';
 import 'package:musicflow_mobile/features/playlists/screens/playlist_screens.dart';
 import 'package:musicflow_mobile/features/premium/screens/premium_screen.dart';
@@ -16,6 +17,11 @@ abstract final class AppRouter {
       case AppRoutes.playlists:
         return MaterialPageRoute(
           builder: (_) => const PlaylistScreen(),
+          settings: settings,
+        );
+      case AppRoutes.equalizer:
+        return MaterialPageRoute(
+          builder: (_) => const EqualizerScreen(),
           settings: settings,
         );
       case AppRoutes.profile:
