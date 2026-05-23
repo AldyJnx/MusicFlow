@@ -294,24 +294,26 @@ class ProfileScreen extends StatelessWidget {
                     borderRadius: BorderRadius.circular(22),
                   ),
                   child: Column(
-                    children: const [
+                    children: [
                       _ProfileOptionTile(
                         icon: Icons.edit_outlined,
                         title: 'Editar Perfil',
+                        onTap: () => Navigator.of(context).pushNamed(AppRoutes.editProfile),
                       ),
                       _ProfileOptionTile(
                         icon: Icons.payment_rounded,
                         title: 'Metodos de Pago',
+                        onTap: () => Navigator.of(context).pushNamed(AppRoutes.paymentMethods),
                       ),
-                      _ProfileOptionTile(
+                      const _ProfileOptionTile(
                         icon: Icons.verified_user_outlined,
                         title: 'Privacidad',
                       ),
-                      Divider(
+                      const Divider(
                         height: 1,
                         color: Color(0x223CCEFF),
                       ),
-                      _ProfileOptionTile(
+                      const _ProfileOptionTile(
                         icon: Icons.logout_rounded,
                         title: 'Cerrar Sesion',
                         color: _danger,
@@ -393,12 +395,14 @@ class _ProfileOptionTile extends StatelessWidget {
     required this.title,
     this.color = Colors.white,
     this.arrowColor = Colors.white38,
+    this.onTap,
   });
 
   final IconData icon;
   final String title;
   final Color color;
   final Color arrowColor;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -418,7 +422,7 @@ class _ProfileOptionTile extends StatelessWidget {
         Icons.chevron_right_rounded,
         color: arrowColor,
       ),
-      onTap: () {},
+      onTap: onTap,
     );
   }
 }
