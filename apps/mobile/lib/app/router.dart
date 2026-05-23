@@ -4,6 +4,8 @@ import 'package:musicflow_mobile/features/equalizer/screens/equalizer_screen.dar
 import 'package:musicflow_mobile/features/library/screens/home_screen.dart';
 import 'package:musicflow_mobile/features/playlists/screens/playlist_screens.dart';
 import 'package:musicflow_mobile/features/premium/screens/premium_screen.dart';
+import 'package:musicflow_mobile/features/profile/screens/edit_profile.dart';
+import 'package:musicflow_mobile/features/profile/screens/payment_methods_screen.dart';
 import 'package:musicflow_mobile/features/profile/screens/profile_screen.dart';
 
 abstract final class AppRouter {
@@ -27,6 +29,16 @@ abstract final class AppRouter {
       case AppRoutes.profile:
         return MaterialPageRoute(
           builder: (_) => const ProfileScreen(),
+          settings: settings,
+        );
+      case AppRoutes.editProfile:
+        return MaterialPageRoute(
+          builder: (_) => const EditProfileScreen(),
+          settings: settings,
+        );
+      case AppRoutes.paymentMethods:
+        return MaterialPageRoute(
+          builder: (_) => const PaymentMethodsScreen(),
           settings: settings,
         );
       case AppRoutes.premium:
