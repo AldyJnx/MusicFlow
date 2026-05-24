@@ -15,6 +15,8 @@ export type AppTheme = {
     border: string
     primary: string
     secondary: string
+    ctaStart: string
+    ctaEnd: string
   }
 }
 
@@ -34,6 +36,8 @@ export const appThemes: Record<AppThemeId, AppTheme> = {
       border: '#232836',
       primary: '#3b82f6',
       secondary: '#1a2230',
+      ctaStart: '#5f87ff',
+      ctaEnd: '#3b82f6',
     },
   },
   'neon-genesis': {
@@ -51,6 +55,8 @@ export const appThemes: Record<AppThemeId, AppTheme> = {
       border: '#4c1d95',
       primary: '#c084fc',
       secondary: '#6d28d9',
+      ctaStart: '#5f87ff',
+      ctaEnd: '#3b82f6',
     },
   },
   estudio: {
@@ -68,6 +74,8 @@ export const appThemes: Record<AppThemeId, AppTheme> = {
       border: '#c3cfdd',
       primary: '#5d83d6',
       secondary: '#dce7f4',
+      ctaStart: '#5f87ff',
+      ctaEnd: '#3b82f6',
     },
   },
 }
@@ -87,4 +95,6 @@ export function applyTheme(themeId: AppThemeId) {
   root.style.setProperty('--color-border', theme.colors.border)
   root.style.setProperty('--color-primary', theme.colors.primary)
   root.style.setProperty('--color-secondary', theme.colors.secondary)
+  root.style.setProperty('--color-cta-start', theme.colors.ctaStart)
+  root.style.setProperty('--color-cta-end', theme.colors.ctaEnd)
 }

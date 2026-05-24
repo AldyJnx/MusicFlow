@@ -55,7 +55,7 @@ export default function PlaylistsPage() {
 
             <button
               type="button"
-              className="inline-flex items-center gap-2 self-start rounded-xl bg-[linear-gradient(180deg,var(--color-primary)_0%,var(--color-secondary)_100%)] px-5 py-3 text-sm font-semibold text-[var(--color-text)] shadow-[0_10px_28px_rgba(53,118,255,0.35)] transition hover:brightness-110"
+              className="inline-flex items-center gap-2 self-start rounded-xl bg-[linear-gradient(180deg,var(--color-cta-start)_0%,var(--color-cta-end)_100%)] px-5 py-3 text-sm font-semibold text-white shadow-[0_10px_24px_rgba(59,130,246,0.28)] transition hover:brightness-110"
             >
               <Plus className="h-4 w-4" strokeWidth={2.2} />
               Crear playlist

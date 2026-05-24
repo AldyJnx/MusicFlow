@@ -115,7 +115,7 @@ export default function Agent() {
                 <div className="mt-4 flex items-center gap-3">
                   <button
                     type="button"
-                    className="flex-1 rounded-xl bg-[linear-gradient(90deg,var(--color-primary)_0%,var(--color-secondary)_100%)] px-5 py-3.5 text-sm font-semibold text-[var(--color-text)] shadow-[0_10px_24px_rgba(59,130,246,0.24)] transition hover:brightness-110"
+                    className="flex-1 rounded-xl bg-[linear-gradient(180deg,var(--color-cta-start)_0%,var(--color-cta-end)_100%)] px-5 py-3.5 text-sm font-semibold text-white shadow-[0_10px_24px_rgba(59,130,246,0.28)] transition hover:brightness-110"
                   >
                     Aplicar Ahora
                   </button>
@@ -171,7 +171,7 @@ export default function Agent() {
 
               <button
                 type="submit"
-                className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-[linear-gradient(180deg,var(--color-primary)_0%,var(--color-secondary)_100%)] text-[var(--color-text)] shadow-[0_10px_24px_rgba(81,102,243,0.24)] transition hover:brightness-110"
+                className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-[linear-gradient(180deg,var(--color-cta-start)_0%,var(--color-cta-end)_100%)] text-white shadow-[0_10px_24px_rgba(59,130,246,0.28)] transition hover:brightness-110"
               >
                 <SendHorizontal className="h-5 w-5" strokeWidth={2.1} />
               </button>
