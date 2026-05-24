@@ -68,19 +68,22 @@ class ProfileScreen extends StatelessWidget {
                       ),
                     ),
                     const Spacer(),
-                    Container(
-                      width: 44,
-                      height: 44,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: _accentCyan.withOpacity(0.55),
+                    GestureDetector(
+                      onTap: () => Navigator.of(context).pushNamed(AppRoutes.settings),
+                      child: Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: _accentCyan.withOpacity(0.55),
+                          ),
+                          color: Colors.white.withOpacity(0.03),
                         ),
-                        color: Colors.white.withOpacity(0.03),
-                      ),
-                      child: const Icon(
-                        Icons.settings_rounded,
-                        color: _accentCyan,
+                        child: const Icon(
+                          Icons.settings_rounded,
+                          color: _accentCyan,
+                        ),
                       ),
                     ),
                   ],
@@ -426,4 +429,3 @@ class _ProfileOptionTile extends StatelessWidget {
     );
   }
 }
-

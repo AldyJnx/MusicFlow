@@ -7,6 +7,7 @@ import 'package:musicflow_mobile/features/premium/screens/premium_screen.dart';
 import 'package:musicflow_mobile/features/profile/screens/edit_profile.dart';
 import 'package:musicflow_mobile/features/profile/screens/payment_methods_screen.dart';
 import 'package:musicflow_mobile/features/profile/screens/profile_screen.dart';
+import 'package:musicflow_mobile/features/settings/settings_screen.dart';
 
 abstract final class AppRouter {
   static Route<dynamic> onGenerateRoute(RouteSettings settings) {
@@ -39,6 +40,11 @@ abstract final class AppRouter {
       case AppRoutes.paymentMethods:
         return MaterialPageRoute(
           builder: (_) => const PaymentMethodsScreen(),
+          settings: settings,
+        );
+      case AppRoutes.settings:
+        return MaterialPageRoute(
+          builder: (_) => const SettingsScreen(),
           settings: settings,
         );
       case AppRoutes.premium:
