@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import type { AudioEngine } from "../../audio/engine";
+import { getAudioEngine, type AudioEngine } from "../../audio/engine";
 import type { ReverbPreset, EQPreset } from "../api/equalizer";
 import { listPresets } from "../api/equalizer";
 
@@ -41,15 +41,13 @@ export function useEqualizer() {
     queryFn: listPresets,
   });
 
-  // Helper: lazily obtain the engine (only after a user gesture)
+  // Helper: lazily obtain the engine (only after a user gesture).
+  // getAudioEngine() is imported statically — the AudioContext is only
+  // created inside that factory when first invoked, so module-load is safe.
   const getEngineIfNeeded = useCallback((): AudioEngine | null => {
     if (typeof window === "undefined") return null;
     if (!engineRef.current) {
-      // Dynamic import to avoid AudioContext construction at module load
       try {
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
-        const { getAudioEngine } =
-          require("../../audio/engine") as typeof import("../../audio/engine");
         engineRef.current = getAudioEngine();
       } catch {
         return null;

@@ -1,3 +1,4 @@
+/// <reference lib="webworker" />
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
@@ -48,6 +49,7 @@ export default defineConfig({
             },
           },
           {
+            // Runtime callback executes inside the service worker.
             urlPattern: ({ url, request }) =>
               request.destination === 'image' && url.origin === self.location.origin,
             handler: 'CacheFirst',

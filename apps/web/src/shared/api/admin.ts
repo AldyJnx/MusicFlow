@@ -1,6 +1,8 @@
 import { api } from "./client";
 import type { UserRole } from "../stores/authStore";
 
+export type { UserRole };
+
 export type AppliedTo = "GLOBAL" | "PLAYLIST" | "TRACK" | "SEGMENT";
 export type FeedbackValue = "GOOD" | "BAD" | "NEUTRAL";
 
