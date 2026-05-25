@@ -10,13 +10,19 @@ import {
   UseGuards,
   HttpCode,
   HttpStatus,
+  UseInterceptors,
+  UploadedFile,
+  BadRequestException,
 } from "@nestjs/common";
+import { FileInterceptor } from "@nestjs/platform-express";
 import {
   ApiTags,
   ApiOperation,
   ApiBearerAuth,
   ApiQuery,
   ApiResponse,
+  ApiConsumes,
+  ApiBody,
 } from "@nestjs/swagger";
 import { TracksService } from "./tracks.service";
 import { CreateTrackDto, UpdateTrackDto } from "./dto";
@@ -95,6 +101,44 @@ export class TracksController {
   })
   async create(@CurrentUser("id") userId: string, @Body() dto: CreateTrackDto) {
     return this.tracksService.create(userId, dto);
+  }
+
+  @Post("upload")
+  @UseInterceptors(FileInterceptor("file"))
+  @ApiOperation({
+    summary:
+      "Upload an audio file (multipart). Server extracts metadata and dedupes by SHA-256.",
+  })
+  @ApiConsumes("multipart/form-data")
+  @ApiBody({
+    schema: {
+      type: "object",
+      properties: {
+        file: { type: "string", format: "binary" },
+        title: { type: "string" },
+        artist: { type: "string" },
+        album: { type: "string" },
+      },
+      required: ["file"],
+    },
+  })
+  @ApiResponse({ status: 201, description: "Track uploaded" })
+  @ApiResponse({ status: 409, description: "Track already exists" })
+  async upload(
+    @CurrentUser("id") userId: string,
+    @UploadedFile() file: Express.Multer.File,
+    @Body("title") title?: string,
+    @Body("artist") artist?: string,
+    @Body("album") album?: string,
+  ) {
+    if (!file) {
+      throw new BadRequestException("Missing file");
+    }
+    return this.tracksService.uploadFromFile(userId, file, {
+      title,
+      artist,
+      album,
+    });
   }
 
   @Patch(":id")
