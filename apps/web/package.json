@@ -9,7 +9,8 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "electron": "electron electron/main.cjs",
-    "pwa-icons": "node scripts/generate-pwa-icons.mjs"
+    "pwa-icons": "node scripts/generate-pwa-icons.mjs",
+    "compress-images": "node scripts/compress-images.mjs"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.100.13",

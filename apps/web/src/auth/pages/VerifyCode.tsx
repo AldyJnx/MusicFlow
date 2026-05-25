@@ -1,33 +1,33 @@
-import { useMemo, useState } from 'react'
-import { ArrowLeft, ArrowRight } from 'lucide-react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useMemo, useState } from "react";
+import { ArrowLeft, ArrowRight } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
 
-import fondoLogin from '../../assets/Fondo_Login.png'
-import logoMusicFlow from '../../assets/Logo_Music_Flow.png'
+import fondoLogin from "../../assets/Fondo_Login.webp";
+import logoMusicFlow from "../../assets/Logo_Music_Flow.webp";
 
 export default function VerifyCode() {
-  const navigate = useNavigate()
-  const [digits, setDigits] = useState(['', '', '', '', '', ''])
+  const navigate = useNavigate();
+  const [digits, setDigits] = useState(["", "", "", "", "", ""]);
 
   const isFormValid = useMemo(
     () => digits.every((digit) => digit.trim().length === 1),
     [digits],
-  )
+  );
 
   function handleDigitChange(index: number, value: string) {
-    const nextValue = value.replace(/\D/g, '').slice(-1)
+    const nextValue = value.replace(/\D/g, "").slice(-1);
     setDigits((current) =>
       current.map((digit, currentIndex) =>
         currentIndex === index ? nextValue : digit,
       ),
-    )
+    );
 
     if (nextValue && index < digits.length - 1) {
       const nextInput = document.getElementById(
         `verify-digit-${index + 1}`,
-      ) as HTMLInputElement | null
-      nextInput?.focus()
-      nextInput?.select()
+      ) as HTMLInputElement | null;
+      nextInput?.focus();
+      nextInput?.select();
     }
   }
 
@@ -35,21 +35,21 @@ export default function VerifyCode() {
     index: number,
     event: React.KeyboardEvent<HTMLInputElement>,
   ) {
-    if (event.key === 'Backspace' && !digits[index] && index > 0) {
+    if (event.key === "Backspace" && !digits[index] && index > 0) {
       const previousInput = document.getElementById(
         `verify-digit-${index - 1}`,
-      ) as HTMLInputElement | null
-      previousInput?.focus()
-      previousInput?.select()
+      ) as HTMLInputElement | null;
+      previousInput?.focus();
+      previousInput?.select();
     }
   }
 
   function handleVerify() {
     if (!isFormValid) {
-      return
+      return;
     }
 
-    navigate('/change-password')
+    navigate("/change-password");
   }
 
   return (
@@ -91,7 +91,9 @@ export default function VerifyCode() {
                 inputMode="numeric"
                 maxLength={1}
                 value={digit}
-                onChange={(event) => handleDigitChange(index, event.target.value)}
+                onChange={(event) =>
+                  handleDigitChange(index, event.target.value)
+                }
                 onKeyDown={(event) => handleDigitKeyDown(index, event)}
                 className="h-14 w-14 rounded-[12px] border border-white/10 bg-white text-center text-xl font-semibold text-[#111827] outline-none transition focus:border-[#12dff2] focus:bg-white"
               />
@@ -104,8 +106,8 @@ export default function VerifyCode() {
             disabled={!isFormValid}
             className={`flex h-[50px] w-full items-center justify-center gap-2 rounded-[11px] border text-[0.83rem] font-semibold uppercase tracking-[0.05em] transition ${
               isFormValid
-                ? 'border-[#11dbef] bg-[#14e3f7] text-[#093038] shadow-[0_0_24px_rgba(20,227,247,0.3)] hover:bg-[#38e8f8]'
-                : 'cursor-not-allowed border-white/8 bg-[#2a303a] text-[#788395]'
+                ? "border-[#11dbef] bg-[#14e3f7] text-[#093038] shadow-[0_0_24px_rgba(20,227,247,0.3)] hover:bg-[#38e8f8]"
+                : "cursor-not-allowed border-white/8 bg-[#2a303a] text-[#788395]"
             }`}
           >
             Verificar código
@@ -137,5 +139,5 @@ export default function VerifyCode() {
         </p>
       </section>
     </main>
-  )
+  );
 }

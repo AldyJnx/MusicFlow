@@ -4,8 +4,8 @@ import { Link, useNavigate } from "react-router-dom";
 import { useMutation } from "@tanstack/react-query";
 import axios from "axios";
 
-import fondoLogin from "../../assets/Fondo_Login.png";
-import logoMusicFlow from "../../assets/Logo_Music_Flow.png";
+import fondoLogin from "../../assets/Fondo_Login.webp";
+import logoMusicFlow from "../../assets/Logo_Music_Flow.webp";
 import { login as loginRequest } from "../../shared/api/auth";
 import { useAuthStore } from "../../shared/stores/authStore";
 
@@ -121,6 +121,9 @@ export default function Login() {
                 <button
                   type="button"
                   onClick={() => setShowPassword((current) => !current)}
+                  aria-label={
+                    showPassword ? "Ocultar contraseña" : "Mostrar contraseña"
+                  }
                   className="text-[#747f96] transition hover:text-[#c2d7df]"
                 >
                   {showPassword ? (
