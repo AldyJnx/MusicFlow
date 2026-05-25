@@ -5,6 +5,8 @@ import { ThrottlerModule } from "@nestjs/throttler";
 // Core modules
 import { PrismaModule } from "./prisma/prisma.module";
 import { StorageModule } from "./modules/storage/storage.module";
+import { QueueModule } from "./modules/queue/queue.module";
+import { MailModule } from "./modules/mail/mail.module";
 
 // Feature modules
 import { AuthModule } from "./modules/auth/auth.module";
@@ -37,6 +39,12 @@ import { AdminModule } from "./modules/admin/admin.module";
 
     // Storage (S3/MinIO)
     StorageModule,
+
+    // Background jobs (BullMQ + Redis)
+    QueueModule,
+
+    // Email
+    MailModule,
 
     // Features
     AuthModule,
