@@ -24,6 +24,37 @@ export interface AuthTokens {
   refreshToken: string;
 }
 
+export interface SafeUser {
+  id: string;
+  email: string;
+  username: string;
+  role: string;
+  isPremium: boolean;
+  avatar: string | null;
+}
+
+export interface AuthSession extends AuthTokens {
+  user: SafeUser;
+}
+
+function toSafeUser(user: {
+  id: string;
+  email: string;
+  username: string;
+  role: string;
+  isPremium: boolean;
+  avatar: string | null;
+}): SafeUser {
+  return {
+    id: user.id,
+    email: user.email,
+    username: user.username,
+    role: user.role,
+    isPremium: user.isPremium,
+    avatar: user.avatar,
+  };
+}
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -32,7 +63,7 @@ export class AuthService {
     private readonly configService: ConfigService,
   ) {}
 
-  async register(dto: RegisterDto): Promise<AuthTokens> {
+  async register(dto: RegisterDto): Promise<AuthSession> {
     const existingUser = await this.prisma.user.findFirst({
       where: {
         OR: [{ email: dto.email }, { username: dto.username }],
@@ -60,10 +91,10 @@ export class AuthService {
       },
     });
 
-    return this.generateTokens(user);
+    return { ...this.generateTokens(user), user: toSafeUser(user) };
   }
 
-  async login(dto: LoginDto): Promise<AuthTokens> {
+  async login(dto: LoginDto): Promise<AuthSession> {
     const user = await this.prisma.user.findUnique({
       where: { email: dto.email },
     });
@@ -82,7 +113,7 @@ export class AuthService {
       throw new UnauthorizedException("Account is deactivated");
     }
 
-    return this.generateTokens(user);
+    return { ...this.generateTokens(user), user: toSafeUser(user) };
   }
 
   async refreshTokens(refreshToken: string): Promise<AuthTokens> {
