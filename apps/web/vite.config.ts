@@ -9,7 +9,15 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       devOptions: { enabled: false },
-      includeAssets: ['favicon.svg', 'music_flow.svg', 'icons.svg'],
+      includeAssets: [
+        'favicon.svg',
+        'music_flow.svg',
+        'icons.svg',
+        'icons/pwa-192-any.png',
+        'icons/pwa-512-any.png',
+        'icons/pwa-192-maskable.png',
+        'icons/pwa-512-maskable.png',
+      ],
       manifest: {
         name: 'MusicFlow',
         short_name: 'MusicFlow',
@@ -25,10 +33,34 @@ export default defineConfig({
         categories: ['music', 'entertainment'],
         icons: [
           {
+            src: 'icons/pwa-192-any.png',
+            sizes: '192x192',
+            type: 'image/png',
+            purpose: 'any',
+          },
+          {
+            src: 'icons/pwa-512-any.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'any',
+          },
+          {
+            src: 'icons/pwa-192-maskable.png',
+            sizes: '192x192',
+            type: 'image/png',
+            purpose: 'maskable',
+          },
+          {
+            src: 'icons/pwa-512-maskable.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'maskable',
+          },
+          {
             src: 'music_flow.svg',
             sizes: 'any',
             type: 'image/svg+xml',
-            purpose: 'any maskable',
+            purpose: 'any',
           },
         ],
       },
