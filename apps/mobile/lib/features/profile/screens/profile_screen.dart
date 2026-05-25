@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:musicflow_mobile/app/routes.dart';
-import 'package:musicflow_mobile/core/widgets/app_bottom_navigation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:musicflow_mobile/features/auth/providers/auth_controller.dart';
+import 'package:musicflow_mobile/shared/models/user.dart';
 
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
 
   static const Color _primaryBlue = Color(0xFF1E90FF);
@@ -16,13 +17,63 @@ class ProfileScreen extends StatelessWidget {
   static const Color _danger = Color(0xFFFF5A5F);
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final authState = ref.watch(authControllerProvider);
+    final user = authState.user;
+
+    // Defensive: if somehow unauthenticated here, show a placeholder.
+    if (user == null) {
+      return Scaffold(
+        backgroundColor: _bgDark,
+        body: const Center(
+          child: CircularProgressIndicator(color: _accentCyan),
+        ),
+      );
+    }
+
+    final isPremium = user.isPremium;
+    final roleLabel = user.role == UserRole.admin ? 'Admin' : 'Cliente';
 
     return Scaffold(
       backgroundColor: _bgDark,
-      bottomNavigationBar: const AppBottomNavigation(
-        currentRoute: AppRoutes.profile,
+      bottomNavigationBar: Container(
+        decoration: const BoxDecoration(
+          color: Color(0xFF0B1F2A),
+          border: Border(
+            top: BorderSide(color: Color(0x223CCEFF)),
+          ),
+        ),
+        child: BottomNavigationBar(
+          currentIndex: 3,
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          selectedItemColor: _accentCyan,
+          unselectedItemColor: Colors.white54,
+          type: BottomNavigationBarType.fixed,
+          items: const [
+            BottomNavigationBarItem(
+              icon: Icon(Icons.explore_outlined),
+              activeIcon: Icon(Icons.explore_rounded),
+              label: 'Explorar',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.radio_outlined),
+              activeIcon: Icon(Icons.radio_rounded),
+              label: 'Radio',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.library_music_outlined),
+              activeIcon: Icon(Icons.library_music_rounded),
+              label: 'Libreria',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.person_outline_rounded),
+              activeIcon: Icon(Icons.person_rounded),
+              label: 'Perfil',
+            ),
+          ],
+        ),
       ),
       body: Container(
         decoration: const BoxDecoration(
@@ -39,6 +90,7 @@ class ProfileScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Header row
                 Row(
                   children: [
                     Container(
@@ -68,27 +120,25 @@ class ProfileScreen extends StatelessWidget {
                       ),
                     ),
                     const Spacer(),
-                    GestureDetector(
-                      onTap: () => Navigator.of(context).pushNamed(AppRoutes.settings),
-                      child: Container(
-                        width: 44,
-                        height: 44,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: _accentCyan.withOpacity(0.55),
-                          ),
-                          color: Colors.white.withOpacity(0.03),
+                    Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: _accentCyan.withOpacity(0.55),
                         ),
-                        child: const Icon(
-                          Icons.settings_rounded,
-                          color: _accentCyan,
-                        ),
+                        color: Colors.white.withOpacity(0.03),
+                      ),
+                      child: const Icon(
+                        Icons.settings_rounded,
+                        color: _accentCyan,
                       ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 26),
+                // Avatar + name + email
                 Center(
                   child: Column(
                     children: [
@@ -140,7 +190,7 @@ class ProfileScreen extends StatelessWidget {
                                   vertical: 10,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: _lightBlue,
+                                  color: isPremium ? _lightBlue : const Color(0xFF2A3A45),
                                   borderRadius: BorderRadius.circular(999),
                                   boxShadow: const [
                                     BoxShadow(
@@ -151,10 +201,10 @@ class ProfileScreen extends StatelessWidget {
                                   ],
                                 ),
                                 child: Text(
-                                  'PLAN\nPREMIUM',
+                                  isPremium ? 'PLAN\nPREMIUM' : 'PLAN\nGRATUITO',
                                   textAlign: TextAlign.center,
                                   style: theme.textTheme.labelMedium?.copyWith(
-                                    color: _bgDark,
+                                    color: isPremium ? _bgDark : Colors.white70,
                                     fontWeight: FontWeight.w900,
                                     letterSpacing: 0.6,
                                     height: 1.15,
@@ -167,7 +217,7 @@ class ProfileScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        'Fernando Mas',
+                        user.username,
                         style: theme.textTheme.displaySmall?.copyWith(
                           color: Colors.white,
                           fontWeight: FontWeight.w900,
@@ -176,16 +226,46 @@ class ProfileScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        'fernando.mas@musicflow.com',
+                        user.email,
                         style: theme.textTheme.titleMedium?.copyWith(
                           color: Colors.white70,
                           fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      // Role badge
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: user.role == UserRole.admin
+                              ? const Color(0x33FF8A00)
+                              : const Color(0x221E90FF),
+                          borderRadius: BorderRadius.circular(999),
+                          border: Border.all(
+                            color: user.role == UserRole.admin
+                                ? const Color(0x88FF8A00)
+                                : const Color(0x661E90FF),
+                          ),
+                        ),
+                        child: Text(
+                          roleLabel,
+                          style: theme.textTheme.labelMedium?.copyWith(
+                            color: user.role == UserRole.admin
+                                ? const Color(0xFFFFB347)
+                                : _lightBlue,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.6,
+                          ),
                         ),
                       ),
                     ],
                   ),
                 ),
                 const SizedBox(height: 26),
+                // Stats card (static placeholder)
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
@@ -209,7 +289,7 @@ class ProfileScreen extends StatelessWidget {
                             ),
                             const SizedBox(height: 10),
                             Text(
-                              '12,482',
+                              '–',
                               style: theme.textTheme.displaySmall?.copyWith(
                                 color: _lightBlue,
                                 fontWeight: FontWeight.w900,
@@ -266,7 +346,7 @@ class ProfileScreen extends StatelessWidget {
                         icon: Icons.favorite_border_rounded,
                         iconColor: _primaryBlue,
                         title: 'ARTISTAS FAVORITOS',
-                        value: '148',
+                        value: '–',
                       ),
                     ),
                     SizedBox(width: 14),
@@ -275,7 +355,7 @@ class ProfileScreen extends StatelessWidget {
                         icon: Icons.headphones_rounded,
                         iconColor: Color(0xFF4FFFBF),
                         title: 'GENERO TOP',
-                        value: 'Rock',
+                        value: '–',
                       ),
                     ),
                   ],
@@ -298,15 +378,13 @@ class ProfileScreen extends StatelessWidget {
                   ),
                   child: Column(
                     children: [
-                      _ProfileOptionTile(
+                      const _ProfileOptionTile(
                         icon: Icons.edit_outlined,
                         title: 'Editar Perfil',
-                        onTap: () => Navigator.of(context).pushNamed(AppRoutes.editProfile),
                       ),
-                      _ProfileOptionTile(
+                      const _ProfileOptionTile(
                         icon: Icons.payment_rounded,
                         title: 'Metodos de Pago',
-                        onTap: () => Navigator.of(context).pushNamed(AppRoutes.paymentMethods),
                       ),
                       const _ProfileOptionTile(
                         icon: Icons.verified_user_outlined,
@@ -316,11 +394,17 @@ class ProfileScreen extends StatelessWidget {
                         height: 1,
                         color: Color(0x223CCEFF),
                       ),
-                      const _ProfileOptionTile(
+                      _ProfileOptionTile(
                         icon: Icons.logout_rounded,
                         title: 'Cerrar Sesion',
                         color: _danger,
                         arrowColor: _danger,
+                        onTap: () async {
+                          await ref
+                              .read(authControllerProvider.notifier)
+                              .logout();
+                          // GoRouter redirect to /login is automatic.
+                        },
                       ),
                     ],
                   ),
