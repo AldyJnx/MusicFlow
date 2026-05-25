@@ -1,26 +1,54 @@
 name: musicflow_mobile
-description: "A new Flutter project."
-publish_to: 'none'
+description: "MusicFlow mobile client (Flutter)."
+publish_to: "none"
 
 version: 1.0.0+1
 
 environment:
   sdk: ^3.11.1
-
+  flutter: ">=3.41.0"
 
 dependencies:
   flutter:
     sdk: flutter
-  
+
   cupertino_icons: ^1.0.8
+
+  # State management
+  flutter_riverpod: ^2.5.1
+  riverpod_annotation: ^2.3.5
+
+  # Routing
+  go_router: ^14.2.0
+
+  # HTTP
+  dio: ^5.4.3+1
+
+  # Models / serialization
+  freezed_annotation: ^2.4.4
+  json_annotation: ^4.9.0
+
+  # Storage
+  flutter_secure_storage: ^9.2.2
+  shared_preferences: ^2.2.3
+
+  # Audio
+  just_audio: ^0.9.39
+  audio_service: ^0.18.15
+  rxdart: ^0.27.7
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  
+
   flutter_lints: ^6.0.0
   flutter_launcher_icons: ^0.14.4
 
+  # Code generation
+  build_runner: ^2.4.11
+  freezed: ^2.5.2
+  json_serializable: ^6.8.0
+  riverpod_generator: ^2.4.0
 
 flutter_launcher_icons:
   android: true
@@ -28,6 +56,8 @@ flutter_launcher_icons:
   image_path: "assets/icon/music-flow.png"
   adaptive_icon_background: "#10182D"
   adaptive_icon_foreground: "assets/icon/music-flow.png"
+
 flutter:
-  
   uses-material-design: true
+  assets:
+    - assets/icon/
