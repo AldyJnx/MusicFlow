@@ -1,238 +1,308 @@
-import { SlidersHorizontal, Sparkles, Waves, Mic2, Radio, Plus } from 'lucide-react'
-import { useState } from 'react'
+import { RotateCcw, SlidersHorizontal } from "lucide-react";
+import ClientLayout from "../../layout/ClientLayout";
+import { useEqualizer } from "../../../shared/hooks/useEqualizer";
+import type { EQPreset, ReverbPreset } from "../../../shared/api/equalizer";
 
-import ClientLayout from '../../layout/ClientLayout'
+// ─── Constants ────────────────────────────────────────────────────────────────
 
-type EqualizerMode = 'Global' | 'Playlist' | 'Cancion' | 'Segmento'
+const FREQUENCIES = [
+  31, 62, 125, 250, 500, 1000, 2000, 4000, 8000, 16000,
+] as const;
 
-type PresetCard = {
-  id: number
-  title: string
-  subtitle: string
-  icon: typeof Waves
-  accent?: boolean
+const REVERB_LABELS: Record<ReverbPreset, string> = {
+  NONE: "Ninguno",
+  SMALL_ROOM: "Sala Pequeña",
+  MEDIUM_ROOM: "Sala Mediana",
+  LARGE_ROOM: "Sala Grande",
+  SMALL_HALL: "Auditorio Pequeño",
+  LARGE_HALL: "Auditorio Grande",
+  CATHEDRAL: "Catedral",
+  PLATE: "Plato",
+  SPRING: "Resorte",
+};
+
+const REVERB_OPTIONS = Object.entries(REVERB_LABELS) as [
+  ReverbPreset,
+  string,
+][];
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function formatHz(hz: number): string {
+  return hz >= 1000 ? `${hz / 1000}k` : `${hz}`;
 }
 
-const modes: EqualizerMode[] = ['Global', 'Playlist', 'Cancion', 'Segmento']
+function formatDb(db: number): string {
+  if (db > 0) return `+${db}`;
+  return `${db}`;
+}
 
-const chartPoints = [
-  { label: '20 Hz', x: '12%', y: '58%', active: false },
-  { label: '250 Hz', x: '27%', y: '33%', active: false },
-  { label: '1 KHz', x: '42%', y: '48%', active: false },
-  { label: '4 KHz', x: '57%', y: '18%', active: true },
-  { label: '20 KHz', x: '78%', y: '53%', active: false },
-]
+/**
+ * Best-effort comparison: a preset is "active" when every band value matches
+ * the current bands (integer comparison after rounding).
+ */
+function isPresetActive(preset: EQPreset, bands: number[]): boolean {
+  if (preset.bands.length !== bands.length) return false;
+  return preset.bands.every(
+    (b, i) => Math.round(b) === Math.round(bands[i] ?? 0),
+  );
+}
 
-const presets: PresetCard[] = [
-  {
-    id: 1,
-    title: 'Clasico',
-    subtitle: 'Balanceado para acusticos',
-    icon: Radio,
-  },
-  {
-    id: 2,
-    title: 'Deep Bass',
-    subtitle: 'Potencia en graves',
-    icon: Waves,
-  },
-  {
-    id: 3,
-    title: 'Vocal Live',
-    subtitle: 'Claridad en medias',
-    icon: Mic2,
-  },
-  {
-    id: 4,
-    title: 'Nuevo',
-    subtitle: 'Guardar actual',
-    icon: Plus,
-    accent: true,
-  },
-]
+// ─── Sub-components ───────────────────────────────────────────────────────────
 
-function MasterSlider({
+function SkeletonChips() {
+  return (
+    <>
+      {Array.from({ length: 6 }).map((_, i) => (
+        <div
+          key={i}
+          className="h-8 w-24 animate-pulse rounded-full bg-[var(--color-surface-alt)]"
+        />
+      ))}
+    </>
+  );
+}
+
+function EffectSlider({
   label,
   value,
-  width,
-  muted = false,
+  onChange,
 }: {
-  label: string
-  value: string
-  width: string
-  muted?: boolean
+  label: string;
+  value: number;
+  onChange: (v: number) => void;
 }) {
   return (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between text-[11px] font-semibold uppercase tracking-[0.16em]">
-        <span className="text-[var(--color-muted)]">{label}</span>
-        <span className={muted ? 'text-[var(--color-muted)]' : 'text-[var(--color-primary)]'}>{value}</span>
+    <div className="flex flex-1 flex-col gap-2">
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-medium text-[var(--color-muted)]">
+          {label}
+        </span>
+        <span className="text-xs font-semibold text-[var(--color-primary)]">
+          {value}
+        </span>
       </div>
-      <div className="h-1 rounded-full bg-[var(--color-border)]">
-        <div
-          className={`h-full rounded-full ${muted ? 'bg-white/40' : 'bg-[linear-gradient(90deg,var(--color-cta-start)_0%,var(--color-cta-end)_100%)]'}`}
-          style={{ width }}
-        />
-      </div>
+      <input
+        type="range"
+        min={0}
+        max={100}
+        step={1}
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-[var(--color-border)] accent-[var(--color-primary)]"
+      />
     </div>
-  )
+  );
 }
 
+// ─── Main component ───────────────────────────────────────────────────────────
+
 export default function Equalizer() {
-  const [activeMode, setActiveMode] = useState<EqualizerMode>('Global')
+  const {
+    bands,
+    setBand,
+    effects,
+    setEffects,
+    presets,
+    presetsLoading,
+    applyPreset,
+    reset,
+  } = useEqualizer();
 
   return (
     <ClientLayout>
       <section className="min-h-screen w-full bg-[var(--color-page)] px-4 py-6 text-[var(--color-text)] sm:px-6 xl:px-8">
-        <div className="mx-auto max-w-7xl rounded-[28px] border border-[var(--color-border)] bg-[linear-gradient(180deg,var(--color-surface)_0%,var(--color-page)_100%)] p-6 shadow-[0_24px_80px_rgba(0,0,0,0.35)] sm:p-8">
-          <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
-            <div className="max-w-2xl">
-              <h1 className="text-3xl font-extrabold tracking-tight text-[var(--color-text)] sm:text-[42px]">
-                Ecualizador Paramétrico
+        <div className="mx-auto flex max-w-7xl flex-col gap-6 rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] p-6 shadow-[0_24px_80px_rgba(0,0,0,0.35)] sm:p-8">
+          {/* ── Header ── */}
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <span className="text-[var(--color-primary)]">
+                <SlidersHorizontal className="h-5 w-5" strokeWidth={2.2} />
+              </span>
+              <h1 className="text-2xl font-semibold tracking-tight text-[var(--color-text)]">
+                Ecualizador
               </h1>
-              <p className="mt-3 max-w-xl text-sm font-medium leading-7 text-[var(--color-muted)] sm:text-base">
-                Ajusta cada frecuencia con precisión quirúrgica o deja que nuestra IA optimice el perfil sonoro según tu entorno.
-              </p>
             </div>
 
             <button
               type="button"
-              className="inline-flex items-center gap-2 self-start rounded-xl bg-[linear-gradient(180deg,var(--color-cta-start)_0%,var(--color-cta-end)_100%)] px-5 py-3 text-sm font-semibold text-white shadow-[0_10px_24px_rgba(59,130,246,0.28)] transition hover:brightness-110"
+              onClick={reset}
+              className="flex items-center gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-alt)] px-4 py-2 text-sm font-medium text-[var(--color-muted)] transition hover:border-[var(--color-primary)] hover:text-[var(--color-text)]"
             >
-              <Sparkles className="h-4 w-4" strokeWidth={2.1} />
-              Usar IA
+              <RotateCcw className="h-3.5 w-3.5" strokeWidth={2.2} />
+              Reset
             </button>
           </div>
 
-          <div className="mt-8 grid grid-cols-1 gap-6 xl:grid-cols-[1.8fr_0.86fr]">
-            <div className="space-y-5">
-              <div className="inline-flex rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-alt)] p-1">
-                {modes.map((mode) => (
-                  <button
-                    key={mode}
-                    type="button"
-                    onClick={() => setActiveMode(mode)}
-                    className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${
-                      activeMode === mode
-                        ? 'bg-[var(--color-secondary)] text-[var(--color-primary)]'
-                        : 'text-[var(--color-muted)] hover:text-[var(--color-text)]'
-                    }`}
-                  >
-                    {mode}
-                  </button>
-                ))}
-              </div>
-
-              <div className="overflow-hidden rounded-[26px] border border-[var(--color-border)] bg-[linear-gradient(180deg,var(--color-secondary)_0%,rgba(13,22,40,0.92)_100%)]">
-                <div className="relative h-[290px]">
-                  <div
-                    className="absolute inset-0 opacity-60"
-                    style={{
-                      backgroundImage:
-                        'linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px)',
-                      backgroundSize: '44px 48px',
-                    }}
-                  />
-
-                  <div
-                    className="absolute inset-x-0 bottom-0 top-10 opacity-80"
-                    style={{
-                      background:
-                        'linear-gradient(180deg, rgba(80,120,255,0.08) 0%, rgba(80,120,255,0.03) 100%)',
-                      clipPath:
-                        'polygon(0% 62%, 12% 54%, 27% 31%, 42% 49%, 57% 12%, 72% 46%, 85% 68%, 100% 52%, 100% 100%, 0% 100%)',
-                    }}
-                  />
-
-                  {chartPoints.map((point) => (
-                    <span
-                      key={point.label}
-                      className={`absolute h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full ${
-                        point.active
-                          ? 'bg-white shadow-[0_0_24px_rgba(255,255,255,0.82)]'
-                          : 'bg-[var(--color-primary)] shadow-[0_0_20px_rgba(96,165,250,0.65)]'
-                      }`}
-                      style={{ left: point.x, top: point.y }}
-                    />
-                  ))}
-
-                  <div className="absolute inset-x-6 bottom-4 flex items-center justify-between text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-muted)]">
-                    {chartPoints.map((point) => (
-                      <span key={point.label}>{point.label}</span>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-                {presets.map((preset) => {
-                  const Icon = preset.icon
-
+          {/* ── Presets row ── */}
+          <div className="flex flex-col gap-3">
+            <h2 className="text-sm font-semibold uppercase tracking-[0.12em] text-[var(--color-muted)]">
+              Presets
+            </h2>
+            <div className="flex gap-2 overflow-x-auto pb-1">
+              {presetsLoading ? (
+                <SkeletonChips />
+              ) : presets.length === 0 ? (
+                <p className="text-sm text-[var(--color-muted)]">
+                  Sin presets guardados.
+                </p>
+              ) : (
+                presets.map((preset) => {
+                  const active = isPresetActive(preset, bands);
                   return (
-                    <article
+                    <button
                       key={preset.id}
-                      className="rounded-3xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 transition hover:border-[var(--color-primary)] hover:bg-[var(--color-surface-alt)]"
+                      type="button"
+                      onClick={() => applyPreset(preset)}
+                      className={`shrink-0 rounded-full border px-4 py-1.5 text-sm font-medium transition ${
+                        active
+                          ? "border-[var(--color-primary)] bg-[var(--color-secondary)] text-[var(--color-primary)] shadow-[0_0_0_1px_rgba(59,130,246,0.2)]"
+                          : "border-[var(--color-border)] bg-[var(--color-surface-alt)] text-[var(--color-text)] hover:border-[var(--color-primary)] hover:bg-[var(--color-secondary)]"
+                      }`}
                     >
-                      <div
-                        className={`inline-flex h-10 w-10 items-center justify-center rounded-xl ${
-                          preset.accent
-                            ? 'bg-[var(--color-secondary)] text-[var(--color-primary)]'
-                            : 'bg-[var(--color-surface-alt)] text-[var(--color-text)]'
-                        }`}
-                      >
-                        <Icon className="h-4 w-4" strokeWidth={2.1} />
-                      </div>
-                      <h3 className={`mt-5 text-base font-semibold ${preset.accent ? 'text-[var(--color-primary)]' : 'text-[var(--color-text)]'}`}>
-                        {preset.title}
-                      </h3>
-                      <p className="mt-2 text-xs leading-5 text-[var(--color-muted)]">{preset.subtitle}</p>
-                    </article>
-                  )
-                })}
-              </div>
+                      {preset.name}
+                    </button>
+                  );
+                })
+              )}
+            </div>
+          </div>
+
+          {/* ── 10-band EQ sliders ── */}
+          <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-alt)] p-5">
+            <h2 className="mb-5 text-sm font-semibold uppercase tracking-[0.12em] text-[var(--color-muted)]">
+              Bandas de Frecuencia
+            </h2>
+            <div className="flex items-end justify-around gap-1">
+              {FREQUENCIES.map((hz, i) => {
+                const db = Math.round(bands[i] ?? 0);
+                return (
+                  <div
+                    key={hz}
+                    className="flex flex-1 flex-col items-center gap-2"
+                  >
+                    {/* dB readout */}
+                    <span
+                      className={`text-xs font-semibold tabular-nums ${
+                        db > 0
+                          ? "text-[var(--color-primary)]"
+                          : db < 0
+                            ? "text-rose-400"
+                            : "text-[var(--color-muted)]"
+                      }`}
+                    >
+                      {formatDb(db)}
+                    </span>
+
+                    {/* Vertical slider */}
+                    <div className="flex h-44 items-center justify-center">
+                      <input
+                        type="range"
+                        min={-15}
+                        max={15}
+                        step={1}
+                        value={db}
+                        orient="vertical"
+                        onChange={(e) => setBand(i, Number(e.target.value))}
+                        style={{
+                          writingMode:
+                            "vertical-lr" as React.CSSProperties["writingMode"],
+                          direction: "rtl",
+                          height: "160px",
+                          width: "28px",
+                          cursor: "pointer",
+                          appearance:
+                            "slider-vertical" as React.CSSProperties["appearance"],
+                          WebkitAppearance:
+                            "slider-vertical" as React.CSSProperties["WebkitAppearance"],
+                          accentColor: "var(--color-primary)",
+                        }}
+                      />
+                    </div>
+
+                    {/* Frequency label */}
+                    <span className="text-[10px] font-medium text-[var(--color-muted)]">
+                      {formatHz(hz)}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* ── Effects row ── */}
+          <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-alt)] p-5">
+            <h2 className="mb-5 text-sm font-semibold uppercase tracking-[0.12em] text-[var(--color-muted)]">
+              Efectos
+            </h2>
+
+            {/* Horizontal sliders */}
+            <div className="flex flex-col gap-5 sm:flex-row sm:gap-6">
+              <EffectSlider
+                label="Realce de Graves (Bass Boost)"
+                value={effects.bassBoost}
+                onChange={(v) => setEffects({ bassBoost: v })}
+              />
+              <EffectSlider
+                label="Virtualizador"
+                value={effects.virtualizer}
+                onChange={(v) => setEffects({ virtualizer: v })}
+              />
+              <EffectSlider
+                label="Loudness"
+                value={effects.loudness}
+                onChange={(v) => setEffects({ loudness: v })}
+              />
             </div>
 
-            <aside className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
-              <h2 className="text-2xl font-bold tracking-tight text-[var(--color-text)]">Ajustes Maestros</h2>
-              <div className="mt-5 border-t border-[var(--color-border)] pt-5">
-                <div className="space-y-6">
-                  <MasterSlider label="Bajos" value="+4.5 dB" width="76%" />
-                  <MasterSlider label="Agudos" value="-1.2 dB" width="45%" />
-                  <MasterSlider label="Reverb" value="15%" width="18%" muted />
-                  <MasterSlider label="Compresión" value="Moderada" width="60%" />
-                </div>
-
-                <div className="mt-8 space-y-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-alt)] p-4">
-                  <div className="flex items-center justify-between text-[11px] font-bold uppercase tracking-[0.16em]">
-                    <span className="inline-flex items-center gap-2 text-white">
-                      <span className="h-2 w-2 rounded-full bg-white" />
-                      Volumen General
-                    </span>
-                    <span className="text-[var(--color-primary)]">82%</span>
-                  </div>
-                  <div className="h-1.5 rounded-full bg-[var(--color-border)]">
-                    <div className="relative h-full w-[82%] rounded-full bg-white">
-                      <span className="absolute right-0 top-1/2 h-3.5 w-3.5 -translate-y-1/2 rounded-full bg-white shadow-[0_0_10px_rgba(255,255,255,0.45)]" />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="mt-6 rounded-2xl border border-[var(--color-border)] bg-[var(--color-secondary)] p-4 text-sm leading-6 text-[var(--color-muted)]">
-                  <div className="flex items-start gap-3">
-                    <div className="mt-0.5 rounded-full bg-[var(--color-surface-alt)] p-1 text-[var(--color-primary)]">
-                      <SlidersHorizontal className="h-4 w-4" strokeWidth={2.1} />
-                    </div>
-                    <p>
-                      Los ajustes se aplican en tiempo real. Activa el{' '}
-                      <span className="font-semibold text-[var(--color-text)]">Modo High-Res</span> en configuración para mayor fidelidad.
-                    </p>
-                  </div>
-                </div>
+            {/* Reverb row */}
+            <div className="mt-5 flex flex-col gap-4 sm:flex-row sm:items-end sm:gap-6">
+              {/* Reverb preset select */}
+              <div className="flex flex-col gap-2 sm:w-52">
+                <span className="text-xs font-medium text-[var(--color-muted)]">
+                  Preset de Reverb
+                </span>
+                <select
+                  value={effects.reverbPreset}
+                  onChange={(e) =>
+                    setEffects({ reverbPreset: e.target.value as ReverbPreset })
+                  }
+                  className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-primary)]"
+                >
+                  {REVERB_OPTIONS.map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
               </div>
-            </aside>
+
+              {/* Reverb amount slider */}
+              <div className="flex flex-1 flex-col gap-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium text-[var(--color-muted)]">
+                    Cantidad de Reverb
+                  </span>
+                  <span className="text-xs font-semibold text-[var(--color-primary)]">
+                    {effects.reverbAmount}
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min={0}
+                  max={100}
+                  step={1}
+                  value={effects.reverbAmount}
+                  onChange={(e) =>
+                    setEffects({ reverbAmount: Number(e.target.value) })
+                  }
+                  className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-[var(--color-border)] accent-[var(--color-primary)]"
+                />
+              </div>
+            </div>
           </div>
         </div>
       </section>
     </ClientLayout>
-  )
+  );
 }

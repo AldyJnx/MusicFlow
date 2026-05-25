@@ -1,28 +1,49 @@
-import { useMemo, useState } from 'react'
-import { ArrowRight, Eye, EyeOff, Lock, Mail } from 'lucide-react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useMemo, useState } from "react";
+import { ArrowRight, Eye, EyeOff, Loader2, Lock, Mail } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { useMutation } from "@tanstack/react-query";
+import axios from "axios";
 
-import fondoLogin from '../../assets/Fondo_Login.png'
-import logoMusicFlow from '../../assets/Logo_Music_Flow.png'
+import fondoLogin from "../../assets/Fondo_Login.png";
+import logoMusicFlow from "../../assets/Logo_Music_Flow.png";
+import { login as loginRequest } from "../../shared/api/auth";
+import { useAuthStore } from "../../shared/stores/authStore";
 
 export default function Login() {
-  const navigate = useNavigate()
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [showPassword, setShowPassword] = useState(false)
+  const navigate = useNavigate();
+  const setSession = useAuthStore((s) => s.setSession);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+
+  const loginMutation = useMutation({
+    mutationFn: loginRequest,
+    onSuccess: (data) => {
+      setSession(data);
+      navigate("/library");
+    },
+  });
 
   const isFormValid = useMemo(() => {
-    return email.trim().length > 0 && password.trim().length > 0
-  }, [email, password])
+    return email.trim().length > 0 && password.trim().length > 0;
+  }, [email, password]);
+
+  const errorMessage = loginMutation.isError
+    ? axios.isAxiosError(loginMutation.error) &&
+      (loginMutation.error.response?.data as { message?: string } | undefined)
+        ?.message
+      ? (loginMutation.error.response?.data as { message: string }).message
+      : "No pudimos iniciar sesión. Revisa tus credenciales."
+    : null;
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault()
+    event.preventDefault();
 
-    if (!isFormValid) {
-      return
+    if (!isFormValid || loginMutation.isPending) {
+      return;
     }
 
-    navigate('/library')
+    loginMutation.mutate({ email: email.trim(), password });
   }
 
   return (
@@ -43,9 +64,7 @@ export default function Login() {
             alt="MusicFlow"
             className="mb-3 h-20 w-auto object-contain drop-shadow-[0_0_24px_rgba(22,212,255,0.18)]"
           />
-          <p className="text-sm tracking-[0.08em] text-[#7c8aa6]">
-            MusicFlow
-          </p>
+          <p className="text-sm tracking-[0.08em] text-[#7c8aa6]">MusicFlow</p>
         </div>
 
         <div className="w-full max-w-[360px] rounded-[18px] border border-white/10 bg-[rgba(24,27,35,0.9)] p-6 shadow-[0_24px_80px_rgba(0,0,0,0.28)] backdrop-blur-md">
@@ -93,7 +112,7 @@ export default function Login() {
                 <Lock className="h-4 w-4 text-[#747f96]" />
                 <input
                   id="password"
-                  type={showPassword ? 'text' : 'password'}
+                  type={showPassword ? "text" : "password"}
                   placeholder="••••••••"
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
@@ -113,23 +132,38 @@ export default function Login() {
               </div>
             </div>
 
+            {errorMessage && (
+              <p className="rounded-md bg-red-500/10 px-3 py-2 text-xs text-red-300">
+                {errorMessage}
+              </p>
+            )}
+
             <button
               type="submit"
-              disabled={!isFormValid}
+              disabled={!isFormValid || loginMutation.isPending}
               className={`flex h-[52px] w-full items-center justify-center gap-2 rounded-[11px] text-base font-semibold transition ${
-                isFormValid
-                  ? 'bg-[#14e3f7] text-[#092d35] shadow-[0_0_24px_rgba(20,227,247,0.28)] hover:bg-[#3ceaf9]'
-                  : 'cursor-not-allowed bg-[#2a303a] text-[#788395]'
+                isFormValid && !loginMutation.isPending
+                  ? "bg-[#14e3f7] text-[#092d35] shadow-[0_0_24px_rgba(20,227,247,0.28)] hover:bg-[#3ceaf9]"
+                  : "cursor-not-allowed bg-[#2a303a] text-[#788395]"
               }`}
             >
-              Iniciar Sesión
-              <ArrowRight className="h-4 w-4" />
+              {loginMutation.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Iniciando...
+                </>
+              ) : (
+                <>
+                  Iniciar Sesión
+                  <ArrowRight className="h-4 w-4" />
+                </>
+              )}
             </button>
           </form>
         </div>
 
         <p className="mt-6 text-sm text-[#dde5ef]">
-          ¿No tienes una cuenta?{' '}
+          ¿No tienes una cuenta?{" "}
           <Link
             to="/register"
             className="font-semibold text-[#10e9ff] transition hover:text-[#66f0ff]"
@@ -139,5 +173,5 @@ export default function Login() {
         </p>
       </section>
     </main>
-  )
+  );
 }

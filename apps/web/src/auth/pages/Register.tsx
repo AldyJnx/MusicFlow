@@ -1,24 +1,80 @@
-import { useMemo, useState } from 'react'
-import { ArrowRight, Eye, Lock, Mail, ShieldCheck, UserRound } from 'lucide-react'
-import { Link } from 'react-router-dom'
+import { useMemo, useState } from "react";
+import {
+  ArrowRight,
+  Eye,
+  Loader2,
+  Lock,
+  Mail,
+  ShieldCheck,
+  UserRound,
+} from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { useMutation } from "@tanstack/react-query";
+import axios from "axios";
 
-import fondoLogin from '../../assets/Fondo_Login.png'
-import logoMusicFlow from '../../assets/Logo_Music_Flow.png'
+import fondoLogin from "../../assets/Fondo_Login.png";
+import logoMusicFlow from "../../assets/Logo_Music_Flow.png";
+import { register as registerRequest } from "../../shared/api/auth";
+import { useAuthStore } from "../../shared/stores/authStore";
 
 export default function Register() {
-  const [name, setName] = useState('')
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [confirmPassword, setConfirmPassword] = useState('')
+  const navigate = useNavigate();
+  const setSession = useAuthStore((s) => s.setSession);
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+
+  const registerMutation = useMutation({
+    mutationFn: registerRequest,
+    onSuccess: (data) => {
+      setSession(data);
+      navigate("/library");
+    },
+  });
+
+  const passwordMismatch =
+    confirmPassword.length > 0 && password !== confirmPassword;
 
   const isFormValid = useMemo(() => {
     return (
       name.trim().length > 0 &&
       email.trim().length > 0 &&
-      password.trim().length > 0 &&
-      confirmPassword.trim().length > 0
-    )
-  }, [confirmPassword, email, name, password])
+      password.trim().length >= 8 &&
+      password === confirmPassword
+    );
+  }, [confirmPassword, email, name, password]);
+
+  const apiError = registerMutation.isError
+    ? axios.isAxiosError(registerMutation.error) &&
+      (
+        registerMutation.error.response?.data as
+          | { message?: string | string[] }
+          | undefined
+      )?.message
+      ? Array.isArray(
+          (
+            registerMutation.error.response?.data as {
+              message: string | string[];
+            }
+          ).message,
+        )
+        ? (
+            registerMutation.error.response?.data as { message: string[] }
+          ).message.join(", ")
+        : (registerMutation.error.response?.data as { message: string }).message
+      : "No pudimos crear la cuenta."
+    : null;
+
+  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!isFormValid || registerMutation.isPending) return;
+    registerMutation.mutate({
+      email: email.trim(),
+      username: name.trim(),
+      password,
+    });
+  }
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-[#07131a] text-white">
@@ -44,12 +100,14 @@ export default function Register() {
         </div>
 
         <div className="w-full max-w-[370px] rounded-[18px] border border-white/10 bg-[rgba(27,28,36,0.9)] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.3)] backdrop-blur-md">
-          <h1 className="text-[1.55rem] font-semibold text-white">Nueva Cuenta</h1>
+          <h1 className="text-[1.55rem] font-semibold text-white">
+            Nueva Cuenta
+          </h1>
           <p className="mb-4 mt-1 text-sm text-[#9ca7ba]">
             Comienza tu viaje sónico profesional.
           </p>
 
-          <form className="space-y-3">
+          <form className="space-y-3" onSubmit={handleSubmit}>
             <div>
               <label
                 htmlFor="name"
@@ -136,17 +194,40 @@ export default function Register() {
               </div>
             </div>
 
+            {passwordMismatch && (
+              <p className="text-xs text-amber-300">
+                Las contraseñas no coinciden.
+              </p>
+            )}
+            {password.length > 0 && password.length < 8 && (
+              <p className="text-xs text-amber-300">Mínimo 8 caracteres.</p>
+            )}
+            {apiError && (
+              <p className="rounded-md bg-red-500/10 px-3 py-2 text-xs text-red-300">
+                {apiError}
+              </p>
+            )}
+
             <button
               type="submit"
-              disabled={!isFormValid}
+              disabled={!isFormValid || registerMutation.isPending}
               className={`mt-1 flex h-[49px] w-full items-center justify-center gap-2 rounded-[11px] text-base font-semibold transition ${
-                isFormValid
-                  ? 'bg-[#14e3f7] text-[#0a3037] shadow-[0_0_24px_rgba(20,227,247,0.28)] hover:bg-[#3ceaf9]'
-                  : 'cursor-not-allowed bg-[#2a303a] text-[#788395]'
+                isFormValid && !registerMutation.isPending
+                  ? "bg-[#14e3f7] text-[#0a3037] shadow-[0_0_24px_rgba(20,227,247,0.28)] hover:bg-[#3ceaf9]"
+                  : "cursor-not-allowed bg-[#2a303a] text-[#788395]"
               }`}
             >
-              Crear Cuenta
-              <ArrowRight className="h-4 w-4" />
+              {registerMutation.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Creando...
+                </>
+              ) : (
+                <>
+                  Crear Cuenta
+                  <ArrowRight className="h-4 w-4" />
+                </>
+              )}
             </button>
           </form>
 
@@ -162,5 +243,5 @@ export default function Register() {
         </div>
       </section>
     </main>
-  )
+  );
 }

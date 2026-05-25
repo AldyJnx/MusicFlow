@@ -1,169 +1,233 @@
-import { useSyncExternalStore } from 'react'
+import { create } from "zustand";
+import { persist } from "zustand/middleware";
+import { getAudioEngine } from "../../audio/engine";
 
-export type PlayerTrack = {
-  id: number
-  title: string
-  artist: string
-  cover: string
-  duration: string
+// ─── Track shape ────────────────────────────────────────────────────────────
+
+export interface PlayerTrack {
+  id: string;
+  title: string;
+  artist: string;
+  cover?: string | null;
+  url: string;
+  durationMs: number;
 }
 
-type PlayerState = {
-  currentTrack: PlayerTrack | null
-  isOpen: boolean
-  isExpanded: boolean
-  isPlaying: boolean
-  volume: number
-  progress: number
-  currentTime: string
+// ─── State + Actions interface ───────────────────────────────────────────────
+
+interface PlayerState {
+  currentTrack: PlayerTrack | null;
+  queue: PlayerTrack[];
+  queueIndex: number;
+  isPlaying: boolean;
+  positionMs: number;
+  durationMs: number;
+  volume: number;
+  muted: boolean;
+  isExpanded: boolean;
 }
 
-type PlayerActions = {
-  setTrack: (track: PlayerTrack) => void
-  clearTrack: () => void
-  openExpanded: () => void
-  closeExpanded: () => void
-  toggleExpanded: () => void
-  toggleMute: () => void
-  play: () => void
-  pause: () => void
-  togglePlay: () => void
-  setVolume: (volume: number) => void
-  setProgress: (progress: number) => void
-  setCurrentTime: (currentTime: string) => void
+interface PlayerActions {
+  playTrack: (track: PlayerTrack) => Promise<void>;
+  playTrackList: (tracks: PlayerTrack[], startIndex?: number) => Promise<void>;
+  pause: () => void;
+  togglePlay: () => Promise<void>;
+  next: () => Promise<void>;
+  previous: () => Promise<void>;
+  seek: (positionMs: number) => void;
+  setVolume: (v: number) => void;
+  toggleMute: () => void;
+  setExpanded: (open: boolean) => void;
+  toggleExpanded: () => void;
+  addToQueue: (track: PlayerTrack) => void;
+  removeFromQueue: (index: number) => void;
+  clearQueue: () => void;
 }
 
-export type PlayerStore = PlayerState & PlayerActions
+// ─── Lazy engine init ────────────────────────────────────────────────────────
 
-const listeners = new Set<() => void>()
-let lastVolumeBeforeMute = 68
+let engineInitialized = false;
 
-const playerStoreState: PlayerState = {
-  currentTrack: null,
-  isOpen: false,
-  isExpanded: false,
-  isPlaying: false,
-  volume: 68,
-  progress: 0,
-  currentTime: '0:00',
+export function initializePlayerEngine(): void {
+  if (engineInitialized) return;
+  engineInitialized = true;
+
+  const engine = getAudioEngine();
+
+  // Sync engine status → store
+  engine.onStatus((status) => {
+    usePlayerStore.setState({
+      isPlaying: status.isPlaying,
+      positionMs: status.positionMs,
+      durationMs: status.durationMs,
+      volume: status.volume,
+      muted: status.muted,
+    });
+  });
+
+  // Auto-advance to next track when current ends
+  engine.onEnded(() => {
+    void usePlayerStore.getState().next();
+  });
 }
 
-function emitChange() {
-  listeners.forEach((listener) => listener())
+// ─── Internal helper ─────────────────────────────────────────────────────────
+
+async function loadAndPlay(track: PlayerTrack): Promise<void> {
+  initializePlayerEngine();
+  const engine = getAudioEngine();
+  await engine.load(track.url);
+  await engine.play();
 }
 
-function updateState(partial: Partial<PlayerState>) {
-  Object.assign(playerStoreState, partial)
-  emitChange()
-}
+// ─── Store ───────────────────────────────────────────────────────────────────
 
-const actions: PlayerActions = {
-  setTrack(track) {
-    updateState({
-      currentTrack: track,
-      isOpen: true,
-      isExpanded: false,
-      isPlaying: true,
-      progress: 0,
-      currentTime: '0:00',
-    })
-  },
-
-  clearTrack() {
-    updateState({
+export const usePlayerStore = create<PlayerState & PlayerActions>()(
+  persist(
+    (set, get) => ({
+      // ── Initial state ──────────────────────────────────────────────────────
       currentTrack: null,
-      isOpen: false,
-      isExpanded: false,
+      queue: [],
+      queueIndex: 0,
       isPlaying: false,
-      progress: 0,
-      currentTime: '0:00',
-    })
-  },
+      positionMs: 0,
+      durationMs: 0,
+      volume: 0.8,
+      muted: false,
+      isExpanded: false,
 
-  openExpanded() {
-    if (!playerStoreState.currentTrack) {
-      return
-    }
+      // ── Actions ────────────────────────────────────────────────────────────
 
-    updateState({ isExpanded: true })
-  },
+      playTrack: async (track) => {
+        initializePlayerEngine();
+        set({ currentTrack: track, queue: [track], queueIndex: 0 });
+        await loadAndPlay(track);
+      },
 
-  closeExpanded() {
-    updateState({ isExpanded: false })
-  },
+      playTrackList: async (tracks, startIndex = 0) => {
+        if (tracks.length === 0) return;
+        initializePlayerEngine();
+        const index = Math.max(0, Math.min(startIndex, tracks.length - 1));
+        const track = tracks[index];
+        set({ currentTrack: track, queue: tracks, queueIndex: index });
+        await loadAndPlay(track);
+      },
 
-  toggleExpanded() {
-    if (!playerStoreState.currentTrack) {
-      return
-    }
+      pause: () => {
+        initializePlayerEngine();
+        getAudioEngine().pause();
+      },
 
-    updateState({ isExpanded: !playerStoreState.isExpanded })
-  },
+      togglePlay: async () => {
+        initializePlayerEngine();
+        const { currentTrack } = get();
+        if (!currentTrack) return;
+        await getAudioEngine().toggle();
+      },
 
-  toggleMute() {
-    if (playerStoreState.volume === 0) {
-      updateState({ volume: lastVolumeBeforeMute > 0 ? lastVolumeBeforeMute : 68 })
-      return
-    }
+      next: async () => {
+        initializePlayerEngine();
+        const { queue, queueIndex } = get();
+        const nextIndex = queueIndex + 1;
+        if (nextIndex >= queue.length) return;
+        const track = queue[nextIndex];
+        set({ currentTrack: track, queueIndex: nextIndex });
+        await loadAndPlay(track);
+      },
 
-    lastVolumeBeforeMute = playerStoreState.volume
-    updateState({ volume: 0 })
-  },
+      previous: async () => {
+        initializePlayerEngine();
+        const { positionMs, queue, queueIndex } = get();
+        if (positionMs > 3000) {
+          getAudioEngine().seek(0);
+          return;
+        }
+        const prevIndex = queueIndex - 1;
+        if (prevIndex < 0) return;
+        const track = queue[prevIndex];
+        set({ currentTrack: track, queueIndex: prevIndex });
+        await loadAndPlay(track);
+      },
 
-  play() {
-    updateState({ isPlaying: true })
-  },
+      seek: (positionMs) => {
+        initializePlayerEngine();
+        getAudioEngine().seek(positionMs);
+      },
 
-  pause() {
-    updateState({ isPlaying: false })
-  },
+      setVolume: (v) => {
+        initializePlayerEngine();
+        const clamped = Math.min(1, Math.max(0, v));
+        getAudioEngine().setVolume(clamped);
+        set({ volume: clamped, muted: clamped === 0 });
+      },
 
-  togglePlay() {
-    updateState({ isPlaying: !playerStoreState.isPlaying })
-  },
+      toggleMute: () => {
+        initializePlayerEngine();
+        const { muted } = get();
+        getAudioEngine().setMuted(!muted);
+        set({ muted: !muted });
+      },
 
-  setVolume(volume) {
-    const nextVolume = Math.max(0, Math.min(100, volume))
-    if (nextVolume > 0) {
-      lastVolumeBeforeMute = nextVolume
-    }
-    updateState({ volume: nextVolume })
-  },
+      setExpanded: (open) => {
+        set({ isExpanded: open });
+      },
 
-  setProgress(progress) {
-    const nextProgress = Math.max(0, Math.min(100, progress))
-    updateState({ progress: nextProgress })
-  },
+      toggleExpanded: () => {
+        const { currentTrack, isExpanded } = get();
+        if (!currentTrack) return;
+        set({ isExpanded: !isExpanded });
+      },
 
-  setCurrentTime(currentTime) {
-    updateState({ currentTime })
-  },
-}
+      addToQueue: (track) => {
+        set((s) => ({ queue: [...s.queue, track] }));
+      },
 
-function subscribe(listener: () => void) {
-  listeners.add(listener)
+      removeFromQueue: (index) => {
+        set((s) => {
+          const next = s.queue.filter((_, i) => i !== index);
+          const queueIndex =
+            index < s.queueIndex ? s.queueIndex - 1 : s.queueIndex;
+          return { queue: next, queueIndex: Math.max(0, queueIndex) };
+        });
+      },
 
-  return () => {
-    listeners.delete(listener)
-  }
-}
+      clearQueue: () => {
+        set({ queue: [], queueIndex: 0 });
+      },
+    }),
+    {
+      name: "musicflow-player",
+      // Persist only what makes sense across reloads
+      partialize: (state) => ({
+        currentTrack: state.currentTrack,
+        queue: state.queue,
+        queueIndex: state.queueIndex,
+        volume: state.volume,
+        muted: state.muted,
+      }),
+    },
+  ),
+);
 
-function getStore(): PlayerStore {
-  return {
-    ...playerStoreState,
-    ...actions,
-  }
-}
-
-export function usePlayerStore<T>(selector: (store: PlayerStore) => T) {
-  return useSyncExternalStore(
-    subscribe,
-    () => selector(getStore()),
-    () => selector(getStore()),
-  )
-}
+// ─── Non-hook consumer helper ─────────────────────────────────────────────────
 
 export const playerStore = {
-  getState: getStore,
-  ...actions,
-}
+  getState: () => usePlayerStore.getState(),
+  playTrack: (track: PlayerTrack) => usePlayerStore.getState().playTrack(track),
+  playTrackList: (tracks: PlayerTrack[], startIndex?: number) =>
+    usePlayerStore.getState().playTrackList(tracks, startIndex),
+  pause: () => usePlayerStore.getState().pause(),
+  togglePlay: () => usePlayerStore.getState().togglePlay(),
+  next: () => usePlayerStore.getState().next(),
+  previous: () => usePlayerStore.getState().previous(),
+  seek: (positionMs: number) => usePlayerStore.getState().seek(positionMs),
+  setVolume: (v: number) => usePlayerStore.getState().setVolume(v),
+  toggleMute: () => usePlayerStore.getState().toggleMute(),
+  setExpanded: (open: boolean) => usePlayerStore.getState().setExpanded(open),
+  toggleExpanded: () => usePlayerStore.getState().toggleExpanded(),
+  addToQueue: (track: PlayerTrack) =>
+    usePlayerStore.getState().addToQueue(track),
+  removeFromQueue: (index: number) =>
+    usePlayerStore.getState().removeFromQueue(index),
+  clearQueue: () => usePlayerStore.getState().clearQueue(),
+};
