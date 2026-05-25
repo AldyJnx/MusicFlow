@@ -1,24 +1,24 @@
-import { useMemo, useState } from 'react'
-import { ArrowLeft, ArrowRight, Mail } from 'lucide-react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useMemo, useState } from "react";
+import { ArrowLeft, ArrowRight, Mail } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
 
-import fondoLogin from '../../assets/Fondo_Login.png'
-import logoMusicFlow from '../../assets/Logo_Music_Flow.png'
+import fondoLogin from "../../assets/Fondo_Login.webp";
+import logoMusicFlow from "../../assets/Logo_Music_Flow.webp";
 
 export default function ForgotPassword() {
-  const navigate = useNavigate()
-  const [email, setEmail] = useState('')
+  const navigate = useNavigate();
+  const [email, setEmail] = useState("");
 
-  const isFormValid = useMemo(() => email.trim().length > 0, [email])
+  const isFormValid = useMemo(() => email.trim().length > 0, [email]);
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault()
+    event.preventDefault();
 
     if (!isFormValid) {
-      return
+      return;
     }
 
-    navigate('/verify-code')
+    navigate("/verify-code");
   }
 
   return (
@@ -79,8 +79,8 @@ export default function ForgotPassword() {
               disabled={!isFormValid}
               className={`flex h-[52px] w-full items-center justify-center gap-2 rounded-[11px] border text-[0.83rem] font-semibold uppercase tracking-[0.05em] transition ${
                 isFormValid
-                  ? 'border-[#11dbef] bg-[#14e3f7] text-[#093038] shadow-[0_0_24px_rgba(20,227,247,0.3)] hover:bg-[#38e8f8]'
-                  : 'cursor-not-allowed border-white/8 bg-[#2a303a] text-[#788395]'
+                  ? "border-[#11dbef] bg-[#14e3f7] text-[#093038] shadow-[0_0_24px_rgba(20,227,247,0.3)] hover:bg-[#38e8f8]"
+                  : "cursor-not-allowed border-white/8 bg-[#2a303a] text-[#788395]"
               }`}
             >
               Enviar enlace de recuperación
@@ -104,5 +104,5 @@ export default function ForgotPassword() {
         </p>
       </section>
     </main>
-  )
+  );
 }

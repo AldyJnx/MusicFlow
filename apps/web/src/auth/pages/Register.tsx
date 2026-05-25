@@ -12,8 +12,8 @@ import { Link, useNavigate } from "react-router-dom";
 import { useMutation } from "@tanstack/react-query";
 import axios from "axios";
 
-import fondoLogin from "../../assets/Fondo_Login.png";
-import logoMusicFlow from "../../assets/Logo_Music_Flow.png";
+import fondoLogin from "../../assets/Fondo_Login.webp";
+import logoMusicFlow from "../../assets/Logo_Music_Flow.webp";
 import { register as registerRequest } from "../../shared/api/auth";
 import { useAuthStore } from "../../shared/stores/authStore";
 
