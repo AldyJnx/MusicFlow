@@ -191,9 +191,7 @@ function DonutChart({ tracks, playlists }: DonutChartProps) {
   const cy = 80;
   const R = 68;
   const r = 44;
-  // circumference of a circle with radius = avg of R and r — used for stroke-dasharray trick
   const avgR = (R + r) / 2;
-  const circ = 2 * Math.PI * avgR;
   const strokeW = R - r;
 
   const tracksPct = tracks / total;

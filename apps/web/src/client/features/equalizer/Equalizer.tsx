@@ -202,7 +202,6 @@ export default function Equalizer() {
                         max={15}
                         step={1}
                         value={db}
-                        orient="vertical"
                         onChange={(e) => setBand(i, Number(e.target.value))}
                         style={{
                           writingMode:
