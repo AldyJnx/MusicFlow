@@ -17,7 +17,6 @@ import {
   ApiBearerAuth,
   ApiResponse,
   ApiParam,
-  ApiQuery,
 } from "@nestjs/swagger";
 import { PresetsService } from "./presets.service";
 import { ConfigsService } from "./configs.service";

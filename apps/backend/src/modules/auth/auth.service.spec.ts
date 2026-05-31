@@ -5,6 +5,8 @@ import { ConflictException, UnauthorizedException } from "@nestjs/common";
 import * as bcrypt from "bcryptjs";
 
 import { AuthService } from "./auth.service";
+import { RegisterDto } from "./dto/register.dto";
+import { LoginDto } from "./dto/login.dto";
 import { PrismaService } from "@/prisma/prisma.service";
 import { MailService } from "@/modules/mail/mail.service";
 
@@ -66,7 +68,7 @@ describe("AuthService", () => {
         email: "a@b.com",
         username: "alice",
         password: "Pass1234!",
-      } as any);
+      } as RegisterDto);
 
       expect(result.user.email).toBe("a@b.com");
       expect(result.accessToken).toBe("fake-jwt");
@@ -84,7 +86,7 @@ describe("AuthService", () => {
           email: "a@b.com",
           username: "alice",
           password: "x",
-        } as any),
+        } as RegisterDto),
       ).rejects.toBeInstanceOf(ConflictException);
     });
   });
@@ -106,7 +108,7 @@ describe("AuthService", () => {
       const result = await service.login({
         email: "a@b.com",
         password: "Pass1234!",
-      } as any);
+      } as LoginDto);
       expect(result.accessToken).toBe("fake-jwt");
     });
 
@@ -120,7 +122,7 @@ describe("AuthService", () => {
       });
 
       await expect(
-        service.login({ email: "a@b.com", password: "wrong" } as any),
+        service.login({ email: "a@b.com", password: "wrong" } as LoginDto),
       ).rejects.toBeInstanceOf(UnauthorizedException);
     });
 
@@ -134,7 +136,7 @@ describe("AuthService", () => {
       });
 
       await expect(
-        service.login({ email: "a@b.com", password: "Pass1234!" } as any),
+        service.login({ email: "a@b.com", password: "Pass1234!" } as LoginDto),
       ).rejects.toBeInstanceOf(UnauthorizedException);
     });
   });
