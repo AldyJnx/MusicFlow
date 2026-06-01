@@ -14,30 +14,58 @@ import { StorageModule } from "@/modules/storage/storage.module";
  * E2E smoke tests for /api/auth — uses an in-memory mock of PrismaService.
  * For full integration coverage, run against a dedicated test database.
  */
+interface MockUser {
+  id: string;
+  email: string;
+  username?: string;
+  password: string;
+  role?: string;
+  isPremium?: boolean;
+  isActive?: boolean;
+  avatar?: string | null;
+}
+
+interface WhereArg {
+  where: {
+    OR?: Array<{ email?: string; username?: string }>;
+    email?: string;
+    id?: string;
+  };
+}
+
+interface CreateArg {
+  data: { email: string; username: string; password: string };
+}
+
+interface UpdateArg {
+  where: { id: string };
+  data: Record<string, unknown>;
+}
+
 describe("Auth (e2e)", () => {
   let app: INestApplication;
-  const users = new Map<string, any>();
+  const users = new Map<string, MockUser>();
 
   const prismaMock = {
     user: {
-      findFirst: jest.fn(async ({ where }: any) => {
+      findFirst: jest.fn(async ({ where }: WhereArg) => {
         for (const u of users.values()) {
           if (where.OR) {
-            if (where.OR.some((cond: any) => cond.email === u.email || cond.username === u.username)) {
+            if (where.OR.some((cond) => cond.email === u.email || cond.username === u.username)) {
               return u;
             }
           }
         }
         return null;
       }),
-      findUnique: jest.fn(async ({ where }: any) => {
+      findUnique: jest.fn(async ({ where }: WhereArg) => {
         if (where.email) {
           for (const u of users.values()) if (u.email === where.email) return u;
         }
         if (where.id) return users.get(where.id) ?? null;
         return null;
       }),
-      create: jest.fn(async ({ data }: any) => {
+      create: jest.fn(async ({ data }: CreateArg) => {
         const id = `u-${users.size + 1}`;
         const created = {
           id,
@@ -52,7 +80,7 @@ describe("Auth (e2e)", () => {
         users.set(id, created);
         return created;
       }),
-      update: jest.fn(async ({ where, data }: any) => {
+      update: jest.fn(async ({ where, data }: UpdateArg) => {
         const user = users.get(where.id);
         if (user) Object.assign(user, data);
         return user;
