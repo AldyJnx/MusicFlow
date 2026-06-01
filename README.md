@@ -1,10 +1,10 @@
 # MusicFlow
 
-Plataforma multiplataforma de reproduccion musical con ecualizacion inteligente asistida por IA.
+Plataforma multiplataforma de reproduccion musical con ecualizacion granular asistida por IA.
 
 ## Vision del Producto
 
-MusicFlow es una plataforma multiplataforma (Desktop + Mobile + Web) de reproduccion musical enfocada en la personalizacion granular de la ecualizacion asistida por un agente de inteligencia artificial.
+MusicFlow es una plataforma (Web + Desktop + Mobile) de reproduccion musical enfocada en la personalizacion granular de la ecualizacion asistida por un agente de inteligencia artificial.
 
 ### Propuesta de Valor
 
@@ -12,355 +12,394 @@ MusicFlow es una plataforma multiplataforma (Desktop + Mobile + Web) de reproduc
 
 ### Diferenciadores Clave
 
-| Caracteristica              | MusicFlow | Competencia |
-|-----------------------------|-----------|-------------|
-| EQ global                   | Si        | Si          |
-| EQ por playlist             | Si        | No          |
-| EQ por cancion              | Si        | Parcial     |
-| EQ por segmento temporal    | Si        | No          |
-| Agente IA para configurar EQ| Si        | No          |
-| Modo hibrido (local + cloud)| Si        | Parcial     |
-| Web + Desktop + Mobile      | Si        | Parcial     |
+| Caracteristica               | MusicFlow | Competencia |
+| ---------------------------- | --------- | ----------- |
+| EQ global                    | Si        | Si          |
+| EQ por playlist              | Si        | No          |
+| EQ por cancion               | Si        | Parcial     |
+| EQ por segmento temporal     | Si        | No          |
+| Agente IA para configurar EQ | Si        | No          |
+| Modo hibrido (local + cloud) | Si        | Parcial     |
+| Web + Desktop + Mobile       | Si        | Parcial     |
 
 ---
 
-## Estructura del Proyecto
+## Estructura del Proyecto (Monorepo)
 
 ```
 MusicFlow/
-├── backend/                 # Django REST API
-│   ├── apps/
-│   │   ├── auth_app/        # Autenticacion y usuarios
-│   │   ├── library/         # Tracks y playlists
-│   │   ├── equalizer/       # EQ presets, configs, segmentos
-│   │   ├── ai_agent/        # Integracion con Claude API
-│   │   ├── analytics/       # Historial y estadisticas
-│   │   ├── sync/            # Sincronizacion hibrida
-│   │   ├── preferences/     # Preferencias de usuario
-│   │   └── admin_dashboard/ # Panel de administracion
-│   ├── config/              # Settings Django
-│   ├── core/                # Utilidades compartidas
-│   └── requirements/        # Dependencias Python
+├── apps/
+│   ├── backend/             # NestJS API
+│   │   ├── src/
+│   │   │   ├── main.ts
+│   │   │   ├── app.module.ts
+│   │   │   ├── prisma/      # PrismaService
+│   │   │   ├── common/      # Guards, decorators, filters
+│   │   │   └── modules/
+│   │   │       ├── auth/        # Registro, login JWT, devices
+│   │   │       ├── library/     # Tracks y playlists
+│   │   │       ├── equalizer/   # Presets, configs, segments
+│   │   │       ├── ai-agent/    # Integracion con Claude
+│   │   │       ├── analytics/   # PlayHistory, stats
+│   │   │       ├── sync/        # Sincronizacion hibrida
+│   │   │       ├── preferences/ # Preferencias de usuario
+│   │   │       ├── storage/     # Cliente R2 / S3-compatible
+│   │   │       └── admin/       # Panel de administracion
+│   │   └── prisma/schema.prisma
+│   │
+│   ├── web/                 # React 19 + Electron (Web + Desktop)
+│   │   ├── electron/        # main.cjs, preload.cjs, ipc/
+│   │   └── src/
+│   │       ├── auth/pages/  # Login, Register, ForgotPassword, etc.
+│   │       ├── client/      # Vista cliente (pages, features, layout)
+│   │       ├── shared/      # ui/, hooks/, stores/, utils/
+│   │       └── audio/       # Motor Web Audio API (en desarrollo)
+│   │
+│   └── mobile/              # Flutter (Android + iOS) - externo a pnpm
+│       └── lib/
+│           ├── app/         # router.dart, routes.dart, theme.dart
+│           └── features/    # auth, library, player, equalizer, ai_agent, etc.
 │
-├── frontend/                # React + Electron (Web + Desktop)
-│   ├── electron/            # Proceso principal Electron
-│   ├── src/
-│   │   ├── admin/           # Vista administrador
-│   │   ├── client/          # Vista cliente
-│   │   ├── shared/          # Componentes, stores, API
-│   │   ├── platform/        # Abstraccion Web vs Desktop
-│   │   └── audio/           # Motor de audio Web Audio API
-│   └── public/              # Assets y PWA manifest
-│
-├── mobile/                  # Flutter (Android + iOS)
-│   └── lib/
-│       ├── app/             # Configuracion app
-│       ├── features/        # Modulos por feature
-│       ├── core/            # API, DB, audio
-│       └── shared/          # Modelos y utilidades
+├── packages/
+│   ├── shared/              # @musicflow/shared (types, constants, utils)
+│   ├── ui/                  # @musicflow/ui (shadcn components)
+│   └── config/              # @musicflow/config (TSConfig, ESLint)
 │
 ├── docs/                    # Documentacion
-├── infra/                   # Configuracion Nginx
-├── docker-compose.yml       # Desarrollo
-└── docker-compose.prod.yml  # Produccion
+├── infra/                   # Configuracion de despliegue
+├── docker-compose.yml       # Servicios de desarrollo (Postgres, Redis)
+├── docker-compose.prod.yml  # Produccion
+├── pnpm-workspace.yaml
+├── turbo.json
+├── Scrum.md                 # Backlog y roadmap de sprints
+└── CLAUDE.md                # Reglas de desarrollo para agentes IA
 ```
 
 ---
 
 ## Stack Tecnologico
 
-### Backend
-- Python 3.12+
-- Django 5.x + Django REST Framework 3.x
-- PostgreSQL 16
-- Redis 7
-- Celery 5
-- djangorestframework-simplejwt (JWT)
-- Claude API (Anthropic) via anthropic SDK
-- mutagen (metadata de audio)
-- pytest + factory_boy (testing)
+### Backend (`apps/backend`)
 
-### Frontend Web + Desktop
-- React 18 + TypeScript 5
-- Vite (bundler)
-- Electron 30+ (desktop)
-- Zustand (estado)
-- TanStack Query + Axios (HTTP)
-- TailwindCSS + shadcn/ui
-- Dexie.js (IndexedDB para web)
-- better-sqlite3 (SQLite para desktop)
-- Web Audio API (ecualizacion)
-- Vitest + Playwright (testing)
+- **NestJS 10.x** + TypeScript 5
+- **Prisma 5.x** ORM
+- **PostgreSQL 16**
+- **Redis 7** (BullMQ para jobs)
+- **Passport + JWT** (`@nestjs/jwt`, `@nestjs/passport`)
+- **class-validator** + class-transformer (DTOs)
+- **Swagger** / OpenAPI (`@nestjs/swagger`)
+- **Claude API** (`@anthropic-ai/sdk`)
+- **Cloudflare R2** para storage de audio e imagenes (S3-compatible)
+- **Jest** + Supertest (testing)
 
-### Mobile
-- Flutter 3.x + Dart 3.x
-- Riverpod 2.x (estado)
-- Dio (HTTP)
-- Drift (SQLite)
-- Hive (key-value storage)
-- just_audio + audio_service
+### Frontend Web + Desktop (`apps/web`)
+
+- **React 19** + TypeScript 5
+- **Vite 8** (bundler)
+- **Electron 41** (desktop wrapper)
+- **React Router 7**
+- **TailwindCSS 3**
+- **lucide-react** (iconos)
+- **Web Audio API** (ecualizacion en tiempo real - en desarrollo)
+
+> Nota: El cliente HTTP (axios/TanStack Query), Zustand, abstraccion platform/desktop y PWA estan planificados en `Scrum.md` pero **no estan instalados todavia** en `package.json`. Hoy las paginas funcionan con datos mock.
+
+### Mobile (`apps/mobile`)
+
+- **Flutter 3.11+** + Dart 3.11
+- `flutter_launcher_icons`
+- _Pendientes de integrar:_ Riverpod, Dio, Drift, just_audio, go_router
+
+### Monorepo
+
+- **pnpm 9.x** (workspaces)
+- **Turborepo 2.x** (build orchestration)
 
 ### Infraestructura
-- Docker + Docker Compose
-- Nginx (reverse proxy)
-- MinIO (S3-compatible storage)
-- GitHub Actions (CI/CD)
+
+- **Docker** + Docker Compose
+- **Cloudflare R2** (storage S3-compatible)
+- **GitHub Actions** (CI/CD - `.github/workflows/ci.yml`)
+- **Dependabot** (actualizaciones)
+
+---
+
+## Servicios Cloud Configurados
+
+### Cloudflare R2 - Buckets
+
+| Bucket              | Uso                 | URL publica                                           |
+| ------------------- | ------------------- | ----------------------------------------------------- |
+| `music-flow`        | Archivos de audio   | `https://pub-f44a489bc1e94270836132b3136f0a8c.r2.dev` |
+| `music-flow-images` | Portadas / avatares | `https://pub-7f3d08bcabf44d68b2a57424acfc9d48.r2.dev` |
+
+**Endpoint S3-compatible:** `https://e6059b4515b414d738310669c6ca5977.r2.cloudflarestorage.com`
+
+Las credenciales (`R2_ACCESS_KEY`, `R2_SECRET_ACCESS_KEY`) se cargan via variables de entorno - nunca en el repositorio.
 
 ---
 
 ## Requisitos
 
-- Python 3.12+
 - Node.js 20+
-- Flutter 3.x
-- Docker y Docker Compose (opcional, recomendado)
-- PostgreSQL 16 (si no usas Docker)
-- Redis 7 (si no usas Docker)
+- pnpm 9+ (`npm install -g pnpm`)
+- Flutter 3.11+
+- Docker y Docker Compose (recomendado para Postgres / Redis)
 
 ---
 
 ## Inicio Rapido
 
-### Opcion 1: Con Docker (Recomendado)
+### 1. Clonar e instalar dependencias
 
 ```bash
-# Clonar repositorio
 git clone <repo-url>
 cd MusicFlow
 
-# Iniciar todos los servicios
+# Instala todas las dependencias del monorepo
+pnpm install
+```
+
+### 2. Levantar servicios de infraestructura (Postgres + Redis)
+
+```bash
 docker-compose up -d
-
-# Ver logs
-docker-compose logs -f backend
-
-# Detener servicios
-docker-compose down
 ```
 
-Servicios disponibles:
-- Backend API: http://localhost:8000
-- PostgreSQL: localhost:5432
-- Redis: localhost:6379
-- MinIO Console: http://localhost:9001
-
-### Opcion 2: Desarrollo Local
-
-#### Backend
+### 3. Backend (NestJS)
 
 ```bash
-cd backend
+cd apps/backend
 
-# Crear entorno virtual
-python -m venv venv
+# Configurar variables de entorno
+cp .env.example .env   # editar con valores reales
 
-# Activar entorno virtual
-# Windows:
-venv\Scripts\activate
-# Linux/Mac:
-source venv/bin/activate
+# Generar cliente Prisma y aplicar migraciones
+pnpm prisma generate
+pnpm prisma migrate dev --name init
 
-# Instalar dependencias
-pip install -r requirements/dev.txt
+# Sembrar presets globales (Flat, Rock, Jazz, etc.)
+pnpm prisma db seed
 
-# Copiar variables de entorno
-cp .env.example .env
-
-# Crear migraciones
-python manage.py makemigrations
-
-# Aplicar migraciones
-python manage.py migrate
-
-# Crear superusuario
-python manage.py createsuperuser
-
-# Iniciar servidor
-python manage.py runserver
+# Arrancar en modo desarrollo
+pnpm start:dev
 ```
 
-#### Frontend
+API en `http://localhost:3000` - Swagger en `http://localhost:3000/api/docs`.
+
+### 4. Frontend Web
 
 ```bash
-cd frontend
-
-# Instalar dependencias
-npm install
-
-# Copiar variables de entorno
-cp .env.example .env
-
-# Desarrollo web
-npm run dev
-
-# Desarrollo desktop (Electron)
-npm run dev:electron
-
-# Build web
-npm run build
-
-# Build desktop
-npm run build:electron
+cd apps/web
+pnpm dev          # Vite dev server en http://localhost:5173
+pnpm electron     # Lanza Electron contra el dev server
 ```
 
-#### Mobile
+### 5. Mobile (Flutter)
 
 ```bash
-cd mobile
-
-# Obtener dependencias
+cd apps/mobile
 flutter pub get
-
-# Ejecutar en dispositivo/emulador
 flutter run
+```
 
-# Build Android
-flutter build apk
+### 6. Comandos desde la raiz (Turborepo)
 
-# Build iOS
-flutter build ios
+```bash
+pnpm dev                                   # Todos los servicios en paralelo
+pnpm build                                 # Build de todo el monorepo
+pnpm lint                                  # Lint en todos los packages
+pnpm test                                  # Tests en todos los packages
+
+# Filtrar por workspace
+pnpm --filter @musicflow/backend dev
+pnpm --filter web dev
 ```
 
 ---
 
-## Configuracion
+## Configuracion de Variables de Entorno
 
-### Variables de Entorno Backend (.env)
+### Backend (`apps/backend/.env`)
 
 ```env
-# Django
-SECRET_KEY=your-secret-key-here
-DEBUG=True
-ALLOWED_HOSTS=localhost,127.0.0.1
+# App
+NODE_ENV=development
+PORT=3000
 
 # Database
-DB_NAME=musicflow
-DB_USER=musicflow
-DB_PASSWORD=musicflow
-DB_HOST=localhost
-DB_PORT=5432
+DATABASE_URL=postgresql://musicflow:musicflow@localhost:5432/musicflow
 
 # Redis
-REDIS_URL=redis://localhost:6379/0
-CELERY_BROKER_URL=redis://localhost:6379/1
+REDIS_URL=redis://localhost:6379
 
-# AWS S3 / MinIO
-AWS_ACCESS_KEY_ID=minioadmin
-AWS_SECRET_ACCESS_KEY=minioadmin
-AWS_STORAGE_BUCKET_NAME=musicflow
-AWS_S3_ENDPOINT_URL=http://localhost:9000
+# JWT
+JWT_SECRET=cambia-este-valor
+JWT_REFRESH_SECRET=cambia-este-valor-tambien
+JWT_ACCESS_EXPIRES=15m
+JWT_REFRESH_EXPIRES=7d
+
+# Cloudflare R2 (Storage)
+R2_ENDPOINT=https://e6059b4515b414d738310669c6ca5977.r2.cloudflarestorage.com
+R2_ACCESS_KEY=
+R2_SECRET_ACCESS_KEY=
+R2_BUCKET_AUDIO=music-flow
+R2_BUCKET_IMAGES=music-flow-images
+R2_PUBLIC_AUDIO_URL=https://pub-f44a489bc1e94270836132b3136f0a8c.r2.dev
+R2_PUBLIC_IMAGES_URL=https://pub-7f3d08bcabf44d68b2a57424acfc9d48.r2.dev
 
 # Anthropic (Claude)
-ANTHROPIC_API_KEY=your-api-key
+ANTHROPIC_API_KEY=
+ANTHROPIC_MODEL=claude-sonnet-4-20250514
 ```
 
-### Variables de Entorno Frontend (.env)
+### Frontend (`apps/web/.env`)
 
 ```env
-VITE_API_URL=http://localhost:8000/api
+VITE_API_URL=http://localhost:3000
+VITE_R2_AUDIO_BASE=https://pub-f44a489bc1e94270836132b3136f0a8c.r2.dev
+VITE_R2_IMAGES_BASE=https://pub-7f3d08bcabf44d68b2a57424acfc9d48.r2.dev
 ```
 
----
-
-## Modelos de Datos Principales
-
-### User
-- UUID, email, username, role (admin/client), is_premium
-
-### Track
-- Metadata completa (title, artist, album, genre, duration, etc.)
-- Soporte hibrido (local, synced, both)
-- Hash de archivo para evitar duplicados
-
-### Playlist
-- Colecciones de tracks con orden personalizado
-- Soporte para compartir (is_public, share_token)
-
-### EQPreset
-- 10 bandas de ecualizacion (31Hz a 16kHz)
-- Bass boost, virtualizer, loudness, reverb
-
-### EQConfig
-- Configuracion EQ aplicada a un scope (global, playlist, track, segment)
-
-### EQSegment
-- EQ especifico para un rango de tiempo dentro de una cancion
-- Label (coro, puente, etc.), start_ms, end_ms, transition_ms
-
-### AIRequest
-- Registro de peticiones al agente IA
-- Prompt, response, feedback, metricas de uso
+> **Importante:** Nunca commitear `.env` con secretos. Los campos `R2_ACCESS_KEY`, `R2_SECRET_ACCESS_KEY` y `ANTHROPIC_API_KEY` se gestionan fuera del repositorio (Vault, secrets de GitHub Actions, etc.).
 
 ---
 
-## API Endpoints
+## Modelos de Datos Principales (Prisma)
 
-### Autenticacion
-- POST /api/auth/login/ - Login con JWT
-- POST /api/auth/refresh/ - Refrescar token
-- POST /api/auth/register/ - Registro de usuario
+Definidos en `apps/backend/prisma/schema.prisma`.
 
-### Library
-- GET /api/library/tracks/ - Listar tracks
-- POST /api/library/tracks/ - Subir track
-- GET /api/library/playlists/ - Listar playlists
+- **User** - UUID, email, username, role (ADMIN/CLIENT), isPremium
+- **Device** - Sesiones por dispositivo (DESKTOP_WIN/MAC/LINUX, MOBILE_ANDROID/IOS)
+- **Track** - Metadata completa + soporte hibrido (LOCAL / SYNCED / BOTH), `fileHash`
+- **Playlist** + **PlaylistTrack** - Colecciones con orden, soporte de compartir
+- **EQPreset** - 10 bandas (31Hz-16kHz), bassBoost, virtualizer, loudness, reverb
+- **EQConfig** - EQ aplicado a un scope (GLOBAL / PLAYLIST / TRACK / SEGMENT)
+- **EQSegment** - EQ para un rango de tiempo dentro de una cancion
+- **AIRequest** - Peticiones al agente con prompt, response, feedback, costos
+- **PlayHistory** + **ListeningStats** - Tracking de reproduccion
+- **UserPreferences** - Tema, layouts, crossfade, scrobbling, etc.
+- **SyncLog** + **ConflictLog** - Auditoria de sincronizacion
 
-### Equalizer
-- GET /api/equalizer/presets/ - Listar presets
-- POST /api/equalizer/configs/ - Crear configuracion EQ
-- GET /api/equalizer/segments/ - Listar segmentos
+---
 
-### AI Agent
-- POST /api/ai/eq-suggest/ - Solicitar sugerencia de EQ
+## API Endpoints (Resumen)
 
-### Sync
-- GET /api/sync/pull/ - Obtener cambios desde servidor
-- POST /api/sync/push/ - Enviar cambios al servidor
+Documentacion completa en Swagger: `http://localhost:3000/api/docs`.
 
-### Documentacion API
-- GET /api/docs/ - Swagger UI
-- GET /api/redoc/ - ReDoc
+### Auth (`/auth`)
+
+- `POST /auth/register`, `/auth/login`, `/auth/refresh`, `/auth/logout`
+- `POST /auth/forgot-password`, `/auth/reset-password`
+- `GET /auth/me`
+
+### Users (`/users`) y Devices (`/devices`)
+
+- `GET/PATCH /users/me`, upload de avatar, change password
+- `GET/POST/DELETE /devices`
+
+### Library (`/tracks`, `/playlists`)
+
+- CRUD de tracks con paginacion, filtros por artist/album/genre
+- `GET /tracks/artists`, `/tracks/albums`, `/tracks/genres`
+- CRUD de playlists + reorder
+
+### Equalizer (`/equalizer`)
+
+- `GET/POST/PATCH/DELETE /equalizer/presets`
+- `GET /equalizer/configs?scopeType=...` - obtener config por scope
+- `GET /equalizer/configs/resolve/:trackId` - resolver EQ efectivo
+- `POST /equalizer/configs` - upsert
+- `GET/POST/PATCH/DELETE /equalizer/segments/:trackId`
+- `GET /equalizer/segments/:trackId/active?position=...` - segmento activo
+
+### AI Agent (`/ai-agent`)
+
+- `POST /ai-agent/suggest` - sugerencia de EQ via Claude
+- `POST /ai-agent/:requestId/accept` - aplicar sugerencia
+- `POST /ai-agent/:requestId/feedback` - calificar resultado
+- `GET /ai-agent/history`
+
+### Sync (`/sync`)
+
+- `GET /sync/pull?since=...` - cambios desde timestamp
+- `POST /sync/push` - subir cambios locales
+- `GET /sync/conflicts`, `POST /sync/conflicts/:id/resolve`
+- `GET /sync/logs`
+
+### Analytics (`/analytics`)
+
+- `POST /analytics/plays` - registrar reproduccion
+- `GET /analytics/stats?period=DAY|WEEK|MONTH|ALL_TIME`
+
+### Admin (`/admin`)
+
+- Gestion de usuarios (rol, premium, bloquear)
+- Metricas globales y logs del agente IA
+
+---
+
+## Prioridad de EQ en Reproduccion
+
+Implementado en `apps/backend/src/modules/equalizer/configs.service.ts` (`resolveForTrack`):
+
+1. **Segmento activo** (si hay uno cuyo rango cubre el `currentMs`)
+2. **Configuracion del track**
+3. **Configuracion de la playlist activa**
+4. **Configuracion global del usuario**
+5. **Flat** (sin ecualizacion)
+
+---
+
+## Flujo de Datos - Agente IA
+
+```
+Usuario: "Quiero mas bajos en el coro del minuto 1:30 al 2:10"
+    |
+    v
+Cliente (React/Flutter) -> POST /ai-agent/suggest
+    |
+    v
+NestJS AiAgentController -> AiAgentService
+    |
+    +-> Enriquece contexto (track, artist, album, genre, EQ actual)
+    |
+    v
+Claude API (@anthropic-ai/sdk)  [HOY: mock segun keywords del prompt]
+    |
+    v
+Validacion de respuesta (DTOs) + Prisma:
+    - Guarda AIRequest
+    - Crea/actualiza EQSegment
+    |
+    v
+Respuesta al cliente con preview aplicable
+    |
+    v
+Usuario acepta/rechaza -> POST /ai-agent/:id/accept o /feedback
+```
 
 ---
 
 ## Testing
 
-### Backend
+> Estado actual: Sin tests escritos. Pendientes en epica E15 del Scrum.
 
 ```bash
-cd backend
+# Backend (cuando existan tests)
+cd apps/backend
+pnpm test
+pnpm test:cov
+pnpm test:e2e
 
-# Ejecutar todos los tests
-pytest
+# Frontend (cuando existan tests)
+cd apps/web
+pnpm test
+pnpm test:e2e   # Playwright (planificado)
 
-# Con coverage
-pytest --cov=apps
-
-# Tests especificos
-pytest apps/auth_app/tests/
-```
-
-### Frontend
-
-```bash
-cd frontend
-
-# Unit tests
-npm run test
-
-# E2E tests
-npm run test:e2e
-```
-
-### Mobile
-
-```bash
-cd mobile
-
-# Unit tests
+# Mobile
+cd apps/mobile
 flutter test
-
-# Integration tests
 flutter test integration_test/
 ```
 
@@ -371,92 +410,42 @@ flutter test integration_test/
 ### Produccion con Docker
 
 ```bash
-# Configurar variables de entorno de produccion
-cp .env.example .env.prod
-# Editar .env.prod con valores de produccion
-
-# Construir y desplegar
 docker-compose -f docker-compose.prod.yml up -d --build
 ```
 
-### Builds de Escritorio
+### Builds Desktop (Electron)
 
 ```bash
-cd frontend
-
-# Windows
-npm run build:electron  # Genera .exe en dist-electron/
-
-# El build genera:
-# - Windows: .exe, portable
-# - macOS: .dmg, .zip
-# - Linux: .AppImage, .deb
+cd apps/web
+pnpm build              # Build web
+pnpm build:electron     # Genera instaladores (.exe, .dmg, .deb)  [pendiente configurar electron-builder]
 ```
 
 ### Builds Mobile
 
 ```bash
-cd mobile
-
-# Android (APK)
-flutter build apk --release
-
-# Android (App Bundle para Play Store)
-flutter build appbundle --release
-
-# iOS
-flutter build ios --release
+cd apps/mobile
+flutter build apk --release          # Android APK
+flutter build appbundle --release    # Android App Bundle (Play Store)
+flutter build ios --release          # iOS
 ```
 
 ---
 
-## Arquitectura
+## Estado del Proyecto
 
-### Flujo de Datos - Agente IA
+Backlog detallado, sprints y avance por epica: ver **[Scrum.md](./Scrum.md)**.
 
-```
-Usuario: "Quiero mas bajos en el coro del minuto 1:30 al 2:10"
-    |
-    v
-Cliente (React/Flutter) -> POST /api/ai/eq-suggest
-    |
-    v
-Django View (AIAgentView)
-    |
-    +-> Construye prompt enriquecido (contexto de cancion, genero, EQ actual)
-    |
-    v
-Claude API (genera configuracion EQ en JSON)
-    |
-    v
-Parser + Validador (Pydantic schema)
-    |
-    +-> Guarda AIRequest en DB
-    +-> Crea/actualiza EQSegment
-    |
-    v
-Respuesta al cliente con preview aplicable
-    |
-    v
-Usuario acepta/rechaza -> feedback loop
-```
-
-### Prioridad de EQ en Reproduccion
-
-1. Segmento activo (si existe para el momento actual)
-2. Configuracion del track
-3. Configuracion de la playlist activa
-4. Configuracion global del usuario
-5. Flat (sin ecualizacion)
+Reglas obligatorias para contribuir y guias por area (NestJS, React/Electron, Flutter): ver **[CLAUDE.md](./CLAUDE.md)** y `.claude/skills/`.
 
 ---
 
 ## Contribucion
 
-1. Crear rama desde `develop`: `git checkout -b feature/PB-XXX-descripcion`
-2. Hacer commits siguiendo Conventional Commits
-3. Crear Pull Request hacia `develop`
-4. Esperar review y aprobacion
+1. Crear rama desde `main`: `git checkout -b feature/PB-XXX-descripcion`
+2. Commits siguiendo Conventional Commits
+3. Pull Request hacia `main` - GitHub Actions valida lint + tests
+4. Review + aprobacion + merge
 
 ### Convenciones de Commits
 
@@ -466,6 +455,7 @@ fix(auth): corregir refresh de token expirado
 docs(readme): actualizar instrucciones de setup
 test(ai): anadir tests del parser de respuestas
 refactor(sync): simplificar logica de conflictos
+chore(deps): actualizar dependencias de Dependabot
 ```
 
 ---

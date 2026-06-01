@@ -96,3 +96,4 @@ apps/backend/dist/
 # AI Assistant (private)
 .claude/
 CLAUDE.md
+claude-skills/

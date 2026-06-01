@@ -10,7 +10,7 @@
     "./components": "./src/components/index.ts"
   },
   "scripts": {
-    "lint": "eslint src/",
+    "lint": "eslint src --ext .ts,.tsx",
     "typecheck": "tsc --noEmit"
   },
   "peerDependencies": {

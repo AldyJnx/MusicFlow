@@ -1,13 +1,17 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:musicflow_mobile/features/auth/providers/auth_controller.dart';
 
-class RegisterScreen extends StatefulWidget {
+class RegisterScreen extends ConsumerStatefulWidget {
   const RegisterScreen({super.key});
 
   @override
-  State<RegisterScreen> createState() => _RegisterScreenState();
+  ConsumerState<RegisterScreen> createState() => _RegisterScreenState();
 }
 
-class _RegisterScreenState extends State<RegisterScreen> {
+class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   static const Color _accentCyan = Color(0xFF00CFFF);
   static const Color _lightBlue = Color(0xFF4FC3F7);
   static const Color _bgDark = Color(0xFF071A24);
@@ -16,7 +20,63 @@ class _RegisterScreenState extends State<RegisterScreen> {
   static const Color _cardDark = Color(0xFF11181F);
   static const Color _inputFill = Color(0xFF1C242D);
 
+  final _formKey = GlobalKey<FormState>();
+  final _emailController = TextEditingController();
+  final _usernameController = TextEditingController();
+  final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
+
   bool _obscurePassword = true;
+  bool _obscureConfirmPassword = true;
+  bool _isLoading = false;
+  String? _errorMessage;
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _usernameController.dispose();
+    _passwordController.dispose();
+    _confirmPasswordController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    if (!(_formKey.currentState?.validate() ?? false)) return;
+
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      await ref.read(authControllerProvider.notifier).register(
+            _emailController.text.trim(),
+            _usernameController.text.trim(),
+            _passwordController.text,
+          );
+      // Success: GoRouter redirect handles navigation automatically.
+    } on DioException catch (e) {
+      final data = e.response?.data;
+      String message;
+      if (data is Map && data['message'] != null) {
+        final raw = data['message'];
+        message = raw is List ? raw.join(', ') : raw.toString();
+      } else {
+        message = 'No se pudo crear la cuenta';
+      }
+      if (mounted) {
+        setState(() => _errorMessage = message);
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _errorMessage = 'No pudimos iniciar sesión, intenta de nuevo.');
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -36,195 +96,291 @@ class _RegisterScreenState extends State<RegisterScreen> {
         child: SafeArea(
           child: SingleChildScrollView(
             padding: const EdgeInsets.fromLTRB(18, 56, 18, 42),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.fromLTRB(18, 28, 18, 26),
-                  decoration: BoxDecoration(
-                    color: _cardDark.withOpacity(0.95),
-                    borderRadius: BorderRadius.circular(30),
-                    border: Border.all(
-                      color: Colors.white.withOpacity(0.04),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.fromLTRB(18, 28, 18, 26),
+                    decoration: BoxDecoration(
+                      color: _cardDark.withOpacity(0.95),
+                      borderRadius: BorderRadius.circular(30),
+                      border: Border.all(
+                        color: Colors.white.withOpacity(0.04),
+                      ),
                     ),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      RichText(
-                        text: TextSpan(
-                          style: theme.textTheme.displaySmall?.copyWith(
-                            fontWeight: FontWeight.w900,
-                            height: 0.95,
-                            color: Colors.white,
-                          ),
-                          children: [
-                            const TextSpan(text: 'Unete a\nMusic '),
-                            TextSpan(
-                              text: 'Flow',
-                              style: theme.textTheme.displaySmall?.copyWith(
-                                fontWeight: FontWeight.w900,
-                                color: _accentCyan,
-                                height: 0.95,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 18),
-                      Text(
-                        'Sincroniza tu ritmo con la IA mas avanzada y descubre musica sin limites.',
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          color: Colors.white54,
-                          fontWeight: FontWeight.w700,
-                          height: 1.45,
-                        ),
-                      ),
-                      const SizedBox(height: 28),
-                      _RegisterFieldLabel(text: 'NOMBRE COMPLETO'),
-                      const SizedBox(height: 10),
-                      _RegisterInputContainer(
-                        child: TextField(
-                          cursorColor: _accentCyan,
-                          style: const TextStyle(color: Colors.white),
-                          decoration: _inputDecoration(
-                            hintText: 'Tu nombre',
-                            prefixIcon: Icons.person_outline_rounded,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 22),
-                      _RegisterFieldLabel(text: 'EMAIL'),
-                      const SizedBox(height: 10),
-                      _RegisterInputContainer(
-                        child: TextField(
-                          cursorColor: _accentCyan,
-                          keyboardType: TextInputType.emailAddress,
-                          style: const TextStyle(color: Colors.white),
-                          decoration: _inputDecoration(
-                            hintText: 'nombre@ejemplo.com',
-                            prefixIcon: Icons.mail_outline_rounded,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 22),
-                      _RegisterFieldLabel(text: 'CONTRASENA'),
-                      const SizedBox(height: 10),
-                      _RegisterInputContainer(
-                        child: TextField(
-                          cursorColor: _accentCyan,
-                          obscureText: _obscurePassword,
-                          style: const TextStyle(color: Colors.white),
-                          decoration: _inputDecoration(
-                            hintText: '••••••••',
-                            prefixIcon: Icons.lock_outline_rounded,
-                            suffixIcon: IconButton(
-                              onPressed: () {
-                                setState(() {
-                                  _obscurePassword = !_obscurePassword;
-                                });
-                              },
-                              icon: Icon(
-                                _obscurePassword
-                                    ? Icons.visibility_outlined
-                                    : Icons.visibility_off_outlined,
-                                color: Colors.white38,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 30),
-                      Container(
-                        width: double.infinity,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(999),
-                          boxShadow: const [
-                            BoxShadow(
-                              color: Color(0x6600CFFF),
-                              blurRadius: 22,
-                              offset: Offset(0, 10),
-                            ),
-                          ],
-                        ),
-                        child: ElevatedButton(
-                          onPressed: () {},
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: _lightBlue,
-                            foregroundColor: _bgDark,
-                            elevation: 0,
-                            padding: const EdgeInsets.symmetric(vertical: 20),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(999),
-                              side: BorderSide(
-                                color: _accentCyan.withOpacity(0.45),
-                                width: 2,
-                              ),
-                            ),
-                          ),
-                          child: Text(
-                            'CREAR CUENTA',
-                            style: theme.textTheme.titleMedium?.copyWith(
-                              color: _bgDark,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        RichText(
+                          text: TextSpan(
+                            style: theme.textTheme.displaySmall?.copyWith(
                               fontWeight: FontWeight.w900,
-                              letterSpacing: 0.6,
+                              height: 0.95,
+                              color: Colors.white,
                             ),
+                            children: [
+                              const TextSpan(text: 'Unete a\nMusic '),
+                              TextSpan(
+                                text: 'Flow',
+                                style: theme.textTheme.displaySmall?.copyWith(
+                                  fontWeight: FontWeight.w900,
+                                  color: _accentCyan,
+                                  height: 0.95,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                      ),
-                      const SizedBox(height: 18),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            '¿Ya tienes cuenta? ',
-                            style: theme.textTheme.bodyLarge?.copyWith(
-                              color: Colors.white54,
-                              fontWeight: FontWeight.w600,
-                            ),
+                        const SizedBox(height: 18),
+                        Text(
+                          'Sincroniza tu ritmo con la IA mas avanzada y descubre musica sin limites.',
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            color: Colors.white54,
+                            fontWeight: FontWeight.w700,
+                            height: 1.45,
                           ),
-                          TextButton(
-                            onPressed: () {},
-                            style: TextButton.styleFrom(
-                              padding: EdgeInsets.zero,
-                              minimumSize: Size.zero,
-                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                        const SizedBox(height: 28),
+                        _RegisterFieldLabel(text: 'NOMBRE DE USUARIO'),
+                        const SizedBox(height: 10),
+                        _RegisterInputContainer(
+                          child: TextFormField(
+                            controller: _usernameController,
+                            cursorColor: _accentCyan,
+                            style: const TextStyle(color: Colors.white),
+                            decoration: _inputDecoration(
+                              hintText: 'Tu nombre de usuario',
+                              prefixIcon: Icons.person_outline_rounded,
+                            ),
+                            validator: (v) {
+                              if (v == null || v.trim().isEmpty) {
+                                return 'Ingresa un nombre de usuario';
+                              }
+                              return null;
+                            },
+                          ),
+                        ),
+                        const SizedBox(height: 22),
+                        _RegisterFieldLabel(text: 'EMAIL'),
+                        const SizedBox(height: 10),
+                        _RegisterInputContainer(
+                          child: TextFormField(
+                            controller: _emailController,
+                            cursorColor: _accentCyan,
+                            keyboardType: TextInputType.emailAddress,
+                            style: const TextStyle(color: Colors.white),
+                            decoration: _inputDecoration(
+                              hintText: 'nombre@ejemplo.com',
+                              prefixIcon: Icons.mail_outline_rounded,
+                            ),
+                            validator: (v) {
+                              if (v == null || v.trim().isEmpty) {
+                                return 'Ingresa tu correo';
+                              }
+                              if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(v.trim())) {
+                                return 'Correo inválido';
+                              }
+                              return null;
+                            },
+                          ),
+                        ),
+                        const SizedBox(height: 22),
+                        _RegisterFieldLabel(text: 'CONTRASENA'),
+                        const SizedBox(height: 10),
+                        _RegisterInputContainer(
+                          child: TextFormField(
+                            controller: _passwordController,
+                            cursorColor: _accentCyan,
+                            obscureText: _obscurePassword,
+                            style: const TextStyle(color: Colors.white),
+                            decoration: _inputDecoration(
+                              hintText: '••••••••',
+                              prefixIcon: Icons.lock_outline_rounded,
+                              suffixIcon: IconButton(
+                                onPressed: () {
+                                  setState(() {
+                                    _obscurePassword = !_obscurePassword;
+                                  });
+                                },
+                                icon: Icon(
+                                  _obscurePassword
+                                      ? Icons.visibility_outlined
+                                      : Icons.visibility_off_outlined,
+                                  color: Colors.white38,
+                                ),
+                              ),
+                            ),
+                            validator: (v) {
+                              if (v == null || v.isEmpty) {
+                                return 'Ingresa una contraseña';
+                              }
+                              if (v.length < 8) {
+                                return 'La contraseña debe tener al menos 8 caracteres';
+                              }
+                              return null;
+                            },
+                          ),
+                        ),
+                        const SizedBox(height: 22),
+                        _RegisterFieldLabel(text: 'CONFIRMAR CONTRASENA'),
+                        const SizedBox(height: 10),
+                        _RegisterInputContainer(
+                          child: TextFormField(
+                            controller: _confirmPasswordController,
+                            cursorColor: _accentCyan,
+                            obscureText: _obscureConfirmPassword,
+                            style: const TextStyle(color: Colors.white),
+                            decoration: _inputDecoration(
+                              hintText: '••••••••',
+                              prefixIcon: Icons.lock_outline_rounded,
+                              suffixIcon: IconButton(
+                                onPressed: () {
+                                  setState(() {
+                                    _obscureConfirmPassword = !_obscureConfirmPassword;
+                                  });
+                                },
+                                icon: Icon(
+                                  _obscureConfirmPassword
+                                      ? Icons.visibility_outlined
+                                      : Icons.visibility_off_outlined,
+                                  color: Colors.white38,
+                                ),
+                              ),
+                            ),
+                            validator: (v) {
+                              if (v == null || v.isEmpty) {
+                                return 'Confirma tu contraseña';
+                              }
+                              if (v != _passwordController.text) {
+                                return 'Las contraseñas no coinciden';
+                              }
+                              return null;
+                            },
+                          ),
+                        ),
+                        if (_errorMessage != null) ...[
+                          const SizedBox(height: 16),
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 10,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0x22FF5A5F),
+                              borderRadius: BorderRadius.circular(12),
                             ),
                             child: Text(
-                              'Inicia sesion',
-                              style: theme.textTheme.bodyLarge?.copyWith(
-                                color: _lightBlue,
-                                fontWeight: FontWeight.w800,
+                              _errorMessage!,
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                color: const Color(0xFFFF8A8D),
                               ),
                             ),
                           ),
                         ],
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 42),
-                Center(
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: List.generate(
-                      7,
-                      (index) => Container(
-                        margin: const EdgeInsets.symmetric(horizontal: 4),
-                        width: index.isEven ? 3 : 2,
-                        height: index.isEven ? 14 : 8,
-                        decoration: BoxDecoration(
-                          color: _accentCyan.withOpacity(
-                            index == 3 ? 1 : 0.55,
+                        const SizedBox(height: 30),
+                        Container(
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(999),
+                            boxShadow: const [
+                              BoxShadow(
+                                color: Color(0x6600CFFF),
+                                blurRadius: 22,
+                                offset: Offset(0, 10),
+                              ),
+                            ],
                           ),
-                          borderRadius: BorderRadius.circular(999),
+                          child: ElevatedButton(
+                            onPressed: _isLoading ? null : _submit,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: _lightBlue,
+                              foregroundColor: _bgDark,
+                              elevation: 0,
+                              padding: const EdgeInsets.symmetric(vertical: 20),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(999),
+                                side: BorderSide(
+                                  color: _accentCyan.withOpacity(0.45),
+                                  width: 2,
+                                ),
+                              ),
+                            ),
+                            child: _isLoading
+                                ? const SizedBox(
+                                    width: 22,
+                                    height: 22,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2.5,
+                                      color: Color(0xFF071A24),
+                                    ),
+                                  )
+                                : Text(
+                                    'CREAR CUENTA',
+                                    style: theme.textTheme.titleMedium?.copyWith(
+                                      color: _bgDark,
+                                      fontWeight: FontWeight.w900,
+                                      letterSpacing: 0.6,
+                                    ),
+                                  ),
+                          ),
+                        ),
+                        const SizedBox(height: 18),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              '¿Ya tienes cuenta? ',
+                              style: theme.textTheme.bodyLarge?.copyWith(
+                                color: Colors.white54,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            TextButton(
+                              onPressed: () => context.go('/login'),
+                              style: TextButton.styleFrom(
+                                padding: EdgeInsets.zero,
+                                minimumSize: Size.zero,
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              ),
+                              child: Text(
+                                'Inicia sesion',
+                                style: theme.textTheme.bodyLarge?.copyWith(
+                                  color: _lightBlue,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 42),
+                  Center(
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: List.generate(
+                        7,
+                        (index) => Container(
+                          margin: const EdgeInsets.symmetric(horizontal: 4),
+                          width: index.isEven ? 3 : 2,
+                          height: index.isEven ? 14 : 8,
+                          decoration: BoxDecoration(
+                            color: _accentCyan.withOpacity(
+                              index == 3 ? 1 : 0.55,
+                            ),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
                         ),
                       ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
@@ -244,6 +400,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       suffixIcon: suffixIcon,
       border: InputBorder.none,
       contentPadding: const EdgeInsets.symmetric(vertical: 18),
+      errorStyle: const TextStyle(color: Color(0xFFFF8A8D), fontSize: 12),
     );
   }
 }
