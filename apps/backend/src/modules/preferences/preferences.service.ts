@@ -1,6 +1,6 @@
-import { Injectable } from '@nestjs/common';
-import { PrismaService } from '@/prisma/prisma.service';
-import { Prisma } from '@prisma/client';
+import { Injectable } from "@nestjs/common";
+import { PrismaService } from "@/prisma/prisma.service";
+import { Prisma } from "@prisma/client";
 
 @Injectable()
 export class PreferencesService {
@@ -24,7 +24,7 @@ export class PreferencesService {
   async update(userId: string, data: Prisma.UserPreferencesUpdateInput) {
     return this.prisma.userPreferences.upsert({
       where: { userId },
-      create: { userId, ...data } as any,
+      create: { userId, ...data } as Prisma.UserPreferencesUncheckedCreateInput,
       update: data,
     });
   }
@@ -33,14 +33,14 @@ export class PreferencesService {
     return this.prisma.userPreferences.update({
       where: { userId },
       data: {
-        theme: 'dark_default',
+        theme: "dark_default",
         dynamicThemeEnabled: false,
         dynamicThemeIntensity: 50,
-        playerLayout: 'STANDARD',
-        libraryLayout: 'LIST',
+        playerLayout: "STANDARD",
+        libraryLayout: "LIST",
         showAlbumArt: true,
         showVisualizer: false,
-        visualizerType: 'bars',
+        visualizerType: "bars",
         crossfadeEnabled: false,
         crossfadeDurationMs: 3000,
         gaplessEnabled: true,
@@ -48,8 +48,8 @@ export class PreferencesService {
         skipSilence: false,
         sleepTimerDefaultMin: null,
         sleepTimerFadeOut: true,
-        lastfmUsername: '',
-        lastfmSessionKey: '',
+        lastfmUsername: "",
+        lastfmSessionKey: "",
         scrobbleEnabled: false,
         scrobbleThreshold: 50,
         lyricsFontSize: 16,

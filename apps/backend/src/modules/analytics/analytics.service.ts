@@ -1,6 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "@/prisma/prisma.service";
-import { PlayDevice, StatsPeriod } from "@prisma/client";
+import { PlayDevice, StatsPeriod, Track, Prisma } from "@prisma/client";
 
 @Injectable()
 export class AnalyticsService {
@@ -43,13 +43,14 @@ export class AnalyticsService {
   ) {
     const { skip = 0, take = 50, trackId, from, to } = params || {};
 
-    const where: any = { userId };
+    const where: Prisma.PlayHistoryWhereInput = { userId };
 
     if (trackId) where.trackId = trackId;
     if (from || to) {
-      where.playedAt = {};
-      if (from) where.playedAt.gte = from;
-      if (to) where.playedAt.lte = to;
+      where.playedAt = {
+        ...(from ? { gte: from } : {}),
+        ...(to ? { lte: to } : {}),
+      };
     }
 
     const [history, total] = await Promise.all([
@@ -82,7 +83,7 @@ export class AnalyticsService {
           now.getDate(),
         );
         break;
-      case "WEEK":
+      case "WEEK": {
         const dayOfWeek = now.getDay();
         periodStart = new Date(
           now.getFullYear(),
@@ -90,6 +91,7 @@ export class AnalyticsService {
           now.getDate() - dayOfWeek,
         );
         break;
+      }
       case "MONTH":
         periodStart = new Date(now.getFullYear(), now.getMonth(), 1);
         break;
@@ -120,7 +122,7 @@ export class AnalyticsService {
       include: { track: true },
     });
 
-    const trackCounts = new Map<string, { count: number; track: any }>();
+    const trackCounts = new Map<string, { count: number; track: Track }>();
     const artistCounts = new Map<string, number>();
     const albumCounts = new Map<string, number>();
     let totalTimeMs = 0;

@@ -254,11 +254,11 @@ export default function UsersPage() {
   const [skip, setSkip] = useState(0);
   const take = PAGE_SIZE;
 
-  // Debounce search
+  // Debounce search; reset pagination when the debounced term is applied
   useEffect(() => {
-    setSkip(0);
     const timer = setTimeout(() => {
       setDebouncedSearch(search);
+      setSkip(0);
     }, 300);
     return () => clearTimeout(timer);
   }, [search]);
