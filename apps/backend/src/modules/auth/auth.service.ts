@@ -2,7 +2,6 @@ import {
   Injectable,
   UnauthorizedException,
   ConflictException,
-  NotFoundException,
   BadRequestException,
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
@@ -10,6 +9,7 @@ import { ConfigService } from "@nestjs/config";
 import * as bcrypt from "bcryptjs";
 import * as crypto from "crypto";
 import { PrismaService } from "@/prisma/prisma.service";
+import { MailService } from "@/modules/mail/mail.service";
 import { RegisterDto } from "./dto/register.dto";
 import { LoginDto } from "./dto/login.dto";
 
@@ -24,15 +24,47 @@ export interface AuthTokens {
   refreshToken: string;
 }
 
+export interface SafeUser {
+  id: string;
+  email: string;
+  username: string;
+  role: string;
+  isPremium: boolean;
+  avatar: string | null;
+}
+
+export interface AuthSession extends AuthTokens {
+  user: SafeUser;
+}
+
+function toSafeUser(user: {
+  id: string;
+  email: string;
+  username: string;
+  role: string;
+  isPremium: boolean;
+  avatar: string | null;
+}): SafeUser {
+  return {
+    id: user.id,
+    email: user.email,
+    username: user.username,
+    role: user.role,
+    isPremium: user.isPremium,
+    avatar: user.avatar,
+  };
+}
+
 @Injectable()
 export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
+    private readonly mailService: MailService,
   ) {}
 
-  async register(dto: RegisterDto): Promise<AuthTokens> {
+  async register(dto: RegisterDto): Promise<AuthSession> {
     const existingUser = await this.prisma.user.findFirst({
       where: {
         OR: [{ email: dto.email }, { username: dto.username }],
@@ -60,10 +92,10 @@ export class AuthService {
       },
     });
 
-    return this.generateTokens(user);
+    return { ...this.generateTokens(user), user: toSafeUser(user) };
   }
 
-  async login(dto: LoginDto): Promise<AuthTokens> {
+  async login(dto: LoginDto): Promise<AuthSession> {
     const user = await this.prisma.user.findUnique({
       where: { email: dto.email },
     });
@@ -82,7 +114,7 @@ export class AuthService {
       throw new UnauthorizedException("Account is deactivated");
     }
 
-    return this.generateTokens(user);
+    return { ...this.generateTokens(user), user: toSafeUser(user) };
   }
 
   async refreshTokens(refreshToken: string): Promise<AuthTokens> {
@@ -158,9 +190,7 @@ export class AuthService {
       },
     });
 
-    // TODO: Send email with reset link containing the plain resetToken
-    // For development, log the token
-    console.log(`Password reset token for ${email}: ${resetToken}`);
+    await this.mailService.sendPasswordReset(email, resetToken);
 
     return {
       message:

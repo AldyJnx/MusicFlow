@@ -1,23 +1,30 @@
-import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+import { create } from "zustand";
+import { persist } from "zustand/middleware";
 
-interface User {
-  id: string
-  email: string
-  username: string
-  role: 'admin' | 'client'
-  is_premium: boolean
-  avatar?: string
+export type UserRole = "ADMIN" | "CLIENT";
+
+export interface AuthUser {
+  id: string;
+  email: string;
+  username: string;
+  role: UserRole;
+  isPremium: boolean;
+  avatar?: string | null;
 }
 
 interface AuthState {
-  user: User | null
-  accessToken: string | null
-  refreshToken: string | null
-  isAuthenticated: boolean
-  setAuth: (user: User, accessToken: string, refreshToken: string) => void
-  logout: () => void
-  updateUser: (user: Partial<User>) => void
+  user: AuthUser | null;
+  accessToken: string | null;
+  refreshToken: string | null;
+  isAuthenticated: boolean;
+  setSession: (data: {
+    user: AuthUser;
+    accessToken: string;
+    refreshToken: string;
+  }) => void;
+  setTokens: (accessToken: string, refreshToken: string) => void;
+  setUser: (user: AuthUser) => void;
+  clear: () => void;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -27,33 +34,31 @@ export const useAuthStore = create<AuthState>()(
       accessToken: null,
       refreshToken: null,
       isAuthenticated: false,
-      setAuth: (user, accessToken, refreshToken) =>
-        set({
-          user,
-          accessToken,
-          refreshToken,
-          isAuthenticated: true,
-        }),
-      logout: () =>
+
+      setSession: ({ user, accessToken, refreshToken }) =>
+        set({ user, accessToken, refreshToken, isAuthenticated: true }),
+
+      setTokens: (accessToken, refreshToken) =>
+        set({ accessToken, refreshToken }),
+
+      setUser: (user) => set({ user }),
+
+      clear: () =>
         set({
           user: null,
           accessToken: null,
           refreshToken: null,
           isAuthenticated: false,
         }),
-      updateUser: (userData) =>
-        set((state) => ({
-          user: state.user ? { ...state.user, ...userData } : null,
-        })),
     }),
     {
-      name: 'musicflow-auth',
+      name: "musicflow-auth",
       partialize: (state) => ({
         user: state.user,
         accessToken: state.accessToken,
         refreshToken: state.refreshToken,
         isAuthenticated: state.isAuthenticated,
       }),
-    }
-  )
-)
+    },
+  ),
+);

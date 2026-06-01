@@ -1,12 +1,15 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '@/prisma/prisma.service';
-import { ConflictResolution } from '@prisma/client';
+import { Injectable, NotFoundException } from "@nestjs/common";
+import { PrismaService } from "@/prisma/prisma.service";
+import { ConflictResolution, Prisma } from "@prisma/client";
 
-interface SyncDelta {
-  tracks?: Array<{ id: string; data: any; deleted?: boolean }>;
-  playlists?: Array<{ id: string; data: any; deleted?: boolean }>;
-  eqConfigs?: Array<{ id: string; data: any; deleted?: boolean }>;
-  eqSegments?: Array<{ id: string; data: any; deleted?: boolean }>;
+/** Snapshot of an entity sent by a client during sync. Shape varies per entity type. */
+type EntitySnapshot = Record<string, unknown>;
+
+export interface SyncDelta {
+  tracks?: Array<{ id: string; data: EntitySnapshot; deleted?: boolean }>;
+  playlists?: Array<{ id: string; data: EntitySnapshot; deleted?: boolean }>;
+  eqConfigs?: Array<{ id: string; data: EntitySnapshot; deleted?: boolean }>;
+  eqSegments?: Array<{ id: string; data: EntitySnapshot; deleted?: boolean }>;
 }
 
 @Injectable()
@@ -23,26 +26,28 @@ export class SyncService {
 
     try {
       // Get updated entities since last sync
-      const [tracks, playlists, eqConfigs, eqSegments, preferences] = await Promise.all([
-        this.prisma.track.findMany({
-          where: { userId, updatedAt: { gt: lastSync } },
-        }),
-        this.prisma.playlist.findMany({
-          where: { userId, updatedAt: { gt: lastSync } },
-          include: { tracks: true },
-        }),
-        this.prisma.eQConfig.findMany({
-          where: { userId, updatedAt: { gt: lastSync } },
-        }),
-        this.prisma.eQSegment.findMany({
-          where: { userId, updatedAt: { gt: lastSync } },
-        }),
-        this.prisma.userPreferences.findUnique({
-          where: { userId },
-        }),
-      ]);
+      const [tracks, playlists, eqConfigs, eqSegments, preferences] =
+        await Promise.all([
+          this.prisma.track.findMany({
+            where: { userId, updatedAt: { gt: lastSync } },
+          }),
+          this.prisma.playlist.findMany({
+            where: { userId, updatedAt: { gt: lastSync } },
+            include: { tracks: true },
+          }),
+          this.prisma.eQConfig.findMany({
+            where: { userId, updatedAt: { gt: lastSync } },
+          }),
+          this.prisma.eQSegment.findMany({
+            where: { userId, updatedAt: { gt: lastSync } },
+          }),
+          this.prisma.userPreferences.findUnique({
+            where: { userId },
+          }),
+        ]);
 
-      const entitiesDownloaded = tracks.length + playlists.length + eqConfigs.length + eqSegments.length;
+      const entitiesDownloaded =
+        tracks.length + playlists.length + eqConfigs.length + eqSegments.length;
 
       // Update sync log
       await this.prisma.syncLog.update({
@@ -99,15 +104,27 @@ export class SyncService {
               where: { id: item.id, userId },
             });
 
-            if (existing && existing.updatedAt > new Date(item.data.updatedAt)) {
+            if (
+              existing &&
+              existing.updatedAt > new Date(item.data.updatedAt as string)
+            ) {
               // Conflict detected
-              await this.createConflict(userId, 'track', item.id, item.data, existing);
+              await this.createConflict(
+                userId,
+                "track",
+                item.id,
+                item.data as Prisma.InputJsonValue,
+                existing as unknown as Prisma.InputJsonValue,
+              );
               conflictsDetected++;
             } else {
               await this.prisma.track.upsert({
                 where: { id: item.id },
-                create: { ...item.data, userId },
-                update: item.data,
+                create: {
+                  ...item.data,
+                  userId,
+                } as unknown as Prisma.TrackUncheckedCreateInput,
+                update: item.data as Prisma.TrackUncheckedUpdateInput,
               });
               entitiesUploaded++;
             }
@@ -125,8 +142,11 @@ export class SyncService {
           } else {
             await this.prisma.playlist.upsert({
               where: { id: item.id },
-              create: { ...item.data, userId },
-              update: item.data,
+              create: {
+                ...item.data,
+                userId,
+              } as unknown as Prisma.PlaylistUncheckedCreateInput,
+              update: item.data as Prisma.PlaylistUncheckedUpdateInput,
             });
             entitiesUploaded++;
           }
@@ -172,26 +192,34 @@ export class SyncService {
   async getConflicts(userId: string) {
     return this.prisma.conflictLog.findMany({
       where: { userId, resolved: false },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
     });
   }
 
-  async resolveConflict(conflictId: string, userId: string, resolution: ConflictResolution) {
+  async resolveConflict(
+    conflictId: string,
+    userId: string,
+    resolution: ConflictResolution,
+  ) {
     const conflict = await this.prisma.conflictLog.findFirst({
       where: { id: conflictId, userId },
     });
 
     if (!conflict) {
-      throw new NotFoundException('Conflict not found');
+      throw new NotFoundException("Conflict not found");
     }
 
     // Apply resolution based on choice
-    if (resolution === 'LOCAL_WINS') {
+    if (resolution === "LOCAL_WINS") {
       // Update server with local version
-      await this.applyConflictResolution(conflict.entityType, conflict.entityId, conflict.localVersion as any, userId);
-    } else if (resolution === 'SERVER_WINS') {
+      await this.applyConflictResolution(
+        conflict.entityType,
+        conflict.entityId,
+        conflict.localVersion as unknown as Record<string, unknown>,
+      );
+    } else if (resolution === "SERVER_WINS") {
       // Keep server version (no action needed)
-    } else if (resolution === 'MERGE') {
+    } else if (resolution === "MERGE") {
       // TODO: Implement merge logic
     }
 
@@ -205,7 +233,13 @@ export class SyncService {
     });
   }
 
-  private async createConflict(userId: string, entityType: string, entityId: string, localVersion: any, serverVersion: any) {
+  private async createConflict(
+    userId: string,
+    entityType: string,
+    entityId: string,
+    localVersion: Prisma.InputJsonValue,
+    serverVersion: Prisma.InputJsonValue,
+  ) {
     return this.prisma.conflictLog.create({
       data: {
         userId,
@@ -217,18 +251,22 @@ export class SyncService {
     });
   }
 
-  private async applyConflictResolution(entityType: string, entityId: string, data: any, userId: string) {
+  private async applyConflictResolution(
+    entityType: string,
+    entityId: string,
+    data: Record<string, unknown>,
+  ) {
     switch (entityType) {
-      case 'track':
+      case "track":
         await this.prisma.track.update({
           where: { id: entityId },
-          data,
+          data: data as Prisma.TrackUncheckedUpdateInput,
         });
         break;
-      case 'playlist':
+      case "playlist":
         await this.prisma.playlist.update({
           where: { id: entityId },
-          data,
+          data: data as Prisma.PlaylistUncheckedUpdateInput,
         });
         break;
       // Add other entity types...
@@ -238,7 +276,7 @@ export class SyncService {
   async getSyncLogs(userId: string, limit = 20) {
     return this.prisma.syncLog.findMany({
       where: { userId },
-      orderBy: { startedAt: 'desc' },
+      orderBy: { startedAt: "desc" },
       take: limit,
       include: { device: { select: { deviceName: true, deviceType: true } } },
     });
