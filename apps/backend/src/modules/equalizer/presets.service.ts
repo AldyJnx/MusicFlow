@@ -1,6 +1,6 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '@/prisma/prisma.service';
-import { Prisma } from '@prisma/client';
+import { Injectable, NotFoundException } from "@nestjs/common";
+import { PrismaService } from "@/prisma/prisma.service";
+import { Prisma, ReverbPreset } from "@prisma/client";
 
 @Injectable()
 export class PresetsService {
@@ -11,7 +11,7 @@ export class PresetsService {
       where: {
         OR: [{ userId }, { isGlobal: true }],
       },
-      orderBy: [{ isGlobal: 'desc' }, { name: 'asc' }],
+      orderBy: [{ isGlobal: "desc" }, { name: "asc" }],
     });
   }
 
@@ -24,21 +24,24 @@ export class PresetsService {
     });
 
     if (!preset) {
-      throw new NotFoundException('Preset not found');
+      throw new NotFoundException("Preset not found");
     }
 
     return preset;
   }
 
-  async create(userId: string, data: {
-    name: string;
-    bands: number[];
-    bassBoost?: number;
-    virtualizer?: number;
-    loudness?: number;
-    reverbPreset?: string;
-    reverbAmount?: number;
-  }) {
+  async create(
+    userId: string,
+    data: {
+      name: string;
+      bands: number[];
+      bassBoost?: number;
+      virtualizer?: number;
+      loudness?: number;
+      reverbPreset?: string;
+      reverbAmount?: number;
+    },
+  ) {
     return this.prisma.eQPreset.create({
       data: {
         userId,
@@ -47,7 +50,7 @@ export class PresetsService {
         bassBoost: data.bassBoost ?? 0,
         virtualizer: data.virtualizer ?? 0,
         loudness: data.loudness ?? 0,
-        reverbPreset: (data.reverbPreset as any) ?? 'NONE',
+        reverbPreset: (data.reverbPreset as ReverbPreset) ?? "NONE",
         reverbAmount: data.reverbAmount ?? 0,
       },
     });
@@ -59,7 +62,7 @@ export class PresetsService {
     });
 
     if (!preset) {
-      throw new NotFoundException('Preset not found or is global');
+      throw new NotFoundException("Preset not found or is global");
     }
 
     return this.prisma.eQPreset.update({
@@ -74,7 +77,7 @@ export class PresetsService {
     });
 
     if (!preset) {
-      throw new NotFoundException('Preset not found or is global');
+      throw new NotFoundException("Preset not found or is global");
     }
 
     return this.prisma.eQPreset.delete({ where: { id } });
@@ -82,23 +85,25 @@ export class PresetsService {
 
   async seedGlobalPresets() {
     const globalPresets = [
-      { name: 'Flat', bands: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
-      { name: 'Bass Boost', bands: [6, 5, 4, 2, 0, 0, 0, 0, 0, 0] },
-      { name: 'Treble Boost', bands: [0, 0, 0, 0, 0, 2, 4, 5, 6, 6] },
-      { name: 'Rock', bands: [5, 4, 2, 0, -1, 0, 2, 4, 5, 5] },
-      { name: 'Pop', bands: [0, 2, 4, 5, 4, 2, 0, -1, -1, 0] },
-      { name: 'Jazz', bands: [3, 2, 0, 2, -2, -2, 0, 2, 3, 4] },
-      { name: 'Classical', bands: [4, 3, 2, 1, 0, 0, 0, 2, 3, 4] },
-      { name: 'Electronic', bands: [5, 4, 2, 0, -2, 2, 0, 2, 4, 5] },
-      { name: 'Hip-Hop', bands: [6, 5, 3, 0, -1, 0, 2, 0, 2, 3] },
-      { name: 'Vocal', bands: [-2, -1, 0, 3, 5, 5, 3, 0, -1, -2] },
+      { name: "Flat", bands: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+      { name: "Bass Boost", bands: [6, 5, 4, 2, 0, 0, 0, 0, 0, 0] },
+      { name: "Treble Boost", bands: [0, 0, 0, 0, 0, 2, 4, 5, 6, 6] },
+      { name: "Rock", bands: [5, 4, 2, 0, -1, 0, 2, 4, 5, 5] },
+      { name: "Pop", bands: [0, 2, 4, 5, 4, 2, 0, -1, -1, 0] },
+      { name: "Jazz", bands: [3, 2, 0, 2, -2, -2, 0, 2, 3, 4] },
+      { name: "Classical", bands: [4, 3, 2, 1, 0, 0, 0, 2, 3, 4] },
+      { name: "Electronic", bands: [5, 4, 2, 0, -2, 2, 0, 2, 4, 5] },
+      { name: "Hip-Hop", bands: [6, 5, 3, 0, -1, 0, 2, 0, 2, 3] },
+      { name: "Vocal", bands: [-2, -1, 0, 3, 5, 5, 3, 0, -1, -2] },
     ];
 
     for (const preset of globalPresets) {
       await this.prisma.eQPreset.upsert({
-        where: { id: `global-${preset.name.toLowerCase().replace(/\s+/g, '-')}` },
+        where: {
+          id: `global-${preset.name.toLowerCase().replace(/\s+/g, "-")}`,
+        },
         create: {
-          id: `global-${preset.name.toLowerCase().replace(/\s+/g, '-')}`,
+          id: `global-${preset.name.toLowerCase().replace(/\s+/g, "-")}`,
           name: preset.name,
           bands: preset.bands,
           isGlobal: true,

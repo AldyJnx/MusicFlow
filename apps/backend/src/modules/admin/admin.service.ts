@@ -1,5 +1,6 @@
-import { Injectable } from '@nestjs/common';
-import { PrismaService } from '@/prisma/prisma.service';
+import { Injectable } from "@nestjs/common";
+import { Prisma } from "@prisma/client";
+import { PrismaService } from "@/prisma/prisma.service";
 
 @Injectable()
 export class AdminService {
@@ -20,12 +21,18 @@ export class AdminService {
       this.prisma.playlist.count(),
       this.prisma.aIRequest.count(),
       this.prisma.user.count({
-        where: { createdAt: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } },
+        where: {
+          createdAt: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) },
+        },
       }),
     ]);
 
     return {
-      users: { total: totalUsers, premium: premiumUsers, recentWeek: recentUsers },
+      users: {
+        total: totalUsers,
+        premium: premiumUsers,
+        recentWeek: recentUsers,
+      },
       content: { tracks: totalTracks, playlists: totalPlaylists },
       ai: { totalRequests: totalAiRequests },
     };
@@ -34,11 +41,11 @@ export class AdminService {
   async getUsers(params?: { skip?: number; take?: number; search?: string }) {
     const { skip = 0, take = 50, search } = params || {};
 
-    const where: any = {};
+    const where: Prisma.UserWhereInput = {};
     if (search) {
       where.OR = [
-        { email: { contains: search, mode: 'insensitive' } },
-        { username: { contains: search, mode: 'insensitive' } },
+        { email: { contains: search, mode: "insensitive" } },
+        { username: { contains: search, mode: "insensitive" } },
       ];
     }
 
@@ -47,7 +54,7 @@ export class AdminService {
         where,
         skip,
         take,
-        orderBy: { createdAt: 'desc' },
+        orderBy: { createdAt: "desc" },
         select: {
           id: true,
           email: true,
@@ -65,7 +72,7 @@ export class AdminService {
     return { users, total, skip, take };
   }
 
-  async updateUserRole(userId: string, role: 'ADMIN' | 'CLIENT') {
+  async updateUserRole(userId: string, role: "ADMIN" | "CLIENT") {
     return this.prisma.user.update({
       where: { id: userId },
       data: { role },
@@ -88,9 +95,9 @@ export class AdminService {
 
   async getAiFeedbackStats() {
     const [goodCount, badCount, neutralCount] = await Promise.all([
-      this.prisma.aIRequest.count({ where: { feedback: 'GOOD' } }),
-      this.prisma.aIRequest.count({ where: { feedback: 'BAD' } }),
-      this.prisma.aIRequest.count({ where: { feedback: 'NEUTRAL' } }),
+      this.prisma.aIRequest.count({ where: { feedback: "GOOD" } }),
+      this.prisma.aIRequest.count({ where: { feedback: "BAD" } }),
+      this.prisma.aIRequest.count({ where: { feedback: "NEUTRAL" } }),
     ]);
 
     const total = goodCount + badCount + neutralCount;
@@ -106,7 +113,7 @@ export class AdminService {
 
   async getRecentAiRequests(limit = 20) {
     return this.prisma.aIRequest.findMany({
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
       take: limit,
       include: {
         user: { select: { email: true, username: true } },
