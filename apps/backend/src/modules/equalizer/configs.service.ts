@@ -1,6 +1,6 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '@/prisma/prisma.service';
-import { EQScopeType, Prisma } from '@prisma/client';
+import { Injectable, NotFoundException } from "@nestjs/common";
+import { PrismaService } from "@/prisma/prisma.service";
+import { EQScopeType, ReverbPreset } from "@prisma/client";
 
 @Injectable()
 export class ConfigsService {
@@ -26,36 +26,39 @@ export class ConfigsService {
         userId,
         isActive: true,
         OR: [
-          { scopeType: 'GLOBAL', scopeId: null },
-          { scopeType: 'PLAYLIST', scopeId: playlistId },
-          { scopeType: 'TRACK', scopeId: trackId },
+          { scopeType: "GLOBAL", scopeId: null },
+          { scopeType: "PLAYLIST", scopeId: playlistId },
+          { scopeType: "TRACK", scopeId: trackId },
         ],
       },
       include: { preset: true },
-      orderBy: { scopeType: 'asc' },
+      orderBy: { scopeType: "asc" },
     });
 
     // Return the most specific config
-    const trackConfig = configs.find(c => c.scopeType === 'TRACK');
+    const trackConfig = configs.find((c) => c.scopeType === "TRACK");
     if (trackConfig) return trackConfig;
 
-    const playlistConfig = configs.find(c => c.scopeType === 'PLAYLIST');
+    const playlistConfig = configs.find((c) => c.scopeType === "PLAYLIST");
     if (playlistConfig) return playlistConfig;
 
-    return configs.find(c => c.scopeType === 'GLOBAL') || null;
+    return configs.find((c) => c.scopeType === "GLOBAL") || null;
   }
 
-  async upsert(userId: string, data: {
-    scopeType: EQScopeType;
-    scopeId?: string;
-    presetId?: string;
-    bands?: number[];
-    bassBoost?: number;
-    virtualizer?: number;
-    loudness?: number;
-    reverbPreset?: string;
-    reverbAmount?: number;
-  }) {
+  async upsert(
+    userId: string,
+    data: {
+      scopeType: EQScopeType;
+      scopeId?: string;
+      presetId?: string;
+      bands?: number[];
+      bassBoost?: number;
+      virtualizer?: number;
+      loudness?: number;
+      reverbPreset?: string;
+      reverbAmount?: number;
+    },
+  ) {
     const existing = await this.prisma.eQConfig.findFirst({
       where: {
         userId,
@@ -70,7 +73,7 @@ export class ConfigsService {
       bassBoost: data.bassBoost ?? 0,
       virtualizer: data.virtualizer ?? 0,
       loudness: data.loudness ?? 0,
-      reverbPreset: (data.reverbPreset as any) ?? 'NONE',
+      reverbPreset: (data.reverbPreset as ReverbPreset) ?? "NONE",
       reverbAmount: data.reverbAmount ?? 0,
     };
 
@@ -99,7 +102,7 @@ export class ConfigsService {
     });
 
     if (!config) {
-      throw new NotFoundException('Config not found');
+      throw new NotFoundException("Config not found");
     }
 
     return this.prisma.eQConfig.delete({ where: { id } });
@@ -111,7 +114,7 @@ export class ConfigsService {
     });
 
     if (!config) {
-      throw new NotFoundException('Config not found');
+      throw new NotFoundException("Config not found");
     }
 
     return this.prisma.eQConfig.update({

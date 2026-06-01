@@ -1,6 +1,6 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
-import { PrismaService } from '@/prisma/prisma.service';
-import { randomBytes } from 'crypto';
+import { Injectable, NotFoundException } from "@nestjs/common";
+import { PrismaService } from "@/prisma/prisma.service";
+import { randomBytes } from "crypto";
 
 @Injectable()
 export class PlaylistsService {
@@ -12,7 +12,7 @@ export class PlaylistsService {
       include: {
         _count: { select: { tracks: true } },
       },
-      orderBy: { updatedAt: 'desc' },
+      orderBy: { updatedAt: "desc" },
     });
   }
 
@@ -22,13 +22,13 @@ export class PlaylistsService {
       include: {
         tracks: {
           include: { track: true },
-          orderBy: { position: 'asc' },
+          orderBy: { position: "asc" },
         },
       },
     });
 
     if (!playlist) {
-      throw new NotFoundException('Playlist not found');
+      throw new NotFoundException("Playlist not found");
     }
 
     return playlist;
@@ -40,7 +40,7 @@ export class PlaylistsService {
       include: {
         tracks: {
           include: { track: true },
-          orderBy: { position: 'asc' },
+          orderBy: { position: "asc" },
         },
         user: {
           select: { username: true, avatar: true },
@@ -49,7 +49,7 @@ export class PlaylistsService {
     });
 
     if (!playlist) {
-      throw new NotFoundException('Playlist not found or not public');
+      throw new NotFoundException("Playlist not found or not public");
     }
 
     return playlist;
@@ -59,31 +59,35 @@ export class PlaylistsService {
     return this.prisma.playlist.create({
       data: {
         name: data.name,
-        description: data.description || '',
+        description: data.description || "",
         user: { connect: { id: userId } },
       },
     });
   }
 
-  async update(id: string, userId: string, data: {
-    name?: string;
-    description?: string;
-    coverArt?: string;
-    isPublic?: boolean;
-  }) {
+  async update(
+    id: string,
+    userId: string,
+    data: {
+      name?: string;
+      description?: string;
+      coverArt?: string;
+      isPublic?: boolean;
+    },
+  ) {
     const playlist = await this.prisma.playlist.findFirst({
       where: { id, userId },
     });
 
     if (!playlist) {
-      throw new NotFoundException('Playlist not found');
+      throw new NotFoundException("Playlist not found");
     }
 
     const updateData: Record<string, unknown> = { ...data };
 
     // Generate share token if making public
     if (data.isPublic && !playlist.shareToken) {
-      updateData.shareToken = randomBytes(16).toString('hex');
+      updateData.shareToken = randomBytes(16).toString("hex");
     }
 
     return this.prisma.playlist.update({
@@ -98,7 +102,7 @@ export class PlaylistsService {
     });
 
     if (!playlist) {
-      throw new NotFoundException('Playlist not found');
+      throw new NotFoundException("Playlist not found");
     }
 
     return this.prisma.playlist.delete({ where: { id } });
@@ -110,13 +114,13 @@ export class PlaylistsService {
     });
 
     if (!playlist) {
-      throw new NotFoundException('Playlist not found');
+      throw new NotFoundException("Playlist not found");
     }
 
     // Get the next position
     const lastTrack = await this.prisma.playlistTrack.findFirst({
       where: { playlistId },
-      orderBy: { position: 'desc' },
+      orderBy: { position: "desc" },
     });
 
     const position = (lastTrack?.position ?? -1) + 1;
@@ -137,7 +141,7 @@ export class PlaylistsService {
     });
 
     if (!playlist) {
-      throw new NotFoundException('Playlist not found');
+      throw new NotFoundException("Playlist not found");
     }
 
     return this.prisma.playlistTrack.delete({
@@ -153,7 +157,7 @@ export class PlaylistsService {
     });
 
     if (!playlist) {
-      throw new NotFoundException('Playlist not found');
+      throw new NotFoundException("Playlist not found");
     }
 
     // Update positions in a transaction
