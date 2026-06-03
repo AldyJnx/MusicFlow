@@ -13,12 +13,12 @@
     "compress-images": "node scripts/compress-images.mjs"
   },
   "dependencies": {
-    "@tanstack/react-query": "^5.100.14",
+    "@tanstack/react-query": "^5.101.0",
     "axios": "^1.16.1",
     "lucide-react": "^1.12.0",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
-    "react-router-dom": "^7.14.2",
+    "react-router-dom": "^7.16.0",
     "zustand": "^5.0.13"
   },
   "devDependencies": {
