@@ -1,53 +1,54 @@
 # =============================================
 # MusicFlow Backend - NestJS + Prisma
+# Build context = apps/backend (self-contained; no workspace deps)
 # =============================================
 
-# Build stage
+# ---- Build stage ----
 FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Install dependencies
-COPY package*.json ./
-RUN npm ci
+# Prisma needs OpenSSL on Alpine
+RUN apk add --no-cache openssl
+
+# Install ALL dependencies (no lockfile is shipped, so use install not ci)
+COPY package.json ./
+RUN npm install
 
 # Copy source
 COPY . .
 
-# Generate Prisma client
+# Generate Prisma client + build
 RUN npx prisma generate
-
-# Build application
 RUN npm run build
 
-# Production stage
+# ---- Production stage ----
 FROM node:20-alpine AS production
 
 WORKDIR /app
 
-# Create non-root user
+RUN apk add --no-cache openssl wget
+
+# Non-root user
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S nestjs -u 1001
 
-# Copy necessary files from builder
+# Copy built app + deps (node_modules includes the generated Prisma client)
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/package*.json ./
+COPY --from=builder /app/package.json ./package.json
 COPY --from=builder /app/prisma ./prisma
 
-# Set environment
 ENV NODE_ENV=production
 ENV PORT=8000
 
-# Switch to non-root user
 USER nestjs
 
-# Expose port
 EXPOSE 8000
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+# Health check hits the new /api/health endpoint
+HEALTHCHECK --interval=30s --timeout=3s --start-period=15s --retries=3 \
   CMD wget --no-verbose --tries=1 --spider http://localhost:8000/api/health || exit 1
 
-# Run migrations and start app
+# Apply migrations, then start
 CMD ["sh", "-c", "npx prisma migrate deploy && node dist/main.js"]

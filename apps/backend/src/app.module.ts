@@ -3,6 +3,7 @@ import { ConfigModule } from "@nestjs/config";
 import { ThrottlerModule } from "@nestjs/throttler";
 
 // Core modules
+import { HealthController } from "./health/health.controller";
 import { PrismaModule } from "./prisma/prisma.module";
 import { StorageModule } from "./modules/storage/storage.module";
 import { QueueModule } from "./modules/queue/queue.module";
@@ -56,5 +57,6 @@ import { AdminModule } from "./modules/admin/admin.module";
     PreferencesModule,
     AdminModule,
   ],
+  controllers: [HealthController],
 })
 export class AppModule {}

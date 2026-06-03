@@ -18,11 +18,17 @@ import { STATS_QUEUE } from "./queue.constants";
       useFactory: (config: ConfigService) => {
         const url = config.get<string>("REDIS_URL") ?? "redis://localhost:6379";
         const parsed = new URL(url);
+        const isTls = parsed.protocol === "rediss:";
         return {
           connection: {
             host: parsed.hostname,
             port: Number(parsed.port || 6379),
+            username: parsed.username || undefined,
             password: parsed.password || undefined,
+            // Upstash and other managed Redis providers require TLS (rediss://).
+            ...(isTls ? { tls: { servername: parsed.hostname } } : {}),
+            // BullMQ requirement; also avoids noisy reconnect loops on managed Redis.
+            maxRetriesPerRequest: null,
           },
         };
       },
