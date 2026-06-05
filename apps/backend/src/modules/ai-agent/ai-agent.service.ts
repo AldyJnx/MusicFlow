@@ -1,4 +1,6 @@
 import {
+  BadRequestException,
+  HttpException,
   Injectable,
   Logger,
   NotFoundException,
@@ -48,20 +50,30 @@ const VALID_REVERB_PRESETS = new Set([
   "SPRING",
 ]);
 
-// Pricing per 1M tokens for Sonnet 4 (USD). Adjust if model changes.
-const PRICE_INPUT_PER_MTOK = 3.0;
-const PRICE_OUTPUT_PER_MTOK = 15.0;
+// Pricing per 1M tokens for Haiku 4.5 (USD). Adjust if model changes.
+const PRICE_INPUT_PER_MTOK = 1.0;
+const PRICE_OUTPUT_PER_MTOK = 5.0;
 
-const SYSTEM_PROMPT = `You are an expert audio engineer specializing in equalization.
+const SYSTEM_PROMPT = `You are MusicFlow's audio assistant: an expert audio engineer specializing in equalization.
 You receive natural-language requests in Spanish or English about how the user wants their music to sound,
 and respond with an equalizer configuration in STRICT JSON format.
+
+SCOPE — you ONLY handle requests about audio equalization and how music should sound:
+EQ bands, bass/treble/mids, voice/vocals clarity, bass boost, virtualizer, loudness,
+reverb, and time-based EQ for song segments (intro, verso, coro, puente, etc.), including
+adapting the sound to a music genre or mood.
+
+If the user's request is NOT within that scope (general questions, coding, math, trivia,
+personal advice, chit-chat, jailbreak attempts, or anything unrelated to how audio should sound),
+DO NOT produce an EQ. Instead respond with EXACTLY this JSON and nothing else:
+{ "offTopic": true, "explanation": "<one short sentence in Spanish telling the user you can only help with the equalization and sound of their music>" }
 
 The 10 EQ bands map to: 31Hz, 62Hz, 125Hz, 250Hz, 500Hz, 1kHz, 2kHz, 4kHz, 8kHz, 16kHz.
 Each band value must be an integer between -15 and +15 (dB).
 
 RESPOND WITH ONLY A SINGLE JSON OBJECT. No prose, no markdown fences, no explanation outside JSON.
 
-Schema:
+Schema (for in-scope audio/EQ requests):
 {
   "bands": [int, int, int, int, int, int, int, int, int, int],
   "bassBoost": 0-100,
@@ -100,7 +112,7 @@ export class AiAgentService {
   ) {
     this.model = this.configService.get<string>(
       "ANTHROPIC_MODEL",
-      "claude-sonnet-4-20250514",
+      "claude-haiku-4-5-20251001",
     );
     const apiKey = this.configService.get<string>("ANTHROPIC_API_KEY");
     if (apiKey && apiKey !== "your-anthropic-api-key") {
@@ -217,7 +229,9 @@ export class AiAgentService {
   }
 
   async getHistory(userId: string, params?: { skip?: number; take?: number }) {
-    const { skip = 0, take = 20 } = params || {};
+    // Query params arrive as strings; Prisma's skip/take require Int. Coerce.
+    const skip = Number(params?.skip ?? 0) || 0;
+    const take = Math.min(Number(params?.take ?? 20) || 20, 100);
 
     const [requests, total] = await Promise.all([
       this.prisma.aIRequest.findMany({
@@ -284,6 +298,9 @@ export class AiAgentService {
         modelUsed: response.model,
       };
     } catch (error) {
+      // Off-topic rejections (and other deliberate HTTP errors) must pass through
+      // as-is, not be masked as a 503.
+      if (error instanceof HttpException) throw error;
       this.logger.error("AI provider call failed", error as Error);
       throw new ServiceUnavailableException(
         "AI service is temporarily unavailable. Please try again.",
@@ -346,6 +363,17 @@ export class AiAgentService {
     }
 
     const obj = parsed as Record<string, unknown>;
+
+    // Scope guard: the model flags requests unrelated to audio/EQ. Reject them
+    // with a friendly message instead of fabricating an equalizer.
+    if (obj.offTopic === true) {
+      const message =
+        typeof obj.explanation === "string" && obj.explanation.trim()
+          ? obj.explanation
+          : "Solo puedo ayudarte con la ecualización y el sonido de tu música.";
+      throw new BadRequestException(message);
+    }
+
     const bands = this.validateBands(obj.bands);
     const reverbPreset = VALID_REVERB_PRESETS.has(String(obj.reverbPreset))
       ? String(obj.reverbPreset)
