@@ -25,6 +25,10 @@ interface PlayerState {
   volume: number;
   muted: boolean;
   isExpanded: boolean;
+  /** Lateral EQ drawer triggered from the persistent player. */
+  eqDrawerOpen: boolean;
+  /** Quick-prompt AI modal triggered from the persistent player. */
+  aiPromptOpen: boolean;
 }
 
 interface PlayerActions {
@@ -39,6 +43,10 @@ interface PlayerActions {
   toggleMute: () => void;
   setExpanded: (open: boolean) => void;
   toggleExpanded: () => void;
+  openEqDrawer: () => void;
+  closeEqDrawer: () => void;
+  openAiPrompt: () => void;
+  closeAiPrompt: () => void;
   addToQueue: (track: PlayerTrack) => void;
   removeFromQueue: (index: number) => void;
   clearQueue: () => void;
@@ -95,6 +103,8 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
       volume: 0.8,
       muted: false,
       isExpanded: false,
+      eqDrawerOpen: false,
+      aiPromptOpen: false,
 
       // ── Actions ────────────────────────────────────────────────────────────
 
@@ -177,6 +187,19 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
         if (!currentTrack) return;
         set({ isExpanded: !isExpanded });
       },
+
+      // Overlays: opening one auto-closes the other so the user always sees a
+      // single contextual surface on top of the expanded player.
+      openEqDrawer: () => {
+        if (!get().currentTrack) return;
+        set({ eqDrawerOpen: true, aiPromptOpen: false });
+      },
+      closeEqDrawer: () => set({ eqDrawerOpen: false }),
+      openAiPrompt: () => {
+        if (!get().currentTrack) return;
+        set({ aiPromptOpen: true, eqDrawerOpen: false });
+      },
+      closeAiPrompt: () => set({ aiPromptOpen: false }),
 
       addToQueue: (track) => {
         set((s) => ({ queue: [...s.queue, track] }));

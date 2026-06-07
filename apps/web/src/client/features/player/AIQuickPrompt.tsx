@@ -1,0 +1,331 @@
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useMutation } from "@tanstack/react-query";
+import { Loader2, SendHorizontal, Sparkles, X } from "lucide-react";
+
+import { usePlayerStore } from "../../stores/playStore";
+import { useEqualizer } from "../../../shared/hooks/useEqualizer";
+import {
+  acceptSuggestion,
+  provideFeedback,
+  suggestEQ,
+  type AISuggestResponse,
+  type EQSuggestion,
+} from "../../../shared/api/ai-agent";
+
+const SHORTCUT_CHIPS = [
+  { id: "warmer", label: "Más cálido", prompt: "Quiero un sonido más cálido" },
+  {
+    id: "brighter",
+    label: "Más brillante",
+    prompt: "Hazlo más brillante en los agudos",
+  },
+  { id: "punch", label: "Más punch", prompt: "Dale más punch a los bajos" },
+  {
+    id: "vocal",
+    label: "Para vocal",
+    prompt: "Realza la voz humana sin perder cuerpo",
+  },
+] as const;
+
+function EQBars({ bands }: { bands: number[] }) {
+  return (
+    <div
+      className="flex h-12 items-end gap-[3px]"
+      aria-label="Curva propuesta por la IA"
+    >
+      {bands.map((gain, i) => {
+        const heightPct = Math.max(6, (Math.abs(gain) / 15) * 100);
+        const isPositive = gain >= 0;
+        return (
+          <div
+            key={i}
+            className="flex-1 rounded-t-sm"
+            style={{
+              height: `${heightPct}%`,
+              backgroundColor: isPositive ? "#14e3f7" : "#f59e0b",
+              opacity: gain === 0 ? 0.25 : 1,
+            }}
+          />
+        );
+      })}
+    </div>
+  );
+}
+
+/**
+ * Quick prompt modal triggered from the persistent player.
+ * Sends the current track as context, previews the suggested EQ curve and
+ * lets the user Apply / Discard without leaving the player. For deeper
+ * conversation, a link drops them into the full /ai-mixer page.
+ */
+export default function AIQuickPrompt() {
+  const navigate = useNavigate();
+
+  const isOpen = usePlayerStore((s) => s.aiPromptOpen);
+  const close = usePlayerStore((s) => s.closeAiPrompt);
+  const setExpanded = usePlayerStore((s) => s.setExpanded);
+  const currentTrack = usePlayerStore((s) => s.currentTrack);
+
+  const { setBands, setEffects } = useEqualizer();
+
+  const [input, setInput] = useState("");
+  const [requestId, setRequestId] = useState<string | null>(null);
+  const [suggestion, setSuggestion] = useState<EQSuggestion | null>(null);
+
+  // Reset modal state every time it opens. Keeps things stateless across
+  // re-opens so the user never sees a stale suggestion for a different track.
+  useEffect(() => {
+    if (isOpen) {
+      setInput("");
+      setRequestId(null);
+      setSuggestion(null);
+    }
+  }, [isOpen]);
+
+  // ESC closes the modal.
+  useEffect(() => {
+    if (!isOpen) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") close();
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [isOpen, close]);
+
+  const suggestMutation = useMutation({
+    mutationFn: (prompt: string) =>
+      suggestEQ({
+        prompt,
+        trackId: currentTrack?.id,
+      }),
+    onSuccess: (data: AISuggestResponse) => {
+      setRequestId(data.requestId);
+      setSuggestion(data.suggestion);
+    },
+  });
+
+  const acceptMutation = useMutation({
+    mutationFn: () => {
+      if (!requestId || !currentTrack) {
+        return Promise.reject(new Error("missing requestId or track"));
+      }
+      return acceptSuggestion(requestId, "TRACK", currentTrack.id);
+    },
+    onSuccess: () => {
+      if (!suggestion) return;
+      // Apply live to the audio chain so the change is audible immediately.
+      setBands(suggestion.bands, 250);
+      setEffects({
+        bassBoost: suggestion.bassBoost,
+        virtualizer: suggestion.virtualizer,
+        loudness: suggestion.loudness,
+        reverbPreset: suggestion.reverbPreset,
+        reverbAmount: suggestion.reverbAmount,
+      });
+      close();
+    },
+  });
+
+  const rejectMutation = useMutation({
+    mutationFn: () => {
+      if (!requestId) return Promise.resolve(null);
+      return provideFeedback(requestId, "BAD");
+    },
+    onSettled: () => {
+      setSuggestion(null);
+      setRequestId(null);
+    },
+  });
+
+  function handleSend() {
+    const trimmed = input.trim();
+    if (!trimmed || suggestMutation.isPending) return;
+    suggestMutation.mutate(trimmed);
+  }
+
+  function openFullAgent() {
+    close();
+    setExpanded(false);
+    const id = currentTrack?.id;
+    navigate(id ? `/ai-mixer?trackId=${id}` : "/ai-mixer");
+  }
+
+  if (!isOpen || !currentTrack) return null;
+
+  const isWaitingForSuggestion = suggestMutation.isPending;
+  const isApplying = acceptMutation.isPending;
+
+  return (
+    <>
+      {/* Backdrop */}
+      <div
+        aria-hidden="true"
+        onClick={close}
+        className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm"
+      />
+
+      {/* Modal */}
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Sugerencia rápida del agente IA"
+        className="fixed inset-0 z-[61] flex items-center justify-center p-4"
+        onClick={close}
+      >
+        <div
+          onClick={(e) => e.stopPropagation()}
+          className="w-full max-w-lg overflow-hidden rounded-2xl border border-white/10 bg-[#0a1626] text-white shadow-[0_30px_80px_rgba(0,0,0,0.5)]"
+        >
+          {/* Header */}
+          <div className="flex items-start justify-between gap-3 border-b border-white/10 px-6 py-5">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 text-[#14e3f7]">
+                <Sparkles className="h-4 w-4" strokeWidth={2.2} />
+                <h2 className="text-sm font-semibold uppercase tracking-[0.14em]">
+                  Ajusta con IA
+                </h2>
+              </div>
+              <p className="mt-1 truncate text-base font-medium text-white">
+                {currentTrack.title}
+              </p>
+              <p className="mt-0.5 text-xs text-[#9fb6df]">
+                Describe cómo quieres que suene. La IA propone, tú decides.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={close}
+              aria-label="Cerrar"
+              className="rounded-lg p-2 text-[#9fb6df] transition hover:bg-white/5 hover:text-white focus:outline-none focus:ring-2 focus:ring-[#14e3f7]/60"
+            >
+              <X className="h-5 w-5" strokeWidth={2.2} />
+            </button>
+          </div>
+
+          {/* Body */}
+          <div className="flex flex-col gap-4 px-6 py-5">
+            {/* Suggestion preview (when ready) */}
+            {suggestion ? (
+              <article className="rounded-xl border border-[#14e3f7]/40 bg-white/[0.02] p-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-[#14e3f7]">
+                  Curva propuesta
+                </p>
+                <div className="mt-3 rounded-lg bg-[#07111c] px-3 py-2">
+                  <EQBars bands={suggestion.bands} />
+                </div>
+                <p className="mt-3 text-sm leading-6 text-[#cfdcef]">
+                  {suggestion.explanation}
+                </p>
+                {suggestion.segments && suggestion.segments.length > 0 ? (
+                  <p className="mt-2 text-xs text-[#9fb6df]">
+                    Incluye {suggestion.segments.length} sugerencia
+                    {suggestion.segments.length === 1 ? "" : "s"} por segmento.
+                  </p>
+                ) : null}
+              </article>
+            ) : null}
+
+            {/* Prompt input */}
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleSend();
+              }}
+              className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2"
+            >
+              <input
+                type="text"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                disabled={isWaitingForSuggestion || isApplying}
+                placeholder="Ej: Hazlo más cálido para escuchar de noche"
+                aria-label="Prompt para el agente IA"
+                className="flex-1 bg-transparent py-2 text-sm text-white outline-none placeholder:text-[#6b83a9] disabled:opacity-60"
+              />
+              <button
+                type="submit"
+                disabled={!input.trim() || isWaitingForSuggestion || isApplying}
+                aria-label="Enviar prompt"
+                className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[linear-gradient(180deg,#386cf9_0%,#18c4e6_100%)] text-white shadow-[0_8px_18px_rgba(37,99,235,0.28)] transition hover:brightness-110 disabled:opacity-50"
+              >
+                {isWaitingForSuggestion ? (
+                  <Loader2 className="h-4 w-4 animate-spin" strokeWidth={2.2} />
+                ) : (
+                  <SendHorizontal className="h-4 w-4" strokeWidth={2.2} />
+                )}
+              </button>
+            </form>
+
+            {/* Shortcut chips */}
+            {!suggestion ? (
+              <div className="flex flex-wrap gap-2">
+                {SHORTCUT_CHIPS.map((chip) => (
+                  <button
+                    key={chip.id}
+                    type="button"
+                    onClick={() => setInput(chip.prompt)}
+                    disabled={isWaitingForSuggestion}
+                    className="rounded-full border border-white/10 bg-white/[0.02] px-3 py-1.5 text-xs font-medium text-[#cfdcef] transition hover:border-[#14e3f7]/40 hover:text-white focus:outline-none focus:ring-2 focus:ring-[#14e3f7]/40 disabled:opacity-60"
+                  >
+                    {chip.label}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+
+            {/* Error state */}
+            {suggestMutation.isError ? (
+              <p
+                role="alert"
+                className="rounded-lg border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-xs text-rose-200"
+              >
+                No se pudo obtener una sugerencia. Intenta de nuevo en un
+                momento.
+              </p>
+            ) : null}
+          </div>
+
+          {/* Footer */}
+          <div className="flex items-center justify-between gap-3 border-t border-white/10 px-6 py-4">
+            <button
+              type="button"
+              onClick={openFullAgent}
+              className="text-xs font-medium text-[#9fb6df] underline-offset-4 transition hover:text-white hover:underline focus:outline-none focus:ring-2 focus:ring-[#14e3f7]/40"
+            >
+              Conversación completa →
+            </button>
+
+            {suggestion ? (
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => rejectMutation.mutate()}
+                  disabled={isApplying || rejectMutation.isPending}
+                  className="rounded-xl border border-white/10 bg-white/[0.02] px-4 py-2 text-sm font-medium text-[#cfdcef] transition hover:border-rose-400/40 hover:text-white disabled:opacity-60"
+                >
+                  Descartar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => acceptMutation.mutate()}
+                  disabled={isApplying}
+                  className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-[linear-gradient(90deg,#386cf9_0%,#18c4e6_100%)] px-5 text-sm font-semibold text-white shadow-[0_10px_22px_rgba(37,99,235,0.2)] transition hover:brightness-110 disabled:opacity-60"
+                >
+                  {isApplying ? (
+                    <Loader2
+                      className="h-4 w-4 animate-spin"
+                      strokeWidth={2.2}
+                    />
+                  ) : null}
+                  Aplicar
+                </button>
+              </div>
+            ) : null}
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}

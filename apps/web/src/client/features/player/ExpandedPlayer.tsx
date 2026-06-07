@@ -6,10 +6,14 @@ import {
   Play,
   SkipBack,
   SkipForward,
+  Sliders,
   Volume2,
   VolumeX,
 } from "lucide-react";
 import { usePlayerStore } from "../../stores/playStore";
+import { useTrackSegments } from "../../../shared/hooks/useTrackSegments";
+import TimelineWithSegments from "./TimelineWithSegments";
+import EqBandIndicator from "./EqBandIndicator";
 
 type ExpandedPlayerProps = {
   sidebarOffset?: number;
@@ -39,8 +43,10 @@ export default function ExpandedPlayer({
   const setVolume = usePlayerStore((s) => s.setVolume);
   const next = usePlayerStore((s) => s.next);
   const previous = usePlayerStore((s) => s.previous);
+  const openEqDrawer = usePlayerStore((s) => s.openEqDrawer);
+  const openAiPrompt = usePlayerStore((s) => s.openAiPrompt);
 
-  const progress = durationMs > 0 ? (positionMs / durationMs) * 100 : 0;
+  const { segments } = useTrackSegments(currentTrack?.id ?? null);
   const isMuted = muted || volume === 0;
 
   useEffect(() => {
@@ -58,11 +64,6 @@ export default function ExpandedPlayer({
 
   if (!currentTrack || !isExpanded) {
     return null;
-  }
-
-  function handleSeekChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const pct = Number(e.target.value);
-    seek((pct / 100) * durationMs);
   }
 
   return (
@@ -125,22 +126,22 @@ export default function ExpandedPlayer({
                 <h1 className="mt-4 text-5xl font-semibold tracking-tight text-white">
                   {currentTrack.title}
                 </h1>
-                <div className="mt-4 inline-flex items-center gap-2 text-lg text-[#9fb6df]">
+                <div className="mt-4 inline-flex items-center gap-3 text-lg text-[#9fb6df]">
                   <span>{currentTrack.artist}</span>
                   <span className="h-1.5 w-1.5 rounded-full bg-[#2f77ff]" />
+                  <EqBandIndicator size={28} />
                 </div>
               </div>
 
-              {/* Seek bar */}
+              {/* Seek bar with segment markers */}
               <div className="mt-10">
-                <input
-                  type="range"
-                  min="0"
-                  max="100"
-                  step="0.1"
-                  value={progress}
-                  onChange={handleSeekChange}
-                  className="expanded-player-slider h-1.5 w-full cursor-pointer appearance-none rounded-full bg-white/10"
+                <TimelineWithSegments
+                  positionMs={positionMs}
+                  durationMs={durationMs}
+                  segments={segments}
+                  onSeek={seek}
+                  height={10}
+                  preventBubble={false}
                 />
                 <div className="mt-3 flex items-center justify-between text-xs font-medium text-[#6b83a9]">
                   <span>{formatMs(positionMs)}</span>
@@ -189,17 +190,19 @@ export default function ExpandedPlayer({
               <div className="mx-auto mt-10 flex w-fit flex-wrap items-center justify-center gap-3">
                 <button
                   type="button"
-                  className="inline-flex h-11 min-w-[224px] items-center justify-center gap-2 rounded-xl bg-[linear-gradient(90deg,#386cf9_0%,#18c4e6_100%)] px-5 text-sm font-semibold text-white shadow-[0_10px_22px_rgba(37,99,235,0.2)]"
+                  onClick={openAiPrompt}
+                  className="inline-flex h-11 min-w-[224px] items-center justify-center gap-2 rounded-xl bg-[linear-gradient(90deg,#386cf9_0%,#18c4e6_100%)] px-5 text-sm font-semibold text-white shadow-[0_10px_22px_rgba(37,99,235,0.2)] transition hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-[#14e3f7]/60"
                 >
                   <Bot className="h-4 w-4" strokeWidth={2.3} />
                   Ajustar con IA
                 </button>
                 <button
                   type="button"
-                  className="inline-flex h-11 min-w-[184px] items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.02] px-5 text-sm font-semibold text-[#b4c2da] transition hover:bg-white/[0.04]"
+                  onClick={openEqDrawer}
+                  className="inline-flex h-11 min-w-[184px] items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.02] px-5 text-sm font-semibold text-[#b4c2da] transition hover:bg-white/[0.04] focus:outline-none focus:ring-2 focus:ring-[#14e3f7]/40"
                 >
-                  <Volume2 className="h-4 w-4" strokeWidth={2.2} />
-                  Letras
+                  <Sliders className="h-4 w-4" strokeWidth={2.2} />
+                  Editar EQ
                 </button>
               </div>
             </div>
@@ -238,30 +241,6 @@ export default function ExpandedPlayer({
       </div>
 
       <style>{`
-        .expanded-player-slider::-webkit-slider-thumb {
-          -webkit-appearance: none;
-          appearance: none;
-          width: 14px;
-          height: 14px;
-          border-radius: 9999px;
-          background: #53bfff;
-          border: 0;
-          box-shadow: 0 0 0 3px rgba(83, 191, 255, 0.16);
-        }
-        .expanded-player-slider::-moz-range-thumb {
-          width: 14px;
-          height: 14px;
-          border-radius: 9999px;
-          background: #53bfff;
-          border: 0;
-          box-shadow: 0 0 0 3px rgba(83, 191, 255, 0.16);
-        }
-        .expanded-player-slider::-webkit-slider-runnable-track {
-          border-radius: 9999px;
-        }
-        .expanded-player-slider::-moz-range-track {
-          border-radius: 9999px;
-        }
         .expanded-player-volume {
           transform: rotate(180deg);
         }

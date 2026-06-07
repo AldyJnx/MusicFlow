@@ -8,6 +8,9 @@ import {
   VolumeX,
 } from "lucide-react";
 import { usePlayerStore } from "../../stores/playStore";
+import { useTrackSegments } from "../../../shared/hooks/useTrackSegments";
+import TimelineWithSegments from "./TimelineWithSegments";
+import EqBandIndicator from "./EqBandIndicator";
 
 type MiniPlayerProps = {
   sidebarOffset?: number;
@@ -31,11 +34,12 @@ export default function MiniPlayer({ sidebarOffset = 0 }: MiniPlayerProps) {
   const togglePlay = usePlayerStore((s) => s.togglePlay);
   const toggleMute = usePlayerStore((s) => s.toggleMute);
   const setVolume = usePlayerStore((s) => s.setVolume);
+  const seek = usePlayerStore((s) => s.seek);
   const toggleExpanded = usePlayerStore((s) => s.toggleExpanded);
   const next = usePlayerStore((s) => s.next);
   const previous = usePlayerStore((s) => s.previous);
 
-  const progress = durationMs > 0 ? (positionMs / durationMs) * 100 : 0;
+  const { segments } = useTrackSegments(currentTrack?.id ?? null);
 
   function preventExpand(event: MouseEvent<HTMLElement>) {
     event.stopPropagation();
@@ -63,13 +67,16 @@ export default function MiniPlayer({ sidebarOffset = 0 }: MiniPlayerProps) {
           ) : (
             <div className="h-14 w-14 rounded-xl bg-white/10" />
           )}
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <h2 className="truncate text-xl font-semibold tracking-tight text-white">
               {currentTrack.title}
             </h2>
             <p className="truncate text-sm text-[#5ea0ff]">
               {currentTrack.artist}
             </p>
+          </div>
+          <div onClick={preventExpand} className="shrink-0">
+            <EqBandIndicator size={22} />
           </div>
         </div>
 
@@ -112,14 +119,20 @@ export default function MiniPlayer({ sidebarOffset = 0 }: MiniPlayerProps) {
             </button>
           </div>
 
-          <div className="flex w-full items-center gap-3">
+          <div
+            className="flex w-full items-center gap-3"
+            onClick={preventExpand}
+          >
             <span className="w-9 text-right text-xs font-medium text-slate-500">
               {formatMs(positionMs)}
             </span>
-            <div className="h-1 flex-1 rounded-full bg-white/10">
-              <div
-                className="h-full rounded-full bg-[linear-gradient(90deg,#2f77ff_0%,#57a6ff_100%)]"
-                style={{ width: `${progress}%` }}
+            <div className="flex-1">
+              <TimelineWithSegments
+                positionMs={positionMs}
+                durationMs={durationMs}
+                segments={segments}
+                onSeek={seek}
+                height={6}
               />
             </div>
             <span className="w-9 text-xs font-medium text-slate-500">

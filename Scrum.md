@@ -1055,24 +1055,25 @@ export class EQResolverService {
 
 ## 7.1 Listado de Épicas
 
-| #   | Épica                                  | Story Points | Sprint(s)      |
-| --- | -------------------------------------- | ------------ | -------------- |
-| E01 | Infraestructura y Arquitectura Base    | 32           | 1              |
-| E02 | Autenticación y Gestión de Usuarios    | 34           | 1-2            |
-| E03 | Gestión de Biblioteca Musical          | 45           | 2-3            |
-| E04 | Reproductor Core Multiplataforma       | 50           | 3-4            |
-| E05 | Sistema de Ecualización Multi-Nivel ⭐ | 55           | 4-5            |
-| E06 | EQ por Segmentos Temporales ⭐⭐       | 42           | 5-6            |
-| E07 | Agente IA de Ecualización ⭐⭐         | 50           | 6-7            |
-| E08 | Playlists, Búsqueda y Organización     | 34           | 7              |
-| E09 | Sincronización Híbrida                 | 45           | 7-8            |
-| E10 | Personalización Visual                 | 34           | 8              |
-| E11 | Features Complementarias               | 42           | 9              |
-| E12 | Panel de Administración                | 34           | 9              |
-| E13 | Mobile App Flutter                     | 55           | 8-10           |
-| E14 | **Features Web Específicas (PWA)**🆕   | 21           | 8-9            |
-| E15 | Testing, QA y Despliegue               | 42           | 10             |
-|     | **TOTAL**                              | **615**      | **10 sprints** |
+| #   | Épica                                        | Story Points | Sprint(s)      |
+| --- | -------------------------------------------- | ------------ | -------------- |
+| E01 | Infraestructura y Arquitectura Base          | 32           | 1              |
+| E02 | Autenticación y Gestión de Usuarios          | 34           | 1-2            |
+| E03 | Gestión de Biblioteca Musical                | 45           | 2-3            |
+| E04 | Reproductor Core Multiplataforma             | 50           | 3-4            |
+| E05 | Sistema de Ecualización Multi-Nivel ⭐       | 55           | 4-5            |
+| E06 | EQ por Segmentos Temporales ⭐⭐             | 42           | 5-6            |
+| E07 | Agente IA de Ecualización ⭐⭐               | 50           | 6-7            |
+| E08 | Playlists, Búsqueda y Organización           | 34           | 7              |
+| E09 | Sincronización Híbrida                       | 45           | 7-8            |
+| E10 | Personalización Visual                       | 34           | 8              |
+| E11 | Features Complementarias                     | 42           | 9              |
+| E12 | Panel de Administración                      | 34           | 9              |
+| E13 | Mobile App Flutter                           | 55           | 8-10           |
+| E14 | **Features Web Específicas (PWA)**🆕         | 21           | 8-9            |
+| E15 | Testing, QA y Despliegue                     | 42           | 10             |
+| E16 | Reestructura UX por Rol (Cliente / Admin) 🆕 | 77           | 4-9            |
+|     | **TOTAL**                                    | **692**      | **10 sprints** |
 
 ---
 
@@ -1778,6 +1779,168 @@ Responde SIEMPRE en este formato JSON:
 
 ---
 
+### 🧭 ÉPICA E16 — Reestructura UX por Rol (Cliente / Admin) 🆕 (77 SP)
+
+> **Contexto:** auditoría de producto reveló que las pantallas actuales no se diferencian por rol y no apalancan los dos diferenciadores reales (EQ por segmento + agente IA). Esta épica reorganiza la app en dos shells distintos y lleva los endpoints existentes (`/api/admin/*`, `/api/ai/*`) a una UI que el usuario pueda operar.
+>
+> **Principio guía:** el cliente ve el producto, el admin ve el negocio detrás del producto.
+
+#### PB-098: Shell del cliente con sidebar + reproductor persistente (5 SP)
+
+**Como** usuario, **quiero** una navegación constante (Inicio, Biblioteca, Playlists, Ecualizador, Agente IA) y un reproductor que nunca desaparece **para** no perder el contexto de lo que estoy escuchando.
+
+**Criterios de aceptación:**
+
+- [ ] Layout `<ClientShell>` con sidebar izquierda (5 ítems máx) y `<PersistentPlayer>` siempre montado al pie
+- [ ] El reproductor persiste el `currentTrack` en Zustand y no se desmonta al cambiar de ruta
+- [ ] Sidebar resaltada según ruta activa (NavLink)
+- [ ] Responsive: en <768px la sidebar colapsa a bottom-nav
+- [ ] Solo usuarios `CLIENT` (o `ADMIN` actuando como cliente) acceden — `RoleGuard` ya existente
+
+#### PB-099: Reproductor persistente con marcadores de segmento (8 SP) — EN PROGRESO
+
+**Como** usuario, **quiero** ver en la barra de progreso los segmentos definidos (intro/verso/coro/puente/outro) con colores **para** saber qué EQ se aplica en cada momento sin abrir otra pantalla.
+
+**Criterios de aceptación:**
+
+- [x] Controles transport (play/pause/skip) + carátula + título + artista
+- [x] Barra de progreso `<TimelineWithSegments>` que pinta bloques de `EQSegment` con colores por `label`
+- [x] Mini-visualizador de 5 bandas (`<EqBandIndicator>`) suscrito a `engine.segments.onSegmentChange`
+- [x] Botón "Editar EQ" abre `<EqDrawer>` lateral sin desmontar el reproductor (montado en `ClientLayout`, controlado por `playStore.eqDrawerOpen`)
+- [x] Botón "Ajustar con IA" abre `<AIQuickPrompt>` modal con preview de curva + Aplicar/Descartar
+- [x] Audio engine: `Web Audio API` con `BiquadFilterNode` x10 + `GainNode` master ya existía en `audio/engine.ts`
+- [ ] Falta: shuffle/repeat (no son críticos para la demo)
+- [ ] Falta: persistencia por segmento desde el drawer (pertenece a PB-101)
+
+#### PB-100: Estudio EQ por track (paramétrico + curva editable) (8 SP)
+
+**Como** usuario, **quiero** editar 10 bandas de EQ de un track con sliders y ver/arrastrar la curva de respuesta **para** ajustar el sonido con precisión visual.
+
+**Criterios de aceptación:**
+
+- [ ] Página `/equalizer/:trackId` con tabs: **Por track | Por segmento | Por playlist / global**
+- [ ] Tab "Por track": 10 sliders verticales (31Hz-16kHz) + curva SVG editable arrastrando puntos
+- [ ] Botones: Reset (flat), Guardar como preset, Aplicar preset, Comparar A/B (toggle bypass)
+- [ ] Sincronización en vivo: cambios → audio sin recargar
+- [ ] Indicador de **herencia activa**: "Hoy este track usa: EQ de track > EQ de playlist (heredado) > EQ global"
+
+#### PB-101: Editor de segmentos en timeline con drawer lateral (8 SP)
+
+**Como** usuario, **quiero** marcar regiones del track (intro/verso/coro/puente/outro) y asignarles un EQ distinto **para** que cada parte suene como yo quiera.
+
+**Criterios de aceptación:**
+
+- [ ] Timeline horizontal con waveform opcional (`wavesurfer.js`)
+- [ ] Crear segmento: drag para definir rango → modal con label + asignar `EQConfig`
+- [ ] Editar/eliminar segmentos existentes
+- [ ] Validación: no superposición de segmentos del mismo track
+- [ ] Botón "Detectar segmentos automáticamente" llama a `POST /api/ai/segments/detect` (a crear)
+- [ ] Cross-fade configurable (`transition_ms`) con preview
+
+#### PB-102: Panel del agente IA contextual (prompt + preview + accept/reject) (8 SP)
+
+**Como** usuario, **quiero** describir cómo quiero que suene mi música en lenguaje natural y ver una curva propuesta antes de aplicar **para** experimentar sin compromiso.
+
+**Criterios de aceptación:**
+
+- [ ] Página `/ai` con caja de prompt + chips de plantillas ("Más cálido", "Más punch", "Como el anterior")
+- [ ] Llama `POST /api/ai/suggest` con `trackId` actual + EQ actual como contexto
+- [ ] Muestra **preview de la curva propuesta** superpuesta a la actual (línea cyan vs línea blanca)
+- [ ] Tres acciones: Aceptar (aplica + `POST /api/ai/:requestId/accept`), Rechazar (descarta + feedback BAD), Pedir variante (re-prompt automático)
+- [ ] Historial agrupado por track con thumb up/down/comment
+
+#### PB-103: Shell del admin separada (sin reproductor) (3 SP)
+
+**Como** administrador, **quiero** una interfaz back-office distinta visualmente **para** no confundir "operar la plataforma" con "escuchar música".
+
+**Criterios de aceptación:**
+
+- [ ] Layout `<AdminShell>` con sidebar oscura (Dashboard, Usuarios, IA, Contenido, Analítica, Sync, Auditoría, Sistema)
+- [ ] Sin reproductor persistente
+- [ ] Tipografía y densidad de datos: tipo "back-office" (tablas densas, sparklines, no carátulas grandes)
+- [ ] Acceso protegido por `RoleGuard` (`ADMIN` requerido)
+- [ ] Toggle "Ver como cliente" → cambia al shell del cliente sin logout
+
+#### PB-104: Dashboard admin con KPIs en tiempo casi-real (8 SP)
+
+**Como** administrador, **quiero** ver de un vistazo si la plataforma está sana y si la IA se está usando **para** decidir acciones operativas.
+
+**Criterios de aceptación:**
+
+- [ ] Endpoint `GET /api/admin/dashboard` ya existe — extender para devolver: DAU/WAU/MAU, nuevos registros 7d, tracks subidos 7d, EQ configs creadas 7d, requests IA 7d, ratio feedback positivo, **costo Anthropic acumulado mes**, conversión free→premium, almacenamiento R2 usado/cuota, errores backend 24h
+- [ ] UI: 8 cards KPI con sparkline (Recharts)
+- [ ] Feed "Actividad reciente" (últimos 10 eventos: signups, premium, AI requests notables)
+- [ ] Refresh cada 60s (TanStack Query `refetchInterval`)
+
+#### PB-105: Tabla de usuarios admin con acciones y panel detalle (8 SP)
+
+**Como** administrador, **quiero** buscar/filtrar usuarios y ver/modificar su estado **para** dar soporte y operar el negocio.
+
+**Criterios de aceptación:**
+
+- [ ] Tabla con `GET /api/admin/users` (ya existe) — búsqueda, filtros: rol, premium, activo, fecha registro
+- [ ] Drawer detalle: identidad, dispositivos vinculados, métricas (tracks, configs, requests IA, último login)
+- [ ] Acciones: promover a admin (`PATCH /api/admin/users/:id/role`), dar/quitar premium (`/premium`), desactivar (`/deactivate`), **resetear password** (nuevo endpoint), **impersonar** (nuevo endpoint, ver PB-107)
+- [ ] Toda acción queda en audit log (PB-107)
+
+#### PB-106: Operaciones del agente IA (request log + métricas + selección de modelo) (8 SP)
+
+**Como** administrador, **quiero** ver cada request al agente con su costo y satisfacción, y poder cambiar el modelo o el prompt sin redeploy **para** controlar gasto y calidad.
+
+**Criterios de aceptación:**
+
+- [ ] Tabla `GET /api/admin/ai/requests` (ya existe) — columnas: usuario, prompt (truncado), modelo, tokens in/out, costo, latencia, feedback (👍/👎/-), fecha
+- [ ] Métricas agregadas: top prompts, ratio aceptación, costo por usuario, latencia p50/p95
+- [ ] Editor de **system prompt** con versionado (nueva tabla `AIPromptVersion`)
+- [ ] Switch de modelo: `claude-haiku-4-5` ↔ `claude-sonnet-4` desde UI (lee/escribe `system_settings.ai_model`)
+- [ ] Rate limit configurable por tier (free / premium)
+- [ ] **Importante:** Backend hoy NO guarda `tokens_input/output/cost_usd/response_time_ms` — el schema ya los tiene pero `AIAgentService` no los rellena. PBI incluye instrumentar el servicio.
+
+#### PB-107: Audit log + impersonación segura (5 SP)
+
+**Como** administrador, **quiero** que cada acción sensible quede registrada y poder "ver como" un usuario para soporte **sin** poder cambiar su password.
+
+**Criterios de aceptación:**
+
+- [ ] Nuevo modelo Prisma `AuditLog { id, actorId, action, targetType, targetId, payload, ip, userAgent, createdAt }`
+- [ ] Interceptor NestJS que loguea: cambios de rol, premium, deactivate, login admin, impersonación, edición de system prompt
+- [ ] Endpoint `POST /api/admin/users/:id/impersonate` → emite JWT de corta duración (5 min) con claim `impersonatedBy=<adminId>`
+- [ ] Banner permanente en cliente cuando `impersonatedBy` está presente: "Estás viendo como X · Volver a admin"
+- [ ] UI admin: vista de audit log filtrable por actor/acción/fecha
+
+#### PB-108: Feature flags + banners globales (5 SP)
+
+**Como** administrador, **quiero** activar/desactivar features y enviar mensajes globales **sin** redeploy.
+
+**Criterios de aceptación:**
+
+- [ ] Modelo `FeatureFlag { key, enabled, rolloutPercent, targetRoles, updatedBy, updatedAt }`
+- [ ] Flags iniciales: `ai_agent_enabled`, `segments_enabled`, `sync_enabled`, `registration_open`
+- [ ] Endpoint `GET /api/feature-flags` (público pero con cache) consumido por cliente al boot
+- [ ] Modelo `Announcement { id, title, body, severity, startsAt, endsAt, targetRoles }`
+- [ ] Banner global en shell cliente cuando hay anuncio activo (dismissible)
+- [ ] UI admin para editar flags y crear anuncios
+
+#### PB-109: Instrumentación de costos y feedback del agente IA (3 SP)
+
+**Como** administrador, **quiero** que cada request al agente se mida automáticamente **para** que las métricas de PB-104 y PB-106 reflejen la realidad.
+
+**Criterios de aceptación:**
+
+- [ ] `AIAgentService.suggest` registra `responseTimeMs` con `performance.now()`
+- [ ] Lee `usage.input_tokens` / `usage.output_tokens` del SDK Anthropic
+- [ ] Calcula `costUsd` con tabla de precios por modelo (constante en `apps/backend/src/modules/ai-agent/pricing.ts`)
+- [ ] Guarda los 4 campos en `AIRequest` (schema ya los tiene)
+- [ ] Tests unitarios validan el cálculo
+
+#### PB-110: Cleanup de UX en pantallas auth (2 SP) — COMPLETADO PARCIAL
+
+- [x] Login y Register con `sr-only` labels, focus visible, autoComplete, validación cliente, role="alert"
+- [x] Cyan reservado al CTA primario; enlaces secundarios con color neutro
+- [ ] Pantallas Forgot Password / Reset Password con el mismo patrón
+
+---
+
 ## 9. Roadmap de Sprints
 
 > **Duración por sprint:** 2 semanas
@@ -1796,7 +1959,16 @@ Responde SIEMPRE en este formato JSON:
 | **Sprint 8**  | 15-16   | Sincronización + personalización + PWA | 62      | Sync delta, resolución de conflictos, temas, layouts, PWA setup       |
 | **Sprint 9**  | 17-18   | Features complementarias + admin       | 60      | Lyrics, sleep timer, stats, scrobbling, dashboard admin, features web |
 | **Sprint 10** | 19-20   | QA, mobile avanzado y release          | 71      | Tests, widgets, Android Auto/CarPlay, deploy web+desktop+mobile       |
-|               |         | **TOTAL**                              | **615** |                                                                       |
+|               |         | **TOTAL**                              | **692** | Incluye épica E16 distribuida en Sprints 4-9                          |
+
+> **Nota sobre E16:** Los PBIs PB-098 a PB-110 se distribuyen así:
+>
+> - **Sprint 4:** PB-098 (shell cliente), PB-103 (shell admin) — base de navegación por rol
+> - **Sprint 5:** PB-099 (reproductor persistente con segmentos), PB-100 (estudio EQ)
+> - **Sprint 6:** PB-101 (editor segmentos timeline) — coincide con E06
+> - **Sprint 7:** PB-102 (panel IA), PB-109 (instrumentación) — coincide con E07
+> - **Sprint 8:** PB-104 (dashboard), PB-105 (usuarios), PB-110 (auth cleanup)
+> - **Sprint 9:** PB-106 (operaciones IA), PB-107 (audit + impersonación), PB-108 (feature flags)
 
 ### 🎯 Milestones Clave
 

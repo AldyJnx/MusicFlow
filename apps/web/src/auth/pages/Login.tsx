@@ -9,6 +9,8 @@ import logoMusicFlow from "../../assets/Logo_Music_Flow.webp";
 import { login as loginRequest } from "../../shared/api/auth";
 import { useAuthStore } from "../../shared/stores/authStore";
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 export default function Login() {
   const navigate = useNavigate();
   const setSession = useAuthStore((s) => s.setSession);
@@ -25,7 +27,7 @@ export default function Login() {
   });
 
   const isFormValid = useMemo(() => {
-    return email.trim().length > 0 && password.trim().length > 0;
+    return EMAIL_REGEX.test(email.trim()) && password.trim().length > 0;
   }, [email, password]);
 
   const errorMessage = loginMutation.isError
@@ -46,11 +48,14 @@ export default function Login() {
     loginMutation.mutate({ email: email.trim(), password });
   }
 
+  const isPending = loginMutation.isPending;
+
   return (
     <main className="relative min-h-screen overflow-hidden bg-[#07131a] text-white">
       <img
         src={fondoLogin}
-        alt="Fondo MusicFlow"
+        alt=""
+        aria-hidden="true"
         className="absolute inset-0 h-full w-full object-cover"
       />
 
@@ -62,9 +67,8 @@ export default function Login() {
           <img
             src={logoMusicFlow}
             alt="MusicFlow"
-            className="mb-3 h-20 w-auto object-contain drop-shadow-[0_0_24px_rgba(22,212,255,0.18)]"
+            className="h-20 w-auto object-contain drop-shadow-[0_0_24px_rgba(22,212,255,0.18)]"
           />
-          <p className="text-sm tracking-[0.08em] text-[#7c8aa6]">MusicFlow</p>
         </div>
 
         <div className="w-full max-w-[360px] rounded-[18px] border border-white/10 bg-[rgba(24,27,35,0.9)] p-6 shadow-[0_24px_80px_rgba(0,0,0,0.28)] backdrop-blur-md">
@@ -72,51 +76,44 @@ export default function Login() {
             Bienvenido de nuevo
           </h1>
 
-          <form className="space-y-4" onSubmit={handleSubmit}>
+          <form className="space-y-4" onSubmit={handleSubmit} noValidate>
             <div>
-              <label
-                htmlFor="email"
-                className="mb-2 block text-[0.65rem] font-semibold uppercase tracking-[0.14em] text-[#4f5a71]"
-              >
+              <label htmlFor="email" className="sr-only">
                 Correo electrónico
               </label>
-              <div className="flex h-12 items-center gap-3 rounded-[10px] border border-white/10 bg-[#0f1218] px-4">
-                <Mail className="h-4 w-4 text-[#747f96]" />
+              <div className="flex h-12 items-center gap-3 rounded-[10px] border border-white/10 bg-[#0f1218] px-4 transition focus-within:border-[#14e3f7]/60 focus-within:ring-2 focus-within:ring-[#14e3f7]/30">
+                <Mail className="h-4 w-4 text-[#9aa6bf]" aria-hidden="true" />
                 <input
                   id="email"
+                  name="email"
                   type="email"
-                  placeholder="nombre@estudio.com"
+                  autoComplete="email"
+                  autoFocus
+                  placeholder="Correo electrónico"
                   value={email}
                   onChange={(event) => setEmail(event.target.value)}
-                  className="w-full bg-transparent text-sm text-white outline-none placeholder:text-[#59647b]"
+                  disabled={isPending}
+                  className="w-full bg-transparent text-sm text-white outline-none placeholder:text-[#8590a8] disabled:cursor-not-allowed"
                 />
               </div>
             </div>
 
             <div>
-              <div className="mb-2 flex items-center justify-between">
-                <label
-                  htmlFor="password"
-                  className="block text-[0.65rem] font-semibold uppercase tracking-[0.14em] text-[#4f5a71]"
-                >
-                  Contraseña
-                </label>
-                <Link
-                  to="/forgot-password"
-                  className="text-[0.72rem] font-semibold text-[#10e9ff] transition hover:text-[#66f0ff]"
-                >
-                  ¿Olvidé mi contraseña?
-                </Link>
-              </div>
-              <div className="flex h-12 items-center gap-3 rounded-[10px] border border-white/10 bg-[#0f1218] px-4">
-                <Lock className="h-4 w-4 text-[#747f96]" />
+              <label htmlFor="password" className="sr-only">
+                Contraseña
+              </label>
+              <div className="flex h-12 items-center gap-3 rounded-[10px] border border-white/10 bg-[#0f1218] px-4 transition focus-within:border-[#14e3f7]/60 focus-within:ring-2 focus-within:ring-[#14e3f7]/30">
+                <Lock className="h-4 w-4 text-[#9aa6bf]" aria-hidden="true" />
                 <input
                   id="password"
+                  name="password"
                   type={showPassword ? "text" : "password"}
-                  placeholder="••••••••"
+                  autoComplete="current-password"
+                  placeholder="Contraseña"
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
-                  className="w-full bg-transparent text-sm text-white outline-none placeholder:text-[#59647b]"
+                  disabled={isPending}
+                  className="w-full bg-transparent text-sm text-white outline-none placeholder:text-[#8590a8] disabled:cursor-not-allowed"
                 />
                 <button
                   type="button"
@@ -124,7 +121,7 @@ export default function Login() {
                   aria-label={
                     showPassword ? "Ocultar contraseña" : "Mostrar contraseña"
                   }
-                  className="text-[#747f96] transition hover:text-[#c2d7df]"
+                  className="-mr-2 flex h-9 w-9 items-center justify-center rounded-md text-[#9aa6bf] transition hover:text-white focus:outline-none focus:ring-2 focus:ring-[#14e3f7]/40"
                 >
                   {showPassword ? (
                     <EyeOff className="h-4 w-4" />
@@ -133,24 +130,36 @@ export default function Login() {
                   )}
                 </button>
               </div>
+              <div className="mt-2 flex justify-end">
+                <Link
+                  to="/forgot-password"
+                  className="text-[0.72rem] font-medium text-[#b8c4d9] underline-offset-2 transition hover:text-white hover:underline"
+                >
+                  ¿Olvidé mi contraseña?
+                </Link>
+              </div>
             </div>
 
             {errorMessage && (
-              <p className="rounded-md bg-red-500/10 px-3 py-2 text-xs text-red-300">
+              <p
+                role="alert"
+                aria-live="polite"
+                className="rounded-md bg-red-500/10 px-3 py-2 text-xs text-red-200"
+              >
                 {errorMessage}
               </p>
             )}
 
             <button
               type="submit"
-              disabled={!isFormValid || loginMutation.isPending}
-              className={`flex h-[52px] w-full items-center justify-center gap-2 rounded-[11px] text-base font-semibold transition ${
-                isFormValid && !loginMutation.isPending
+              disabled={!isFormValid || isPending}
+              className={`flex h-[52px] w-full items-center justify-center gap-2 rounded-[11px] text-base font-semibold transition focus:outline-none focus:ring-2 focus:ring-[#14e3f7]/60 focus:ring-offset-2 focus:ring-offset-[#181b23] ${
+                isFormValid && !isPending
                   ? "bg-[#14e3f7] text-[#092d35] shadow-[0_0_24px_rgba(20,227,247,0.28)] hover:bg-[#3ceaf9]"
-                  : "cursor-not-allowed bg-[#2a303a] text-[#788395]"
+                  : "cursor-not-allowed bg-[#2a303a] text-[#9aa3b5]"
               }`}
             >
-              {loginMutation.isPending ? (
+              {isPending ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
                   Iniciando...
@@ -169,7 +178,7 @@ export default function Login() {
           ¿No tienes una cuenta?{" "}
           <Link
             to="/register"
-            className="font-semibold text-[#10e9ff] transition hover:text-[#66f0ff]"
+            className="font-semibold text-white underline underline-offset-4 transition hover:text-[#b8c4d9]"
           >
             Crear cuenta
           </Link>
