@@ -66,6 +66,10 @@
     "cosmic-purple": {
       "name": "Cosmic Purple",
       "description": "Azul profundo con violeta cósmico"
+    },
+    "aurora-cyan": {
+      "name": "Aurora Cyan",
+      "description": "Cyan turquesa sobre azul casi negro — inspirado en Spotify"
     }
   },
   "navbar": {

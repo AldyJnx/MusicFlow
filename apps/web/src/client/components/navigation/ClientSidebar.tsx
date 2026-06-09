@@ -320,7 +320,7 @@ export default function ClientSidebar({
         <HeaderRow collapsed={collapsed} onToggleCollapse={onToggleCollapse} />
         <nav className="mt-1 flex flex-col gap-0.5 px-1">
           <NavRow
-            to="/library"
+            to="/inicio"
             end
             icon={<Home className="h-[18px] w-[18px]" strokeWidth={2.2} />}
             label={t("sidebar.home", { defaultValue: "Inicio" })}

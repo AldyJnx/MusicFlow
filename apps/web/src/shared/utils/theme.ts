@@ -3,7 +3,8 @@ export type AppThemeId =
   | "ocean-teal"
   | "sunset-coral"
   | "aurora-light"
-  | "cosmic-purple";
+  | "cosmic-purple"
+  | "aurora-cyan";
 
 export type LegacyThemeId = "sonic-dark" | "neon-genesis" | "estudio";
 
@@ -134,6 +135,29 @@ export const APP_THEMES: AppTheme[] = [
       ctaStart: "#a78bfa",
       ctaEnd: "#7c3aed",
       accent: "#8b5cf6",
+    },
+  },
+  {
+    id: "aurora-cyan",
+    nameKey: "themes.aurora-cyan.name",
+    descriptionKey: "themes.aurora-cyan.description",
+    mode: "dark",
+    previewClassName: "bg-[linear-gradient(180deg,#0d1117_0%,#020a14_100%)]",
+    dotsClassName: ["bg-[#1db9c3]", "bg-[#0e7490]"],
+    colors: {
+      page: "#0d1117",
+      sidebar: "#070b12",
+      navbar: "#0d1117",
+      surface: "#121922",
+      surfaceAlt: "#18222e",
+      text: "#e6f6f8",
+      muted: "#7a8a9a",
+      border: "#1c2734",
+      primary: "#1db9c3",
+      secondary: "#0e2429",
+      ctaStart: "#22d3ee",
+      ctaEnd: "#0e7490",
+      accent: "#1db9c3",
     },
   },
   {
