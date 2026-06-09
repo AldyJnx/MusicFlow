@@ -1,15 +1,11 @@
-type ElectronAPI = unknown;
-
-declare global {
-  interface Window {
-    electronAPI?: ElectronAPI;
-  }
-}
+// `window.electronAPI` is declared in ./electronAPI.ts. Importing keeps both
+// files in agreement on the bridge's shape — TS would otherwise complain
+// about a duplicate global declaration with conflicting types.
+import "./electronAPI";
 
 export const platform = {
-  isElectron:
-    typeof window !== "undefined" && Boolean((window as Window).electronAPI),
-  isWeb: typeof window !== "undefined" && !(window as Window).electronAPI,
+  isElectron: typeof window !== "undefined" && Boolean(window.electronAPI),
+  isWeb: typeof window !== "undefined" && !window.electronAPI,
   isPWAInstalled:
     typeof window !== "undefined" &&
     typeof window.matchMedia === "function" &&

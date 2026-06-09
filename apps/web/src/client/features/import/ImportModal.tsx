@@ -15,6 +15,11 @@ import { uploadTrack } from "../../../shared/api/tracks";
 import { trackKeys } from "../../../shared/hooks/useTracks";
 import { savesKeys } from "../../../shared/hooks/useLibrarySaves";
 import { quotaKeys } from "../../../shared/hooks/useQuota";
+import {
+  getElectronAPI,
+  isElectron,
+  toFile,
+} from "../../../platform/electronAPI";
 
 const SUPPORTED_EXTS = new Set([
   "mp3",
@@ -59,8 +64,10 @@ export default function ImportModal({ open, onClose }: ImportModalProps) {
   const [items, setItems] = useState<Candidate[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [running, setRunning] = useState(false);
+  const [scanningNative, setScanningNative] = useState(false);
   const filesInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
+  const desktop = isElectron();
 
   // Reset state when modal closes so the next open is clean.
   useEffect(() => {
@@ -106,6 +113,33 @@ export default function ImportModal({ open, onClose }: ImportModalProps) {
 
   function removeItem(key: string) {
     setItems((prev) => prev.filter((it) => it.key !== key));
+  }
+
+  /**
+   * Desktop-only path: opens the native folder picker via the Electron
+   * preload bridge, recursively scans the chosen folder for audio files and
+   * materializes each one into a regular File so the existing upload flow
+   * works unchanged.
+   */
+  async function scanNative() {
+    const api = getElectronAPI();
+    if (!api || scanningNative) return;
+    setScanningNative(true);
+    try {
+      const scan = await api.scanMusicFolder();
+      if (!scan || scan.files.length === 0) return;
+      const files: File[] = [];
+      for (const f of scan.files) {
+        try {
+          files.push(await toFile(f));
+        } catch {
+          // Skip files we couldn't read (permissions, vanished mid-scan).
+        }
+      }
+      addFiles(files);
+    } finally {
+      setScanningNative(false);
+    }
   }
 
   async function startUpload() {
@@ -247,13 +281,27 @@ export default function ImportModal({ open, onClose }: ImportModalProps) {
                 </button>
                 <button
                   type="button"
-                  onClick={() => folderInputRef.current?.click()}
-                  className="inline-flex items-center gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2 text-sm font-medium text-[var(--color-text)] transition hover:border-[var(--color-primary)]"
+                  onClick={() =>
+                    desktop ? scanNative() : folderInputRef.current?.click()
+                  }
+                  disabled={scanningNative}
+                  className="inline-flex items-center gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2 text-sm font-medium text-[var(--color-text)] transition hover:border-[var(--color-primary)] disabled:opacity-60"
                 >
-                  <FolderOpen className="h-4 w-4" strokeWidth={2.2} />
-                  {t("import.pickFolder", {
-                    defaultValue: "Escanear carpeta",
-                  })}
+                  {scanningNative ? (
+                    <Loader2
+                      className="h-4 w-4 animate-spin"
+                      strokeWidth={2.2}
+                    />
+                  ) : (
+                    <FolderOpen className="h-4 w-4" strokeWidth={2.2} />
+                  )}
+                  {desktop
+                    ? t("import.pickFolderNative", {
+                        defaultValue: "Escanear ~/Music",
+                      })
+                    : t("import.pickFolder", {
+                        defaultValue: "Escanear carpeta",
+                      })}
                 </button>
               </div>
               <input
