@@ -1,5 +1,24 @@
 import axios, { AxiosError, type InternalAxiosRequestConfig } from "axios";
 import { useAuthStore } from "../stores/authStore";
+import { useUpsellStore, type UpsellReason } from "../stores/upsellStore";
+
+const UPSELL_CODES: ReadonlySet<UpsellReason> = new Set<UpsellReason>([
+  "PREMIUM_REQUIRED",
+  "QUOTA_UPLOADS_EXCEEDED",
+  "QUOTA_AI_EXCEEDED",
+  "QUOTA_PRESETS_EXCEEDED",
+]);
+
+interface UpsellErrorBody {
+  code?: string;
+  message?: string;
+  quota?: {
+    used: number;
+    limit: number | null;
+    remaining: number | null;
+    resetAt?: string;
+  };
+}
 
 const baseURL = import.meta.env.VITE_API_URL ?? "http://localhost:8000/api";
 
@@ -44,6 +63,19 @@ api.interceptors.response.use(
     const original = error.config as
       | (InternalAxiosRequestConfig & { _retry?: boolean })
       | undefined;
+
+    if (error.response?.status === 403) {
+      const body = error.response.data as UpsellErrorBody | undefined;
+      if (body?.code && UPSELL_CODES.has(body.code as UpsellReason)) {
+        useUpsellStore.getState().show({
+          reason: body.code as UpsellReason,
+          message: body.message,
+          quota: body.quota,
+        });
+      }
+      return Promise.reject(error);
+    }
+
     if (error.response?.status !== 401 || !original || original._retry) {
       return Promise.reject(error);
     }

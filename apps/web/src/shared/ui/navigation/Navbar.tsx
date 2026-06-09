@@ -1,6 +1,8 @@
 import { Bell, Search } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import QuotaBadge from "../QuotaBadge";
+import { useAuthStore } from "../../stores/authStore";
 
 type NavbarProps = {
   placeholder?: string;
@@ -15,6 +17,7 @@ type NavbarProps = {
 export default function Navbar({ placeholder, searchSongs = [] }: NavbarProps) {
   const { t } = useTranslation();
   const [query, setQuery] = useState("");
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const resolvedPlaceholder =
     placeholder ??
     t("navbar.searchPlaceholder", { defaultValue: "Search music, artists…" });
@@ -83,15 +86,18 @@ export default function Navbar({ placeholder, searchSongs = [] }: NavbarProps) {
         </div>
       </div>
 
-      <button
-        type="button"
-        className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[var(--color-muted)] transition hover:bg-white/[0.04] hover:text-[var(--color-text)]"
-        aria-label={t("navbar.notifications", {
-          defaultValue: "Notifications",
-        })}
-      >
-        <Bell className="h-4 w-4" strokeWidth={2.1} />
-      </button>
+      <div className="flex shrink-0 items-center gap-2">
+        {isAuthenticated ? <QuotaBadge /> : null}
+        <button
+          type="button"
+          className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[var(--color-muted)] transition hover:bg-white/[0.04] hover:text-[var(--color-text)]"
+          aria-label={t("navbar.notifications", {
+            defaultValue: "Notifications",
+          })}
+        >
+          <Bell className="h-4 w-4" strokeWidth={2.1} />
+        </button>
+      </div>
     </header>
   );
 }

@@ -12,6 +12,7 @@ import {
   type AISuggestResponse,
   type EQSuggestion,
 } from "../../../shared/api/ai-agent";
+import { useInvalidateQuota } from "../../../shared/hooks/useQuota";
 
 const SHORTCUT_CHIPS = [
   { id: "warmer", label: "Más cálido", prompt: "Quiero un sonido más cálido" },
@@ -68,6 +69,7 @@ export default function AIQuickPrompt() {
   const currentTrack = usePlayerStore((s) => s.currentTrack);
 
   const { setBands, setEffects } = useEqualizer();
+  const invalidateQuota = useInvalidateQuota();
 
   const [input, setInput] = useState("");
   const [requestId, setRequestId] = useState<string | null>(null);
@@ -102,6 +104,7 @@ export default function AIQuickPrompt() {
     onSuccess: (data: AISuggestResponse) => {
       setRequestId(data.requestId);
       setSuggestion(data.suggestion);
+      void invalidateQuota();
     },
   });
 

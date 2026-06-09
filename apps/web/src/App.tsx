@@ -7,6 +7,7 @@ import VerifyCode from "./auth/pages/VerifyCode";
 import ClientRoutes from "./client/routes/clientRoutes";
 import AdminRoutes from "./admin/routes/adminRoutes";
 import PWAInstallBanner from "./shared/ui/PWAInstallBanner";
+import UpsellModal from "./shared/ui/UpsellModal";
 
 function App() {
   return (
@@ -21,6 +22,7 @@ function App() {
         <Route path="/*" element={<ClientRoutes />} />
       </Routes>
       <PWAInstallBanner />
+      <UpsellModal />
     </BrowserRouter>
   );
 }

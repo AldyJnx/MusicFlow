@@ -19,6 +19,7 @@ import type {
   EQSuggestion,
   SuggestedSegment,
 } from "../../../shared/api/ai-agent";
+import { useInvalidateQuota } from "../../../shared/hooks/useQuota";
 
 // TODO: history sidebar
 
@@ -232,6 +233,7 @@ export default function Agent() {
   ]);
   const [input, setInput] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
+  const invalidateQuota = useInvalidateQuota();
 
   const suggestMutation = useMutation({
     mutationFn: (prompt: string) => suggestEQ({ prompt }),
@@ -248,6 +250,7 @@ export default function Agent() {
           feedbackGiven: false,
         },
       ]);
+      void invalidateQuota();
       setTimeout(
         () => bottomRef.current?.scrollIntoView({ behavior: "smooth" }),
         80,
