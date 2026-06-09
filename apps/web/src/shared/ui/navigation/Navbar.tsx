@@ -25,6 +25,7 @@ import {
   usePlayerStore,
   type PlayerTrack,
 } from "../../../client/stores/playStore";
+import ClientTabs from "../../../client/components/navigation/ClientTabs";
 import type { Track } from "../../api/tracks";
 
 type NavbarProps = {
@@ -115,7 +116,9 @@ const Navbar = forwardRef<NavbarRef, NavbarProps>(function Navbar(
 
   return (
     <header className="sticky top-0 z-30 flex items-center justify-between gap-4 border-b border-[var(--color-border)] bg-[var(--color-navbar)] px-6 py-3">
-      <div className="w-10 shrink-0" />
+      <div className="shrink-0">
+        <ClientTabs />
+      </div>
 
       <div className="flex flex-1 justify-center">
         <div ref={containerRef} className="relative w-full max-w-md">
