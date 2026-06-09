@@ -1,49 +1,71 @@
-import { Bell, Search } from "lucide-react";
-import { useMemo, useState } from "react";
+import { Bell, Loader2, Music4, Search } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import QuotaBadge from "../QuotaBadge";
 import { useAuthStore } from "../../stores/authStore";
+import { useGlobalSearch } from "../../hooks/useGlobalSearch";
+import {
+  usePlayerStore,
+  type PlayerTrack,
+} from "../../../client/stores/playStore";
+import type { Track } from "../../api/tracks";
 
 type NavbarProps = {
   placeholder?: string;
-  searchSongs?: Array<{
-    id: number;
-    title: string;
-    artist: string;
-    cover: string;
-  }>;
 };
 
-export default function Navbar({ placeholder, searchSongs = [] }: NavbarProps) {
+function toPlayerTrack(t: Track): PlayerTrack | null {
+  if (!t.fileUrlRemote) return null;
+  return {
+    id: t.id,
+    title: t.title,
+    artist: t.artist,
+    cover: t.coverArt,
+    url: t.fileUrlRemote,
+    durationMs: t.durationMs,
+  };
+}
+
+export default function Navbar({ placeholder }: NavbarProps) {
   const { t } = useTranslation();
-  const [query, setQuery] = useState("");
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const playTrack = usePlayerStore((s) => s.playTrack);
+  const { query, setQuery, results, isLoading } = useGlobalSearch();
+  const [focused, setFocused] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
   const resolvedPlaceholder =
     placeholder ??
-    t("navbar.searchPlaceholder", { defaultValue: "Search music, artists…" });
+    t("navbar.searchPlaceholder", { defaultValue: "Buscar música, artistas…" });
 
-  const filteredSongs = useMemo(() => {
-    const normalizedQuery = query.trim().toLowerCase();
-
-    if (!normalizedQuery) {
-      return [];
+  // Close the dropdown when clicking outside the search container.
+  useEffect(() => {
+    function onPointer(e: MouseEvent) {
+      if (!containerRef.current) return;
+      if (!containerRef.current.contains(e.target as Node)) {
+        setFocused(false);
+      }
     }
+    document.addEventListener("mousedown", onPointer);
+    return () => document.removeEventListener("mousedown", onPointer);
+  }, []);
 
-    return searchSongs
-      .filter(
-        (song) =>
-          song.title.toLowerCase().includes(normalizedQuery) ||
-          song.artist.toLowerCase().includes(normalizedQuery),
-      )
-      .slice(0, 5);
-  }, [query, searchSongs]);
+  const dropdownOpen = focused && query.trim().length >= 2;
+
+  function handlePick(track: Track) {
+    const playable = toPlayerTrack(track);
+    if (!playable) return;
+    void playTrack(playable);
+    setQuery("");
+    setFocused(false);
+  }
 
   return (
     <header className="sticky top-0 z-30 flex items-center justify-between gap-4 border-b border-[var(--color-border)] bg-[var(--color-navbar)] px-6 py-3">
       <div className="w-10 shrink-0" />
 
       <div className="flex flex-1 justify-center">
-        <div className="relative w-full max-w-md">
+        <div ref={containerRef} className="relative w-full max-w-md">
           <div className="flex items-center gap-3 rounded-full bg-[var(--color-page)]/70 px-4 py-2.5">
             <Search
               className="h-4 w-4 text-[var(--color-muted)]"
@@ -53,30 +75,55 @@ export default function Navbar({ placeholder, searchSongs = [] }: NavbarProps) {
               type="text"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
+              onFocus={() => setFocused(true)}
               placeholder={resolvedPlaceholder}
               className="w-full bg-transparent text-sm text-[var(--color-text)] outline-none placeholder:text-[var(--color-muted)]"
             />
+            {isLoading ? (
+              <Loader2
+                className="h-4 w-4 animate-spin text-[var(--color-muted)]"
+                strokeWidth={2.2}
+              />
+            ) : null}
           </div>
 
-          {filteredSongs.length > 0 ? (
+          {dropdownOpen ? (
             <div className="absolute left-0 right-0 top-[calc(100%+10px)] overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[0_18px_40px_rgba(0,0,0,0.34)]">
-              {filteredSongs.map((song) => (
+              {results.length === 0 && !isLoading ? (
+                <div className="px-4 py-6 text-center text-sm text-[var(--color-muted)]">
+                  {t("navbar.searchEmpty", {
+                    defaultValue: "Sin resultados",
+                  })}
+                </div>
+              ) : null}
+              {results.map((track) => (
                 <button
-                  key={song.id}
+                  key={track.id}
                   type="button"
+                  onClick={() => handlePick(track)}
                   className="flex w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-white/[0.04]"
                 >
-                  <img
-                    src={song.cover}
-                    alt={song.title}
-                    className="h-10 w-10 rounded-lg object-cover"
-                  />
-                  <div className="min-w-0">
+                  {track.coverArt ? (
+                    <img
+                      src={track.coverArt}
+                      alt=""
+                      className="h-10 w-10 rounded-lg object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[var(--color-surface-alt)]">
+                      <Music4
+                        className="h-4 w-4 text-[var(--color-muted)]"
+                        strokeWidth={1.8}
+                      />
+                    </div>
+                  )}
+                  <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-semibold text-[var(--color-text)]">
-                      {song.title}
+                      {track.title}
                     </p>
                     <p className="truncate text-xs text-[var(--color-muted)]">
-                      {song.artist}
+                      {track.artist}
+                      {track.album ? ` · ${track.album}` : ""}
                     </p>
                   </div>
                 </button>
