@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
-import { RotateCcw, SlidersHorizontal, X } from "lucide-react";
+import { Loader2, RotateCcw, Save, SlidersHorizontal, X } from "lucide-react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { usePlayerStore } from "../../stores/playStore";
 import { useEqualizer } from "../../../shared/hooks/useEqualizer";
 import { getAudioEngine } from "../../../audio/engine";
 import type { EQSegment as EngineSegment } from "../../../audio/segments";
+import { updateSegment } from "../../../shared/api/segments";
 
 const FREQUENCIES = [
   31, 62, 125, 250, 500, 1000, 2000, 4000, 8000, 16000,
@@ -21,22 +23,58 @@ function formatDb(db: number): string {
 
 /**
  * Lateral drawer for quick EQ tweaks without leaving the persistent player.
- * Live-affects the audio engine via `useEqualizer`.
- *
- * The header shows the currently active segment (if any) so the user knows
- * which section of the track they are auditioning while sliding bands.
- * Full per-segment persistence belongs to PB-101.
+ * Live-affects the audio engine via `useEqualizer`. If the playhead is inside
+ * a segment, "Guardar" persists the current bands + effects to that segment
+ * via PATCH /equalizer/segments/:id.
  */
 export default function EqDrawer() {
   const isOpen = usePlayerStore((s) => s.eqDrawerOpen);
   const close = usePlayerStore((s) => s.closeEqDrawer);
   const currentTrack = usePlayerStore((s) => s.currentTrack);
 
-  const { bands, setBand, reset } = useEqualizer();
+  const { bands, effects, setBand, reset } = useEqualizer();
+  const qc = useQueryClient();
 
   const [activeSegment, setActiveSegment] = useState<EngineSegment | null>(
     null,
   );
+  const [savedAt, setSavedAt] = useState<number | null>(null);
+
+  // PATCH the currently-active segment with the drawer's live bands + effects.
+  // We do NOT touch start/end/transition here — that belongs to the segments
+  // page. The drawer is only for "tweak the EQ while listening".
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      if (!activeSegment) throw new Error("no-active-segment");
+      return updateSegment(activeSegment.id, {
+        eqConfig: {
+          bands: bands.slice(0, 10),
+          bassBoost: effects.bassBoost,
+          virtualizer: effects.virtualizer,
+          loudness: effects.loudness,
+          reverbPreset: effects.reverbPreset,
+          reverbAmount: effects.reverbAmount,
+        },
+      });
+    },
+    onSuccess: () => {
+      setSavedAt(Date.now());
+      // Refresh the segments list for the current track so the persisted
+      // EQ shows up in the editor and the segment scheduler re-applies it.
+      if (currentTrack) {
+        void qc.invalidateQueries({
+          queryKey: ["segments", currentTrack.id],
+        });
+      }
+    },
+  });
+
+  // Auto-clear the "Guardado" toast after 1.8s.
+  useEffect(() => {
+    if (!savedAt) return;
+    const t = setTimeout(() => setSavedAt(null), 1800);
+    return () => clearTimeout(t);
+  }, [savedAt]);
 
   // Track which engine segment is active so we can label the drawer.
   useEffect(() => {
@@ -168,9 +206,17 @@ export default function EqDrawer() {
           </div>
 
           <p className="mt-6 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-xs leading-5 text-[#9fb6df]">
-            Los cambios se aplican al instante al audio actual. Para persistir
-            un EQ por segmento, usa la página completa de Ecualizador.
+            {activeSegment
+              ? "Guardar aplica las bandas al segmento activo en backend."
+              : "Sin segmento activo: los cambios solo afectan al audio. Crea uno en la página de Segmentos para persistir."}
           </p>
+
+          {saveMutation.isError && (
+            <p className="mt-3 rounded-xl border border-rose-400/40 bg-rose-500/10 px-3 py-2 text-xs text-rose-300">
+              No se pudo guardar:{" "}
+              {(saveMutation.error as Error)?.message ?? "error"}
+            </p>
+          )}
         </div>
 
         {/* Footer */}
@@ -184,13 +230,40 @@ export default function EqDrawer() {
             Reset
           </button>
 
-          <button
-            type="button"
-            onClick={close}
-            className="inline-flex h-10 items-center justify-center rounded-xl bg-[linear-gradient(90deg,#386cf9_0%,#18c4e6_100%)] px-5 text-sm font-semibold text-white shadow-[0_10px_22px_rgba(37,99,235,0.2)] transition hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-[#14e3f7]/60"
-          >
-            Listo
-          </button>
+          <div className="flex items-center gap-2">
+            {savedAt && (
+              <span className="text-[11px] font-semibold text-emerald-300">
+                Guardado
+              </span>
+            )}
+
+            <button
+              type="button"
+              onClick={() => saveMutation.mutate()}
+              disabled={!activeSegment || saveMutation.isPending}
+              title={
+                activeSegment
+                  ? "Persistir bandas al segmento"
+                  : "Sin segmento activo"
+              }
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-[#14e3f7]/40 bg-[#14e3f7]/10 px-4 text-sm font-semibold text-[#14e3f7] transition hover:bg-[#14e3f7]/20 disabled:opacity-40"
+            >
+              {saveMutation.isPending ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Save className="h-3.5 w-3.5" />
+              )}
+              Guardar
+            </button>
+
+            <button
+              type="button"
+              onClick={close}
+              className="inline-flex h-10 items-center justify-center rounded-xl bg-[linear-gradient(90deg,#386cf9_0%,#18c4e6_100%)] px-5 text-sm font-semibold text-white shadow-[0_10px_22px_rgba(37,99,235,0.2)] transition hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-[#14e3f7]/60"
+            >
+              Listo
+            </button>
+          </div>
         </footer>
       </aside>
     </>

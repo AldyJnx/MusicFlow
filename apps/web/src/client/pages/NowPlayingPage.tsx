@@ -1,21 +1,60 @@
-import ClientLayout from '../layout/ClientLayout'
+import { useEffect } from "react";
+import { useTranslation } from "react-i18next";
+import { useNavigate } from "react-router-dom";
 
+import ClientLayout from "../layout/ClientLayout";
+import { usePlayerStore } from "../stores/playStore";
+
+/**
+ * Route version of the full player. Auto-opens the ExpandedPlayer overlay so
+ * the user can deep-link to the "now playing" experience. If there is no
+ * current track we render a friendly empty state with a link back to the
+ * library.
+ */
 export default function NowPlayingPage() {
+  const { t } = useTranslation();
+  const navigate = useNavigate();
+  const currentTrack = usePlayerStore((s) => s.currentTrack);
+  const setExpanded = usePlayerStore((s) => s.setExpanded);
+
+  useEffect(() => {
+    if (currentTrack) {
+      setExpanded(true);
+    }
+    return () => {
+      setExpanded(false);
+    };
+  }, [currentTrack, setExpanded]);
+
+  if (currentTrack) {
+    // ExpandedPlayer is mounted in ClientLayout and now visible due to the
+    // effect above. Render a transparent shell — the overlay covers the page.
+    return (
+      <ClientLayout>
+        <div className="min-h-screen bg-[var(--color-page)]" />
+      </ClientLayout>
+    );
+  }
+
   return (
     <ClientLayout>
-      <section className="min-h-screen w-full bg-[radial-gradient(circle_at_top_left,rgba(126,77,255,0.1),transparent_26%),linear-gradient(180deg,#090a13_0%,#090913_100%)] px-7 py-7 text-slate-100 xl:px-10">
-        <div className="mx-auto max-w-5xl">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.42em] text-fuchsia-200/70">
-            Now Playing
+      <section className="flex min-h-screen items-center justify-center bg-[var(--color-page)] px-6 text-center">
+        <div className="max-w-md rounded-3xl border border-[var(--color-border)] bg-[var(--color-surface)] p-10 shadow-[0_24px_60px_rgba(0,0,0,0.32)]">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.32em] text-[var(--color-muted)]">
+            {t("player.nowPlaying")}
           </p>
-          <h1 className="mt-3 text-4xl font-semibold tracking-tight text-white sm:text-[48px]">
-            Playback workspace
+          <h1 className="mt-3 text-2xl font-semibold tracking-tight text-[var(--color-text)]">
+            {t("player.lyrics.empty")}
           </h1>
-          <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-400 sm:text-base">
-            Esta pagina aun esta por construirse, pero la ruta del cliente ya quedo lista.
-          </p>
+          <button
+            type="button"
+            onClick={() => navigate("/library")}
+            className="mt-6 inline-flex items-center justify-center rounded-xl bg-[var(--color-primary)] px-5 py-2.5 text-sm font-semibold text-[var(--color-page)] transition hover:scale-[1.02]"
+          >
+            {t("nav.library")}
+          </button>
         </div>
       </section>
     </ClientLayout>
-  )
+  );
 }
