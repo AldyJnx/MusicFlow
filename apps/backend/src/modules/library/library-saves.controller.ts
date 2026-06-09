@@ -54,6 +54,17 @@ export class LibrarySavesController {
     return this.savesService.listSavedTracks(userId, { skip, take, search });
   }
 
+  @Get("latest-cover")
+  @ApiOperation({
+    summary:
+      'Cover art of the most recently liked track, for the "Me gustan" card.',
+  })
+  async latestCover(
+    @CurrentUser("id") userId: string,
+  ): Promise<{ coverArt: string | null; trackId: string | null }> {
+    return this.savesService.getLatestSavedCover(userId);
+  }
+
   @Post("check")
   @HttpCode(HttpStatus.OK)
   @ApiOperation({

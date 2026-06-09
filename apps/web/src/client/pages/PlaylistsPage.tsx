@@ -19,7 +19,10 @@ import {
   listPlaylists,
   type Playlist,
 } from "../../shared/api/playlists";
-import { useSavedTracksQuery } from "../../shared/hooks/useLibrarySaves";
+import {
+  useLatestSavedCoverQuery,
+  useSavedTracksQuery,
+} from "../../shared/hooks/useLibrarySaves";
 import { getConfigByScope } from "../../shared/api/equalizer";
 import PlaylistEQModal from "../features/equalizer/PlaylistEQModal";
 
@@ -156,7 +159,9 @@ function LikedSongsCard() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const savedQ = useSavedTracksQuery({ take: 1 });
+  const coverQ = useLatestSavedCoverQuery();
   const count = savedQ.data?.total ?? 0;
+  const cover = coverQ.data?.coverArt ?? null;
 
   return (
     <article
@@ -164,11 +169,28 @@ function LikedSongsCard() {
       className="group flex cursor-pointer flex-col gap-3 rounded-3xl border border-[var(--color-primary)]/40 bg-[var(--color-surface)] p-4 transition duration-200 hover:-translate-y-1 hover:border-[var(--color-primary)] hover:bg-[var(--color-surface-alt)]"
     >
       <div className="relative flex aspect-square w-full items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br from-[var(--color-cta-start)] to-[var(--color-cta-end)]">
-        <Heart
-          className="h-20 w-20 text-white/95"
-          strokeWidth={1.5}
-          fill="currentColor"
-        />
+        {cover ? (
+          <>
+            <img
+              src={cover}
+              alt={t("playlists.liked.name", { defaultValue: "Me gustan" })}
+              className="absolute inset-0 h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]"
+            />
+            {/* Dark overlay so the heart icon stays readable on bright covers. */}
+            <div className="absolute inset-0 bg-gradient-to-br from-black/30 via-transparent to-black/55" />
+            <Heart
+              className="relative h-16 w-16 text-white drop-shadow-[0_4px_12px_rgba(0,0,0,0.55)]"
+              strokeWidth={2}
+              fill="currentColor"
+            />
+          </>
+        ) : (
+          <Heart
+            className="h-20 w-20 text-white/95"
+            strokeWidth={1.5}
+            fill="currentColor"
+          />
+        )}
       </div>
 
       <div className="flex items-start justify-between gap-2 px-1">

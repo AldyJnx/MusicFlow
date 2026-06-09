@@ -28,6 +28,18 @@ export async function unsaveTrack(trackId: string): Promise<void> {
   await api.delete(`/library/saves/${trackId}`);
 }
 
+export interface LatestSavedCover {
+  coverArt: string | null;
+  trackId: string | null;
+}
+
+export async function getLatestSavedCover(): Promise<LatestSavedCover> {
+  const { data } = await api.get<LatestSavedCover>(
+    "/library/saves/latest-cover",
+  );
+  return data;
+}
+
 export async function checkSavedTracks(trackIds: string[]): Promise<string[]> {
   if (trackIds.length === 0) return [];
   const { data } = await api.post<{ savedTrackIds: string[] }>(

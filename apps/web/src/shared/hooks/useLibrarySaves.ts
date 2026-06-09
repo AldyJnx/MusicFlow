@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   checkSavedTracks,
+  getLatestSavedCover,
   listSavedTracks,
   saveTrack,
   unsaveTrack,
@@ -13,7 +14,16 @@ export const savesKeys = {
     [...savesKeys.all, "list", params ?? {}] as const,
   check: (trackIds: string[]) =>
     [...savesKeys.all, "check", [...trackIds].sort().join(",")] as const,
+  latestCover: () => [...savesKeys.all, "latest-cover"] as const,
 };
+
+export function useLatestSavedCoverQuery() {
+  return useQuery({
+    queryKey: savesKeys.latestCover(),
+    queryFn: getLatestSavedCover,
+    staleTime: 30_000,
+  });
+}
 
 export function useSavedTracksQuery(params?: {
   search?: string;

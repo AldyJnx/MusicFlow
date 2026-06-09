@@ -124,6 +124,35 @@ export class LibrarySavesService {
   }
 
   /**
+   * Return the cover of the most recently liked track so the "Me gustan"
+   * playlist card can mirror what the user just hearted (Spotify-style).
+   * Falls back to the user's most recently uploaded owned track with a
+   * cover when there are no explicit saves yet. `null` means no eligible
+   * cover anywhere — the UI falls back to the gradient + heart icon.
+   */
+  async getLatestSavedCover(
+    userId: string,
+  ): Promise<{ coverArt: string | null; trackId: string | null }> {
+    const explicit = await this.prisma.userLibrarySave.findFirst({
+      where: { userId, track: { coverArt: { not: null } } },
+      orderBy: { savedAt: "desc" },
+      select: { trackId: true, track: { select: { coverArt: true } } },
+    });
+    if (explicit?.track?.coverArt) {
+      return { coverArt: explicit.track.coverArt, trackId: explicit.trackId };
+    }
+    const owned = await this.prisma.track.findFirst({
+      where: { userId, coverArt: { not: null } },
+      orderBy: { createdAt: "desc" },
+      select: { id: true, coverArt: true },
+    });
+    return {
+      coverArt: owned?.coverArt ?? null,
+      trackId: owned?.id ?? null,
+    };
+  }
+
+  /**
    * Bulk lookup so the client can paint heart icons for a list of tracks in
    * a single round-trip. Returns the subset of `trackIds` the user has saved
    * (explicitly or by ownership).

@@ -16,6 +16,7 @@ describe("LibrarySavesService", () => {
       create: jest.Mock;
       deleteMany: jest.Mock;
       findUnique: jest.Mock;
+      findFirst: jest.Mock;
       findMany: jest.Mock;
     };
   };
@@ -32,6 +33,7 @@ describe("LibrarySavesService", () => {
         create: jest.fn(),
         deleteMany: jest.fn(),
         findUnique: jest.fn(),
+        findFirst: jest.fn(),
         findMany: jest.fn(),
       },
     };
@@ -120,6 +122,40 @@ describe("LibrarySavesService", () => {
     it("is a silent no-op when track is gone", async () => {
       prisma.track.findUnique.mockResolvedValue(null);
       await expect(service.unsave("u1", "t1")).resolves.toBeUndefined();
+    });
+  });
+
+  describe("getLatestSavedCover", () => {
+    it("returns the cover of the most recent explicit save", async () => {
+      prisma.userLibrarySave.findFirst.mockResolvedValue({
+        trackId: "t1",
+        track: { coverArt: "https://r2/cover.jpg" },
+      });
+      const result = await service.getLatestSavedCover("u1");
+      expect(result).toEqual({
+        coverArt: "https://r2/cover.jpg",
+        trackId: "t1",
+      });
+    });
+
+    it("falls back to the latest owned track with a cover", async () => {
+      prisma.userLibrarySave.findFirst.mockResolvedValue(null);
+      prisma.track.findFirst.mockResolvedValue({
+        id: "t9",
+        coverArt: "https://r2/own.jpg",
+      });
+      const result = await service.getLatestSavedCover("u1");
+      expect(result).toEqual({
+        coverArt: "https://r2/own.jpg",
+        trackId: "t9",
+      });
+    });
+
+    it("returns nulls when nothing is available", async () => {
+      prisma.userLibrarySave.findFirst.mockResolvedValue(null);
+      prisma.track.findFirst.mockResolvedValue(null);
+      const result = await service.getLatestSavedCover("u1");
+      expect(result).toEqual({ coverArt: null, trackId: null });
     });
   });
 
