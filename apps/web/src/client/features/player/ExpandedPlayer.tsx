@@ -15,10 +15,12 @@ import { useTranslation } from "react-i18next";
 
 import { usePlayerStore } from "../../stores/playStore";
 import { useTrackSegments } from "../../../shared/hooks/useTrackSegments";
+import { usePreferences } from "../../../shared/hooks/usePreferences";
 import TimelineWithSegments from "./TimelineWithSegments";
 import EqBandIndicator from "./EqBandIndicator";
 import LyricsPanel from "./LyricsPanel";
 import AIDock from "./AIDock";
+import Wave from "./Wave";
 
 type ExpandedPlayerProps = {
   sidebarOffset?: number;
@@ -54,6 +56,7 @@ export default function ExpandedPlayer({
   const openEqDrawer = usePlayerStore((s) => s.openEqDrawer);
 
   const { segments } = useTrackSegments(currentTrack?.id ?? null);
+  const { showWave } = usePreferences();
   const isMuted = muted || volume === 0;
 
   const activeSegment = useMemo(
@@ -101,7 +104,8 @@ export default function ExpandedPlayer({
           >
             <ChevronDown className="h-5 w-5" strokeWidth={2.3} />
           </button>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
+            {showWave ? <Wave active={isPlaying} size={16} /> : null}
             <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--color-accent)]" />
             <p className="text-[10px] font-semibold uppercase tracking-[0.32em] text-[var(--color-muted)]">
               {t("player.nowPlaying")}
@@ -175,7 +179,7 @@ export default function ExpandedPlayer({
               <button
                 type="button"
                 onClick={() => void togglePlay()}
-                className="inline-flex h-14 w-14 items-center justify-center rounded-full bg-[var(--color-primary)] text-[var(--color-page)] shadow-[0_14px_30px_rgba(0,0,0,0.32)] transition hover:scale-[1.05]"
+                className="inline-flex h-14 w-14 items-center justify-center rounded-full bg-[var(--color-primary)] text-[var(--color-primary-contrast)] shadow-[0_14px_30px_rgba(0,0,0,0.32)] transition hover:scale-[1.05]"
                 aria-label={isPlaying ? t("player.pause") : t("player.play")}
               >
                 {isPlaying ? (
@@ -196,23 +200,25 @@ export default function ExpandedPlayer({
 
             {/* Secondary actions */}
             <div className="mt-5 flex items-center justify-between gap-3 text-[var(--color-muted)]">
+              {/* Outline primary — secondary config action (matches Hero "Editar EQ"). */}
               <button
                 type="button"
                 onClick={openEqDrawer}
-                className="inline-flex h-10 items-center gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-alt)] px-3 text-xs font-semibold text-[var(--color-text)] transition hover:border-[var(--color-primary)]"
+                className="inline-flex h-10 items-center gap-2 rounded-xl border-2 border-[var(--color-primary)] bg-transparent px-3 text-xs font-semibold uppercase tracking-wider text-[var(--color-primary)] transition hover:bg-[var(--color-primary)]/10"
               >
-                <Sliders className="h-3.5 w-3.5" strokeWidth={2.3} />
+                <Sliders className="h-3.5 w-3.5" strokeWidth={2.4} />
                 {t("player.openEq")}
               </button>
+              {/* Outline accent — segments are the MusicFlow signature feature. */}
               <button
                 type="button"
                 onClick={() => {
                   setExpanded(false);
                   navigate("/segments");
                 }}
-                className="inline-flex h-10 items-center gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-alt)] px-3 text-xs font-semibold text-[var(--color-text)] transition hover:border-[var(--color-accent)]"
+                className="inline-flex h-10 items-center gap-2 rounded-xl border-2 border-[var(--color-accent)] bg-transparent px-3 text-xs font-semibold uppercase tracking-wider text-[var(--color-accent)] transition hover:bg-[var(--color-accent)]/10"
               >
-                <Scissors className="h-3.5 w-3.5" strokeWidth={2.3} />
+                <Scissors className="h-3.5 w-3.5" strokeWidth={2.4} />
                 {t("nav.segments")}
               </button>
               <div className="flex items-center gap-2">
