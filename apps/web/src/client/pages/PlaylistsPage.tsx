@@ -137,7 +137,7 @@ function CreateModal({
               type="button"
               onClick={() => create.mutate()}
               disabled={!name.trim() || create.isPending}
-              className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-[var(--color-primary)] px-5 text-sm font-semibold text-[var(--color-page)] transition hover:scale-[1.02] disabled:opacity-50"
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-[var(--color-primary)] px-5 text-sm font-semibold text-[var(--color-primary-contrast)] transition hover:scale-[1.02] disabled:opacity-50"
             >
               {create.isPending ? (
                 <Loader2 className="h-4 w-4 animate-spin" strokeWidth={2.2} />
@@ -166,7 +166,7 @@ function LikedSongsCard() {
   return (
     <article
       onClick={() => navigate("/library?scope=mylibrary")}
-      className="group flex cursor-pointer flex-col gap-3 rounded-3xl border border-[var(--color-primary)]/40 bg-[var(--color-surface)] p-4 transition duration-200 hover:-translate-y-1 hover:border-[var(--color-primary)] hover:bg-[var(--color-surface-alt)]"
+      className="group flex cursor-pointer flex-col gap-3 rounded-[var(--radius-card)] border border-[var(--color-primary)]/40 bg-[var(--color-surface)] p-4 transition duration-200 hover:-translate-y-1 hover:border-[var(--color-primary)] hover:bg-[var(--color-surface-alt)]"
     >
       <div className="relative flex aspect-square w-full items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br from-[var(--color-cta-start)] to-[var(--color-cta-end)]">
         {cover ? (
@@ -240,7 +240,7 @@ function PlaylistCard({ playlist }: { playlist: Playlist }) {
 
   return (
     <>
-      <article className="group flex flex-col gap-3 rounded-3xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 transition duration-200 hover:-translate-y-1 hover:border-[var(--color-primary)] hover:bg-[var(--color-surface-alt)]">
+      <article className="group flex flex-col gap-3 rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-surface)] p-4 transition duration-200 hover:-translate-y-1 hover:border-[var(--color-primary)] hover:bg-[var(--color-surface-alt)]">
         <div className="relative flex aspect-square w-full items-center justify-center overflow-hidden rounded-2xl bg-[var(--color-surface-alt)]">
           {playlist.coverArt ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -336,7 +336,7 @@ export default function PlaylistsPage() {
   return (
     <ClientLayout>
       <section className="min-h-screen w-full bg-[var(--color-page)] px-4 py-6 text-[var(--color-text)] sm:px-6 xl:px-8">
-        <div className="mx-auto max-w-7xl rounded-[28px] border border-[var(--color-border)] bg-[linear-gradient(180deg,var(--color-surface)_0%,var(--color-page)_100%)] p-6 shadow-[0_24px_80px_rgba(0,0,0,0.35)] sm:p-8">
+        <div className="mx-auto max-w-7xl rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[linear-gradient(180deg,var(--color-surface)_0%,var(--color-page)_100%)] p-6 shadow-[0_24px_80px_rgba(0,0,0,0.35)] sm:p-8">
           <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
             <div className="max-w-2xl">
               <h1 className="text-3xl font-extrabold uppercase tracking-tight text-[var(--color-text)] sm:text-[38px]">
@@ -363,7 +363,7 @@ export default function PlaylistsPage() {
                 {Array.from({ length: 4 }).map((_, i) => (
                   <div
                     key={i}
-                    className="animate-pulse rounded-3xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4"
+                    className="animate-pulse rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-surface)] p-4"
                   >
                     <div className="aspect-square w-full rounded-2xl bg-[var(--color-surface-alt)]" />
                     <div className="mt-3 h-4 w-3/4 rounded bg-[var(--color-surface-alt)]" />
@@ -394,7 +394,7 @@ export default function PlaylistsPage() {
                   <button
                     type="button"
                     onClick={() => setCreateOpen(true)}
-                    className="flex aspect-[5/6] flex-col items-center justify-center gap-3 rounded-3xl border border-dashed border-[var(--color-border)] bg-transparent p-4 text-[var(--color-muted)] transition hover:border-[var(--color-primary)] hover:bg-[var(--color-surface)] hover:text-[var(--color-text)]"
+                    className="flex aspect-[5/6] flex-col items-center justify-center gap-3 rounded-[var(--radius-card)] border border-dashed border-[var(--color-border)] bg-transparent p-4 text-[var(--color-muted)] transition hover:border-[var(--color-primary)] hover:bg-[var(--color-surface)] hover:text-[var(--color-text)]"
                   >
                     <Plus className="h-8 w-8" strokeWidth={1.5} />
                     <span className="text-sm font-semibold">
