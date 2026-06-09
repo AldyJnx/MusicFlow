@@ -12,7 +12,12 @@ import { AppModule } from "./app.module";
 };
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, {
+    // Stripe's webhook signature is computed over the unmodified body, so
+    // we capture the raw Buffer for /api/billing/webhook before Nest's
+    // default JSON parser turns it into an object.
+    rawBody: true,
+  });
 
   // Global prefix
   app.setGlobalPrefix("api");

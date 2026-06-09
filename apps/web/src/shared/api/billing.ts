@@ -20,3 +20,8 @@ export async function getBillingQuota(): Promise<BillingQuota> {
   const { data } = await api.get<BillingQuota>("/billing/quota");
   return data;
 }
+
+export async function createCheckoutSession(): Promise<{ url: string }> {
+  const { data } = await api.post<{ url: string }>("/billing/checkout");
+  return data;
+}

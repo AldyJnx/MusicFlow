@@ -30,6 +30,10 @@ model User {
   isPremium Boolean  @default(false) @map("is_premium")
   isActive  Boolean  @default(true) @map("is_active")
 
+  // Stripe customer ID — set when the user first completes a checkout so
+  // future webhooks (downgrades, refunds) can be matched back to the user.
+  stripeCustomerId String? @unique @map("stripe_customer_id")
+
   // Password reset
   passwordResetToken   String?   @map("password_reset_token")
   passwordResetExpires DateTime? @map("password_reset_expires")
