@@ -161,10 +161,10 @@ export default function ArtistPage() {
                 type="button"
                 onClick={() => playAll(0)}
                 disabled={tracks.length === 0}
-                className="inline-flex items-center gap-2 rounded-full bg-[var(--color-primary)] px-7 py-3 text-sm font-bold uppercase tracking-wider text-[var(--color-primary-contrast)] shadow-[0_10px_24px_rgba(0,0,0,0.35)] transition hover:scale-[1.03] disabled:cursor-not-allowed disabled:opacity-50"
+                className="inline-flex items-center gap-2.5 rounded-full bg-[var(--color-primary)] px-8 py-3.5 text-base font-bold uppercase tracking-wider text-[var(--color-primary-contrast)] shadow-[0_10px_24px_rgba(0,0,0,0.35)] transition hover:scale-[1.03] disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <Play
-                  className="h-4 w-4"
+                  className="h-5 w-5"
                   strokeWidth={2.4}
                   fill="currentColor"
                 />
@@ -227,50 +227,56 @@ export default function ArtistPage() {
           ) : (
             <ul className="flex flex-col gap-1">
               {tracks.map((track, idx) => (
-                <li key={track.id}>
-                  <button
-                    type="button"
-                    onClick={() => playOne(track)}
-                    className="group flex w-full items-center gap-4 rounded-lg p-3 text-left transition hover:bg-[var(--color-surface)]"
-                  >
-                    <span className="w-6 shrink-0 text-center text-xs font-bold text-[var(--color-muted)] group-hover:text-[var(--color-primary)]">
-                      {String(idx + 1).padStart(2, "0")}
-                    </span>
-                    <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded bg-[var(--color-surface-alt)]">
-                      {track.coverArt ? (
-                        <img
-                          src={track.coverArt}
-                          alt=""
-                          className="h-full w-full object-cover"
-                        />
-                      ) : (
-                        <ListMusic
-                          className="absolute inset-0 m-auto h-4 w-4 text-[var(--color-muted)]"
-                          strokeWidth={1.6}
-                        />
-                      )}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-semibold text-[var(--color-text)]">
-                        {track.title}
-                      </p>
-                      <p className="truncate text-xs text-[var(--color-muted)]">
-                        {track.album ??
-                          t("artist.singleSentinel", {
-                            defaultValue: "Single",
-                          })}
-                      </p>
-                    </div>
-                    <span className="hidden text-xs tabular-nums text-[var(--color-muted)] sm:inline">
-                      {formatDuration(track.durationMs)}
-                    </span>
-                    <div onClick={(e) => e.stopPropagation()}>
-                      <SaveButton
-                        trackId={track.id}
-                        saved={savedSet.has(track.id)}
+                <li
+                  key={track.id}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => playOne(track)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      playOne(track);
+                    }
+                  }}
+                  className="group flex w-full cursor-pointer items-center gap-4 rounded-lg p-3 text-left transition hover:bg-[var(--color-surface)]"
+                >
+                  <span className="w-6 shrink-0 text-center text-xs font-bold text-[var(--color-muted)] group-hover:text-[var(--color-primary)]">
+                    {String(idx + 1).padStart(2, "0")}
+                  </span>
+                  <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded bg-[var(--color-surface-alt)]">
+                    {track.coverArt ? (
+                      <img
+                        src={track.coverArt}
+                        alt=""
+                        className="h-full w-full object-cover"
                       />
-                    </div>
-                  </button>
+                    ) : (
+                      <ListMusic
+                        className="absolute inset-0 m-auto h-4 w-4 text-[var(--color-muted)]"
+                        strokeWidth={1.6}
+                      />
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold text-[var(--color-text)]">
+                      {track.title}
+                    </p>
+                    <p className="truncate text-xs text-[var(--color-muted)]">
+                      {track.album ??
+                        t("artist.singleSentinel", {
+                          defaultValue: "Single",
+                        })}
+                    </p>
+                  </div>
+                  <span className="hidden text-xs tabular-nums text-[var(--color-muted)] sm:inline">
+                    {formatDuration(track.durationMs)}
+                  </span>
+                  <div onClick={(e) => e.stopPropagation()}>
+                    <SaveButton
+                      trackId={track.id}
+                      saved={savedSet.has(track.id)}
+                    />
+                  </div>
                 </li>
               ))}
             </ul>

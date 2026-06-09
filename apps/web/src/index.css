@@ -15,6 +15,9 @@
   --color-secondary: #1a2230;
   --color-cta-start: #5f87ff;
   --color-cta-end: #3b82f6;
+  /* Card / hero radius. New surfaces in the cyan fusion adopt this; legacy
+     callsites can migrate progressively. */
+  --radius-card: 24px;
 }
 
 html,

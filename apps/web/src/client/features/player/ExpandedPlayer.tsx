@@ -198,16 +198,18 @@ export default function ExpandedPlayer({
               </button>
             </div>
 
-            {/* Secondary actions */}
+            {/* Secondary actions. Labels collapse to icons on narrow widths
+                so "SEGMENTOS" doesn't get truncated to "SEGMEN..." */}
             <div className="mt-5 flex items-center justify-between gap-3 text-[var(--color-muted)]">
               {/* Outline primary — secondary config action (matches Hero "Editar EQ"). */}
               <button
                 type="button"
                 onClick={openEqDrawer}
-                className="inline-flex h-10 items-center gap-2 rounded-xl border-2 border-[var(--color-primary)] bg-transparent px-3 text-xs font-semibold uppercase tracking-wider text-[var(--color-primary)] transition hover:bg-[var(--color-primary)]/10"
+                title={t("player.openEq")}
+                className="inline-flex h-10 shrink-0 items-center gap-2 rounded-xl border-2 border-[var(--color-primary)] bg-transparent px-3 text-[10px] font-semibold uppercase tracking-wider text-[var(--color-primary)] transition hover:bg-[var(--color-primary)]/10"
               >
                 <Sliders className="h-3.5 w-3.5" strokeWidth={2.4} />
-                {t("player.openEq")}
+                <span className="sr-only">{t("player.openEq")}</span>
               </button>
               {/* Outline accent — segments are the MusicFlow signature feature. */}
               <button
@@ -216,10 +218,11 @@ export default function ExpandedPlayer({
                   setExpanded(false);
                   navigate("/segments");
                 }}
-                className="inline-flex h-10 items-center gap-2 rounded-xl border-2 border-[var(--color-accent)] bg-transparent px-3 text-xs font-semibold uppercase tracking-wider text-[var(--color-accent)] transition hover:bg-[var(--color-accent)]/10"
+                title={t("nav.segments")}
+                className="inline-flex h-10 shrink-0 items-center gap-2 rounded-xl border-2 border-[var(--color-accent)] bg-transparent px-3 text-[10px] font-semibold uppercase tracking-wider text-[var(--color-accent)] transition hover:bg-[var(--color-accent)]/10"
               >
                 <Scissors className="h-3.5 w-3.5" strokeWidth={2.4} />
-                {t("nav.segments")}
+                <span className="sr-only">{t("nav.segments")}</span>
               </button>
               <div className="flex items-center gap-2">
                 <button

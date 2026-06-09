@@ -140,14 +140,15 @@ export default function HeroFeatured({
         <div className="mt-2 flex flex-wrap items-center gap-3">
           {heroTrack ? (
             <>
-              {/* Solid primary — dominant action. */}
+              {/* Solid primary — dominant action. Sized one step up vs the
+                  secondary CTAs below so it visually leads the row. */}
               <button
                 type="button"
                 onClick={() => playOne(heroTrack)}
-                className="inline-flex items-center gap-2 rounded-full bg-[var(--color-primary)] px-7 py-3 text-sm font-bold uppercase tracking-wider text-[var(--color-primary-contrast)] shadow-[0_10px_24px_rgba(0,0,0,0.35)] transition hover:scale-[1.03]"
+                className="inline-flex items-center gap-2.5 rounded-full bg-[var(--color-primary)] px-8 py-3.5 text-base font-bold uppercase tracking-wider text-[var(--color-primary-contrast)] shadow-[0_10px_24px_rgba(0,0,0,0.35)] transition hover:scale-[1.03]"
               >
                 <Play
-                  className="h-4 w-4"
+                  className="h-5 w-5"
                   strokeWidth={2.4}
                   fill="currentColor"
                 />
@@ -254,9 +255,9 @@ function PlaylistHero({
           <button
             type="button"
             onClick={onOpen}
-            className="inline-flex items-center gap-2 rounded-full bg-[var(--color-primary)] px-7 py-3 text-sm font-bold uppercase tracking-wider text-[var(--color-primary-contrast)] shadow-[0_10px_24px_rgba(0,0,0,0.35)] transition hover:scale-[1.03]"
+            className="inline-flex items-center gap-2.5 rounded-full bg-[var(--color-primary)] px-8 py-3.5 text-base font-bold uppercase tracking-wider text-[var(--color-primary-contrast)] shadow-[0_10px_24px_rgba(0,0,0,0.35)] transition hover:scale-[1.03]"
           >
-            <ListMusic className="h-4 w-4" strokeWidth={2.4} />
+            <ListMusic className="h-5 w-5" strokeWidth={2.4} />
             {t("home.openPlaylist", { defaultValue: "Abrir lista" })}
           </button>
           <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--color-border)] bg-[var(--color-surface)]/60 px-4 py-2 text-xs font-semibold text-[var(--color-muted)] backdrop-blur-sm">

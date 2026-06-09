@@ -35,7 +35,7 @@ function StudioCard({
     <button
       type="button"
       onClick={() => navigate(to)}
-      className="group flex flex-col gap-4 rounded-3xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6 text-left transition hover:-translate-y-1 hover:border-[var(--color-primary)] hover:shadow-[0_18px_40px_rgba(0,0,0,0.32)]"
+      className="group flex flex-col gap-4 rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-surface)] p-6 text-left transition hover:-translate-y-1 hover:border-[var(--color-primary)] hover:shadow-[0_18px_40px_rgba(0,0,0,0.32)]"
     >
       <div
         className="inline-flex h-12 w-12 items-center justify-center rounded-2xl"
@@ -60,13 +60,10 @@ function StudioCard({
           {description}
         </p>
       </div>
-      <span className="mt-auto inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-wider text-[var(--color-muted)] transition group-hover:text-[var(--color-primary)]">
-        <span>{/* navigated by parent button */ ""}Abrir</span>
-        <ArrowRight
-          className="h-3.5 w-3.5 transition group-hover:translate-x-0.5"
-          strokeWidth={2.4}
-        />
-      </span>
+      <ArrowRight
+        className="mt-auto h-4 w-4 text-[var(--color-muted)] transition group-hover:translate-x-1 group-hover:text-[var(--color-primary)]"
+        strokeWidth={2.4}
+      />
     </button>
   );
 }

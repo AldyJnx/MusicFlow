@@ -53,7 +53,7 @@ export default function NowPlayingPage() {
           style={{ backgroundColor: "var(--color-accent)" }}
         />
 
-        <div className="relative max-w-md rounded-3xl border border-[var(--color-border)] bg-[var(--color-surface)]/85 p-10 shadow-[0_24px_60px_rgba(0,0,0,0.32)] backdrop-blur-xl">
+        <div className="relative max-w-md rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-surface)]/85 p-10 shadow-[0_24px_60px_rgba(0,0,0,0.32)] backdrop-blur-xl">
           <div className="flex items-center justify-center gap-3">
             {showWave ? <Wave active={false} size={18} /> : null}
             <p className="text-[10px] font-semibold uppercase tracking-[0.32em] text-[var(--color-primary)]">

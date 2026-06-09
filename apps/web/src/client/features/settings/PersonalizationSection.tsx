@@ -105,7 +105,7 @@ export default function PersonalizationSection() {
         subtitle={t("settings.personalization.subtitle")}
       />
 
-      <div className="grid grid-cols-1 gap-5 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 xl:grid-cols-2">
+      <div className="grid grid-cols-1 gap-5 rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-surface)] p-5 xl:grid-cols-2">
         {/* Accent override */}
         <div className="flex flex-col gap-3 border-b border-[var(--color-border)] pb-5 xl:border-b-0 xl:border-r xl:pb-0 xl:pr-5">
           <FieldHeader
