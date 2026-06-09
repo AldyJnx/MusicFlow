@@ -50,6 +50,7 @@ model User {
   syncLogs      SyncLog[]
   conflictLogs  ConflictLog[]
   preferences   UserPreferences?
+  librarySaves  UserLibrarySave[]
 
   @@index([email, role])
   @@map("users")
@@ -156,6 +157,7 @@ model Track {
   segments       EQSegment[]
   aiRequests     AIRequest[]
   playHistory    PlayHistory[]
+  librarySaves   UserLibrarySave[]
 
   @@unique([userId, fileHash])
   @@index([artist])
@@ -201,6 +203,27 @@ model PlaylistTrack {
 
   @@unique([playlistId, trackId])
   @@map("playlist_tracks")
+}
+
+// ===========================================
+// LIBRARY SAVES - "❤ Liked Songs"
+// ===========================================
+
+// Join table: which catalog tracks the user has saved to "My Library".
+// Owners of a track are implicitly "saved" — these rows exist only for
+// tracks the user does NOT own (catalog tracks). The /library/saved
+// endpoint UNIONs the user's own tracks with the rows here.
+model UserLibrarySave {
+  userId  String   @map("user_id")
+  trackId String   @map("track_id")
+  savedAt DateTime @default(now()) @map("saved_at")
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  track Track @relation(fields: [trackId], references: [id], onDelete: Cascade)
+
+  @@id([userId, trackId])
+  @@index([userId, savedAt(sort: Desc)])
+  @@map("user_library_saves")
 }
 
 // ===========================================
