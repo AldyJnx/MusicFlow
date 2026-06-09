@@ -5,6 +5,7 @@ import PlaylistsPage from "../pages/PlaylistsPage";
 import SettingsPage from "../pages/SettingsPage";
 import BillingPage from "../pages/BillingPage";
 import HomePage from "../pages/HomePage";
+import ArtistPage from "../pages/ArtistPage";
 import Equalizer from "../features/equalizer/Equalizer";
 import Segments from "../features/segments/Segments";
 import Agent from "../features/ai-agent/Agent";
@@ -16,6 +17,7 @@ export default function ClientRoutes() {
       <Route path="/" element={<Navigate to="/inicio" replace />} />
       <Route path="/inicio" element={<HomePage />} />
       <Route path="/library" element={<LibraryPage />} />
+      <Route path="/artist/:name" element={<ArtistPage />} />
       <Route path="/playlists" element={<PlaylistsPage />} />
       <Route path="/equalizer" element={<Equalizer />} />
       <Route path="/now-playing" element={<NowPlayingPage />} />

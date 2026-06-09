@@ -333,7 +333,7 @@ export default function HomePage() {
                     key={artist}
                     name={artist}
                     onClick={() =>
-                      navigate(`/library?artist=${encodeURIComponent(artist)}`)
+                      navigate(`/artist/${encodeURIComponent(artist)}`)
                     }
                   />
                 ))}
