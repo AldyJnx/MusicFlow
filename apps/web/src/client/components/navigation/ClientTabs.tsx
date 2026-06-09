@@ -28,7 +28,7 @@ const TABS: TabSpec[] = [
     icon: <Library className="h-4 w-4" strokeWidth={2.2} />,
   },
   {
-    to: "/settings",
+    to: "/studio",
     labelKey: "tabs.studio",
     defaultLabel: "Estudio",
     icon: <SlidersHorizontal className="h-4 w-4" strokeWidth={2.2} />,

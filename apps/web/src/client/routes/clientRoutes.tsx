@@ -6,6 +6,7 @@ import SettingsPage from "../pages/SettingsPage";
 import BillingPage from "../pages/BillingPage";
 import HomePage from "../pages/HomePage";
 import ArtistPage from "../pages/ArtistPage";
+import StudioPage from "../pages/StudioPage";
 import Equalizer from "../features/equalizer/Equalizer";
 import Segments from "../features/segments/Segments";
 import Agent from "../features/ai-agent/Agent";
@@ -24,6 +25,7 @@ export default function ClientRoutes() {
       <Route path="/ai-mixer" element={<Agent />} />
       <Route path="/profile" element={<ProfileSettings />} />
       <Route path="/segments" element={<Segments />} />
+      <Route path="/studio" element={<StudioPage />} />
       <Route path="/settings" element={<SettingsPage />} />
       <Route path="/settings/billing" element={<BillingPage />} />
     </Routes>
