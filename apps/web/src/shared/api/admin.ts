@@ -30,6 +30,181 @@ export interface AdminUsersResponse {
   take: number;
 }
 
+export interface UserGrowthPoint {
+  date: string; // YYYY-MM-DD (UTC)
+  count: number;
+}
+
+export interface UserGrowth {
+  days: number;
+  total: number;
+  series: UserGrowthPoint[];
+}
+
+export interface CatalogBucket {
+  label: string;
+  count: number;
+}
+
+export interface CatalogDistribution {
+  totalTracks: number;
+  totalBytes: number;
+  totalDurationMs: number;
+  byGenre: CatalogBucket[];
+  byCodec: CatalogBucket[];
+}
+
+export type DeviceType =
+  | "DESKTOP_WIN"
+  | "DESKTOP_MAC"
+  | "DESKTOP_LINUX"
+  | "WEB"
+  | "MOBILE_ANDROID"
+  | "MOBILE_IOS";
+
+export type PlayDevice = "DESKTOP" | "WEB" | "MOBILE" | "AUTO";
+
+export interface AdminUserDevice {
+  id: string;
+  deviceType: DeviceType;
+  deviceName: string;
+  lastSyncAt: string | null;
+  isActive: boolean;
+  createdAt: string;
+}
+
+export interface AdminUserPreferences {
+  theme: string;
+  playerLayout: string;
+  libraryLayout: string;
+  crossfadeEnabled: boolean;
+  crossfadeDurationMs: number;
+  gaplessEnabled: boolean;
+  scrobbleEnabled: boolean;
+  scrobbleThreshold: number;
+  updatedAt: string;
+}
+
+export interface AdminUserDetail {
+  user: AdminUser & {
+    avatar: string | null;
+    updatedAt: string;
+    devices: AdminUserDevice[];
+    preferences: AdminUserPreferences | null;
+    _count: {
+      tracks: number;
+      playlists: number;
+      eqPresets: number;
+      eqConfigs: number;
+      eqSegments: number;
+      aiRequests: number;
+      playHistory: number;
+      devices: number;
+    };
+  };
+  recentPlays: {
+    id: string;
+    playedAt: string;
+    durationListenedMs: number;
+    completed: boolean;
+    skipped: boolean;
+    device: PlayDevice;
+    track: { id: string; title: string; artist: string } | null;
+  }[];
+  recentAiRequests: {
+    id: string;
+    prompt: string;
+    modelUsed: string;
+    tokensInput: number;
+    tokensOutput: number;
+    costUsd: string | number;
+    feedback: FeedbackValue | null;
+    wasAccepted: boolean;
+    responseTimeMs: number;
+    createdAt: string;
+  }[];
+  aiSpend: {
+    tokensInput: number;
+    tokensOutput: number;
+    costUsd: string;
+  };
+}
+
+export type ReverbPreset =
+  | "NONE"
+  | "SMALL_ROOM"
+  | "MEDIUM_ROOM"
+  | "LARGE_ROOM"
+  | "SMALL_HALL"
+  | "LARGE_HALL"
+  | "CATHEDRAL"
+  | "PLATE"
+  | "SPRING";
+
+export const REVERB_PRESETS: ReverbPreset[] = [
+  "NONE",
+  "SMALL_ROOM",
+  "MEDIUM_ROOM",
+  "LARGE_ROOM",
+  "SMALL_HALL",
+  "LARGE_HALL",
+  "CATHEDRAL",
+  "PLATE",
+  "SPRING",
+];
+
+export interface GlobalEqPreset {
+  id: string;
+  userId: string | null;
+  name: string;
+  isGlobal: boolean;
+  bands: number[];
+  bassBoost: number;
+  virtualizer: number;
+  loudness: number;
+  reverbPreset: ReverbPreset;
+  reverbAmount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface GlobalEqPresetPayload {
+  name: string;
+  bands: number[];
+  bassBoost?: number;
+  virtualizer?: number;
+  loudness?: number;
+  reverbPreset?: ReverbPreset;
+  reverbAmount?: number;
+}
+
+export interface AICostsReport {
+  days: number;
+  totals: {
+    requests: number;
+    costUsd: number;
+    tokensInput: number;
+    tokensOutput: number;
+    avgCostUsd: number;
+    avgLatencyMs: number;
+  };
+  daily: { date: string; cost: number; requests: number }[];
+  byModel: {
+    model: string;
+    requests: number;
+    costUsd: number;
+    tokensInput: number;
+    tokensOutput: number;
+  }[];
+  byUser: {
+    userId: string;
+    username: string;
+    email: string;
+    requests: number;
+    costUsd: number;
+  }[];
+}
+
 export interface AIFeedbackStats {
   total: number;
   good: number;
@@ -77,6 +252,40 @@ export async function listUsers(params?: {
   return data;
 }
 
+export async function listGlobalPresets(): Promise<GlobalEqPreset[]> {
+  const { data } = await api.get<GlobalEqPreset[]>("/admin/eq-presets");
+  return data;
+}
+
+export async function createGlobalPreset(
+  payload: GlobalEqPresetPayload,
+): Promise<GlobalEqPreset> {
+  const { data } = await api.post<GlobalEqPreset>("/admin/eq-presets", payload);
+  return data;
+}
+
+export async function updateGlobalPreset(
+  id: string,
+  payload: Partial<GlobalEqPresetPayload>,
+): Promise<GlobalEqPreset> {
+  const { data } = await api.patch<GlobalEqPreset>(
+    `/admin/eq-presets/${id}`,
+    payload,
+  );
+  return data;
+}
+
+export async function deleteGlobalPreset(id: string): Promise<void> {
+  await api.delete(`/admin/eq-presets/${id}`);
+}
+
+export async function getUserDetail(userId: string): Promise<AdminUserDetail> {
+  const { data } = await api.get<AdminUserDetail>(
+    `/admin/users/${userId}/detail`,
+  );
+  return data;
+}
+
 export async function updateUserRole(userId: string, role: UserRole) {
   const { data } = await api.patch(`/admin/users/${userId}/role`, { role });
   return data;
@@ -91,6 +300,27 @@ export async function updateUserPremium(userId: string, isPremium: boolean) {
 
 export async function deactivateUser(userId: string) {
   const { data } = await api.post(`/admin/users/${userId}/deactivate`);
+  return data;
+}
+
+export async function getUserGrowth(days = 30): Promise<UserGrowth> {
+  const { data } = await api.get<UserGrowth>("/admin/dashboard/growth", {
+    params: { days },
+  });
+  return data;
+}
+
+export async function getCatalogDistribution(): Promise<CatalogDistribution> {
+  const { data } = await api.get<CatalogDistribution>(
+    "/admin/dashboard/catalog",
+  );
+  return data;
+}
+
+export async function getAiCosts(days = 30): Promise<AICostsReport> {
+  const { data } = await api.get<AICostsReport>("/admin/ai/costs", {
+    params: { days },
+  });
   return data;
 }
 
