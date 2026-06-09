@@ -570,7 +570,7 @@ export default function Segments() {
   return (
     <ClientLayout>
       <section className="min-h-screen w-full bg-[var(--color-page)] px-4 py-6 text-[var(--color-text)] sm:px-6 xl:px-8">
-        <div className="mx-auto flex max-w-7xl flex-col gap-6 rounded-[28px] border border-[var(--color-border)] bg-[linear-gradient(180deg,var(--color-surface)_0%,var(--color-page)_100%)] p-6 shadow-[0_24px_80px_rgba(0,0,0,0.35)] sm:p-8">
+        <div className="mx-auto flex max-w-7xl flex-col gap-6 rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[linear-gradient(180deg,var(--color-surface)_0%,var(--color-page)_100%)] p-6 shadow-[0_24px_80px_rgba(0,0,0,0.35)] sm:p-8">
           <div className="flex flex-col gap-2">
             <h1 className="text-3xl font-extrabold tracking-tight text-[var(--color-text)] sm:text-[42px]">
               {t("segments.title")}

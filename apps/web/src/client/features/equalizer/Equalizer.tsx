@@ -157,7 +157,7 @@ function ScopeTabs({
             <span
               className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition ${
                 isActive
-                  ? "bg-[var(--color-primary)] text-[var(--color-page)]"
+                  ? "bg-[var(--color-primary)] text-[var(--color-primary-contrast)]"
                   : "bg-[var(--color-surface-alt)] text-[var(--color-muted)] group-hover:text-[var(--color-text)]"
               }`}
             >
@@ -243,7 +243,7 @@ export default function Equalizer() {
       <section className="min-h-screen w-full bg-[var(--color-page)] px-4 py-6 text-[var(--color-text)] sm:px-6 xl:px-8">
         <div className="mx-auto grid max-w-7xl gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(280px,320px)]">
           {/* MAIN COLUMN */}
-          <div className="flex flex-col gap-6 rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] p-6 shadow-[0_24px_80px_rgba(0,0,0,0.35)] sm:p-8">
+          <div className="flex flex-col gap-6 rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-surface)] p-6 shadow-[0_24px_80px_rgba(0,0,0,0.35)] sm:p-8">
             {/* Header */}
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
@@ -450,7 +450,7 @@ export default function Equalizer() {
           </div>
 
           {/* RIGHT: AI side panel */}
-          <aside className="flex flex-col gap-4 rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] p-6 shadow-[0_24px_80px_rgba(0,0,0,0.35)]">
+          <aside className="flex flex-col gap-4 rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-surface)] p-6 shadow-[0_24px_80px_rgba(0,0,0,0.35)]">
             <div className="flex items-center gap-2">
               <span className="relative">
                 <span className="absolute inset-0 -m-1 animate-ping rounded-full bg-[var(--color-accent)]/40" />
