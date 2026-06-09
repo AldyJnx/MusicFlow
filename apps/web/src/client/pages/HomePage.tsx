@@ -1,5 +1,6 @@
 import { ChevronLeft, ChevronRight, Music4, Play } from "lucide-react";
 import { useMemo, useRef } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 
@@ -9,6 +10,7 @@ import {
   useSavedCheckQuery,
   useLatestSavedCoverQuery,
 } from "../../shared/hooks/useLibrarySaves";
+import { listPlaylists, type Playlist } from "../../shared/api/playlists";
 import SaveButton from "../../shared/ui/SaveButton";
 import HeroFeatured from "../features/home/HeroFeatured";
 import { usePlayerStore, type PlayerTrack } from "../stores/playStore";
@@ -209,6 +211,19 @@ export default function HomePage() {
   const tracksQ = useTracksQuery({ take: 20 });
   const artistsQ = useArtistsQuery();
   const heroCoverQ = useLatestSavedCoverQuery();
+  // Used by the playlist hero variant. Cheap query, dedup'd by react-query
+  // with the sidebar's listPlaylists call.
+  const playlistsQ = useQuery({
+    queryKey: ["playlists"],
+    queryFn: listPlaylists,
+    staleTime: 30_000,
+  });
+  const featuredPlaylist = useMemo<Playlist | null>(() => {
+    const list = playlistsQ.data ?? [];
+    if (list.length === 0) return null;
+    // Prefer a playlist with a cover, fall back to first.
+    return list.find((p) => p.coverArt) ?? list[0];
+  }, [playlistsQ.data]);
 
   const tracks = tracksQ.data?.tracks ?? [];
   const artists = (artistsQ.data ?? []).slice(0, 12);
@@ -248,6 +263,7 @@ export default function HomePage() {
       <section className="min-h-screen w-full bg-[var(--color-page)] text-[var(--color-text)]">
         <HeroFeatured
           heroTrack={heroTrack}
+          featuredPlaylist={featuredPlaylist}
           saved={heroTrack ? savedSet.has(heroTrack.id) : false}
           toPlayerTrack={toPlayerTrack}
         />
