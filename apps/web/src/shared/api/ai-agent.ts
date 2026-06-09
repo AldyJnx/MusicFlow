@@ -67,10 +67,7 @@ export async function suggestEQ(payload: {
   playlistId?: string;
   context?: object;
 }): Promise<AISuggestResponse> {
-  const { data } = await api.post<AISuggestResponse>(
-    "/ai-agent/suggest",
-    payload,
-  );
+  const { data } = await api.post<AISuggestResponse>("/ai/suggest", payload);
   return data;
 }
 
@@ -79,7 +76,7 @@ export async function acceptSuggestion(
   appliedTo: AppliedTo,
   appliedId?: string,
 ): Promise<AIRequest> {
-  const { data } = await api.post<AIRequest>(`/ai-agent/${requestId}/accept`, {
+  const { data } = await api.post<AIRequest>(`/ai/${requestId}/accept`, {
     appliedTo,
     ...(appliedId !== undefined ? { appliedId } : {}),
   });
@@ -91,13 +88,10 @@ export async function provideFeedback(
   feedback: Feedback,
   comment?: string,
 ): Promise<AIRequest> {
-  const { data } = await api.post<AIRequest>(
-    `/ai-agent/${requestId}/feedback`,
-    {
-      feedback,
-      ...(comment !== undefined ? { comment } : {}),
-    },
-  );
+  const { data } = await api.post<AIRequest>(`/ai/${requestId}/feedback`, {
+    feedback,
+    ...(comment !== undefined ? { comment } : {}),
+  });
   return data;
 }
 
@@ -105,7 +99,7 @@ export async function getHistory(params?: {
   skip?: number;
   take?: number;
 }): Promise<AIRequestHistory> {
-  const { data } = await api.get<AIRequestHistory>("/ai-agent/history", {
+  const { data } = await api.get<AIRequestHistory>("/ai/history", {
     params,
   });
   return data;
