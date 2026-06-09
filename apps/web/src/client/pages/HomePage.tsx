@@ -1,5 +1,5 @@
 import { ChevronLeft, ChevronRight, Music4, Play } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 
@@ -10,6 +10,7 @@ import {
   useLatestSavedCoverQuery,
 } from "../../shared/hooks/useLibrarySaves";
 import SaveButton from "../../shared/ui/SaveButton";
+import HeroFeatured from "../features/home/HeroFeatured";
 import { usePlayerStore, type PlayerTrack } from "../stores/playStore";
 import type { Track } from "../../shared/api/tracks";
 
@@ -135,7 +136,7 @@ function TrackCard({
             e.stopPropagation();
             onPlay();
           }}
-          className="absolute bottom-2 right-2 inline-flex h-10 w-10 translate-y-2 items-center justify-center rounded-full bg-[var(--color-primary)] text-[var(--color-primary-contrast,#0b0b0b)] opacity-0 shadow-[0_8px_18px_rgba(0,0,0,0.35)] transition-all duration-200 hover:scale-105 group-hover:translate-y-0 group-hover:opacity-100"
+          className="absolute bottom-2 right-2 inline-flex h-10 w-10 translate-y-2 items-center justify-center rounded-full bg-[var(--color-primary)] text-[var(--color-primary-contrast)] opacity-0 shadow-[0_8px_18px_rgba(0,0,0,0.35)] transition-all duration-200 hover:scale-105 group-hover:translate-y-0 group-hover:opacity-100"
         >
           <Play className="h-4 w-4" strokeWidth={2.4} fill="currentColor" />
         </button>
@@ -230,13 +231,6 @@ export default function HomePage() {
     return withCover ?? tracks[0];
   }, [tracks, heroCoverQ.data]);
 
-  // Mount-only fade-in for the hero so navigating to /inicio feels less abrupt.
-  const [heroIn, setHeroIn] = useState(false);
-  useEffect(() => {
-    const id = window.setTimeout(() => setHeroIn(true), 50);
-    return () => window.clearTimeout(id);
-  }, []);
-
   function playOne(track: Track) {
     const playable = toPlayerTrack(track);
     if (playable) void playTrack(playable);
@@ -252,96 +246,11 @@ export default function HomePage() {
   return (
     <ClientLayout>
       <section className="min-h-screen w-full bg-[var(--color-page)] text-[var(--color-text)]">
-        {/* Hero — large artist art on the right that fades into the page bg */}
-        <header
-          className={`relative h-[360px] w-full overflow-hidden transition-opacity duration-500 ${
-            heroIn ? "opacity-100" : "opacity-0"
-          }`}
-        >
-          {heroTrack?.coverArt ? (
-            <>
-              <img
-                src={heroTrack.coverArt}
-                alt=""
-                aria-hidden="true"
-                className="absolute right-0 top-0 h-full w-3/5 object-cover"
-                style={{
-                  maskImage:
-                    "linear-gradient(to left, rgba(0,0,0,1) 30%, rgba(0,0,0,0) 90%)",
-                  WebkitMaskImage:
-                    "linear-gradient(to left, rgba(0,0,0,1) 30%, rgba(0,0,0,0) 90%)",
-                }}
-              />
-              <div className="absolute inset-0 bg-gradient-to-r from-[var(--color-page)] via-[var(--color-page)]/85 to-transparent" />
-              <div className="absolute inset-0 bg-gradient-to-t from-[var(--color-page)] via-transparent to-transparent" />
-            </>
-          ) : (
-            <div className="absolute inset-0 bg-[linear-gradient(135deg,var(--color-surface)_0%,var(--color-page)_60%)]" />
-          )}
-          <div className="relative flex h-full flex-col justify-end gap-4 px-8 pb-10 pt-16">
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--color-primary)]">
-              {heroTrack
-                ? t("home.heroEyebrow", {
-                    defaultValue: "Lo que más sonaba",
-                  })
-                : t("home.heroEmptyEyebrow", {
-                    defaultValue: "Bienvenido",
-                  })}
-            </p>
-            <h1 className="max-w-2xl text-5xl font-extrabold leading-tight tracking-tight text-[var(--color-text)] sm:text-6xl">
-              {heroTrack?.title ??
-                t("home.heroEmptyTitle", {
-                  defaultValue: "Empieza a construir tu biblioteca",
-                })}
-            </h1>
-            <p className="max-w-xl text-sm leading-relaxed text-[var(--color-muted)] sm:text-base">
-              {heroTrack
-                ? `${heroTrack.artist}${heroTrack.album ? ` · ${heroTrack.album}` : ""}`
-                : t("home.heroEmptyHint", {
-                    defaultValue:
-                      "Importá tus canciones o explorá el catálogo para empezar a guardar lo que más te gusta.",
-                  })}
-            </p>
-            <div className="mt-2 flex flex-wrap items-center gap-3">
-              {heroTrack ? (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => playOne(heroTrack)}
-                    className="inline-flex items-center gap-2 rounded-full bg-[var(--color-primary)] px-7 py-3 text-sm font-bold uppercase tracking-wider text-[var(--color-primary-contrast,#0b0b0b)] shadow-[0_10px_24px_rgba(0,0,0,0.35)] transition hover:scale-[1.03]"
-                  >
-                    <Play
-                      className="h-4 w-4"
-                      strokeWidth={2.4}
-                      fill="currentColor"
-                    />
-                    {t("home.play", { defaultValue: "Play" })}
-                  </button>
-                  <SaveButton
-                    trackId={heroTrack.id}
-                    saved={savedSet.has(heroTrack.id)}
-                    size="md"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => navigate("/library")}
-                    className="inline-flex items-center gap-2 rounded-full border-2 border-[var(--color-primary)] bg-transparent px-7 py-3 text-sm font-bold uppercase tracking-wider text-[var(--color-primary)] transition hover:bg-[var(--color-primary)]/10"
-                  >
-                    {t("home.explore", { defaultValue: "Explorar" })}
-                  </button>
-                </>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => navigate("/library")}
-                  className="inline-flex items-center gap-2 rounded-full bg-[var(--color-primary)] px-7 py-3 text-sm font-bold uppercase tracking-wider text-[var(--color-primary-contrast,#0b0b0b)] shadow-[0_10px_24px_rgba(0,0,0,0.35)] transition hover:scale-[1.03]"
-                >
-                  {t("home.explore", { defaultValue: "Explorar catálogo" })}
-                </button>
-              )}
-            </div>
-          </div>
-        </header>
+        <HeroFeatured
+          heroTrack={heroTrack}
+          saved={heroTrack ? savedSet.has(heroTrack.id) : false}
+          toPlayerTrack={toPlayerTrack}
+        />
 
         <div className="mx-auto flex max-w-7xl flex-col gap-10 px-8 py-10">
           {/* Popular Songs carousel */}
