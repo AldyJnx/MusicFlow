@@ -15,8 +15,10 @@ import { useTranslation } from "react-i18next";
 
 import { usePlayerStore } from "../../stores/playStore";
 import { useTrackSegments } from "../../../shared/hooks/useTrackSegments";
+import { usePreferences } from "../../../shared/hooks/usePreferences";
 import TimelineWithSegments from "./TimelineWithSegments";
 import EqBandIndicator from "./EqBandIndicator";
+import Wave from "./Wave";
 
 type MiniPlayerProps = {
   sidebarOffset?: number;
@@ -49,6 +51,12 @@ export default function MiniPlayer({ sidebarOffset = 0 }: MiniPlayerProps) {
   const openAiPrompt = usePlayerStore((s) => s.openAiPrompt);
 
   const { segments } = useTrackSegments(currentTrack?.id ?? null);
+  const { showWave, playerLayout } = usePreferences();
+
+  // `auto` maps to the existing layout (expanded). `compact` shrinks padding,
+  // cover, controls and hides the redundant expand button (clicking the bar
+  // already expands the player).
+  const isCompact = playerLayout === "compact";
 
   // The chip surfaces the segment under the playhead — this is one of the
   // core MusicFlow differentiators, so we keep it visible even in the
@@ -77,17 +85,32 @@ export default function MiniPlayer({ sidebarOffset = 0 }: MiniPlayerProps) {
       tabIndex={0}
       aria-label={t("player.expand", { defaultValue: "Open full player" })}
     >
-      <div className="mx-auto grid w-[min(100%,1120px)] cursor-pointer grid-cols-[minmax(0,1.1fr)_minmax(360px,1.4fr)_minmax(220px,1fr)] items-center gap-5 rounded-[24px] border border-[var(--color-border)] bg-[var(--color-surface)]/95 px-5 py-3.5 shadow-[0_20px_50px_rgba(0,0,0,0.32)] backdrop-blur-xl">
-        {/* Track info + segment chip */}
+      <div
+        className={`mx-auto grid w-[min(100%,1120px)] cursor-pointer grid-cols-[minmax(0,1.1fr)_minmax(360px,1.4fr)_minmax(220px,1fr)] items-center gap-5 rounded-[24px] border border-[var(--color-border)] bg-[var(--color-surface)]/95 shadow-[0_20px_50px_rgba(0,0,0,0.32)] backdrop-blur-xl ${
+          isCompact ? "px-3 py-2" : "px-5 py-3.5"
+        }`}
+      >
+        {/* Track info + segment chip + optional wave */}
         <div className="flex min-w-0 items-center gap-3">
+          {showWave ? (
+            <div className="shrink-0" onClick={preventExpand}>
+              <Wave active={isPlaying} size={isCompact ? 12 : 16} />
+            </div>
+          ) : null}
           {currentTrack.cover ? (
             <img
               src={currentTrack.cover}
               alt={currentTrack.title}
-              className="h-14 w-14 shrink-0 rounded-xl object-cover ring-1 ring-[var(--color-border)]"
+              className={`shrink-0 rounded-xl object-cover ring-1 ring-[var(--color-border)] ${
+                isCompact ? "h-10 w-10" : "h-14 w-14"
+              }`}
             />
           ) : (
-            <div className="h-14 w-14 shrink-0 rounded-xl bg-[var(--color-surface-alt)]" />
+            <div
+              className={`shrink-0 rounded-xl bg-[var(--color-surface-alt)] ${
+                isCompact ? "h-10 w-10" : "h-14 w-14"
+              }`}
+            />
           )}
           <div className="min-w-0 flex-1">
             <h2 className="truncate text-base font-semibold tracking-tight text-[var(--color-text)]">
@@ -136,7 +159,9 @@ export default function MiniPlayer({ sidebarOffset = 0 }: MiniPlayerProps) {
                 preventExpand(e);
                 void togglePlay();
               }}
-              className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-[var(--color-primary)] text-[var(--color-page)] shadow-[0_8px_20px_rgba(0,0,0,0.28)] transition hover:scale-[1.05]"
+              className={`inline-flex items-center justify-center rounded-full bg-[var(--color-primary)] text-[var(--color-page)] shadow-[0_8px_20px_rgba(0,0,0,0.28)] transition hover:scale-[1.05] ${
+                isCompact ? "h-8 w-8" : "h-10 w-10"
+              }`}
               aria-label={
                 isPlaying
                   ? t("player.pause", { defaultValue: "Pause" })
@@ -240,18 +265,20 @@ export default function MiniPlayer({ sidebarOffset = 0 }: MiniPlayerProps) {
             className="mini-player-slider h-1 w-20 cursor-pointer appearance-none rounded-full bg-[var(--color-surface-alt)]"
             aria-label={t("player.volume", { defaultValue: "Volume" })}
           />
-          <button
-            type="button"
-            onClick={(e) => {
-              preventExpand(e);
-              toggleExpanded();
-            }}
-            className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-alt)] transition hover:border-[var(--color-primary)] hover:text-[var(--color-text)]"
-            aria-label={t("player.expand", { defaultValue: "Expand" })}
-            title={t("player.expand", { defaultValue: "Expand" })}
-          >
-            <Maximize2 className="h-3.5 w-3.5" strokeWidth={2.3} />
-          </button>
+          {!isCompact ? (
+            <button
+              type="button"
+              onClick={(e) => {
+                preventExpand(e);
+                toggleExpanded();
+              }}
+              className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-alt)] transition hover:border-[var(--color-primary)] hover:text-[var(--color-text)]"
+              aria-label={t("player.expand", { defaultValue: "Expand" })}
+              title={t("player.expand", { defaultValue: "Expand" })}
+            >
+              <Maximize2 className="h-3.5 w-3.5" strokeWidth={2.3} />
+            </button>
+          ) : null}
         </div>
       </div>
 
