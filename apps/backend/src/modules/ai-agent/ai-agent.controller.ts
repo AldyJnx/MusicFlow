@@ -20,23 +20,32 @@ import {
 import { AiAgentService } from "./ai-agent.service";
 import { SuggestEQDto, AcceptSuggestionDto, ProvideFeedbackDto } from "./dto";
 import { JwtAuthGuard } from "@/common/guards/jwt-auth.guard";
-import { CurrentUser } from "@/common/decorators/current-user.decorator";
+import {
+  CurrentUser,
+  AuthUser,
+} from "@/common/decorators/current-user.decorator";
+import { QuotaService } from "@/modules/billing/quota.service";
 
 @ApiTags("ai-agent")
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
 @Controller("ai")
 export class AiAgentController {
-  constructor(private readonly aiAgentService: AiAgentService) {}
+  constructor(
+    private readonly aiAgentService: AiAgentService,
+    private readonly quotaService: QuotaService,
+  ) {}
 
   @Post("suggest")
   @ApiOperation({ summary: "Get AI EQ suggestion" })
   @ApiResponse({ status: 201, description: "EQ suggestion generated" })
-  async suggestEQ(
-    @CurrentUser("id") userId: string,
-    @Body() dto: SuggestEQDto,
-  ) {
-    return this.aiAgentService.suggestEQ(userId, dto);
+  @ApiResponse({
+    status: 403,
+    description: "Monthly AI request quota exceeded",
+  })
+  async suggestEQ(@CurrentUser() user: AuthUser, @Body() dto: SuggestEQDto) {
+    await this.quotaService.assertAiQuota(user);
+    return this.aiAgentService.suggestEQ(user.id, dto);
   }
 
   @Post(":requestId/accept")

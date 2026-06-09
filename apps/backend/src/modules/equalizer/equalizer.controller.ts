@@ -29,18 +29,25 @@ import {
   UpdateSegmentDto,
 } from "./dto";
 import { JwtAuthGuard } from "@/common/guards/jwt-auth.guard";
-import { CurrentUser } from "@/common/decorators/current-user.decorator";
+import { PremiumGuard } from "@/common/guards/premium.guard";
+import { RequirePremium } from "@/common/decorators/require-premium.decorator";
+import {
+  CurrentUser,
+  AuthUser,
+} from "@/common/decorators/current-user.decorator";
+import { QuotaService } from "@/modules/billing/quota.service";
 import { EQScopeType } from "@prisma/client";
 
 @ApiTags("equalizer")
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, PremiumGuard)
 @Controller("equalizer")
 export class EqualizerController {
   constructor(
     private readonly presetsService: PresetsService,
     private readonly configsService: ConfigsService,
     private readonly segmentsService: SegmentsService,
+    private readonly quotaService: QuotaService,
   ) {}
 
   // ============ PRESETS ============
@@ -60,11 +67,13 @@ export class EqualizerController {
   @Post("presets")
   @ApiOperation({ summary: "Create a custom preset" })
   @ApiResponse({ status: 201, description: "Preset created successfully" })
+  @ApiResponse({ status: 403, description: "Custom preset quota exceeded" })
   async createPreset(
-    @CurrentUser("id") userId: string,
+    @CurrentUser() user: AuthUser,
     @Body() dto: CreatePresetDto,
   ) {
-    return this.presetsService.create(userId, dto);
+    await this.quotaService.assertCustomPresetQuota(user);
+    return this.presetsService.create(user.id, dto);
   }
 
   @Patch("presets/:id")
@@ -160,8 +169,10 @@ export class EqualizerController {
   }
 
   @Post("segments")
-  @ApiOperation({ summary: "Create a new EQ segment" })
+  @RequirePremium()
+  @ApiOperation({ summary: "Create a new EQ segment (premium only)" })
   @ApiResponse({ status: 201, description: "Segment created successfully" })
+  @ApiResponse({ status: 403, description: "Premium subscription required" })
   @ApiResponse({ status: 404, description: "Track not found" })
   async createSegment(
     @CurrentUser("id") userId: string,
@@ -171,9 +182,11 @@ export class EqualizerController {
   }
 
   @Patch("segments/:id")
-  @ApiOperation({ summary: "Update an EQ segment" })
+  @RequirePremium()
+  @ApiOperation({ summary: "Update an EQ segment (premium only)" })
   @ApiParam({ name: "id", description: "Segment ID" })
   @ApiResponse({ status: 200, description: "Segment updated successfully" })
+  @ApiResponse({ status: 403, description: "Premium subscription required" })
   @ApiResponse({ status: 404, description: "Segment not found" })
   async updateSegment(
     @CurrentUser("id") userId: string,

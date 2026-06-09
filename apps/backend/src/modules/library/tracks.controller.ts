@@ -27,14 +27,21 @@ import {
 import { TracksService } from "./tracks.service";
 import { CreateTrackDto, UpdateTrackDto } from "./dto";
 import { JwtAuthGuard } from "@/common/guards/jwt-auth.guard";
-import { CurrentUser } from "@/common/decorators/current-user.decorator";
+import {
+  CurrentUser,
+  AuthUser,
+} from "@/common/decorators/current-user.decorator";
+import { QuotaService } from "@/modules/billing/quota.service";
 
 @ApiTags("library")
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
 @Controller("library/tracks")
 export class TracksController {
-  constructor(private readonly tracksService: TracksService) {}
+  constructor(
+    private readonly tracksService: TracksService,
+    private readonly quotaService: QuotaService,
+  ) {}
 
   @Get()
   @ApiOperation({ summary: "Get all tracks" })
@@ -108,8 +115,9 @@ export class TracksController {
     status: 409,
     description: "Track with this hash already exists",
   })
-  async create(@CurrentUser("id") userId: string, @Body() dto: CreateTrackDto) {
-    return this.tracksService.create(userId, dto);
+  async create(@CurrentUser() user: AuthUser, @Body() dto: CreateTrackDto) {
+    await this.quotaService.assertUploadQuota(user);
+    return this.tracksService.create(user.id, dto);
   }
 
   @Post("upload")
@@ -134,7 +142,7 @@ export class TracksController {
   @ApiResponse({ status: 201, description: "Track uploaded" })
   @ApiResponse({ status: 409, description: "Track already exists" })
   async upload(
-    @CurrentUser("id") userId: string,
+    @CurrentUser() user: AuthUser,
     @UploadedFile() file: Express.Multer.File,
     @Body("title") title?: string,
     @Body("artist") artist?: string,
@@ -143,7 +151,8 @@ export class TracksController {
     if (!file) {
       throw new BadRequestException("Missing file");
     }
-    return this.tracksService.uploadFromFile(userId, file, {
+    await this.quotaService.assertUploadQuota(user);
+    return this.tracksService.uploadFromFile(user.id, file, {
       title,
       artist,
       album,

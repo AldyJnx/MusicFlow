@@ -1,5 +1,7 @@
 // EQ Constants
-export const EQ_FREQUENCIES = [32, 64, 125, 250, 500, 1000, 2000, 4000, 8000, 16000] as const;
+export const EQ_FREQUENCIES = [
+  32, 64, 125, 250, 500, 1000, 2000, 4000, 8000, 16000,
+] as const;
 export const EQ_MIN_GAIN = -15;
 export const EQ_MAX_GAIN = 15;
 export const EQ_BANDS_COUNT = 10;
@@ -17,14 +19,32 @@ export const EQ_PRESETS = {
 } as const;
 
 // API Constants
-export const API_VERSION = 'v1';
+export const API_VERSION = "v1";
 export const DEFAULT_PAGE_SIZE = 20;
 export const MAX_PAGE_SIZE = 100;
 
 // Audio Constants
-export const SUPPORTED_AUDIO_FORMATS = ['mp3', 'flac', 'wav', 'm4a', 'ogg', 'aac'] as const;
+export const SUPPORTED_AUDIO_FORMATS = [
+  "mp3",
+  "flac",
+  "wav",
+  "m4a",
+  "ogg",
+  "aac",
+] as const;
 export const MAX_FILE_SIZE_MB = 50;
 
 // JWT Constants
-export const ACCESS_TOKEN_EXPIRY = '15m';
-export const REFRESH_TOKEN_EXPIRY = '7d';
+export const ACCESS_TOKEN_EXPIRY = "15m";
+export const REFRESH_TOKEN_EXPIRY = "7d";
+
+// Free Tier Limits
+export const FREE_LIMITS = {
+  uploadsTotal: 50,
+  aiRequestsPerMonth: 10,
+  customPresets: 5,
+} as const;
+
+export const PREMIUM_LIMITS = {
+  aiRequestsPerMonth: 200,
+} as const;

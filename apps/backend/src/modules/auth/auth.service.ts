@@ -17,6 +17,7 @@ export interface JwtPayload {
   sub: string;
   email: string;
   role: string;
+  isPremium: boolean;
 }
 
 export interface AuthTokens {
@@ -238,11 +239,13 @@ export class AuthService {
     id: string;
     email: string;
     role: string;
+    isPremium: boolean;
   }): AuthTokens {
     const payload: JwtPayload = {
       sub: user.id,
       email: user.email,
       role: user.role,
+      isPremium: user.isPremium,
     };
 
     return {

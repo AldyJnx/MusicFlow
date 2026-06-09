@@ -18,6 +18,7 @@ import { AnalyticsModule } from "./modules/analytics/analytics.module";
 import { SyncModule } from "./modules/sync/sync.module";
 import { PreferencesModule } from "./modules/preferences/preferences.module";
 import { AdminModule } from "./modules/admin/admin.module";
+import { BillingModule } from "./modules/billing/billing.module";
 
 @Module({
   imports: [
@@ -56,6 +57,7 @@ import { AdminModule } from "./modules/admin/admin.module";
     SyncModule,
     PreferencesModule,
     AdminModule,
+    BillingModule,
   ],
   controllers: [HealthController],
 })
