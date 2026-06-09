@@ -1,20 +1,21 @@
 import type { ReactNode } from "react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import ExpandedPlayer from "../features/player/ExpandedPlayer";
 import MiniPlayer from "../features/player/MiniPlayer";
 import EqDrawer from "../features/player/EqDrawer";
 import AIQuickPrompt from "../features/player/AIQuickPrompt";
-import Navbar from "../../shared/ui/navigation/Navbar";
-import Sidebar from "../../shared/ui/navigation/Sidebar";
-import { sidebarClient } from "../components/navigation/sidebarClient";
-import ClientSidebarFooter from "../components/navigation/ClientSidebarFooter";
+import Navbar, { type NavbarRef } from "../../shared/ui/navigation/Navbar";
+import ClientSidebar from "../components/navigation/ClientSidebar";
+import ImportModal from "../features/import/ImportModal";
 import { usePlayerStore } from "../stores/playStore";
 import { useSegmentEngineSync } from "../../shared/hooks/useTrackSegments";
 import { useAutoApplyEQ } from "../../shared/hooks/useAutoApplyEQ";
 
 export default function ClientLayout({ children }: { children: ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
-  const sidebarWidth = collapsed ? 96 : 236;
+  const [importOpen, setImportOpen] = useState(false);
+  const sidebarWidth = collapsed ? 88 : 300;
+  const navbarRef = useRef<NavbarRef>(null);
 
   // Keep the audio engine's segment scheduler in sync with the current track.
   // Mounted exactly once here so MiniPlayer/ExpandedPlayer mounts/unmounts
@@ -27,14 +28,14 @@ export default function ClientLayout({ children }: { children: ReactNode }) {
 
   return (
     <div className="flex min-h-screen bg-[var(--color-page)] text-[var(--color-text)]">
-      <Sidebar
-        items={sidebarClient}
+      <ClientSidebar
         collapsed={collapsed}
-        onToggleCollapse={() => setCollapsed((current) => !current)}
-        footer={<ClientSidebarFooter collapsed={collapsed} />}
+        onToggleCollapse={() => setCollapsed((c) => !c)}
+        onFocusSearch={() => navbarRef.current?.focusSearch()}
+        onOpenImport={() => setImportOpen(true)}
       />
       <div className="flex min-h-screen flex-1 flex-col">
-        <Navbar />
+        <Navbar ref={navbarRef} />
         <main className="flex-1">{children}</main>
         <ExpandedPlayer sidebarOffset={sidebarWidth} />
         <MiniPlayer sidebarOffset={sidebarWidth} />
@@ -45,6 +46,7 @@ export default function ClientLayout({ children }: { children: ReactNode }) {
           survive route changes. */}
       <EqDrawer />
       <AIQuickPrompt />
+      <ImportModal open={importOpen} onClose={() => setImportOpen(false)} />
     </div>
   );
 }
