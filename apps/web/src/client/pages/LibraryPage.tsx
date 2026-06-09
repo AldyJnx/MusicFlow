@@ -9,7 +9,7 @@ import {
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
-import { useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 
 import ClientLayout from "../layout/ClientLayout";
 import {
@@ -38,6 +38,43 @@ function formatMs(ms: number): string {
   return `${minutes}:${String(seconds).padStart(2, "0")}`;
 }
 
+/**
+ * Tile for the Artists tab. Uses the same gradient + initials pattern as
+ * HomePage's ArtistAvatar so the same artist looks identical across
+ * surfaces. Navigates to /artist/:name on click.
+ */
+function ArtistTile({ name, onClick }: { name: string; onClick: () => void }) {
+  let hue = 0;
+  for (let i = 0; i < name.length; i++) {
+    hue = (hue * 31 + name.charCodeAt(i)) % 360;
+  }
+  const initials = name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((p) => p[0]?.toUpperCase() ?? "")
+    .join("");
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="group flex cursor-pointer flex-col items-center gap-3 rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-surface-alt)] p-4 text-center transition hover:-translate-y-1 hover:border-[var(--color-primary)] hover:shadow-[0_18px_40px_rgba(0,0,0,0.32)]"
+    >
+      <div
+        className="flex h-20 w-20 items-center justify-center rounded-full text-lg font-bold text-white shadow-[0_10px_24px_rgba(0,0,0,0.32)] transition group-hover:scale-105"
+        style={{
+          background: `linear-gradient(135deg, hsl(${hue} 70% 50%) 0%, hsl(${(hue + 40) % 360} 65% 35%) 100%)`,
+        }}
+      >
+        {initials || "?"}
+      </div>
+      <p className="w-full truncate text-sm font-semibold text-[var(--color-text)] group-hover:text-[var(--color-primary)]">
+        {name}
+      </p>
+    </button>
+  );
+}
+
 // --- Skeleton row for loading state ---
 function SkeletonRow() {
   return (
@@ -61,6 +98,7 @@ function SkeletonRow() {
 export default function LibraryPage() {
   const { t } = useTranslation();
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const initialScope: LibraryScope =
     searchParams.get("scope") === "mylibrary" ? "mylibrary" : "catalog";
   const [scope, setScope] = useState<LibraryScope>(initialScope);
@@ -159,7 +197,7 @@ export default function LibraryPage() {
         <div className="mx-auto flex max-w-7xl flex-col gap-6">
           {/* --- Top row: scope switcher + import CTA --- */}
           <div className="flex items-center justify-between gap-3">
-            <div className="inline-flex rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-alt)] p-1">
+            <div className="inline-flex rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-surface-alt)] p-1">
               <button
                 type="button"
                 onClick={() => setScope("catalog")}
@@ -202,7 +240,7 @@ export default function LibraryPage() {
           </div>
 
           {/* --- Stat card: total tracks (live from API) --- */}
-          <article className="flex items-center justify-between rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-alt)] px-5 py-5">
+          <article className="flex items-center justify-between rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-surface-alt)] px-5 py-5">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--color-muted)]">
                 {scope === "catalog"
@@ -313,7 +351,7 @@ export default function LibraryPage() {
 
             {/* --- Tab content --- */}
             {activeTab === "songs" && (
-              <div className="overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-alt)]">
+              <div className="overflow-hidden rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-surface-alt)]">
                 {/* Table header */}
                 <div className="grid grid-cols-[58px_minmax(260px,1.8fr)_minmax(170px,1.1fr)_160px_90px_48px_48px] items-center gap-4 border-b border-[var(--color-border)] px-4 py-4 text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--color-muted)]">
                   <span>{t("library.table.number")}</span>
@@ -584,14 +622,13 @@ export default function LibraryPage() {
                 {artistsQuery.isSuccess && artists.length > 0 && (
                   <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
                     {artists.map((artist) => (
-                      <article
+                      <ArtistTile
                         key={artist}
-                        className="cursor-pointer rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-alt)] px-4 py-5 text-center transition hover:bg-[var(--color-surface)]"
-                      >
-                        <p className="truncate text-sm font-semibold text-[var(--color-text)]">
-                          {artist}
-                        </p>
-                      </article>
+                        name={artist}
+                        onClick={() =>
+                          navigate(`/artist/${encodeURIComponent(artist)}`)
+                        }
+                      />
                     ))}
                   </div>
                 )}
