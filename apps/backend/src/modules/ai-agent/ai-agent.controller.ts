@@ -9,6 +9,7 @@ import {
   HttpCode,
   HttpStatus,
 } from "@nestjs/common";
+import { Throttle, ThrottlerGuard } from "@nestjs/throttler";
 import {
   ApiTags,
   ApiOperation,
@@ -37,11 +38,20 @@ export class AiAgentController {
   ) {}
 
   @Post("suggest")
+  // Anti-burst on top of the monthly quota: 5 requests / 60s per IP. Stops
+  // a user from blowing through their 10/mo allowance in a single second
+  // (and stops attackers from holding the Claude SDK hostage).
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @ApiOperation({ summary: "Get AI EQ suggestion" })
   @ApiResponse({ status: 201, description: "EQ suggestion generated" })
   @ApiResponse({
     status: 403,
     description: "Monthly AI request quota exceeded",
+  })
+  @ApiResponse({
+    status: 429,
+    description: "Too many requests — slow down",
   })
   async suggestEQ(@CurrentUser() user: AuthUser, @Body() dto: SuggestEQDto) {
     await this.quotaService.assertAiQuota(user);

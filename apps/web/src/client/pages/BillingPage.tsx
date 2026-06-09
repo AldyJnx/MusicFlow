@@ -11,9 +11,14 @@ import {
 
 function formatResetDate(iso: string | undefined, lang: string): string | null {
   if (!iso) return null;
+  // Backend resetAt is the first ms of next-month UTC (e.g. 2026-07-01T00:00Z).
+  // toLocaleDateString uses the user's local TZ by default, which in the
+  // Americas slides it back to June 30. Pin the formatter to UTC so the
+  // displayed day matches the backend's accounting period.
   return new Date(iso).toLocaleDateString(lang, {
     day: "numeric",
     month: "long",
+    timeZone: "UTC",
   });
 }
 
