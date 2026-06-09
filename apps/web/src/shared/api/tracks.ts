@@ -104,3 +104,22 @@ export async function updateTrackLyrics(
 ): Promise<void> {
   await api.patch(`/library/tracks/${trackId}`, payload);
 }
+
+/**
+ * Upload a local audio file. The backend dedupes by SHA-256 (409 on dup),
+ * extracts metadata, stores in R2 and returns the Track. Counts toward the
+ * free-tier upload quota; a 403 with QUOTA_UPLOADS_EXCEEDED triggers the
+ * upsell modal via the axios interceptor.
+ */
+export async function uploadTrack(
+  file: File,
+  overrides?: { title?: string; artist?: string; album?: string },
+): Promise<Track> {
+  const form = new FormData();
+  form.append("file", file);
+  if (overrides?.title) form.append("title", overrides.title);
+  if (overrides?.artist) form.append("artist", overrides.artist);
+  if (overrides?.album) form.append("album", overrides.album);
+  const { data } = await api.post<Track>("/library/tracks/upload", form);
+  return data;
+}

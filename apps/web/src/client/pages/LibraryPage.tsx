@@ -1,4 +1,11 @@
-import { Clock3, Globe, Heart, Music4, MoreHorizontal } from "lucide-react";
+import {
+  Clock3,
+  Globe,
+  Heart,
+  Music4,
+  MoreHorizontal,
+  Upload,
+} from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
@@ -17,6 +24,7 @@ import {
 import { listGenres, type Track } from "../../shared/api/tracks";
 import { usePlayerStore, type PlayerTrack } from "../stores/playStore";
 import SaveButton from "../../shared/ui/SaveButton";
+import ImportModal from "../features/import/ImportModal";
 
 type LibraryScope = "catalog" | "mylibrary";
 type LibraryTab = "songs" | "albums" | "artists";
@@ -56,6 +64,7 @@ export default function LibraryPage() {
   const initialScope: LibraryScope =
     searchParams.get("scope") === "mylibrary" ? "mylibrary" : "catalog";
   const [scope, setScope] = useState<LibraryScope>(initialScope);
+  const [importOpen, setImportOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<LibraryTab>("songs");
   const [activeGenre, setActiveGenre] = useState<string | null>(null);
   const [searchInput, setSearchInput] = useState("");
@@ -148,37 +157,47 @@ export default function LibraryPage() {
     <ClientLayout>
       <section className="min-h-screen w-full bg-[var(--color-page)] px-6 py-6 text-[var(--color-text)]">
         <div className="mx-auto flex max-w-7xl flex-col gap-6">
-          {/* --- Scope switcher: Catálogo vs Mi biblioteca --- */}
-          <div className="inline-flex self-start rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-alt)] p-1">
+          {/* --- Top row: scope switcher + import CTA --- */}
+          <div className="flex items-center justify-between gap-3">
+            <div className="inline-flex rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-alt)] p-1">
+              <button
+                type="button"
+                onClick={() => setScope("catalog")}
+                className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition ${
+                  scope === "catalog"
+                    ? "bg-[var(--color-primary)] text-[var(--color-primary-contrast,#0b0b0b)] shadow"
+                    : "text-[var(--color-muted)] hover:text-[var(--color-text)]"
+                }`}
+              >
+                <Globe className="h-3.5 w-3.5" strokeWidth={2.3} />
+                {t("library.scope.catalog", { defaultValue: "Catálogo" })}
+              </button>
+              <button
+                type="button"
+                onClick={() => setScope("mylibrary")}
+                className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition ${
+                  scope === "mylibrary"
+                    ? "bg-[var(--color-primary)] text-[var(--color-primary-contrast,#0b0b0b)] shadow"
+                    : "text-[var(--color-muted)] hover:text-[var(--color-text)]"
+                }`}
+              >
+                <Heart
+                  className="h-3.5 w-3.5"
+                  strokeWidth={2.3}
+                  fill={scope === "mylibrary" ? "currentColor" : "none"}
+                />
+                {t("library.scope.myLibrary", {
+                  defaultValue: "Mi biblioteca",
+                })}
+              </button>
+            </div>
             <button
               type="button"
-              onClick={() => setScope("catalog")}
-              className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition ${
-                scope === "catalog"
-                  ? "bg-[var(--color-primary)] text-[var(--color-primary-contrast,#0b0b0b)] shadow"
-                  : "text-[var(--color-muted)] hover:text-[var(--color-text)]"
-              }`}
+              onClick={() => setImportOpen(true)}
+              className="inline-flex items-center gap-2 rounded-xl border border-[var(--color-primary)] bg-[var(--color-primary)]/10 px-4 py-2 text-sm font-semibold text-[var(--color-primary)] transition hover:bg-[var(--color-primary)]/20"
             >
-              <Globe className="h-3.5 w-3.5" strokeWidth={2.3} />
-              {t("library.scope.catalog", { defaultValue: "Catálogo" })}
-            </button>
-            <button
-              type="button"
-              onClick={() => setScope("mylibrary")}
-              className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition ${
-                scope === "mylibrary"
-                  ? "bg-[var(--color-primary)] text-[var(--color-primary-contrast,#0b0b0b)] shadow"
-                  : "text-[var(--color-muted)] hover:text-[var(--color-text)]"
-              }`}
-            >
-              <Heart
-                className="h-3.5 w-3.5"
-                strokeWidth={2.3}
-                fill={scope === "mylibrary" ? "currentColor" : "none"}
-              />
-              {t("library.scope.myLibrary", {
-                defaultValue: "Mi biblioteca",
-              })}
+              <Upload className="h-4 w-4" strokeWidth={2.3} />
+              {t("library.importCta", { defaultValue: "Importar canciones" })}
             </button>
           </div>
 
@@ -581,6 +600,7 @@ export default function LibraryPage() {
           </div>
         </div>
       </section>
+      <ImportModal open={importOpen} onClose={() => setImportOpen(false)} />
     </ClientLayout>
   );
 }
