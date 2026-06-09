@@ -19,6 +19,13 @@ interface PlayerState {
   currentTrack: PlayerTrack | null;
   queue: PlayerTrack[];
   queueIndex: number;
+  /**
+   * The playlist that owns the current queue, if playback started from one.
+   * Used by `useAutoApplyEQ` to resolve the EQ cascade with the playlist as
+   * a scope. `null` when playing from the catalog / "My Library" / single
+   * track click — those fall back to Track → Global.
+   */
+  currentPlaylistId: string | null;
   isPlaying: boolean;
   positionMs: number;
   durationMs: number;
@@ -33,7 +40,11 @@ interface PlayerState {
 
 interface PlayerActions {
   playTrack: (track: PlayerTrack) => Promise<void>;
-  playTrackList: (tracks: PlayerTrack[], startIndex?: number) => Promise<void>;
+  playTrackList: (
+    tracks: PlayerTrack[],
+    startIndex?: number,
+    opts?: { playlistId?: string | null },
+  ) => Promise<void>;
   pause: () => void;
   togglePlay: () => Promise<void>;
   next: () => Promise<void>;
@@ -97,6 +108,7 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
       currentTrack: null,
       queue: [],
       queueIndex: 0,
+      currentPlaylistId: null,
       isPlaying: false,
       positionMs: 0,
       durationMs: 0,
@@ -110,16 +122,26 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
 
       playTrack: async (track) => {
         initializePlayerEngine();
-        set({ currentTrack: track, queue: [track], queueIndex: 0 });
+        set({
+          currentTrack: track,
+          queue: [track],
+          queueIndex: 0,
+          currentPlaylistId: null,
+        });
         await loadAndPlay(track);
       },
 
-      playTrackList: async (tracks, startIndex = 0) => {
+      playTrackList: async (tracks, startIndex = 0, opts) => {
         if (tracks.length === 0) return;
         initializePlayerEngine();
         const index = Math.max(0, Math.min(startIndex, tracks.length - 1));
         const track = tracks[index];
-        set({ currentTrack: track, queue: tracks, queueIndex: index });
+        set({
+          currentTrack: track,
+          queue: tracks,
+          queueIndex: index,
+          currentPlaylistId: opts?.playlistId ?? null,
+        });
         await loadAndPlay(track);
       },
 
@@ -225,6 +247,7 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
         currentTrack: state.currentTrack,
         queue: state.queue,
         queueIndex: state.queueIndex,
+        currentPlaylistId: state.currentPlaylistId,
         volume: state.volume,
         muted: state.muted,
       }),
@@ -237,8 +260,11 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
 export const playerStore = {
   getState: () => usePlayerStore.getState(),
   playTrack: (track: PlayerTrack) => usePlayerStore.getState().playTrack(track),
-  playTrackList: (tracks: PlayerTrack[], startIndex?: number) =>
-    usePlayerStore.getState().playTrackList(tracks, startIndex),
+  playTrackList: (
+    tracks: PlayerTrack[],
+    startIndex?: number,
+    opts?: { playlistId?: string | null },
+  ) => usePlayerStore.getState().playTrackList(tracks, startIndex, opts),
   pause: () => usePlayerStore.getState().pause(),
   togglePlay: () => usePlayerStore.getState().togglePlay(),
   next: () => usePlayerStore.getState().next(),

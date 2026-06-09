@@ -2,6 +2,7 @@ import { Clock3, Globe, Heart, Music4, MoreHorizontal } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
+import { useSearchParams } from "react-router-dom";
 
 import ClientLayout from "../layout/ClientLayout";
 import {
@@ -51,7 +52,10 @@ function SkeletonRow() {
 
 export default function LibraryPage() {
   const { t } = useTranslation();
-  const [scope, setScope] = useState<LibraryScope>("catalog");
+  const [searchParams] = useSearchParams();
+  const initialScope: LibraryScope =
+    searchParams.get("scope") === "mylibrary" ? "mylibrary" : "catalog";
+  const [scope, setScope] = useState<LibraryScope>(initialScope);
   const [activeTab, setActiveTab] = useState<LibraryTab>("songs");
   const [activeGenre, setActiveGenre] = useState<string | null>(null);
   const [searchInput, setSearchInput] = useState("");

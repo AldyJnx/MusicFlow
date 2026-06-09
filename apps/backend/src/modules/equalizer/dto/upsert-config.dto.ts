@@ -5,7 +5,6 @@ import {
   IsArray,
   IsNumber,
   IsBoolean,
-  IsUUID,
   Min,
   Max,
   ArrayMinSize,
@@ -32,10 +31,11 @@ export class UpsertConfigDto {
   scopeId?: string;
 
   @ApiPropertyOptional({
-    description: "Preset ID to use (mutually exclusive with custom bands)",
+    description:
+      "Preset ID to use (mutually exclusive with custom bands). Accepts UUIDs for user presets and slugs like `global-rock` for the seeded global presets.",
   })
   @IsOptional()
-  @IsUUID()
+  @IsString()
   presetId?: string;
 
   @ApiPropertyOptional({

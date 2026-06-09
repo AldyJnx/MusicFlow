@@ -21,15 +21,25 @@ export class ConfigsService {
 
   async resolveForTrack(userId: string, trackId: string, playlistId?: string) {
     // Priority: segment > track > playlist > global
+    // NOTE: only filter PLAYLIST scope when a playlistId is supplied. With
+    // Prisma, `scopeId: undefined` skips the filter entirely, which would
+    // make the user's PLAYLIST config leak across non-playlist playback.
+    const scopeClauses: Array<{
+      scopeType: EQScopeType;
+      scopeId: string | null;
+    }> = [
+      { scopeType: "GLOBAL", scopeId: null },
+      { scopeType: "TRACK", scopeId: trackId },
+    ];
+    if (playlistId) {
+      scopeClauses.push({ scopeType: "PLAYLIST", scopeId: playlistId });
+    }
+
     const configs = await this.prisma.eQConfig.findMany({
       where: {
         userId,
         isActive: true,
-        OR: [
-          { scopeType: "GLOBAL", scopeId: null },
-          { scopeType: "PLAYLIST", scopeId: playlistId },
-          { scopeType: "TRACK", scopeId: trackId },
-        ],
+        OR: scopeClauses,
       },
       include: { preset: true },
       orderBy: { scopeType: "asc" },
