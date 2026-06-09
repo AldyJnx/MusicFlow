@@ -3,10 +3,8 @@ import type { ReactNode } from "react";
 import { useAuthStore } from "../stores/authStore";
 
 export function RequireAdmin({ children }: { children: ReactNode }) {
-  const { isAuthenticated, user } = useAuthStore((s) => ({
-    isAuthenticated: s.isAuthenticated,
-    user: s.user,
-  }));
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const user = useAuthStore((s) => s.user);
   const location = useLocation();
 
   if (!isAuthenticated) {

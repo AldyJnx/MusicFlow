@@ -1,100 +1,201 @@
-export type AppThemeId = 'sonic-dark' | 'neon-genesis' | 'estudio'
+export type AppThemeId =
+  | "midnight-neon"
+  | "ocean-teal"
+  | "sunset-coral"
+  | "aurora-light"
+  | "cosmic-purple";
+
+export type LegacyThemeId = "sonic-dark" | "neon-genesis" | "estudio";
+
+const LEGACY_ALIASES: Record<LegacyThemeId, AppThemeId> = {
+  "sonic-dark": "midnight-neon",
+  "neon-genesis": "cosmic-purple",
+  estudio: "aurora-light",
+};
 
 export type AppTheme = {
-  id: AppThemeId
-  name: string
-  description: string
+  id: AppThemeId;
+  /** i18n key under `themes.<id>.name`. Resolved at render time. */
+  nameKey: string;
+  /** i18n key under `themes.<id>.description`. Resolved at render time. */
+  descriptionKey: string;
+  /** Whether the theme is light-on-light (affects sliders, glass tints). */
+  mode: "dark" | "light";
+  /** Tailwind utility describing the small preview swatch (gradient). */
+  previewClassName: string;
+  /** Tailwind utilities for the swatch's color dots. */
+  dotsClassName: string[];
   colors: {
-    page: string
-    sidebar: string
-    navbar: string
-    surface: string
-    surfaceAlt: string
-    text: string
-    muted: string
-    border: string
-    primary: string
-    secondary: string
-    ctaStart: string
-    ctaEnd: string
-  }
-}
+    page: string;
+    sidebar: string;
+    navbar: string;
+    surface: string;
+    surfaceAlt: string;
+    text: string;
+    muted: string;
+    border: string;
+    primary: string;
+    secondary: string;
+    ctaStart: string;
+    ctaEnd: string;
+    /** Accent for "wow" moments — segment chips, AI sparkle, EQ glow. */
+    accent: string;
+  };
+};
 
-export const appThemes: Record<AppThemeId, AppTheme> = {
-  'sonic-dark': {
-    id: 'sonic-dark',
-    name: 'Sonic Dark',
-    description: 'Tema actual',
+export const APP_THEMES: AppTheme[] = [
+  {
+    id: "midnight-neon",
+    nameKey: "themes.midnight-neon.name",
+    descriptionKey: "themes.midnight-neon.description",
+    mode: "dark",
+    previewClassName: "bg-[linear-gradient(180deg,#0d1117_0%,#020409_100%)]",
+    dotsClassName: ["bg-[#22e58a]", "bg-[#10b981]"],
     colors: {
-      page: '#16161d',
-      sidebar: '#090c12',
-      navbar: '#15161d',
-      surface: '#1c1d24',
-      surfaceAlt: '#10182d',
-      text: '#f8fafc',
-      muted: '#7e8aa3',
-      border: '#232836',
-      primary: '#3b82f6',
-      secondary: '#1a2230',
-      ctaStart: '#5f87ff',
-      ctaEnd: '#3b82f6',
+      page: "#0b0f15",
+      sidebar: "#05080d",
+      navbar: "#0b0f15",
+      surface: "#11161f",
+      surfaceAlt: "#161d28",
+      text: "#f8fafc",
+      muted: "#7e8aa3",
+      border: "#1d2533",
+      primary: "#22e58a",
+      secondary: "#0e1a18",
+      ctaStart: "#22e58a",
+      ctaEnd: "#10b981",
+      accent: "#22e58a",
     },
   },
-  'neon-genesis': {
-    id: 'neon-genesis',
-    name: 'Neon Genesis',
-    description: 'Estilo enérgico',
+  {
+    id: "ocean-teal",
+    nameKey: "themes.ocean-teal.name",
+    descriptionKey: "themes.ocean-teal.description",
+    mode: "dark",
+    previewClassName: "bg-[linear-gradient(180deg,#1a3a3f_0%,#0a1f25_100%)]",
+    dotsClassName: ["bg-[#5eead4]", "bg-[#2dd4bf]"],
     colors: {
-      page: '#171320',
-      sidebar: '#120d1f',
-      navbar: '#1b152b',
-      surface: '#221a31',
-      surfaceAlt: '#311b4f',
-      text: '#f8fafc',
-      muted: '#a78bfa',
-      border: '#4c1d95',
-      primary: '#c084fc',
-      secondary: '#6d28d9',
-      ctaStart: '#5f87ff',
-      ctaEnd: '#3b82f6',
+      page: "#0e2024",
+      sidebar: "#091619",
+      navbar: "#0e2024",
+      surface: "#13282d",
+      surfaceAlt: "#1a3037",
+      text: "#e0f2f1",
+      muted: "#7fa6a8",
+      border: "#1f3a40",
+      primary: "#5eead4",
+      secondary: "#13282d",
+      ctaStart: "#5eead4",
+      ctaEnd: "#2dd4bf",
+      accent: "#5eead4",
     },
   },
-  estudio: {
-    id: 'estudio',
-    name: 'Estudio',
-    description: 'Claridad técnica',
+  {
+    id: "sunset-coral",
+    nameKey: "themes.sunset-coral.name",
+    descriptionKey: "themes.sunset-coral.description",
+    mode: "dark",
+    previewClassName: "bg-[linear-gradient(180deg,#1a1310_0%,#0b0807_100%)]",
+    dotsClassName: ["bg-[#fb923c]", "bg-[#f97316]"],
     colors: {
-      page: '#ecf2f8',
-      sidebar: '#dbe4f0',
-      navbar: '#edf3f8',
-      surface: '#f9fbfd',
-      surfaceAlt: '#d5e1ef',
-      text: '#142033',
-      muted: '#64748b',
-      border: '#c3cfdd',
-      primary: '#5d83d6',
-      secondary: '#dce7f4',
-      ctaStart: '#5f87ff',
-      ctaEnd: '#3b82f6',
+      page: "#100b09",
+      sidebar: "#080605",
+      navbar: "#100b09",
+      surface: "#181210",
+      surfaceAlt: "#1f1714",
+      text: "#fef3ec",
+      muted: "#a08679",
+      border: "#2a201c",
+      primary: "#fb923c",
+      secondary: "#1f1714",
+      ctaStart: "#fb923c",
+      ctaEnd: "#f97316",
+      accent: "#fb923c",
     },
   },
+  {
+    id: "aurora-light",
+    nameKey: "themes.aurora-light.name",
+    descriptionKey: "themes.aurora-light.description",
+    mode: "light",
+    previewClassName: "bg-[linear-gradient(180deg,#e9d8fd_0%,#dbeafe_100%)]",
+    dotsClassName: ["bg-[#8b5cf6]", "bg-[#6366f1]"],
+    colors: {
+      page: "#f5f3ff",
+      sidebar: "#ede9fe",
+      navbar: "#f5f3ff",
+      surface: "#ffffff",
+      surfaceAlt: "#ede9fe",
+      text: "#1e1b4b",
+      muted: "#6b7280",
+      border: "#ddd6fe",
+      primary: "#8b5cf6",
+      secondary: "#ede9fe",
+      ctaStart: "#a78bfa",
+      ctaEnd: "#7c3aed",
+      accent: "#8b5cf6",
+    },
+  },
+  {
+    id: "cosmic-purple",
+    nameKey: "themes.cosmic-purple.name",
+    descriptionKey: "themes.cosmic-purple.description",
+    mode: "dark",
+    previewClassName: "bg-[linear-gradient(180deg,#1e1b4b_0%,#0f0d2c_100%)]",
+    dotsClassName: ["bg-[#a78bfa]", "bg-[#ec4899]"],
+    colors: {
+      page: "#0f0d2c",
+      sidebar: "#0a0820",
+      navbar: "#0f0d2c",
+      surface: "#181438",
+      surfaceAlt: "#1f1a44",
+      text: "#ede9fe",
+      muted: "#9588c4",
+      border: "#312a64",
+      primary: "#a78bfa",
+      secondary: "#1f1a44",
+      ctaStart: "#a78bfa",
+      ctaEnd: "#ec4899",
+      accent: "#ec4899",
+    },
+  },
+];
+
+export const appThemes: Record<AppThemeId, AppTheme> = APP_THEMES.reduce(
+  (acc, theme) => {
+    acc[theme.id] = theme;
+    return acc;
+  },
+  {} as Record<AppThemeId, AppTheme>,
+);
+
+export const DEFAULT_THEME: AppThemeId = "midnight-neon";
+
+export function normalizeThemeId(value: string | null | undefined): AppThemeId {
+  if (!value) return DEFAULT_THEME;
+  if (value in LEGACY_ALIASES) return LEGACY_ALIASES[value as LegacyThemeId];
+  if (value in appThemes) return value as AppThemeId;
+  return DEFAULT_THEME;
 }
 
 export function applyTheme(themeId: AppThemeId) {
-  const theme = appThemes[themeId]
-  const root = document.documentElement
+  const theme = appThemes[themeId] ?? appThemes[DEFAULT_THEME];
+  const root = document.documentElement;
 
-  root.dataset.theme = themeId
-  root.style.setProperty('--color-page', theme.colors.page)
-  root.style.setProperty('--color-sidebar', theme.colors.sidebar)
-  root.style.setProperty('--color-navbar', theme.colors.navbar)
-  root.style.setProperty('--color-surface', theme.colors.surface)
-  root.style.setProperty('--color-surface-alt', theme.colors.surfaceAlt)
-  root.style.setProperty('--color-text', theme.colors.text)
-  root.style.setProperty('--color-muted', theme.colors.muted)
-  root.style.setProperty('--color-border', theme.colors.border)
-  root.style.setProperty('--color-primary', theme.colors.primary)
-  root.style.setProperty('--color-secondary', theme.colors.secondary)
-  root.style.setProperty('--color-cta-start', theme.colors.ctaStart)
-  root.style.setProperty('--color-cta-end', theme.colors.ctaEnd)
+  root.dataset.theme = theme.id;
+  root.dataset.themeMode = theme.mode;
+  root.style.colorScheme = theme.mode;
+  root.style.setProperty("--color-page", theme.colors.page);
+  root.style.setProperty("--color-sidebar", theme.colors.sidebar);
+  root.style.setProperty("--color-navbar", theme.colors.navbar);
+  root.style.setProperty("--color-surface", theme.colors.surface);
+  root.style.setProperty("--color-surface-alt", theme.colors.surfaceAlt);
+  root.style.setProperty("--color-text", theme.colors.text);
+  root.style.setProperty("--color-muted", theme.colors.muted);
+  root.style.setProperty("--color-border", theme.colors.border);
+  root.style.setProperty("--color-primary", theme.colors.primary);
+  root.style.setProperty("--color-secondary", theme.colors.secondary);
+  root.style.setProperty("--color-cta-start", theme.colors.ctaStart);
+  root.style.setProperty("--color-cta-end", theme.colors.ctaEnd);
+  root.style.setProperty("--color-accent", theme.colors.accent);
 }

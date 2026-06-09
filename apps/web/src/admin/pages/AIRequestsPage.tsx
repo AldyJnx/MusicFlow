@@ -1,12 +1,16 @@
 import { useState, useEffect, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { X, RefreshCw, Search, ChevronDown, CheckCircle2 } from "lucide-react";
-import AdminLayout from "../layout/AdminLayout";
 import {
+  getAiCosts,
   getAiFeedbackStats,
   getRecentAiRequests,
 } from "../../shared/api/admin";
-import type { AdminAIRequest, FeedbackValue } from "../../shared/api/admin";
+import type {
+  AdminAIRequest,
+  AICostsReport,
+  FeedbackValue,
+} from "../../shared/api/admin";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -29,6 +33,212 @@ interface EQSuggestion {
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
+
+function formatUsd(n: number, digits = 4): string {
+  if (!Number.isFinite(n)) return "$0";
+  if (n === 0) return "$0";
+  // Stretch to 6 digits for very small per-request costs.
+  const d = n < 0.01 ? Math.min(6, digits + 2) : digits;
+  return `$${n.toFixed(d)}`;
+}
+
+function formatTokens(n: number): string {
+  if (n < 1000) return String(n);
+  if (n < 1_000_000) return `${(n / 1000).toFixed(1)}k`;
+  return `${(n / 1_000_000).toFixed(2)}M`;
+}
+
+function CostsPanel({ report }: { report: AICostsReport }) {
+  const { totals, daily, byModel, byUser } = report;
+
+  // Cost sparkline (reuses growth pattern but on cost).
+  const maxCost = Math.max(0.0000001, ...daily.map((p) => p.cost));
+  const W = 700;
+  const H = 80;
+  const padX = 4;
+  const colW = (W - padX * 2) / Math.max(1, daily.length);
+  const barW = Math.max(2, colW * 0.7);
+
+  const maxModelCost = Math.max(0.0000001, ...byModel.map((m) => m.costUsd));
+  const maxUserCost = Math.max(0.0000001, ...byUser.map((u) => u.costUsd));
+
+  return (
+    <article className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-alt)] p-5">
+      <h2 className="mb-4 text-sm font-semibold uppercase tracking-widest text-[var(--color-muted)]">
+        Costos & uso IA · últimos {report.days} días
+      </h2>
+
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-6">
+        <Kpi label="Costo total" value={formatUsd(totals.costUsd)} />
+        <Kpi
+          label="Costo / req"
+          value={formatUsd(totals.avgCostUsd)}
+          subtitle={`${totals.requests} reqs`}
+        />
+        <Kpi label="Tokens in" value={formatTokens(totals.tokensInput)} />
+        <Kpi label="Tokens out" value={formatTokens(totals.tokensOutput)} />
+        <Kpi label="Latencia avg" value={`${totals.avgLatencyMs} ms`} />
+        <Kpi
+          label="Modelos"
+          value={byModel.length}
+          subtitle={`${byUser.length} usuarios`}
+        />
+      </div>
+
+      <div className="mt-6">
+        <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-[var(--color-muted)]">
+          Costo USD por día
+        </p>
+        {daily.length === 0 || totals.costUsd === 0 ? (
+          <p className="text-xs text-[var(--color-muted)]">
+            Aún no hay costos en este rango.
+          </p>
+        ) : (
+          <>
+            <svg
+              viewBox={`0 0 ${W} ${H}`}
+              role="img"
+              aria-label="Costo USD por día"
+              className="w-full"
+              preserveAspectRatio="none"
+            >
+              {daily.map((p, i) => {
+                const h = (p.cost / maxCost) * (H - 6);
+                const x = padX + i * colW + (colW - barW) / 2;
+                const y = H - h;
+                return (
+                  <rect
+                    key={p.date}
+                    x={x}
+                    y={y}
+                    width={barW}
+                    height={h}
+                    rx={2}
+                    className="fill-[var(--color-primary)]"
+                    opacity={p.cost === 0 ? 0.18 : 0.85}
+                  >
+                    <title>{`${p.date}: ${formatUsd(p.cost)} (${p.requests} reqs)`}</title>
+                  </rect>
+                );
+              })}
+            </svg>
+            <div className="mt-1 flex justify-between text-[10px] text-[var(--color-muted)]">
+              <span>{daily[0].date}</span>
+              <span>{daily[daily.length - 1].date}</span>
+            </div>
+          </>
+        )}
+      </div>
+
+      <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <div>
+          <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-[var(--color-muted)]">
+            Por modelo
+          </p>
+          {byModel.length === 0 ? (
+            <p className="text-xs text-[var(--color-muted)]">Sin requests.</p>
+          ) : (
+            <ul className="flex flex-col gap-2">
+              {byModel.map((m) => (
+                <li
+                  key={m.model}
+                  className="flex items-center gap-3 text-xs text-[var(--color-text)]"
+                >
+                  <span
+                    className="w-44 shrink-0 truncate font-mono text-[10px]"
+                    title={m.model}
+                  >
+                    {m.model}
+                  </span>
+                  <span className="relative h-2 flex-1 rounded-full bg-[var(--color-border)]">
+                    <span
+                      className="absolute inset-y-0 left-0 rounded-full bg-[var(--color-primary)]"
+                      style={{
+                        width: `${(m.costUsd / maxModelCost) * 100}%`,
+                      }}
+                    />
+                  </span>
+                  <span className="w-20 shrink-0 text-right font-mono tabular-nums text-[var(--color-muted)]">
+                    {formatUsd(m.costUsd)}
+                  </span>
+                  <span className="w-10 shrink-0 text-right tabular-nums text-[10px] text-[var(--color-muted)]">
+                    {m.requests}r
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        <div>
+          <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-[var(--color-muted)]">
+            Top usuarios por costo
+          </p>
+          {byUser.length === 0 ? (
+            <p className="text-xs text-[var(--color-muted)]">
+              Sin usuarios con consumo.
+            </p>
+          ) : (
+            <ul className="flex flex-col gap-2">
+              {byUser.map((u) => (
+                <li
+                  key={u.userId}
+                  className="flex items-center gap-3 text-xs text-[var(--color-text)]"
+                >
+                  <a
+                    href={`/admin/users/${u.userId}`}
+                    className="w-32 shrink-0 truncate font-semibold hover:text-[var(--color-primary)] hover:underline"
+                    title={u.email}
+                  >
+                    {u.username}
+                  </a>
+                  <span className="relative h-2 flex-1 rounded-full bg-[var(--color-border)]">
+                    <span
+                      className="absolute inset-y-0 left-0 rounded-full bg-[var(--color-primary)]"
+                      style={{
+                        width: `${(u.costUsd / maxUserCost) * 100}%`,
+                      }}
+                    />
+                  </span>
+                  <span className="w-20 shrink-0 text-right font-mono tabular-nums text-[var(--color-muted)]">
+                    {formatUsd(u.costUsd)}
+                  </span>
+                  <span className="w-10 shrink-0 text-right tabular-nums text-[10px] text-[var(--color-muted)]">
+                    {u.requests}r
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+    </article>
+  );
+}
+
+function Kpi({
+  label,
+  value,
+  subtitle,
+}: {
+  label: string;
+  value: string | number;
+  subtitle?: string;
+}) {
+  return (
+    <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-page)]/60 px-3 py-2">
+      <p className="text-[10px] font-semibold uppercase tracking-widest text-[var(--color-muted)]">
+        {label}
+      </p>
+      <p className="mt-1 text-lg font-semibold tabular-nums text-[var(--color-text)]">
+        {value}
+      </p>
+      {subtitle && (
+        <p className="text-[10px] text-[var(--color-muted)]">{subtitle}</p>
+      )}
+    </div>
+  );
+}
 
 function formatDate(iso: string): string {
   const d = new Date(iso);
@@ -428,6 +638,12 @@ export default function AIRequestsPage() {
     staleTime: 30_000,
   });
 
+  const costsQ = useQuery({
+    queryKey: ["admin", "ai-costs", 30],
+    queryFn: () => getAiCosts(30),
+    staleTime: 60_000,
+  });
+
   const requestsQ = useQuery({
     queryKey: ["admin", "ai-requests", { limit }],
     queryFn: () => getRecentAiRequests(limit),
@@ -475,7 +691,7 @@ export default function AIRequestsPage() {
   ];
 
   return (
-    <AdminLayout>
+    <>
       <section className="min-h-screen w-full bg-[var(--color-page)] px-4 py-6 text-[var(--color-text)] sm:px-6 xl:px-8">
         <div className="mx-auto flex max-w-[1400px] flex-col gap-6">
           {/* ── Header ── */}
@@ -521,6 +737,13 @@ export default function AIRequestsPage() {
                 colorClass="text-rose-400"
               />
             </div>
+          ) : null}
+
+          {/* ── Costos / uso panel ── */}
+          {costsQ.isLoading ? (
+            <div className="h-72 animate-pulse rounded-2xl bg-[var(--color-surface-alt)]" />
+          ) : costsQ.data ? (
+            <CostsPanel report={costsQ.data} />
           ) : null}
 
           {/* ── Filter toolbar ── */}
@@ -723,6 +946,6 @@ export default function AIRequestsPage() {
 
       {/* ── Detail Modal ── */}
       {selected && <DetailModal request={selected} onClose={handleClose} />}
-    </AdminLayout>
+    </>
   );
 }

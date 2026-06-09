@@ -1,4 +1,6 @@
 import { NavLink } from "react-router-dom";
+import { useTranslation } from "react-i18next";
+
 import musicFlowLogo from "../../assets/MusicFlowLogo.webp";
 import type { SidebarIconKey, SidebarProps } from "./types";
 
@@ -124,7 +126,10 @@ export default function Sidebar({
   items,
   collapsed = false,
   onToggleCollapse,
+  footer,
 }: SidebarProps) {
+  const { t } = useTranslation();
+
   return (
     <aside
       className={`sticky top-0 flex h-screen flex-col overflow-x-hidden overflow-y-auto border-r border-[var(--color-border)] bg-[var(--color-sidebar)] py-4 text-[var(--color-text)] transition-all duration-300 ${
@@ -160,7 +165,7 @@ export default function Sidebar({
             className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[var(--color-border)] bg-[var(--color-page)] text-[var(--color-muted)] transition hover:border-[var(--color-primary)] hover:text-[var(--color-text)] ${
               collapsed ? "" : ""
             }`}
-            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            aria-label={collapsed ? t("nav.expand") : t("nav.collapse")}
           >
             <svg
               viewBox="0 0 24 24"
@@ -192,124 +197,57 @@ export default function Sidebar({
                   : "text-[var(--color-muted)] hover:bg-[var(--color-page)]/50 hover:text-[var(--color-text)]"
               } ${collapsed ? "justify-center px-2 py-3" : "gap-3 px-4 py-4"}`
             }
-            title={collapsed ? item.label : undefined}
+            title={
+              collapsed
+                ? item.labelKey
+                  ? t(item.labelKey, { defaultValue: item.label })
+                  : item.label
+                : undefined
+            }
           >
-            {({ isActive }) => (
-              <>
-                <SidebarIcon
-                  iconKey={item.iconKey}
-                  active={isActive}
-                  danger={item.danger}
-                />
+            {({ isActive }) => {
+              const label = item.labelKey
+                ? t(item.labelKey, { defaultValue: item.label })
+                : item.label;
+              return (
+                <>
+                  <SidebarIcon
+                    iconKey={item.iconKey}
+                    active={isActive}
+                    danger={item.danger}
+                  />
 
-                {!collapsed ? (
-                  <>
-                    <span
-                      className={`flex-1 text-[15px] font-medium ${
-                        item.danger
-                          ? isActive
-                            ? "text-rose-300"
-                            : "text-rose-400"
-                          : isActive
-                            ? "text-[var(--color-primary)]"
-                            : "text-[var(--color-text)] group-hover:text-[var(--color-text)]"
-                      }`}
-                    >
-                      {item.label}
-                    </span>
+                  {!collapsed ? (
+                    <>
+                      <span
+                        className={`flex-1 text-[15px] font-medium ${
+                          item.danger
+                            ? isActive
+                              ? "text-rose-300"
+                              : "text-rose-400"
+                            : isActive
+                              ? "text-[var(--color-primary)]"
+                              : "text-[var(--color-text)] group-hover:text-[var(--color-text)]"
+                        }`}
+                      >
+                        {label}
+                      </span>
 
-                    {item.badge ? (
-                      <span className="inline-flex h-1.5 w-1.5 rounded-full bg-rose-400" />
-                    ) : null}
-                  </>
-                ) : item.badge ? (
-                  <span className="absolute right-3 top-3 inline-flex h-1.5 w-1.5 rounded-full bg-rose-400" />
-                ) : null}
-              </>
-            )}
+                      {item.badge ? (
+                        <span className="inline-flex h-1.5 w-1.5 rounded-full bg-rose-400" />
+                      ) : null}
+                    </>
+                  ) : item.badge ? (
+                    <span className="absolute right-3 top-3 inline-flex h-1.5 w-1.5 rounded-full bg-rose-400" />
+                  ) : null}
+                </>
+              );
+            }}
           </NavLink>
         ))}
       </nav>
 
-      <div className="mt-auto px-2 pt-6">
-        <div className="space-y-3">
-          <NavLink
-            to="/ai-mixer"
-            className={({ isActive }) =>
-              `flex w-full rounded-2xl border text-left transition ${
-                isActive
-                  ? "border-[var(--color-primary)] bg-[var(--color-surface-alt)]"
-                  : "border-[var(--color-border)] bg-[var(--color-page)]/60 hover:border-[var(--color-primary)]/50 hover:bg-[var(--color-page)]"
-              } ${collapsed ? "justify-center px-2 py-3" : "items-center justify-between px-4 py-3.5"}`
-            }
-          >
-            {({ isActive }) => (
-              <>
-                <span
-                  className={`text-[15px] font-semibold ${isActive ? "text-[var(--color-text)]" : "text-[var(--color-text)]"}`}
-                >
-                  {collapsed ? "AI" : "AI Mixer"}
-                </span>
-                {!collapsed ? (
-                  <span
-                    className={`text-[11px] ${isActive ? "text-[var(--color-primary)]" : "text-[var(--color-muted)]"}`}
-                  >
-                    ⌘K
-                  </span>
-                ) : null}
-              </>
-            )}
-          </NavLink>
-
-          <NavLink
-            to="/profile"
-            className={({ isActive }) =>
-              `flex rounded-2xl border transition ${
-                isActive
-                  ? "border-[var(--color-primary)] bg-[var(--color-surface-alt)]"
-                  : "border-[var(--color-border)] bg-[var(--color-page)]/60 hover:border-[var(--color-primary)]/50 hover:bg-[var(--color-page)]"
-              } ${collapsed ? "justify-center px-2 py-3" : "items-center gap-3 px-4 py-3.5"}`
-            }
-          >
-            {({ isActive }) => (
-              <>
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-fuchsia-500 to-violet-400 text-xs font-semibold text-white">
-                  IV
-                </div>
-
-                {!collapsed ? (
-                  <>
-                    <div className="min-w-0 flex-1">
-                      <p
-                        className={`truncate text-[15px] font-semibold ${isActive ? "text-[var(--color-text)]" : "text-[var(--color-text)]"}`}
-                      >
-                        Ines Varga
-                      </p>
-                      <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-400">
-                        Studio
-                      </p>
-                    </div>
-
-                    <span
-                      className={`transition ${isActive ? "text-[var(--color-primary)]" : "text-[var(--color-muted)] hover:text-[var(--color-text)]"}`}
-                    >
-                      <svg
-                        viewBox="0 0 24 24"
-                        fill="currentColor"
-                        className="h-4 w-4"
-                      >
-                        <circle cx="6" cy="12" r="1.6" />
-                        <circle cx="12" cy="12" r="1.6" />
-                        <circle cx="18" cy="12" r="1.6" />
-                      </svg>
-                    </span>
-                  </>
-                ) : null}
-              </>
-            )}
-          </NavLink>
-        </div>
-      </div>
+      {footer ? <div className="mt-auto px-2 pt-6">{footer}</div> : null}
     </aside>
   );
 }

@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import {
   Search,
   MoreHorizontal,
@@ -7,7 +9,6 @@ import {
   ChevronRight,
   Loader2,
 } from "lucide-react";
-import AdminLayout from "../layout/AdminLayout";
 import {
   listUsers,
   updateUserRole,
@@ -80,6 +81,7 @@ function ActionsPopover({
   onDeactivate: () => void;
   isPending: boolean;
 }) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -102,7 +104,7 @@ function ActionsPopover({
         type="button"
         onClick={() => setOpen((v) => !v)}
         className="rounded-lg p-1.5 text-[var(--color-muted)] transition hover:bg-[var(--color-border)] hover:text-[var(--color-text)]"
-        aria-label="Acciones"
+        aria-label={t("admin.users.actions")}
       >
         <MoreHorizontal className="h-4 w-4" />
       </button>
@@ -121,7 +123,7 @@ function ActionsPopover({
             {isPending ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
             ) : null}
-            Desactivar
+            {t("admin.users.deactivate")}
           </button>
         </div>
       )}
@@ -143,13 +145,14 @@ function UserRow({
   onPremiumToggle: (userId: string, current: boolean) => void;
   onDeactivate: (userId: string) => void;
 }) {
+  const { t } = useTranslation();
   const isThisUserMutating = mutatingUserId === user.id;
 
   function handleRoleChange(e: React.ChangeEvent<HTMLSelectElement>) {
     const newRole = e.target.value as UserRole;
     if (newRole === user.role) return;
     const confirmed = window.confirm(
-      `¿Cambiar el rol de "${user.username}" a ${newRole}?`,
+      t("admin.users.confirmRole", { username: user.username, role: newRole }),
     );
     if (!confirmed) return;
     onRoleChange(user.id, newRole);
@@ -157,7 +160,7 @@ function UserRow({
 
   function handleDeactivate() {
     const confirmed = window.confirm(
-      `¿Desactivar la cuenta de "${user.username}"? El usuario no podrá iniciar sesión.`,
+      t("admin.users.confirmDeactivate", { username: user.username }),
     );
     if (!confirmed) return;
     onDeactivate(user.id);
@@ -165,14 +168,24 @@ function UserRow({
 
   return (
     <tr className="border-b border-[var(--color-border)] text-sm transition hover:bg-[var(--color-border)]/20">
-      {/* Username */}
+      {/* Username (links to detail) */}
       <td className="px-4 py-3 font-semibold text-[var(--color-text)]">
-        {user.username}
+        <Link
+          to={`/admin/users/${user.id}`}
+          className="hover:text-[var(--color-primary)] hover:underline focus:outline-none focus:underline"
+        >
+          {user.username}
+        </Link>
       </td>
 
-      {/* Email */}
+      {/* Email (also links to detail for a bigger hit target) */}
       <td className="px-4 py-3 text-xs text-[var(--color-muted)]">
-        {user.email}
+        <Link
+          to={`/admin/users/${user.id}`}
+          className="hover:text-[var(--color-text)] focus:outline-none focus:text-[var(--color-text)]"
+        >
+          {user.email}
+        </Link>
       </td>
 
       {/* Rol */}
@@ -214,7 +227,9 @@ function UserRow({
               user.isActive ? "bg-green-400" : "bg-rose-400"
             }`}
           />
-          {user.isActive ? "Activo" : "Inactivo"}
+          {user.isActive
+            ? t("admin.users.statusActive")
+            : t("admin.users.statusInactive")}
         </span>
       </td>
 
@@ -247,6 +262,7 @@ function UserRow({
 
 // ─── Main page ─────────────────────────────────────────────────────────────────
 export default function UsersPage() {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
 
   const [search, setSearch] = useState("");
@@ -306,7 +322,7 @@ export default function UsersPage() {
     onMutate: ({ userId }) => setMutatingUserId(userId),
     onSettled: () => setMutatingUserId(null),
     onSuccess: () => invalidateAll(),
-    onError: () => showError("Error al actualizar el rol. Inténtalo de nuevo."),
+    onError: () => showError(t("admin.users.errorRole")),
   });
 
   // ── Premium mutation ──────────────────────────────────────────────────────────
@@ -321,8 +337,7 @@ export default function UsersPage() {
     onMutate: ({ userId }) => setMutatingUserId(userId),
     onSettled: () => setMutatingUserId(null),
     onSuccess: () => invalidateAll(),
-    onError: () =>
-      showError("Error al actualizar el estado premium. Inténtalo de nuevo."),
+    onError: () => showError(t("admin.users.errorPremium")),
   });
 
   // ── Deactivate mutation ───────────────────────────────────────────────────────
@@ -331,8 +346,7 @@ export default function UsersPage() {
     onMutate: (userId) => setMutatingUserId(userId),
     onSettled: () => setMutatingUserId(null),
     onSuccess: () => invalidateAll(),
-    onError: () =>
-      showError("Error al desactivar el usuario. Inténtalo de nuevo."),
+    onError: () => showError(t("admin.users.errorDeactivate")),
   });
 
   function handleRoleChange(userId: string, role: UserRole) {
@@ -354,146 +368,148 @@ export default function UsersPage() {
   const canGoNext = skip + take < total;
 
   return (
-    <AdminLayout>
-      <section className="min-h-screen w-full bg-[var(--color-page)] px-4 py-6 text-[var(--color-text)] sm:px-6 xl:px-8">
-        <div className="mx-auto flex max-w-7xl flex-col gap-6">
-          {/* ── Header ── */}
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <h1 className="text-2xl font-semibold tracking-tight text-[var(--color-text)]">
-                Usuarios
-              </h1>
-              <p className="mt-1 text-sm text-[var(--color-muted)]">
-                Gestiona los usuarios de la plataforma.
-              </p>
-            </div>
-            <span className="inline-flex items-center rounded-full border border-[var(--color-border)] bg-[var(--color-surface-alt)] px-3 py-1 text-xs font-semibold text-[var(--color-muted)]">
-              {total} usuarios
-            </span>
+    <section className="min-h-screen w-full bg-[var(--color-page)] px-4 py-6 text-[var(--color-text)] sm:px-6 xl:px-8">
+      <div className="mx-auto flex max-w-7xl flex-col gap-6">
+        {/* ── Header ── */}
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight text-[var(--color-text)]">
+              {t("admin.users.title")}
+            </h1>
+            <p className="mt-1 text-sm text-[var(--color-muted)]">
+              {t("admin.users.subtitle")}
+            </p>
           </div>
-
-          {/* ── Toolbar ── */}
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            {/* Search */}
-            <div className="relative min-w-[220px] max-w-sm flex-1">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-muted)]" />
-              <input
-                type="search"
-                placeholder="Buscar por nombre o email…"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-alt)] py-2 pl-9 pr-4 text-sm text-[var(--color-text)] placeholder:text-[var(--color-muted)] focus:border-[var(--color-primary)] focus:outline-none"
-              />
-            </div>
-
-            {/* Pagination */}
-            <div className="flex items-center gap-2 text-sm text-[var(--color-muted)]">
-              {total > 0 && (
-                <span className="text-xs">
-                  {skip + 1}–{Math.min(skip + take, total)} de {total}
-                </span>
-              )}
-              <button
-                type="button"
-                disabled={!canGoPrev}
-                onClick={() => setSkip((s) => Math.max(0, s - take))}
-                className="inline-flex items-center gap-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-alt)] px-3 py-1.5 text-xs font-medium transition hover:border-[var(--color-primary)] disabled:opacity-40 disabled:pointer-events-none"
-              >
-                <ChevronLeft className="h-3.5 w-3.5" />
-                Anterior
-              </button>
-              <button
-                type="button"
-                disabled={!canGoNext}
-                onClick={() => setSkip((s) => s + take)}
-                className="inline-flex items-center gap-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-alt)] px-3 py-1.5 text-xs font-medium transition hover:border-[var(--color-primary)] disabled:opacity-40 disabled:pointer-events-none"
-              >
-                Siguiente
-                <ChevronRight className="h-3.5 w-3.5" />
-              </button>
-            </div>
-          </div>
-
-          {/* ── Error banner (query) ── */}
-          {isError && (
-            <div className="flex items-center justify-between gap-4 rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-400">
-              <span>Error al cargar los usuarios.</span>
-              <button
-                type="button"
-                onClick={() => refetch()}
-                className="rounded-lg border border-rose-500/30 px-3 py-1 text-xs font-semibold transition hover:bg-rose-500/20"
-              >
-                Reintentar
-              </button>
-            </div>
-          )}
-
-          {/* ── Table card ── */}
-          <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-alt)] overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[860px] text-left text-sm">
-                <thead>
-                  <tr className="border-b border-[var(--color-border)]">
-                    {[
-                      "Usuario",
-                      "Email",
-                      "Rol",
-                      "Premium",
-                      "Activo",
-                      "Tracks",
-                      "Playlists",
-                      "Creado",
-                      "Acciones",
-                    ].map((col) => (
-                      <th
-                        key={col}
-                        className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-[var(--color-muted)]"
-                      >
-                        {col}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-
-                <tbody>
-                  {isLoading ? (
-                    Array.from({ length: 5 }).map((_, i) => (
-                      <SkeletonRow key={i} />
-                    ))
-                  ) : users.length === 0 ? (
-                    <tr>
-                      <td
-                        colSpan={9}
-                        className="px-4 py-12 text-center text-sm text-[var(--color-muted)]"
-                      >
-                        Sin resultados para esa búsqueda.
-                      </td>
-                    </tr>
-                  ) : (
-                    users.map((user) => (
-                      <UserRow
-                        key={user.id}
-                        user={user}
-                        mutatingUserId={mutatingUserId}
-                        onRoleChange={handleRoleChange}
-                        onPremiumToggle={handlePremiumToggle}
-                        onDeactivate={handleDeactivate}
-                      />
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* ── Mutation error toast ── */}
-          {mutationError && (
-            <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-400">
-              {mutationError}
-            </div>
-          )}
+          <span className="inline-flex items-center rounded-full border border-[var(--color-border)] bg-[var(--color-surface-alt)] px-3 py-1 text-xs font-semibold text-[var(--color-muted)]">
+            {t("admin.users.count", { count: total })}
+          </span>
         </div>
-      </section>
-    </AdminLayout>
+
+        {/* ── Toolbar ── */}
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          {/* Search */}
+          <div className="relative min-w-[220px] max-w-sm flex-1">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-muted)]" />
+            <input
+              type="search"
+              placeholder={t("admin.users.search")}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-alt)] py-2 pl-9 pr-4 text-sm text-[var(--color-text)] placeholder:text-[var(--color-muted)] focus:border-[var(--color-primary)] focus:outline-none"
+            />
+          </div>
+
+          {/* Pagination */}
+          <div className="flex items-center gap-2 text-sm text-[var(--color-muted)]">
+            {total > 0 && (
+              <span className="text-xs">
+                {t("admin.users.rangeOf", {
+                  from: skip + 1,
+                  to: Math.min(skip + take, total),
+                  total,
+                })}
+              </span>
+            )}
+            <button
+              type="button"
+              disabled={!canGoPrev}
+              onClick={() => setSkip((s) => Math.max(0, s - take))}
+              className="inline-flex items-center gap-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-alt)] px-3 py-1.5 text-xs font-medium transition hover:border-[var(--color-primary)] disabled:opacity-40 disabled:pointer-events-none"
+            >
+              <ChevronLeft className="h-3.5 w-3.5" />
+              {t("admin.users.previous")}
+            </button>
+            <button
+              type="button"
+              disabled={!canGoNext}
+              onClick={() => setSkip((s) => s + take)}
+              className="inline-flex items-center gap-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-alt)] px-3 py-1.5 text-xs font-medium transition hover:border-[var(--color-primary)] disabled:opacity-40 disabled:pointer-events-none"
+            >
+              {t("admin.users.next")}
+              <ChevronRight className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        </div>
+
+        {/* ── Error banner (query) ── */}
+        {isError && (
+          <div className="flex items-center justify-between gap-4 rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-400">
+            <span>{t("admin.users.loadError")}</span>
+            <button
+              type="button"
+              onClick={() => refetch()}
+              className="rounded-lg border border-rose-500/30 px-3 py-1 text-xs font-semibold transition hover:bg-rose-500/20"
+            >
+              {t("admin.users.retry")}
+            </button>
+          </div>
+        )}
+
+        {/* ── Table card ── */}
+        <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-alt)] overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[860px] text-left text-sm">
+              <thead>
+                <tr className="border-b border-[var(--color-border)]">
+                  {[
+                    "user",
+                    "email",
+                    "role",
+                    "premium",
+                    "status",
+                    "tracks",
+                    "playlists",
+                    "created",
+                    "actions",
+                  ].map((col) => (
+                    <th
+                      key={col}
+                      className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-[var(--color-muted)]"
+                    >
+                      {t(`admin.users.table.${col}`)}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+
+              <tbody>
+                {isLoading ? (
+                  Array.from({ length: 5 }).map((_, i) => (
+                    <SkeletonRow key={i} />
+                  ))
+                ) : users.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan={9}
+                      className="px-4 py-12 text-center text-sm text-[var(--color-muted)]"
+                    >
+                      {t("admin.users.empty")}
+                    </td>
+                  </tr>
+                ) : (
+                  users.map((user) => (
+                    <UserRow
+                      key={user.id}
+                      user={user}
+                      mutatingUserId={mutatingUserId}
+                      onRoleChange={handleRoleChange}
+                      onPremiumToggle={handlePremiumToggle}
+                      onDeactivate={handleDeactivate}
+                    />
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* ── Mutation error toast ── */}
+        {mutationError && (
+          <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-400">
+            {mutationError}
+          </div>
+        )}
+      </div>
+    </section>
   );
 }

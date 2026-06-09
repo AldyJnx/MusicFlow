@@ -1,0 +1,429 @@
+{
+  "nav": {
+    "library": "Biblioteca",
+    "playlists": "Listas",
+    "equalizer": "Ecualizador",
+    "segments": "Segmentos",
+    "settings": "Ajustes",
+    "nowPlaying": "Reproduciendo",
+    "search": "Buscar",
+    "stats": "Estadísticas",
+    "lyrics": "Letras",
+    "expand": "Expandir menú",
+    "collapse": "Contraer menú"
+  },
+  "settings": {
+    "title": "Ajustes",
+    "themes": {
+      "title": "Temas Visuales",
+      "subtitle": "Elige la apariencia que mejor se adapte a tu sesión de escucha"
+    },
+    "language": {
+      "title": "Idioma",
+      "subtitle": "Selecciona el idioma de la interfaz",
+      "es": "Español",
+      "en": "Inglés"
+    },
+    "audio": {
+      "title": "Opciones de Audio",
+      "streamingQuality": "Calidad de Streaming",
+      "streamingQualityDesc": "Define el bitrate de la transmisión",
+      "premium": "Premium (320 kbps)",
+      "normalize": "Normalizar Volumen",
+      "normalizeDesc": "Mismo nivel para todas las pistas"
+    },
+    "playback": {
+      "title": "Preferencias de Reproducción",
+      "crossfade": "Transición (Crossfade)",
+      "crossfadeDesc": "Superposición entre canciones",
+      "gapless": "Reproducción sin espacios",
+      "gaplessDesc": "Para álbumes conceptuales"
+    },
+    "engine": {
+      "title": "Motor de Audio Avanzado",
+      "description": "Ajusta la salida de audio de bajo nivel para interfaces profesionales.",
+      "configure": "Configurar ASIO / CoreAudio",
+      "reset": "Restaurar valores de fábrica"
+    }
+  },
+  "themes": {
+    "midnight-neon": {
+      "name": "Midnight Neon",
+      "description": "Negro profundo con acento verde neón"
+    },
+    "ocean-teal": {
+      "name": "Ocean Teal",
+      "description": "Glass nocturno turquesa y aguamarina"
+    },
+    "sunset-coral": {
+      "name": "Sunset Coral",
+      "description": "Energético naranja sobre fondo oscuro"
+    },
+    "aurora-light": {
+      "name": "Aurora Light",
+      "description": "Claridad técnica con gradientes lila"
+    },
+    "cosmic-purple": {
+      "name": "Cosmic Purple",
+      "description": "Azul profundo con violeta cósmico"
+    }
+  },
+  "navbar": {
+    "searchPlaceholder": "Buscar música, artistas…",
+    "notifications": "Notificaciones"
+  },
+  "admin": {
+    "layout": {
+      "panel": "Panel de Admin",
+      "logout": "Salir",
+      "preferences": "Preferencias",
+      "language": "Idioma",
+      "theme": "Tema"
+    },
+    "nav": {
+      "dashboard": "Panel",
+      "users": "Usuarios",
+      "eqPresets": "Presets EQ",
+      "aiRequests": "Peticiones IA",
+      "backToClient": "Volver al cliente"
+    },
+    "dashboard": {
+      "title": "Panel de control",
+      "subtitle": "Resumen general de la plataforma MusicFlow.",
+      "error": "No se pudo cargar la información del panel. Verifica la conexión con el servidor.",
+      "retry": "Reintentar",
+      "totalUsers": "Usuarios totales",
+      "premiumSubtitle": "{{premium}} premium · {{recent}} nuevos esta semana",
+      "tracks": "Pistas",
+      "playlists": "Listas",
+      "aiRequests": "Peticiones IA",
+      "aiSatisfaction": "Satisfacción IA",
+      "aiSatisfactionSubtitle": "{{good}} positivos / {{bad}} negativos / {{neutral}} neutrales = {{total}} total",
+      "premiumConversions": "Conversiones premium",
+      "premiumConversionsSubtitle": "{{premium}} de {{total}} usuarios",
+      "feedbackTitle": "Distribución de feedback IA",
+      "feedbackEmpty": "Aún no hay feedback registrado.",
+      "feedbackPositive": "Positivo",
+      "feedbackNeutral": "Neutral",
+      "feedbackNegative": "Negativo",
+      "growthTitle": "Crecimiento de usuarios",
+      "growthEmpty": "Aún no hay registros de usuarios.",
+      "growthNewLast": "nuevos en los últimos {{days}} días",
+      "growthError": "No se pudo cargar la serie.",
+      "catalogTitle": "Distribución del catálogo",
+      "catalogEmpty": "Aún no hay contenido registrado.",
+      "catalogTotal": "total",
+      "catalogTracks": "pistas",
+      "catalogOnDisk": "en disco",
+      "catalogOfAudio": "de audio",
+      "catalogByGenre": "Por género",
+      "catalogByCodec": "Por códec",
+      "catalogNoGenres": "Sin géneros etiquetados.",
+      "catalogNoCodecs": "Sin códecs registrados.",
+      "catalogError": "No se pudo cargar la distribución."
+    },
+    "users": {
+      "title": "Usuarios",
+      "subtitle": "Gestiona los usuarios de la plataforma.",
+      "count": "{{count}} usuarios",
+      "search": "Buscar por nombre o email…",
+      "previous": "Anterior",
+      "next": "Siguiente",
+      "rangeOf": "{{from}}–{{to}} de {{total}}",
+      "loadError": "Error al cargar los usuarios.",
+      "retry": "Reintentar",
+      "table": {
+        "user": "Usuario",
+        "email": "Email",
+        "role": "Rol",
+        "premium": "Premium",
+        "status": "Activo",
+        "tracks": "Pistas",
+        "playlists": "Listas",
+        "created": "Creado",
+        "actions": "Acciones"
+      },
+      "statusActive": "Activo",
+      "statusInactive": "Inactivo",
+      "actions": "Acciones",
+      "deactivate": "Desactivar",
+      "empty": "Sin resultados para esa búsqueda.",
+      "confirmRole": "¿Cambiar el rol de \"{{username}}\" a {{role}}?",
+      "confirmDeactivate": "¿Desactivar la cuenta de \"{{username}}\"? El usuario no podrá iniciar sesión.",
+      "errorRole": "Error al actualizar el rol. Inténtalo de nuevo.",
+      "errorPremium": "Error al actualizar el estado premium. Inténtalo de nuevo.",
+      "errorDeactivate": "Error al desactivar el usuario. Inténtalo de nuevo."
+    },
+    "userDetail": {
+      "backToUsers": "Volver a usuarios",
+      "missingId": "Falta el id del usuario en la URL.",
+      "deactivate": "Desactivar",
+      "inactive": "Inactivo",
+      "active": "Activo",
+      "confirmDeactivate": "¿Desactivar a {{username}}? No se podrá iniciar sesión hasta reactivarlo.",
+      "loadError": "No se pudo cargar el usuario.",
+      "retry": "Reintentar",
+      "createdOn": "alta {{date}}",
+      "role": "Rol",
+      "premium": "Premium",
+      "counts": {
+        "tracks": "Pistas",
+        "playlists": "Listas",
+        "eqPresets": "Presets EQ",
+        "eqConfigs": "Configs EQ",
+        "segments": "Segmentos",
+        "aiReqs": "Peticiones IA",
+        "plays": "Reproducciones",
+        "devices": "Dispositivos"
+      },
+      "sections": {
+        "devices": "Dispositivos",
+        "preferences": "Preferencias",
+        "recentPlays": "Últimas reproducciones",
+        "aiUsage": "Uso de IA"
+      },
+      "noDevices": "No hay dispositivos registrados.",
+      "lastSync": "Último sync",
+      "noPreferences": "Sin preferencias guardadas.",
+      "noPlays": "Aún no ha reproducido música.",
+      "noAi": "Sin peticiones al agente IA.",
+      "deletedTrack": "Pista eliminada",
+      "skipped": "saltada",
+      "completed": "completa",
+      "theme": "Tema",
+      "player": "Reproductor",
+      "library": "Biblioteca",
+      "crossfade": "Crossfade",
+      "gapless": "Sin espacios",
+      "scrobble": "Scrobble",
+      "off": "off",
+      "on": "on",
+      "tokensIn": "Tokens entrada",
+      "tokensOut": "Tokens salida",
+      "costUsd": "Costo USD"
+    },
+    "ai": {
+      "title": "Peticiones IA",
+      "subtitle": "Historial de prompts del agente y feedback.",
+      "search": "Buscar por prompt o usuario…",
+      "feedbackAll": "Todo el feedback",
+      "feedbackGood": "Positivo",
+      "feedbackBad": "Negativo",
+      "feedbackNeutral": "Neutral",
+      "acceptedAll": "Aceptación",
+      "acceptedYes": "Aceptadas",
+      "acceptedNo": "Rechazadas",
+      "table": {
+        "createdAt": "Fecha",
+        "user": "Usuario",
+        "prompt": "Prompt",
+        "model": "Modelo",
+        "tokens": "Tokens",
+        "cost": "Costo",
+        "feedback": "Feedback",
+        "accepted": "Aceptada"
+      },
+      "empty": "Sin peticiones que coincidan.",
+      "loadError": "No se pudieron cargar las peticiones."
+    },
+    "eqPresets": {
+      "title": "Presets EQ globales",
+      "subtitle": "Estos presets aparecen para todos los usuarios al lado de los suyos propios. Edita las bandas o crea uno nuevo.",
+      "create": "Crear preset global",
+      "createTitle": "Nuevo preset global",
+      "name": "Nombre",
+      "namePlaceholder": "ej. Studio Reference",
+      "bandLabel": "Banda {{hz}} Hz",
+      "bassBoost": "Bass Boost",
+      "virtualizer": "Virtualizer",
+      "loudness": "Loudness",
+      "reverbAmount": "Reverb amt",
+      "reverbType": "Tipo de reverb",
+      "save": "Guardar",
+      "cancel": "Cancelar",
+      "create2": "Crear",
+      "discard": "Descartar",
+      "discardTooltip": "Descartar cambios",
+      "deleteConfirm": "¿Eliminar el preset global \"{{name}}\"? Afectará a todos los usuarios.",
+      "bandsSummary": "bandas {{values}}",
+      "loadError": "No se pudo cargar la lista de presets.",
+      "loading": "Cargando presets…",
+      "saveError": "Error al guardar",
+      "createError": "Error al crear"
+    }
+  },
+  "library": {
+    "title": "Tu Biblioteca",
+    "totalTracks": "Total Canciones",
+    "eqApplied": "EQ Aplicados",
+    "segmentsDefined": "Segmentos Definidos",
+    "tabs": {
+      "songs": "Canciones",
+      "albums": "Álbumes",
+      "artists": "Artistas"
+    },
+    "searchPlaceholder": "Buscar canciones…",
+    "genres": "Géneros",
+    "all": "Todas",
+    "table": {
+      "number": "#",
+      "title": "Título",
+      "album": "Álbum",
+      "eqStatus": "Estado EQ",
+      "duration": "Duración"
+    },
+    "catalogBadge": "Catálogo",
+    "loadError": "No pudimos cargar tu biblioteca. Intenta de nuevo.",
+    "retry": "Reintentar",
+    "empty": "Tu biblioteca está vacía."
+  },
+  "playlists": {
+    "title": "Mis playlists",
+    "subtitle": "Organiza tu universo sonoro. Crea colecciones y aplícales un EQ propio.",
+    "create": "Crear playlist",
+    "createTitle": "Nueva playlist",
+    "createError": "No se pudo crear la playlist. Intenta de nuevo.",
+    "delete": "Eliminar playlist",
+    "deleteConfirm": "¿Eliminar la playlist \"{{name}}\"?",
+    "emptyTitle": "Aún no tienes playlists",
+    "emptyHint": "Crea tu primera lista para empezar a organizar tu música.",
+    "loadError": "No pudimos cargar tus playlists. Intenta de nuevo.",
+    "retry": "Reintentar",
+    "trackCount_one": "{{count}} canción",
+    "trackCount_other": "{{count}} canciones",
+    "fields": {
+      "name": "Nombre",
+      "namePlaceholder": "Ej. Sesión de trabajo",
+      "description": "Descripción",
+      "descriptionPlaceholder": "Opcional"
+    }
+  },
+  "common": {
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "loading": "Cargando…",
+    "active": "Activo",
+    "close": "Cerrar",
+    "back": "Volver"
+  },
+  "eq": {
+    "title": "Ecualizador",
+    "subtitle": "Ajusta el sonido en cuatro niveles: global, lista, pista o segmento.",
+    "reset": "Restablecer",
+    "scope": {
+      "global": "Global",
+      "playlist": "Lista",
+      "track": "Pista",
+      "segment": "Segmento",
+      "globalDesc": "Aplica a todo el reproductor",
+      "playlistDesc": "Solo a esta lista",
+      "trackDesc": "Solo a esta canción",
+      "segmentDesc": "Solo al segmento activo"
+    },
+    "presets": "Presets",
+    "noPresets": "Sin presets guardados.",
+    "bands": "Bandas de Frecuencia",
+    "effects": "Efectos",
+    "bassBoost": "Realce de Graves",
+    "virtualizer": "Virtualizador",
+    "loudness": "Loudness",
+    "reverbPreset": "Preset de Reverb",
+    "reverbAmount": "Cantidad de Reverb",
+    "curve": "Curva de Respuesta",
+    "ai": {
+      "title": "Sugerencias IA",
+      "subtitle": "Describe cómo quieres que suene y la IA propone una curva."
+    },
+    "reverb": {
+      "NONE": "Ninguno",
+      "SMALL_ROOM": "Sala Pequeña",
+      "MEDIUM_ROOM": "Sala Mediana",
+      "LARGE_ROOM": "Sala Grande",
+      "SMALL_HALL": "Auditorio Pequeño",
+      "LARGE_HALL": "Auditorio Grande",
+      "CATHEDRAL": "Catedral",
+      "PLATE": "Plato",
+      "SPRING": "Resorte"
+    }
+  },
+  "segments": {
+    "title": "Editor de Segmentos",
+    "subtitle": "Define zonas de tiempo con EQ independiente para cada canción.",
+    "selectTrack": "Selecciona una canción…",
+    "noTracks": "Sin canciones",
+    "noTrackSelected": "Selecciona una canción para editar sus segmentos de EQ.",
+    "newSegment": "Nuevo segmento",
+    "dragInTimeline": "Arrastra en la línea de tiempo…",
+    "timeline": "Línea de tiempo",
+    "detectWithAi": "Detectar con IA",
+    "segmentsCount": "Segmentos",
+    "empty": "Esta canción aún no tiene segmentos. Crea el primero arrastrando en la línea de tiempo.",
+    "table": {
+      "name": "Nombre",
+      "range": "Rango",
+      "duration": "Duración",
+      "source": "Origen",
+      "actions": "Acciones",
+      "unnamed": "Sin nombre",
+      "edit": "Editar",
+      "delete": "Eliminar"
+    },
+    "editor": {
+      "editTitle": "Editar segmento",
+      "newTitle": "Nuevo segmento",
+      "label": "Nombre del segmento",
+      "labelPlaceholder": "Intro, Coro, Puente…",
+      "startMs": "Inicio (ms)",
+      "endMs": "Fin (ms)",
+      "transitionMs": "Transición (ms)",
+      "bandsHelp": "Bandas de EQ (−15 a +15 dB)",
+      "saving": "Guardando…",
+      "save": "Guardar",
+      "cancel": "Cancelar",
+      "delete": "Eliminar",
+      "errorOverlap": "El segmento se superpone con uno existente.",
+      "errorInvalid": "Datos inválidos. Revisa los valores.",
+      "errorGeneric": "Error inesperado. Intenta de nuevo."
+    },
+    "deleteConfirm": "¿Eliminar este segmento?",
+    "confirm": "Confirmar",
+    "cancel": "Cancelar",
+    "loadError": "Error al cargar segmentos.",
+    "retry": "Reintentar"
+  },
+  "player": {
+    "play": "Reproducir",
+    "pause": "Pausar",
+    "next": "Siguiente",
+    "previous": "Anterior",
+    "mute": "Silenciar",
+    "unmute": "Activar sonido",
+    "volume": "Volumen",
+    "expand": "Expandir reproductor",
+    "collapse": "Contraer",
+    "openEq": "Abrir ecualizador",
+    "openAi": "Pedirle a la IA",
+    "activeSegment": "Segmento activo",
+    "segment": "Segmento",
+    "nowPlaying": "Reproduciendo",
+    "lyrics": {
+      "title": "Letra",
+      "loading": "Cargando letra…",
+      "empty": "Esta canción aún no tiene letra. Súbela desde admin.",
+      "plainFallback": "Letra sin sincronización"
+    },
+    "ai": {
+      "dockTitle": "Asistente IA",
+      "dockSubtitle": "Sugerencias en lenguaje natural",
+      "openFull": "Conversación completa",
+      "quickPrompt": "¿Cómo quieres que suene?",
+      "chips": {
+        "warmer": "Más cálido",
+        "brighter": "Más brillante",
+        "punch": "Más punch",
+        "vocal": "Realzar voz",
+        "detectSegments": "Detectar segmentos"
+      }
+    }
+  }
+}

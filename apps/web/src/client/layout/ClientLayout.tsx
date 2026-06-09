@@ -7,6 +7,7 @@ import AIQuickPrompt from "../features/player/AIQuickPrompt";
 import Navbar from "../../shared/ui/navigation/Navbar";
 import Sidebar from "../../shared/ui/navigation/Sidebar";
 import { sidebarClient } from "../components/navigation/sidebarClient";
+import ClientSidebarFooter from "../components/navigation/ClientSidebarFooter";
 import { usePlayerStore } from "../stores/playStore";
 import { useSegmentEngineSync } from "../../shared/hooks/useTrackSegments";
 
@@ -26,6 +27,7 @@ export default function ClientLayout({ children }: { children: ReactNode }) {
         items={sidebarClient}
         collapsed={collapsed}
         onToggleCollapse={() => setCollapsed((current) => !current)}
+        footer={<ClientSidebarFooter collapsed={collapsed} />}
       />
       <div className="flex min-h-screen flex-1 flex-col">
         <Navbar />

@@ -1,0 +1,429 @@
+{
+  "nav": {
+    "library": "Library",
+    "playlists": "Playlists",
+    "equalizer": "Equalizer",
+    "segments": "Segments",
+    "settings": "Settings",
+    "nowPlaying": "Now Playing",
+    "search": "Search",
+    "stats": "Stats",
+    "lyrics": "Lyrics",
+    "expand": "Expand sidebar",
+    "collapse": "Collapse sidebar"
+  },
+  "settings": {
+    "title": "Settings",
+    "themes": {
+      "title": "Visual Themes",
+      "subtitle": "Pick the look that fits your listening session"
+    },
+    "language": {
+      "title": "Language",
+      "subtitle": "Choose the interface language",
+      "es": "Spanish",
+      "en": "English"
+    },
+    "audio": {
+      "title": "Audio Options",
+      "streamingQuality": "Streaming Quality",
+      "streamingQualityDesc": "Defines the streaming bitrate",
+      "premium": "Premium (320 kbps)",
+      "normalize": "Normalize Volume",
+      "normalizeDesc": "Same level across all tracks"
+    },
+    "playback": {
+      "title": "Playback Preferences",
+      "crossfade": "Crossfade",
+      "crossfadeDesc": "Overlap between songs",
+      "gapless": "Gapless Playback",
+      "gaplessDesc": "For concept albums"
+    },
+    "engine": {
+      "title": "Advanced Audio Engine",
+      "description": "Tweak low-level audio output for professional interfaces.",
+      "configure": "Configure ASIO / CoreAudio",
+      "reset": "Restore factory defaults"
+    }
+  },
+  "themes": {
+    "midnight-neon": {
+      "name": "Midnight Neon",
+      "description": "Deep black with neon green accent"
+    },
+    "ocean-teal": {
+      "name": "Ocean Teal",
+      "description": "Nocturnal teal and aquamarine glass"
+    },
+    "sunset-coral": {
+      "name": "Sunset Coral",
+      "description": "Energetic orange on dark canvas"
+    },
+    "aurora-light": {
+      "name": "Aurora Light",
+      "description": "Technical clarity with lilac gradients"
+    },
+    "cosmic-purple": {
+      "name": "Cosmic Purple",
+      "description": "Deep blue with cosmic violet"
+    }
+  },
+  "navbar": {
+    "searchPlaceholder": "Search music, artists…",
+    "notifications": "Notifications"
+  },
+  "admin": {
+    "layout": {
+      "panel": "Admin Panel",
+      "logout": "Log out",
+      "preferences": "Preferences",
+      "language": "Language",
+      "theme": "Theme"
+    },
+    "nav": {
+      "dashboard": "Dashboard",
+      "users": "Users",
+      "eqPresets": "EQ Presets",
+      "aiRequests": "AI Requests",
+      "backToClient": "Back to client"
+    },
+    "dashboard": {
+      "title": "Dashboard",
+      "subtitle": "Overview of the MusicFlow platform.",
+      "error": "Could not load dashboard data. Check the server connection.",
+      "retry": "Retry",
+      "totalUsers": "Total users",
+      "premiumSubtitle": "{{premium}} premium · {{recent}} new this week",
+      "tracks": "Tracks",
+      "playlists": "Playlists",
+      "aiRequests": "AI Requests",
+      "aiSatisfaction": "AI satisfaction",
+      "aiSatisfactionSubtitle": "{{good}} positive / {{bad}} negative / {{neutral}} neutral = {{total}} total",
+      "premiumConversions": "Premium conversions",
+      "premiumConversionsSubtitle": "{{premium}} of {{total}} users",
+      "feedbackTitle": "AI feedback distribution",
+      "feedbackEmpty": "No feedback recorded yet.",
+      "feedbackPositive": "Positive",
+      "feedbackNeutral": "Neutral",
+      "feedbackNegative": "Negative",
+      "growthTitle": "User growth",
+      "growthEmpty": "No user records yet.",
+      "growthNewLast": "new in the last {{days}} days",
+      "growthError": "Could not load series.",
+      "catalogTitle": "Catalog distribution",
+      "catalogEmpty": "No content recorded yet.",
+      "catalogTotal": "total",
+      "catalogTracks": "tracks",
+      "catalogOnDisk": "on disk",
+      "catalogOfAudio": "of audio",
+      "catalogByGenre": "By genre",
+      "catalogByCodec": "By codec",
+      "catalogNoGenres": "No genres tagged.",
+      "catalogNoCodecs": "No codecs recorded.",
+      "catalogError": "Could not load distribution."
+    },
+    "users": {
+      "title": "Users",
+      "subtitle": "Manage platform users.",
+      "count": "{{count}} users",
+      "search": "Search by name or email…",
+      "previous": "Previous",
+      "next": "Next",
+      "rangeOf": "{{from}}–{{to}} of {{total}}",
+      "loadError": "Failed to load users.",
+      "retry": "Retry",
+      "table": {
+        "user": "User",
+        "email": "Email",
+        "role": "Role",
+        "premium": "Premium",
+        "status": "Active",
+        "tracks": "Tracks",
+        "playlists": "Playlists",
+        "created": "Created",
+        "actions": "Actions"
+      },
+      "statusActive": "Active",
+      "statusInactive": "Inactive",
+      "actions": "Actions",
+      "deactivate": "Deactivate",
+      "empty": "No results for that search.",
+      "confirmRole": "Change role of \"{{username}}\" to {{role}}?",
+      "confirmDeactivate": "Deactivate \"{{username}}\"? They won't be able to sign in.",
+      "errorRole": "Failed to update role. Try again.",
+      "errorPremium": "Failed to update premium status. Try again.",
+      "errorDeactivate": "Failed to deactivate user. Try again."
+    },
+    "userDetail": {
+      "backToUsers": "Back to users",
+      "missingId": "Missing user id in URL.",
+      "deactivate": "Deactivate",
+      "inactive": "Inactive",
+      "active": "Active",
+      "confirmDeactivate": "Deactivate {{username}}? They won't be able to sign in until reactivated.",
+      "loadError": "Failed to load user.",
+      "retry": "Retry",
+      "createdOn": "joined {{date}}",
+      "role": "Role",
+      "premium": "Premium",
+      "counts": {
+        "tracks": "Tracks",
+        "playlists": "Playlists",
+        "eqPresets": "EQ Presets",
+        "eqConfigs": "EQ Configs",
+        "segments": "Segments",
+        "aiReqs": "AI Reqs",
+        "plays": "Plays",
+        "devices": "Devices"
+      },
+      "sections": {
+        "devices": "Devices",
+        "preferences": "Preferences",
+        "recentPlays": "Recent plays",
+        "aiUsage": "AI usage"
+      },
+      "noDevices": "No registered devices.",
+      "lastSync": "Last sync",
+      "noPreferences": "No saved preferences.",
+      "noPlays": "No playback yet.",
+      "noAi": "No AI requests.",
+      "deletedTrack": "Track deleted",
+      "skipped": "skipped",
+      "completed": "complete",
+      "theme": "Theme",
+      "player": "Player",
+      "library": "Library",
+      "crossfade": "Crossfade",
+      "gapless": "Gapless",
+      "scrobble": "Scrobble",
+      "off": "off",
+      "on": "on",
+      "tokensIn": "Tokens in",
+      "tokensOut": "Tokens out",
+      "costUsd": "Cost USD"
+    },
+    "ai": {
+      "title": "AI Requests",
+      "subtitle": "Agent prompt history and feedback.",
+      "search": "Search by prompt or user…",
+      "feedbackAll": "All feedback",
+      "feedbackGood": "Positive",
+      "feedbackBad": "Negative",
+      "feedbackNeutral": "Neutral",
+      "acceptedAll": "Acceptance",
+      "acceptedYes": "Accepted",
+      "acceptedNo": "Rejected",
+      "table": {
+        "createdAt": "Date",
+        "user": "User",
+        "prompt": "Prompt",
+        "model": "Model",
+        "tokens": "Tokens",
+        "cost": "Cost",
+        "feedback": "Feedback",
+        "accepted": "Accepted"
+      },
+      "empty": "No matching requests.",
+      "loadError": "Could not load requests."
+    },
+    "eqPresets": {
+      "title": "Global EQ Presets",
+      "subtitle": "These presets appear for every user alongside their own. Edit bands or create a new one.",
+      "create": "Create global preset",
+      "createTitle": "New global preset",
+      "name": "Name",
+      "namePlaceholder": "e.g. Studio Reference",
+      "bandLabel": "Band {{hz}} Hz",
+      "bassBoost": "Bass Boost",
+      "virtualizer": "Virtualizer",
+      "loudness": "Loudness",
+      "reverbAmount": "Reverb amt",
+      "reverbType": "Reverb type",
+      "save": "Save",
+      "cancel": "Cancel",
+      "create2": "Create",
+      "discard": "Discard",
+      "discardTooltip": "Discard changes",
+      "deleteConfirm": "Delete global preset \"{{name}}\"? It will affect all users.",
+      "bandsSummary": "bands {{values}}",
+      "loadError": "Could not load presets list.",
+      "loading": "Loading presets…",
+      "saveError": "Save error",
+      "createError": "Create error"
+    }
+  },
+  "library": {
+    "title": "Your Library",
+    "totalTracks": "Total Tracks",
+    "eqApplied": "EQs Applied",
+    "segmentsDefined": "Segments Defined",
+    "tabs": {
+      "songs": "Songs",
+      "albums": "Albums",
+      "artists": "Artists"
+    },
+    "searchPlaceholder": "Search songs…",
+    "genres": "Genres",
+    "all": "All",
+    "table": {
+      "number": "#",
+      "title": "Title",
+      "album": "Album",
+      "eqStatus": "EQ Status",
+      "duration": "Duration"
+    },
+    "catalogBadge": "Catalog",
+    "loadError": "We couldn’t load your library. Try again.",
+    "retry": "Retry",
+    "empty": "Your library is empty."
+  },
+  "playlists": {
+    "title": "My playlists",
+    "subtitle": "Organize your sonic universe. Create collections and apply a custom EQ to each.",
+    "create": "Create playlist",
+    "createTitle": "New playlist",
+    "createError": "Could not create the playlist. Try again.",
+    "delete": "Delete playlist",
+    "deleteConfirm": "Delete the playlist \"{{name}}\"?",
+    "emptyTitle": "No playlists yet",
+    "emptyHint": "Create your first list to start organizing your music.",
+    "loadError": "We couldn’t load your playlists. Try again.",
+    "retry": "Retry",
+    "trackCount_one": "{{count}} track",
+    "trackCount_other": "{{count}} tracks",
+    "fields": {
+      "name": "Name",
+      "namePlaceholder": "e.g. Focus session",
+      "description": "Description",
+      "descriptionPlaceholder": "Optional"
+    }
+  },
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "loading": "Loading…",
+    "active": "Active",
+    "close": "Close",
+    "back": "Back"
+  },
+  "eq": {
+    "title": "Equalizer",
+    "subtitle": "Shape the sound at four levels: global, playlist, track or segment.",
+    "reset": "Reset",
+    "scope": {
+      "global": "Global",
+      "playlist": "Playlist",
+      "track": "Track",
+      "segment": "Segment",
+      "globalDesc": "Applies to the whole player",
+      "playlistDesc": "Only on this playlist",
+      "trackDesc": "Only on this track",
+      "segmentDesc": "Only on the active segment"
+    },
+    "presets": "Presets",
+    "noPresets": "No saved presets.",
+    "bands": "Frequency Bands",
+    "effects": "Effects",
+    "bassBoost": "Bass Boost",
+    "virtualizer": "Virtualizer",
+    "loudness": "Loudness",
+    "reverbPreset": "Reverb Preset",
+    "reverbAmount": "Reverb Amount",
+    "curve": "Response Curve",
+    "ai": {
+      "title": "AI Suggestions",
+      "subtitle": "Describe how it should sound — the AI proposes a curve."
+    },
+    "reverb": {
+      "NONE": "None",
+      "SMALL_ROOM": "Small Room",
+      "MEDIUM_ROOM": "Medium Room",
+      "LARGE_ROOM": "Large Room",
+      "SMALL_HALL": "Small Hall",
+      "LARGE_HALL": "Large Hall",
+      "CATHEDRAL": "Cathedral",
+      "PLATE": "Plate",
+      "SPRING": "Spring"
+    }
+  },
+  "segments": {
+    "title": "Segments Editor",
+    "subtitle": "Define time zones with independent EQ for each track.",
+    "selectTrack": "Pick a track…",
+    "noTracks": "No tracks",
+    "noTrackSelected": "Pick a track to edit its EQ segments.",
+    "newSegment": "New segment",
+    "dragInTimeline": "Drag in the timeline…",
+    "timeline": "Timeline",
+    "detectWithAi": "Detect with AI",
+    "segmentsCount": "Segments",
+    "empty": "This track has no segments yet. Create the first one by dragging in the timeline.",
+    "table": {
+      "name": "Name",
+      "range": "Range",
+      "duration": "Duration",
+      "source": "Source",
+      "actions": "Actions",
+      "unnamed": "Unnamed",
+      "edit": "Edit",
+      "delete": "Delete"
+    },
+    "editor": {
+      "editTitle": "Edit segment",
+      "newTitle": "New segment",
+      "label": "Segment name",
+      "labelPlaceholder": "Intro, Chorus, Bridge…",
+      "startMs": "Start (ms)",
+      "endMs": "End (ms)",
+      "transitionMs": "Transition (ms)",
+      "bandsHelp": "EQ bands (−15 to +15 dB)",
+      "saving": "Saving…",
+      "save": "Save",
+      "cancel": "Cancel",
+      "delete": "Delete",
+      "errorOverlap": "Segment overlaps with an existing one.",
+      "errorInvalid": "Invalid values. Please review.",
+      "errorGeneric": "Unexpected error. Try again."
+    },
+    "deleteConfirm": "Delete this segment?",
+    "confirm": "Confirm",
+    "cancel": "Cancel",
+    "loadError": "Failed to load segments.",
+    "retry": "Retry"
+  },
+  "player": {
+    "play": "Play",
+    "pause": "Pause",
+    "next": "Next",
+    "previous": "Previous",
+    "mute": "Mute",
+    "unmute": "Unmute",
+    "volume": "Volume",
+    "expand": "Expand player",
+    "collapse": "Collapse",
+    "openEq": "Open equalizer",
+    "openAi": "Ask AI",
+    "activeSegment": "Active segment",
+    "segment": "Segment",
+    "nowPlaying": "Now Playing",
+    "lyrics": {
+      "title": "Lyrics",
+      "loading": "Loading lyrics…",
+      "empty": "No lyrics yet. Upload them from admin.",
+      "plainFallback": "Unsynced lyrics"
+    },
+    "ai": {
+      "dockTitle": "AI Assistant",
+      "dockSubtitle": "Natural-language suggestions",
+      "openFull": "Full conversation",
+      "quickPrompt": "How should it sound?",
+      "chips": {
+        "warmer": "Warmer",
+        "brighter": "Brighter",
+        "punch": "More punch",
+        "vocal": "Boost vocals",
+        "detectSegments": "Detect segments"
+      }
+    }
+  }
+}
