@@ -1,0 +1,49 @@
+%%{init: {'theme':'base','themeVariables':{'fontSize':'16px','primaryColor':'#1e293b','primaryTextColor':'#f1f5f9','primaryBorderColor':'#6366f1','lineColor':'#94a3b8','clusterBkg':'#0f172a','clusterBorder':'#334155'}}}%%
+flowchart TD
+    Start([Usuario abre MusicFlow]) --> Auth{¿Autenticado?}
+    Auth -->|No| Login[Login / Registro<br/>JWT access 15m + refresh 7d]
+    Login --> Role
+    Auth -->|Sí| Role{Rol}
+
+    Role -->|ADMIN| Admin[Panel Admin<br/>gestión usuarios · stats IA]
+    Role -->|CLIENT| Home[Inicio Cliente]
+
+    subgraph Plataformas
+        direction LR
+        Web[Web / Desktop<br/>React + Electron]
+        Mobile[Móvil<br/>Flutter]
+    end
+    Home --> Plataformas
+
+    Plataformas --> Library[📚 Biblioteca<br/>subir / gestionar tracks · playlists]
+    Library --> Player[▶️ Reproductor<br/>Web Audio API / just_audio]
+
+    Player --> EQ[🎚️ Ecualización multinivel]
+    EQ --> EQG[Global]
+    EQ --> EQP[Playlist]
+    EQ --> EQT[Track]
+    EQ --> EQS[Segmento temporal<br/>intro · verso · coro]
+
+    Player --> AI[🤖 Agente IA<br/>sugiere EQ en lenguaje natural]
+    AI -->|propone config| EQS
+    Player --> Analytics[📊 Analytics<br/>historial · stats de escucha]
+
+    Library -. offline/online .-> Sync[🔄 Sync híbrido]
+    EQ -. cambios .-> Sync
+    Sync -->|pull / push| API
+
+    Admin --> API
+    Plataformas --> API[(Backend NestJS API<br/>auth · library · equalizer<br/>ai-agent · analytics · sync · admin)]
+
+    API --> Prisma[Prisma ORM]
+    Prisma --> DB[(PostgreSQL<br/>13 tablas)]
+    API --> Redis[(Redis + BullMQ)]
+    Redis --> Worker[Worker nocturno<br/>agrega ListeningStats]
+    Worker --> DB
+    AI --> Claude[Claude API]
+    API --> Mail[Mailer<br/>reset contraseña]
+
+    classDef store fill:#312e81,stroke:#6366f1,color:#e0e7ff;
+    classDef feature fill:#155e75,stroke:#22d3ee,color:#cffafe;
+    class DB,Redis,API store;
+    class Library,Player,EQ,AI,Analytics,Sync feature;

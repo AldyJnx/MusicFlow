@@ -1,0 +1,59 @@
+%% ===========================================================
+%% MusicFlow - Clasificacion de Tablas por Tipo y Rol
+%% Maestras / Configuracion / Asociativas / Transaccionales /
+%% Analiticas / Logs de Auditoria
+%% ===========================================================
+flowchart TB
+
+    classDef maestra        fill:#DBEAFE,stroke:#2563EB,stroke-width:2px,color:#1E3A8A;
+    classDef config         fill:#EDE9FE,stroke:#7C3AED,stroke-width:2px,color:#4C1D95;
+    classDef asociativa     fill:#F3F4F6,stroke:#6B7280,stroke-width:2px,color:#1F2937;
+    classDef detalle        fill:#DCFCE7,stroke:#16A34A,stroke-width:2px,color:#14532D;
+    classDef transaccional  fill:#FFEDD5,stroke:#EA580C,stroke-width:2px,color:#7C2D12;
+    classDef analitica      fill:#CFFAFE,stroke:#0891B2,stroke-width:2px,color:#164E63;
+    classDef log            fill:#FEE2E2,stroke:#DC2626,stroke-width:2px,color:#7F1D1D;
+
+    subgraph MAESTRAS["TABLAS MAESTRAS / CATALOGO  -  nucleo del negocio, baja frecuencia de cambio"]
+        direction LR
+        USER["USER<br/><i>Cuentas, credenciales y roles</i>"]:::maestra
+        TRACK["TRACK<br/><i>Catalogo de pistas y metadatos</i>"]:::maestra
+        PLAYLIST["PLAYLIST<br/><i>Listas de reproduccion</i>"]:::maestra
+        DEVICE["DEVICE<br/><i>Dispositivos del usuario</i>"]:::maestra
+        EQ_PRESET["EQ_PRESET<br/><i>Catalogo de presets de EQ</i>"]:::maestra
+    end
+
+    subgraph CONFIG["TABLAS DE CONFIGURACION  -  parametros y ajustes del sistema"]
+        direction LR
+        USER_PREFERENCES["USER_PREFERENCES<br/><i>Ajustes UI, reproduccion, scrobbling (1:1)</i>"]:::config
+        EQ_CONFIG["EQ_CONFIG<br/><i>EQ aplicada por ambito (global/playlist/track/segment)</i>"]:::config
+    end
+
+    subgraph ASOCIATIVA["TABLAS ASOCIATIVAS  -  resuelven relaciones N:M"]
+        direction LR
+        PLAYLIST_TRACK["PLAYLIST_TRACK<br/><i>Vincula Playlist con Track + orden</i>"]:::asociativa
+    end
+
+    subgraph DETALLE["TABLAS DE DETALLE / OPERACIONALES  -  dependen de una maestra"]
+        direction LR
+        EQ_SEGMENT["EQ_SEGMENT<br/><i>Segmentos temporales con EQ propia en un track</i>"]:::detalle
+    end
+
+    subgraph TRANSACCIONALES["TABLAS TRANSACCIONALES  -  registran eventos, alto volumen, con timestamp"]
+        direction LR
+        AI_REQUEST["AI_REQUEST<br/><i>Peticiones al agente IA + feedback y costos</i>"]:::transaccional
+        PLAY_HISTORY["PLAY_HISTORY<br/><i>Eventos de reproduccion de pistas</i>"]:::transaccional
+    end
+
+    subgraph ANALITICAS["TABLAS ANALITICAS / AGREGADAS  -  datos derivados precalculados"]
+        direction LR
+        LISTENING_STATS["LISTENING_STATS<br/><i>Estadisticas de escucha por periodo</i>"]:::analitica
+    end
+
+    subgraph LOGS["TABLAS DE LOG / AUDITORIA  -  trazabilidad del sistema"]
+        direction LR
+        SYNC_LOG["SYNC_LOG<br/><i>Registro de sincronizaciones por dispositivo</i>"]:::log
+        CONFLICT_LOG["CONFLICT_LOG<br/><i>Conflictos de sync y su resolucion</i>"]:::log
+    end
+
+    MAESTRAS --> CONFIG --> ASOCIATIVA --> DETALLE --> TRANSACCIONALES --> ANALITICAS --> LOGS
+    linkStyle default stroke-width:0px;

@@ -1,0 +1,30 @@
+%% ===========================================================
+%% MusicFlow - Caracteristicas por Tipo de Tabla
+%% Referencia comparativa para documentacion de tesis
+%% ===========================================================
+flowchart TB
+
+    classDef maestra        fill:#DBEAFE,stroke:#2563EB,stroke-width:2px,color:#1E3A8A,text-align:left;
+    classDef config         fill:#EDE9FE,stroke:#7C3AED,stroke-width:2px,color:#4C1D95,text-align:left;
+    classDef asociativa     fill:#F3F4F6,stroke:#6B7280,stroke-width:2px,color:#1F2937,text-align:left;
+    classDef detalle        fill:#DCFCE7,stroke:#16A34A,stroke-width:2px,color:#14532D,text-align:left;
+    classDef transaccional  fill:#FFEDD5,stroke:#EA580C,stroke-width:2px,color:#7C2D12,text-align:left;
+    classDef analitica      fill:#CFFAFE,stroke:#0891B2,stroke-width:2px,color:#164E63,text-align:left;
+    classDef log            fill:#FEE2E2,stroke:#DC2626,stroke-width:2px,color:#7F1D1D,text-align:left;
+
+    M["<b>MAESTRA / CATALOGO</b><br/>Definicion: entidades nucleo del negocio, datos de referencia<br/>Frecuencia de cambio: BAJA &nbsp;|&nbsp; Volumen: MEDIO<br/>Operaciones: alta/baja/edicion puntual, muchas lecturas<br/><b>Tablas:</b> USER, TRACK, PLAYLIST, DEVICE, EQ_PRESET"]:::maestra
+
+    C["<b>CONFIGURACION</b><br/>Definicion: parametros y ajustes asociados a una maestra<br/>Frecuencia de cambio: MEDIA &nbsp;|&nbsp; Volumen: BAJO<br/>Operaciones: lectura frecuente, escritura ocasional<br/><b>Tablas:</b> USER_PREFERENCES, EQ_CONFIG"]:::config
+
+    A["<b>ASOCIATIVA / RELACION</b><br/>Definicion: resuelve relaciones N:M entre maestras<br/>Frecuencia de cambio: MEDIA &nbsp;|&nbsp; Volumen: MEDIO-ALTO<br/>Operaciones: insercion/borrado, ordenamiento<br/><b>Tablas:</b> PLAYLIST_TRACK"]:::asociativa
+
+    D["<b>DETALLE / OPERACIONAL</b><br/>Definicion: filas hijas que dependen de una maestra<br/>Frecuencia de cambio: MEDIA &nbsp;|&nbsp; Volumen: MEDIO<br/>Operaciones: CRUD ligado al ciclo de vida del padre<br/><b>Tablas:</b> EQ_SEGMENT"]:::detalle
+
+    T["<b>TRANSACCIONAL</b><br/>Definicion: registra eventos/operaciones del negocio<br/>Frecuencia de cambio: ALTA (solo insert) &nbsp;|&nbsp; Volumen: ALTO<br/>Operaciones: insercion masiva, lectura por rango de fecha<br/><b>Tablas:</b> AI_REQUEST, PLAY_HISTORY"]:::transaccional
+
+    AN["<b>ANALITICA / AGREGADA</b><br/>Definicion: datos derivados precalculados (resumenes)<br/>Frecuencia de cambio: BATCH/periodica &nbsp;|&nbsp; Volumen: BAJO-MEDIO<br/>Operaciones: recalculo programado, lectura para reportes<br/><b>Tablas:</b> LISTENING_STATS"]:::analitica
+
+    L["<b>LOG / AUDITORIA</b><br/>Definicion: trazabilidad tecnica del sistema<br/>Frecuencia de cambio: ALTA (solo insert) &nbsp;|&nbsp; Volumen: ALTO<br/>Operaciones: insercion automatica, consulta para diagnostico<br/><b>Tablas:</b> SYNC_LOG, CONFLICT_LOG"]:::log
+
+    M --- C --- A --- D --- T --- AN --- L
+    linkStyle default stroke-width:0px;

@@ -1,0 +1,261 @@
+%% ===========================================================
+%% MusicFlow - Modelo Entidad-Relacion (MER)
+%% Generado a partir de apps/backend/prisma/schema.prisma
+%% Reproductor musical multiplataforma con EQ granular asistida por IA
+%% ===========================================================
+erDiagram
+
+    %% ---------- AUTH: Usuarios y Dispositivos ----------
+    USER ||--o{ DEVICE            : "posee"
+    USER ||--o| USER_PREFERENCES  : "configura"
+    USER ||--o{ TRACK             : "sube"
+    USER ||--o{ PLAYLIST          : "crea"
+    USER ||--o{ EQ_PRESET         : "define"
+    USER ||--o{ EQ_CONFIG         : "aplica"
+    USER ||--o{ EQ_SEGMENT        : "marca"
+    USER ||--o{ AI_REQUEST        : "solicita"
+    USER ||--o{ PLAY_HISTORY      : "reproduce"
+    USER ||--o{ LISTENING_STATS   : "acumula"
+    USER ||--o{ SYNC_LOG          : "sincroniza"
+    USER ||--o{ CONFLICT_LOG      : "genera"
+
+    DEVICE ||--o{ SYNC_LOG        : "registra"
+
+    %% ---------- LIBRARY: Tracks y Playlists ----------
+    PLAYLIST       ||--o{ PLAYLIST_TRACK : "contiene"
+    TRACK          ||--o{ PLAYLIST_TRACK : "incluida_en"
+    TRACK          ||--o{ EQ_SEGMENT     : "segmentada_en"
+    TRACK          ||--o{ AI_REQUEST     : "analizada_por"
+    TRACK          ||--o{ PLAY_HISTORY   : "registra"
+
+    %% ---------- EQUALIZER ----------
+    EQ_PRESET ||--o{ EQ_CONFIG    : "base_de"
+    EQ_CONFIG ||--|| EQ_SEGMENT   : "aplica_en"
+    EQ_CONFIG ||--o{ PLAY_HISTORY : "usada_en"
+    AI_REQUEST ||--o{ EQ_SEGMENT  : "sugiere"
+
+    %% ===========================================================
+    %% ENTIDADES
+    %% ===========================================================
+
+    USER {
+        uuid     id PK
+        string   email UK
+        string   username UK
+        string   password
+        enum     role "ADMIN | CLIENT"
+        string   avatar "nullable"
+        boolean  is_premium
+        boolean  is_active
+        string   password_reset_token "nullable"
+        datetime password_reset_expires "nullable"
+        datetime created_at
+        datetime updated_at
+    }
+
+    DEVICE {
+        uuid     id PK
+        uuid     user_id FK
+        enum     device_type "DESKTOP_WIN | DESKTOP_MAC | DESKTOP_LINUX | WEB | MOBILE_ANDROID | MOBILE_IOS"
+        string   device_name
+        datetime last_sync_at "nullable"
+        string   fcm_token "nullable"
+        boolean  is_active
+        datetime created_at
+    }
+
+    TRACK {
+        uuid     id PK
+        uuid     user_id FK
+        string   title
+        string   artist
+        string   album
+        string   album_artist
+        string   genre
+        int      year "nullable"
+        int      track_number "nullable"
+        int      disc_number "nullable"
+        string   composer
+        string   comment
+        int      duration_ms
+        string   file_path_local "nullable"
+        string   file_url_remote "nullable"
+        string   file_hash
+        bigint   file_size_bytes "nullable"
+        string   codec
+        int      bitrate "nullable"
+        int      sample_rate "nullable"
+        string   cover_art "nullable"
+        enum     source "LOCAL | SYNCED | BOTH"
+        enum     sync_status "PENDING | SYNCED | FAILED"
+        datetime created_at
+        datetime updated_at
+    }
+
+    PLAYLIST {
+        uuid     id PK
+        uuid     user_id FK
+        string   name
+        string   description
+        string   cover_art "nullable"
+        boolean  is_public
+        string   share_token UK "nullable"
+        datetime created_at
+        datetime updated_at
+    }
+
+    PLAYLIST_TRACK {
+        uuid     id PK
+        uuid     playlist_id FK
+        uuid     track_id FK
+        int      position
+        datetime added_at
+    }
+
+    EQ_PRESET {
+        uuid     id PK
+        uuid     user_id FK "nullable"
+        string   name
+        boolean  is_global
+        json     bands "10 bandas: 31Hz..16k, -15..+15 dB"
+        int      bass_boost "0-100"
+        int      virtualizer "0-100"
+        int      loudness "0-100"
+        enum     reverb_preset "NONE | SMALL_ROOM | ... | SPRING"
+        int      reverb_amount "0-100"
+        datetime created_at
+        datetime updated_at
+    }
+
+    EQ_CONFIG {
+        uuid     id PK
+        uuid     user_id FK
+        enum     scope_type "GLOBAL | PLAYLIST | TRACK | SEGMENT"
+        string   scope_id "nullable"
+        uuid     preset_id FK "nullable"
+        json     bands
+        int      bass_boost
+        int      virtualizer
+        int      loudness
+        enum     reverb_preset
+        int      reverb_amount
+        boolean  is_active
+        datetime created_at
+        datetime updated_at
+    }
+
+    EQ_SEGMENT {
+        uuid     id PK
+        uuid     track_id FK
+        uuid     user_id FK
+        uuid     eq_config_id FK,UK
+        string   label
+        int      start_ms
+        int      end_ms
+        int      transition_ms
+        enum     created_by "MANUAL | AI"
+        uuid     ai_request_id FK "nullable"
+        datetime created_at
+        datetime updated_at
+    }
+
+    AI_REQUEST {
+        uuid     id PK
+        uuid     user_id FK
+        uuid     track_id FK "nullable"
+        string   prompt
+        json     context
+        json     response
+        string   explanation
+        enum     applied_to "GLOBAL | PLAYLIST | TRACK | SEGMENT (nullable)"
+        string   applied_id "nullable"
+        boolean  was_accepted
+        enum     feedback "GOOD | BAD | NEUTRAL (nullable)"
+        string   feedback_comment
+        int      tokens_input
+        int      tokens_output
+        decimal  cost_usd
+        int      response_time_ms
+        string   model_used
+        datetime created_at
+    }
+
+    PLAY_HISTORY {
+        uuid     id PK
+        uuid     user_id FK
+        uuid     track_id FK
+        datetime played_at
+        int      duration_listened_ms
+        boolean  completed
+        boolean  skipped
+        uuid     eq_config_used_id FK "nullable"
+        enum     device "DESKTOP | WEB | MOBILE | AUTO"
+    }
+
+    LISTENING_STATS {
+        uuid     id PK
+        uuid     user_id FK
+        enum     period "DAY | WEEK | MONTH | ALL_TIME"
+        date     period_start
+        int      total_plays
+        bigint   total_time_ms
+        int      unique_tracks
+        int      unique_artists
+        json     top_tracks
+        json     top_artists
+        json     top_albums
+        json     top_eq_presets
+        datetime computed_at
+    }
+
+    SYNC_LOG {
+        uuid     id PK
+        uuid     user_id FK
+        uuid     device_id FK
+        datetime started_at
+        datetime finished_at "nullable"
+        int      entities_uploaded
+        int      entities_downloaded
+        int      conflicts_detected
+        boolean  success
+        string   error_message
+    }
+
+    CONFLICT_LOG {
+        uuid     id PK
+        uuid     user_id FK
+        string   entity_type
+        string   entity_id
+        json     local_version
+        json     server_version
+        boolean  resolved
+        enum     resolution "LOCAL_WINS | SERVER_WINS | MERGE (nullable)"
+        datetime resolved_at "nullable"
+        datetime created_at
+    }
+
+    USER_PREFERENCES {
+        uuid     user_id PK,FK
+        string   theme
+        boolean  dynamic_theme_enabled
+        int      dynamic_theme_intensity
+        enum     player_layout "COMPACT | STANDARD | EXPANDED | MINIMAL"
+        enum     library_layout "LIST | GRID | CARD"
+        boolean  show_album_art
+        boolean  show_visualizer
+        string   visualizer_type
+        boolean  crossfade_enabled
+        int      crossfade_duration_ms
+        boolean  gapless_enabled
+        boolean  replay_gain
+        boolean  skip_silence
+        int      sleep_timer_default_min "nullable"
+        boolean  sleep_timer_fade_out
+        string   lastfm_username
+        string   lastfm_session_key
+        boolean  scrobble_enabled
+        int      scrobble_threshold
+        int      lyrics_font_size
+        boolean  lyrics_auto_scroll
+        datetime updated_at
+    }
