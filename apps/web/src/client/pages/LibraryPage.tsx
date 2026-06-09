@@ -165,7 +165,7 @@ export default function LibraryPage() {
                 onClick={() => setScope("catalog")}
                 className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition ${
                   scope === "catalog"
-                    ? "bg-[var(--color-primary)] text-[var(--color-primary-contrast,#0b0b0b)] shadow"
+                    ? "bg-[var(--color-primary)] text-[var(--color-primary-contrast)] shadow"
                     : "text-[var(--color-muted)] hover:text-[var(--color-text)]"
                 }`}
               >
@@ -177,7 +177,7 @@ export default function LibraryPage() {
                 onClick={() => setScope("mylibrary")}
                 className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition ${
                   scope === "mylibrary"
-                    ? "bg-[var(--color-primary)] text-[var(--color-primary-contrast,#0b0b0b)] shadow"
+                    ? "bg-[var(--color-primary)] text-[var(--color-primary-contrast)] shadow"
                     : "text-[var(--color-muted)] hover:text-[var(--color-text)]"
                 }`}
               >

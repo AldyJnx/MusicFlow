@@ -36,6 +36,9 @@ export type AppTheme = {
     muted: string;
     border: string;
     primary: string;
+    /** Foreground color over `primary` backgrounds (e.g. PLAY button label).
+     *  Dark themes use near-black, light themes use white. */
+    primaryContrast: string;
     secondary: string;
     ctaStart: string;
     ctaEnd: string;
@@ -62,6 +65,7 @@ export const APP_THEMES: AppTheme[] = [
       muted: "#7e8aa3",
       border: "#1d2533",
       primary: "#22e58a",
+      primaryContrast: "#0b0b0b",
       secondary: "#0e1a18",
       ctaStart: "#22e58a",
       ctaEnd: "#10b981",
@@ -85,6 +89,7 @@ export const APP_THEMES: AppTheme[] = [
       muted: "#7fa6a8",
       border: "#1f3a40",
       primary: "#5eead4",
+      primaryContrast: "#062028",
       secondary: "#13282d",
       ctaStart: "#5eead4",
       ctaEnd: "#2dd4bf",
@@ -108,6 +113,7 @@ export const APP_THEMES: AppTheme[] = [
       muted: "#a08679",
       border: "#2a201c",
       primary: "#fb923c",
+      primaryContrast: "#160a04",
       secondary: "#1f1714",
       ctaStart: "#fb923c",
       ctaEnd: "#f97316",
@@ -131,6 +137,7 @@ export const APP_THEMES: AppTheme[] = [
       muted: "#6b7280",
       border: "#ddd6fe",
       primary: "#8b5cf6",
+      primaryContrast: "#ffffff",
       secondary: "#ede9fe",
       ctaStart: "#a78bfa",
       ctaEnd: "#7c3aed",
@@ -154,6 +161,7 @@ export const APP_THEMES: AppTheme[] = [
       muted: "#7a8a9a",
       border: "#1c2734",
       primary: "#1db9c3",
+      primaryContrast: "#041417",
       secondary: "#0e2429",
       ctaStart: "#22d3ee",
       ctaEnd: "#0e7490",
@@ -177,6 +185,7 @@ export const APP_THEMES: AppTheme[] = [
       muted: "#9588c4",
       border: "#312a64",
       primary: "#a78bfa",
+      primaryContrast: "#0d0824",
       secondary: "#1f1a44",
       ctaStart: "#a78bfa",
       ctaEnd: "#ec4899",
@@ -202,12 +211,31 @@ export function normalizeThemeId(value: string | null | undefined): AppThemeId {
   return DEFAULT_THEME;
 }
 
-export function applyTheme(themeId: AppThemeId) {
+export type AppDensity = "comfortable" | "compact";
+
+export const DENSITY_SCALE: Record<AppDensity, string> = {
+  comfortable: "1",
+  compact: "0.85",
+};
+
+/**
+ * Applies a theme to the document root. When `accentOverride` is provided
+ * (a valid hex color), it replaces the theme's primary/cta/accent vars so
+ * the user can pick a custom highlight color while keeping the base palette.
+ * `density` scales the global `--density-scale` var used by spacing utilities.
+ */
+export function applyTheme(
+  themeId: AppThemeId,
+  options: { accentOverride?: string | null; density?: AppDensity } = {},
+) {
   const theme = appThemes[themeId] ?? appThemes[DEFAULT_THEME];
   const root = document.documentElement;
+  const accent = options.accentOverride?.trim() || theme.colors.primary;
+  const density = options.density ?? "comfortable";
 
   root.dataset.theme = theme.id;
   root.dataset.themeMode = theme.mode;
+  root.dataset.density = density;
   root.style.colorScheme = theme.mode;
   root.style.setProperty("--color-page", theme.colors.page);
   root.style.setProperty("--color-sidebar", theme.colors.sidebar);
@@ -217,9 +245,56 @@ export function applyTheme(themeId: AppThemeId) {
   root.style.setProperty("--color-text", theme.colors.text);
   root.style.setProperty("--color-muted", theme.colors.muted);
   root.style.setProperty("--color-border", theme.colors.border);
-  root.style.setProperty("--color-primary", theme.colors.primary);
+  root.style.setProperty("--color-primary", accent);
+  root.style.setProperty(
+    "--color-primary-contrast",
+    options.accentOverride
+      ? pickContrast(accent)
+      : theme.colors.primaryContrast,
+  );
   root.style.setProperty("--color-secondary", theme.colors.secondary);
-  root.style.setProperty("--color-cta-start", theme.colors.ctaStart);
-  root.style.setProperty("--color-cta-end", theme.colors.ctaEnd);
-  root.style.setProperty("--color-accent", theme.colors.accent);
+  root.style.setProperty(
+    "--color-cta-start",
+    options.accentOverride ? accent : theme.colors.ctaStart,
+  );
+  root.style.setProperty(
+    "--color-cta-end",
+    options.accentOverride ? accent : theme.colors.ctaEnd,
+  );
+  root.style.setProperty(
+    "--color-accent",
+    options.accentOverride ? accent : theme.colors.accent,
+  );
+  root.style.setProperty("--density-scale", DENSITY_SCALE[density]);
+}
+
+const HEX_COLOR = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i;
+
+export function isValidHexColor(value: string | null | undefined): boolean {
+  if (!value) return false;
+  return HEX_COLOR.test(value.trim());
+}
+
+/**
+ * Picks a near-black or near-white foreground for the given background hex
+ * using the WCAG-relative-luminance threshold (0.5). Used when the user
+ * overrides the accent color — we can't know which contrast their custom
+ * hex needs, so we compute it.
+ */
+export function pickContrast(hex: string): string {
+  const v = hex.trim().replace("#", "");
+  const expanded =
+    v.length === 3
+      ? v
+          .split("")
+          .map((c) => c + c)
+          .join("")
+      : v;
+  if (expanded.length !== 6) return "#0b0b0b";
+  const r = parseInt(expanded.slice(0, 2), 16) / 255;
+  const g = parseInt(expanded.slice(2, 4), 16) / 255;
+  const b = parseInt(expanded.slice(4, 6), 16) / 255;
+  // Perceived luminance (Rec. 709 weights — enough for foreground picking).
+  const lum = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  return lum > 0.55 ? "#0b0b0b" : "#ffffff";
 }

@@ -44,6 +44,55 @@
       "description": "Tweak low-level audio output for professional interfaces.",
       "configure": "Configure ASIO / CoreAudio",
       "reset": "Restore factory defaults"
+    },
+    "personalization": {
+      "title": "Personalization",
+      "subtitle": "You decide how MusicFlow looks and feels",
+      "accent": {
+        "title": "Accent color",
+        "subtitle": "Change the highlight without changing the whole theme",
+        "useTheme": "Use theme's",
+        "custom": "Custom"
+      },
+      "density": {
+        "title": "Density",
+        "subtitle": "How much breathing room between elements",
+        "comfortable": "Comfortable",
+        "compact": "Compact"
+      },
+      "hero": {
+        "title": "Home hero",
+        "subtitle": "What gets featured when you open the app",
+        "featured-track": "Featured track",
+        "featured-playlist": "Featured playlist",
+        "off": "No hero"
+      },
+      "sidebar": {
+        "title": "Left sidebar",
+        "subtitle": "How to show your side library",
+        "numbered": "Numbered list",
+        "playlists": "Playlists only",
+        "both": "Both"
+      },
+      "player": {
+        "title": "Player bar",
+        "subtitle": "Compact like the mock or expanded",
+        "compact": "Compact",
+        "expanded": "Expanded",
+        "auto": "Auto"
+      },
+      "wave": {
+        "title": "Wave animation",
+        "subtitle": "Animated bars in the player while playing"
+      },
+      "tabs": {
+        "title": "Discover / Library / Studio tabs",
+        "subtitle": "How to show the client subnav",
+        "full": "Full labels",
+        "icons": "Icons only",
+        "off": "Hide"
+      },
+      "reset": "Reset personalization"
     }
   },
   "themes": {
@@ -75,6 +124,12 @@
   "navbar": {
     "searchPlaceholder": "Search music, artists…",
     "notifications": "Notifications"
+  },
+  "tabs": {
+    "aria": "Client sections",
+    "discover": "Discover",
+    "library": "Library",
+    "studio": "Studio"
   },
   "admin": {
     "layout": {

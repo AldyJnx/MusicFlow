@@ -44,6 +44,55 @@
       "description": "Ajusta la salida de audio de bajo nivel para interfaces profesionales.",
       "configure": "Configurar ASIO / CoreAudio",
       "reset": "Restaurar valores de fábrica"
+    },
+    "personalization": {
+      "title": "Personalización",
+      "subtitle": "Tú eliges cómo se ve y se siente MusicFlow",
+      "accent": {
+        "title": "Color de acento",
+        "subtitle": "Cambia el resalte sin cambiar todo el tema",
+        "useTheme": "Usar el del tema",
+        "custom": "Personalizado"
+      },
+      "density": {
+        "title": "Densidad",
+        "subtitle": "Cuánto aire entre elementos",
+        "comfortable": "Cómoda",
+        "compact": "Compacta"
+      },
+      "hero": {
+        "title": "Hero en Inicio",
+        "subtitle": "Qué destacar al abrir la app",
+        "featured-track": "Pista destacada",
+        "featured-playlist": "Lista destacada",
+        "off": "Sin hero"
+      },
+      "sidebar": {
+        "title": "Sidebar izquierdo",
+        "subtitle": "Cómo mostrar tu biblioteca lateral",
+        "numbered": "Lista numerada",
+        "playlists": "Solo playlists",
+        "both": "Ambas"
+      },
+      "player": {
+        "title": "Barra del reproductor",
+        "subtitle": "Compacta como en el mock o expandida",
+        "compact": "Compacta",
+        "expanded": "Expandida",
+        "auto": "Auto"
+      },
+      "wave": {
+        "title": "Animación wave",
+        "subtitle": "Barras animadas en el reproductor durante la reproducción"
+      },
+      "tabs": {
+        "title": "Tabs Descubrir / Biblioteca / Estudio",
+        "subtitle": "Cómo mostrar la subnav del cliente",
+        "full": "Texto completo",
+        "icons": "Solo iconos",
+        "off": "Ocultar"
+      },
+      "reset": "Restablecer personalización"
     }
   },
   "themes": {
@@ -75,6 +124,12 @@
   "navbar": {
     "searchPlaceholder": "Buscar música, artistas…",
     "notifications": "Notificaciones"
+  },
+  "tabs": {
+    "aria": "Secciones del cliente",
+    "discover": "Descubrir",
+    "library": "Biblioteca",
+    "studio": "Estudio"
   },
   "admin": {
     "layout": {

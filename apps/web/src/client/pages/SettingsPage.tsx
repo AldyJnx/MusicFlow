@@ -11,6 +11,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import ClientLayout from "../layout/ClientLayout";
+import PersonalizationSection from "../features/settings/PersonalizationSection";
 import { usePreferences } from "../../shared/hooks/usePreferences";
 import { APP_THEMES } from "../../shared/utils/theme";
 import { SUPPORTED_LANGUAGES, type AppLanguage } from "../../shared/i18n";
@@ -190,6 +191,8 @@ export default function SettingsPage() {
               })}
             </div>
           </div>
+
+          <PersonalizationSection />
 
           <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
             <div className="flex flex-col gap-4">
