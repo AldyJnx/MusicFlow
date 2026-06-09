@@ -90,6 +90,25 @@ export default defineConfig({
               expiration: { maxEntries: 80, maxAgeSeconds: 60 * 60 * 24 * 7 },
             },
           },
+          {
+            // Catalog reads — stale-while-revalidate so the library shows
+            // last-known tracks/saves/playlists/billing without network and
+            // refreshes in the background when the user reconnects. Limited
+            // to read-only endpoints; mutations stay network-only.
+            urlPattern: ({ url, request }) =>
+              request.method === 'GET' &&
+              url.pathname.startsWith('/api/') &&
+              (url.pathname.startsWith('/api/library/') ||
+                url.pathname.startsWith('/api/equalizer/presets') ||
+                url.pathname.startsWith('/api/equalizer/configs') ||
+                url.pathname.startsWith('/api/billing/quota')),
+            handler: 'StaleWhileRevalidate',
+            options: {
+              cacheName: 'musicflow-api',
+              expiration: { maxEntries: 80, maxAgeSeconds: 60 * 60 * 24 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
         ],
       },
     }),

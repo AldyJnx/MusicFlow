@@ -2,6 +2,7 @@ import { Bell, Loader2, Music4, Search } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import QuotaBadge from "../QuotaBadge";
+import OfflineIndicator from "../OfflineIndicator";
 import { useAuthStore } from "../../stores/authStore";
 import { useGlobalSearch } from "../../hooks/useGlobalSearch";
 import {
@@ -134,6 +135,7 @@ export default function Navbar({ placeholder }: NavbarProps) {
       </div>
 
       <div className="flex shrink-0 items-center gap-2">
+        <OfflineIndicator />
         {isAuthenticated ? <QuotaBadge /> : null}
         <button
           type="button"
