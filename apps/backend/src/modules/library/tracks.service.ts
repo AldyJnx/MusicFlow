@@ -85,21 +85,41 @@ export class TracksService {
       genre?: string;
     },
   ) {
-    const { skip = 0, take = 50, search, artist, album, genre } = params || {};
+    // Note: Nest's `enableImplicitConversion` turns missing `?: number` query
+    // params into NaN, not undefined — so destructuring defaults don't kick in.
+    // Sanitize before handing them to Prisma.
+    const rawSkip = params?.skip;
+    const rawTake = params?.take;
+    const skip = Number.isFinite(rawSkip) ? (rawSkip as number) : 0;
+    const take = Number.isFinite(rawTake) ? (rawTake as number) : 50;
+    const { search, artist, album, genre } = params || {};
 
-    const where: Prisma.TrackWhereInput = { userId };
+    // The library view mixes the caller's private uploads with the global
+    // catalog (Spotify-style). Ownership for edit/delete is still checked
+    // against `userId` in the mutation services; this is read-only.
+    const visibility: Prisma.TrackWhereInput = {
+      OR: [{ userId }, { isCatalog: true }],
+    };
 
+    const filters: Prisma.TrackWhereInput[] = [];
     if (search) {
-      where.OR = [
-        { title: { contains: search, mode: "insensitive" } },
-        { artist: { contains: search, mode: "insensitive" } },
-        { album: { contains: search, mode: "insensitive" } },
-      ];
+      filters.push({
+        OR: [
+          { title: { contains: search, mode: "insensitive" } },
+          { artist: { contains: search, mode: "insensitive" } },
+          { album: { contains: search, mode: "insensitive" } },
+        ],
+      });
     }
+    if (artist)
+      filters.push({ artist: { contains: artist, mode: "insensitive" } });
+    if (album)
+      filters.push({ album: { contains: album, mode: "insensitive" } });
+    if (genre)
+      filters.push({ genre: { contains: genre, mode: "insensitive" } });
 
-    if (artist) where.artist = { contains: artist, mode: "insensitive" };
-    if (album) where.album = { contains: album, mode: "insensitive" };
-    if (genre) where.genre = { contains: genre, mode: "insensitive" };
+    const where: Prisma.TrackWhereInput =
+      filters.length > 0 ? { AND: [visibility, ...filters] } : visibility;
 
     const [tracks, total] = await Promise.all([
       this.prisma.track.findMany({
@@ -116,7 +136,7 @@ export class TracksService {
 
   async findById(id: string, userId: string) {
     const track = await this.prisma.track.findFirst({
-      where: { id, userId },
+      where: { id, OR: [{ userId }, { isCatalog: true }] },
       include: {
         segments: {
           include: { eqConfig: true },
@@ -130,6 +150,24 @@ export class TracksService {
     }
 
     return track;
+  }
+
+  async getLyrics(id: string, userId: string) {
+    const track = await this.prisma.track.findFirst({
+      where: { id, OR: [{ userId }, { isCatalog: true }] },
+      select: { id: true, lyricsLrc: true, lyricsText: true },
+    });
+
+    if (!track) {
+      throw new NotFoundException("Track not found");
+    }
+
+    return {
+      trackId: track.id,
+      lrc: track.lyricsLrc ?? null,
+      text: track.lyricsText ?? null,
+      hasLyrics: Boolean(track.lyricsLrc || track.lyricsText),
+    };
   }
 
   async create(userId: string, data: Prisma.TrackCreateWithoutUserInput) {
@@ -170,7 +208,7 @@ export class TracksService {
 
   async getArtists(userId: string) {
     const tracks = await this.prisma.track.findMany({
-      where: { userId },
+      where: { OR: [{ userId }, { isCatalog: true }] },
       select: { artist: true },
       distinct: ["artist"],
       orderBy: { artist: "asc" },
@@ -180,7 +218,9 @@ export class TracksService {
   }
 
   async getAlbums(userId: string, artist?: string) {
-    const where: Prisma.TrackWhereInput = { userId };
+    const where: Prisma.TrackWhereInput = {
+      OR: [{ userId }, { isCatalog: true }],
+    };
     if (artist) where.artist = artist;
 
     const tracks = await this.prisma.track.findMany({
@@ -195,7 +235,10 @@ export class TracksService {
 
   async getGenres(userId: string) {
     const tracks = await this.prisma.track.findMany({
-      where: { userId, genre: { not: "" } },
+      where: {
+        OR: [{ userId }, { isCatalog: true }],
+        genre: { not: "" },
+      },
       select: { genre: true },
       distinct: ["genre"],
       orderBy: { genre: "asc" },

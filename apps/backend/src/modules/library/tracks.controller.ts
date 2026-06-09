@@ -91,6 +91,15 @@ export class TracksController {
     return this.tracksService.findById(id, userId);
   }
 
+  @Get(":id/lyrics")
+  @ApiOperation({
+    summary:
+      "Get lyrics for a track. Returns the raw .lrc when present (with timestamps) plus a plain-text fallback.",
+  })
+  async getLyrics(@CurrentUser("id") userId: string, @Param("id") id: string) {
+    return this.tracksService.getLyrics(id, userId);
+  }
+
   @Post()
   @ApiOperation({ summary: "Create a new track" })
   @ApiResponse({ status: 201, description: "Track created successfully" })

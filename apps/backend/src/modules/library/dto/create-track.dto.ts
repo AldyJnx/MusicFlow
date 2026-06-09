@@ -129,4 +129,19 @@ export class CreateTrackDto {
   @IsOptional()
   @IsEnum(SyncStatus)
   syncStatus?: SyncStatus;
+
+  @ApiPropertyOptional({
+    description:
+      "Synchronized lyrics in LRC format ([mm:ss.xx] line). When present, the client highlights the active line as the track plays.",
+  })
+  @IsOptional()
+  @IsString()
+  lyricsLrc?: string;
+
+  @ApiPropertyOptional({
+    description: "Plain-text lyrics fallback (no time sync).",
+  })
+  @IsOptional()
+  @IsString()
+  lyricsText?: string;
 }

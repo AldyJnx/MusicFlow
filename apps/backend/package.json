@@ -23,7 +23,9 @@
     "prisma:migrate:dev": "prisma migrate dev",
     "prisma:migrate:deploy": "prisma migrate deploy",
     "prisma:studio": "prisma studio",
-    "prisma:seed": "ts-node prisma/seed.ts"
+    "prisma:seed": "ts-node prisma/seed.ts",
+    "seed:r2": "ts-node scripts/seed-r2-tracks.ts",
+    "peaks:backfill": "ts-node scripts/compute-track-peaks.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.98.0",

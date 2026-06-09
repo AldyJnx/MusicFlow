@@ -124,6 +124,25 @@ model Track {
   sampleRate     Int?     @map("sample_rate")
   coverArt       String?  @map("cover_art")
 
+  // Pre-computed waveform peaks for fast client-side rendering. Shape:
+  // { v: 1, n: 2000, peaks: number[] }  // normalized -1..1 max-per-bucket
+  // Optional; client falls back to decoding the audio if absent.
+  peaks Json?
+
+  // Lyrics — uploaded manually by admin per track.
+  // `lyricsLrc` holds the raw .lrc file with `[mm:ss.xx] line` markers; when
+  // present, the client highlights the active line based on the playhead.
+  // `lyricsText` holds plain text as a fallback (no time sync).
+  lyricsLrc  String? @map("lyrics_lrc")  @db.Text
+  lyricsText String? @map("lyrics_text") @db.Text
+
+  // Catalog visibility. When `isCatalog` is true the track is published in
+  // the global Spotify-style catalog: every authenticated user can stream it
+  // from `GET /library/tracks`. When false it stays in the owner's private
+  // library (only `userId` sees it). The uploader keeps owning the row in
+  // both cases — they're the only one who can edit or delete it.
+  isCatalog Boolean @default(false) @map("is_catalog")
+
   // Hybrid storage
   source     TrackSource @default(LOCAL)
   syncStatus SyncStatus  @default(PENDING) @map("sync_status")
@@ -145,6 +164,8 @@ model Track {
   @@index([userId, fileHash])
   @@index([userId, syncStatus])
   @@index([userId, updatedAt(sort: Desc)])
+  // Fast path for the catalog list endpoint — newest-first by upload time.
+  @@index([isCatalog, updatedAt(sort: Desc)])
   @@map("tracks")
 }
 

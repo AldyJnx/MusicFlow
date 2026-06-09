@@ -3,6 +3,16 @@ import { api } from "./client";
 export type TrackSource = "LOCAL" | "SYNCED" | "BOTH";
 export type SyncStatus = "PENDING" | "SYNCED" | "FAILED";
 
+/** Backend-computed waveform peaks. Optional — older tracks may not have them. */
+export interface TrackPeaks {
+  v: 1;
+  n: number;
+  channels: number;
+  sampleRate: number;
+  /** Normalized -1..1 max-per-bucket, mono mix. */
+  peaks: number[];
+}
+
 export interface Track {
   id: string;
   userId: string;
@@ -15,10 +25,13 @@ export interface Track {
   durationMs: number;
   coverArt: string | null;
   fileUrlRemote: string | null;
+  /** True when the track belongs to the public catalog (Spotify-style). */
+  isCatalog: boolean;
   source: TrackSource;
   syncStatus: SyncStatus;
   createdAt: string;
   updatedAt: string;
+  peaks?: TrackPeaks | null;
 }
 
 export interface TracksListResponse {
@@ -46,23 +59,48 @@ export interface ListTracksParams {
 export async function listTracks(
   params?: ListTracksParams,
 ): Promise<TracksListResponse> {
-  const { data } = await api.get<TracksListResponse>("/tracks", { params });
+  const { data } = await api.get<TracksListResponse>("/library/tracks", {
+    params,
+  });
   return data;
 }
 
 export async function listArtists(): Promise<string[]> {
-  const { data } = await api.get<string[]>("/tracks/artists");
+  const { data } = await api.get<string[]>("/library/tracks/artists");
   return data;
 }
 
 export async function listAlbums(artist?: string): Promise<Album[]> {
-  const { data } = await api.get<Album[]>("/tracks/albums", {
+  const { data } = await api.get<Album[]>("/library/tracks/albums", {
     params: artist ? { artist } : undefined,
   });
   return data;
 }
 
 export async function listGenres(): Promise<string[]> {
-  const { data } = await api.get<string[]>("/tracks/genres");
+  const { data } = await api.get<string[]>("/library/tracks/genres");
   return data;
+}
+
+export interface TrackLyrics {
+  trackId: string;
+  /** Raw .lrc payload with [mm:ss.xx] markers. Present when admin uploaded a synced file. */
+  lrc: string | null;
+  /** Plain-text fallback. */
+  text: string | null;
+  hasLyrics: boolean;
+}
+
+export async function getTrackLyrics(trackId: string): Promise<TrackLyrics> {
+  const { data } = await api.get<TrackLyrics>(
+    `/library/tracks/${trackId}/lyrics`,
+  );
+  return data;
+}
+
+export async function updateTrackLyrics(
+  trackId: string,
+  payload: { lyricsLrc?: string | null; lyricsText?: string | null },
+): Promise<void> {
+  await api.patch(`/library/tracks/${trackId}`, payload);
 }
