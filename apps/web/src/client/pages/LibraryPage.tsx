@@ -1,5 +1,7 @@
-import { Clock3, Equal, Music4, MoreHorizontal, Sparkles } from "lucide-react";
+import { Clock3, Music4, MoreHorizontal } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 
 import ClientLayout from "../layout/ClientLayout";
 import {
@@ -7,13 +9,11 @@ import {
   useAlbumsQuery,
   useArtistsQuery,
 } from "../../shared/hooks/useTracks";
-import type { Track } from "../../shared/api/tracks";
+import { listGenres, type Track } from "../../shared/api/tracks";
+import { usePlayerStore, type PlayerTrack } from "../stores/playStore";
 
-type LibraryTab = "Canciones" | "Álbumes" | "Artistas";
-const tabs: LibraryTab[] = ["Canciones", "Álbumes", "Artistas"];
-
-type GenreFilter = "Indie" | "Electronic" | "Jazz" | "Rock";
-const genres: GenreFilter[] = ["Indie", "Electronic", "Jazz", "Rock"];
+type LibraryTab = "songs" | "albums" | "artists";
+const tabs: LibraryTab[] = ["songs", "albums", "artists"];
 
 /** Convert milliseconds to M:SS display string */
 function formatMs(ms: number): string {
@@ -44,8 +44,9 @@ function SkeletonRow() {
 }
 
 export default function LibraryPage() {
-  const [activeTab, setActiveTab] = useState<LibraryTab>("Canciones");
-  const [activeGenre, setActiveGenre] = useState<GenreFilter | null>(null);
+  const { t } = useTranslation();
+  const [activeTab, setActiveTab] = useState<LibraryTab>("songs");
+  const [activeGenre, setActiveGenre] = useState<string | null>(null);
   const [searchInput, setSearchInput] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -69,75 +70,69 @@ export default function LibraryPage() {
 
   const albumsQuery = useAlbumsQuery();
   const artistsQuery = useArtistsQuery();
+  const genresQuery = useQuery({
+    queryKey: ["library", "genres"],
+    queryFn: listGenres,
+    staleTime: 60_000,
+  });
+  const genres = genresQuery.data ?? [];
 
   const tracks = tracksQuery.data?.tracks ?? [];
   const albums = albumsQuery.data ?? [];
   const artists = artistsQuery.data ?? [];
 
   // --- Track row click handler ---
-  // TODO: connect to player store (other agent owns playStore)
+  // Pushes the whole filtered list to the player so next/previous work, and
+  // jumps directly to the clicked track. Tracks without a remote URL are
+  // skipped silently (they wouldn't decode anyway).
+  const playTrackList = usePlayerStore((s) => s.playTrackList);
+
+  function toPlayerTrack(t: Track): PlayerTrack | null {
+    if (!t.fileUrlRemote) return null;
+    return {
+      id: t.id,
+      title: t.title,
+      artist: t.artist,
+      cover: t.coverArt,
+      url: t.fileUrlRemote,
+      durationMs: t.durationMs,
+    };
+  }
+
   function handleTrackClick(track: Track) {
-    console.log("play track", track.id);
+    const playable = (tracksQuery.data?.tracks ?? [])
+      .map(toPlayerTrack)
+      .filter((p): p is PlayerTrack => p !== null);
+    if (playable.length === 0) return;
+    const idx = playable.findIndex((p) => p.id === track.id);
+    void playTrackList(playable, Math.max(0, idx));
   }
 
   return (
     <ClientLayout>
       <section className="min-h-screen w-full bg-[var(--color-page)] px-6 py-6 text-[var(--color-text)]">
         <div className="mx-auto flex max-w-7xl flex-col gap-6">
-          {/* --- Stat Cards --- */}
-          <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
-            {/* Total canciones — live from API */}
-            <article className="flex items-center justify-between rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-alt)] px-5 py-5">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--color-muted)]">
-                  Total canciones
-                </p>
-                <p className="mt-3 text-3xl font-semibold tracking-tight text-[var(--color-text)]">
-                  {tracksQuery.data?.total ?? "—"}
-                </p>
-              </div>
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[var(--color-secondary)] text-[var(--color-primary)]">
-                <Music4 className="h-5 w-5" strokeWidth={2.2} />
-              </div>
-            </article>
-
-            {/* EQ aplicados — TODO: replace with count from GET /equalizer/configs or similar endpoint */}
-            <article className="flex items-center justify-between rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-alt)] px-5 py-5">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--color-muted)]">
-                  EQ aplicados
-                </p>
-                <p className="mt-3 text-3xl font-semibold tracking-tight text-[var(--color-text)]">
-                  412
-                </p>
-              </div>
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[var(--color-secondary)] text-[var(--color-primary)]">
-                <Equal className="h-5 w-5" strokeWidth={2.2} />
-              </div>
-            </article>
-
-            {/* Segmentos definidos — TODO: replace with count from GET /equalizer/segments or similar endpoint */}
-            <article className="flex items-center justify-between rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-alt)] px-5 py-5">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--color-muted)]">
-                  Segmentos definidos
-                </p>
-                <p className="mt-3 text-3xl font-semibold tracking-tight text-[var(--color-text)]">
-                  56
-                </p>
-              </div>
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[var(--color-secondary)] text-[var(--color-primary)]">
-                <Sparkles className="h-5 w-5" strokeWidth={2.2} />
-              </div>
-            </article>
-          </div>
+          {/* --- Stat card: total tracks (live from API) --- */}
+          <article className="flex items-center justify-between rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-alt)] px-5 py-5">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--color-muted)]">
+                {t("library.totalTracks")}
+              </p>
+              <p className="mt-3 text-3xl font-semibold tracking-tight text-[var(--color-text)]">
+                {tracksQuery.data?.total ?? "—"}
+              </p>
+            </div>
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[var(--color-secondary)] text-[var(--color-primary)]">
+              <Music4 className="h-5 w-5" strokeWidth={2.2} />
+            </div>
+          </article>
 
           <div className="flex flex-col gap-5">
             {/* --- Header: tabs + search + genre chips --- */}
             <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
               <div>
                 <h1 className="text-2xl font-semibold tracking-tight text-[var(--color-text)]">
-                  Tu Biblioteca
+                  {t("library.title")}
                 </h1>
                 <div className="mt-3 flex items-center gap-5 border-b border-[var(--color-border)] pb-2">
                   {tabs.map((tab) => (
@@ -151,7 +146,7 @@ export default function LibraryPage() {
                           : "text-[var(--color-muted)] hover:text-[var(--color-text)]"
                       }`}
                     >
-                      {tab}
+                      {t(`library.tabs.${tab}`)}
                       {activeTab === tab ? (
                         <span className="absolute inset-x-0 -bottom-[9px] h-0.5 rounded-full bg-[var(--color-primary)]" />
                       ) : null}
@@ -163,18 +158,19 @@ export default function LibraryPage() {
               {/* Search field */}
               <input
                 type="search"
-                placeholder="Buscar canciones…"
+                placeholder={t("library.searchPlaceholder")}
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
                 className="w-full max-w-xs rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-alt)] px-4 py-2 text-sm text-[var(--color-text)] placeholder:text-[var(--color-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)] lg:w-64"
               />
             </div>
 
-            {/* Genre chips — only relevant for Canciones tab */}
-            {activeTab === "Canciones" && (
+            {/* Genre chips — only relevant for Canciones tab, only when the
+                user actually has tracks across distinct genres */}
+            {activeTab === "songs" && genres.length > 0 && (
               <div className="flex flex-wrap items-center gap-2">
                 <span className="mr-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--color-muted)]">
-                  Géneros:
+                  {t("library.genres")}:
                 </span>
                 <button
                   type="button"
@@ -185,7 +181,7 @@ export default function LibraryPage() {
                       : "border-[var(--color-border)] bg-transparent text-[var(--color-text)] hover:border-[var(--color-primary)]"
                   }`}
                 >
-                  All
+                  {t("library.all")}
                 </button>
                 {genres.map((genre) => (
                   <button
@@ -209,14 +205,14 @@ export default function LibraryPage() {
             )}
 
             {/* --- Tab content --- */}
-            {activeTab === "Canciones" && (
+            {activeTab === "songs" && (
               <div className="overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-alt)]">
                 {/* Table header */}
                 <div className="grid grid-cols-[58px_minmax(260px,1.8fr)_minmax(170px,1.1fr)_160px_90px_48px] items-center gap-4 border-b border-[var(--color-border)] px-4 py-4 text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--color-muted)]">
-                  <span>#</span>
-                  <span>Título</span>
-                  <span>Álbum</span>
-                  <span>Estado EQ</span>
+                  <span>{t("library.table.number")}</span>
+                  <span>{t("library.table.title")}</span>
+                  <span>{t("library.table.album")}</span>
+                  <span>{t("library.table.eqStatus")}</span>
                   <span className="flex items-center gap-2">
                     <Clock3 className="h-3.5 w-3.5" strokeWidth={2.1} />
                   </span>
@@ -236,14 +232,14 @@ export default function LibraryPage() {
                 {tracksQuery.isError && (
                   <div className="flex flex-col items-center gap-4 py-16 text-center">
                     <p className="text-sm text-[var(--color-muted)]">
-                      No pudimos cargar tu biblioteca. Intenta de nuevo.
+                      {t("library.loadError")}
                     </p>
                     <button
                       type="button"
                       onClick={() => tracksQuery.refetch()}
                       className="rounded-xl border border-[var(--color-primary)] px-5 py-2 text-sm font-medium text-[var(--color-primary)] transition hover:bg-[var(--color-secondary)]"
                     >
-                      Reintentar
+                      {t("library.retry")}
                     </button>
                   </div>
                 )}
@@ -256,7 +252,7 @@ export default function LibraryPage() {
                       strokeWidth={1.5}
                     />
                     <p className="text-sm text-[var(--color-muted)]">
-                      Tu biblioteca está vacía. Sube tus primeras canciones.
+                      {t("library.empty")}
                     </p>
                   </div>
                 )}
@@ -306,8 +302,13 @@ export default function LibraryPage() {
                         </div>
 
                         <div>
-                          {/* EQ label placeholder — no eqLabel on Track yet, reserved for future */}
-                          <span className="text-[var(--color-muted)]">—</span>
+                          {track.isCatalog ? (
+                            <span className="inline-flex items-center rounded-full border border-[var(--color-primary)]/40 bg-[var(--color-primary)]/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[var(--color-primary)]">
+                              {t("library.catalogBadge")}
+                            </span>
+                          ) : (
+                            <span className="text-[var(--color-muted)]">—</span>
+                          )}
                         </div>
 
                         <span className="text-sm text-[var(--color-muted)]">
@@ -331,8 +332,8 @@ export default function LibraryPage() {
               </div>
             )}
 
-            {/* --- Álbumes tab --- */}
-            {activeTab === "Álbumes" && (
+            {/* --- Albums tab --- */}
+            {activeTab === "albums" && (
               <div>
                 {albumsQuery.isLoading && (
                   <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
@@ -352,14 +353,14 @@ export default function LibraryPage() {
                 {albumsQuery.isError && (
                   <div className="flex flex-col items-center gap-4 py-16 text-center">
                     <p className="text-sm text-[var(--color-muted)]">
-                      No pudimos cargar tu biblioteca. Intenta de nuevo.
+                      {t("library.loadError")}
                     </p>
                     <button
                       type="button"
                       onClick={() => albumsQuery.refetch()}
                       className="rounded-xl border border-[var(--color-primary)] px-5 py-2 text-sm font-medium text-[var(--color-primary)] transition hover:bg-[var(--color-secondary)]"
                     >
-                      Reintentar
+                      {t("library.retry")}
                     </button>
                   </div>
                 )}
@@ -371,7 +372,7 @@ export default function LibraryPage() {
                       strokeWidth={1.5}
                     />
                     <p className="text-sm text-[var(--color-muted)]">
-                      Tu biblioteca está vacía. Sube tus primeras canciones.
+                      {t("library.empty")}
                     </p>
                   </div>
                 )}
@@ -412,8 +413,8 @@ export default function LibraryPage() {
               </div>
             )}
 
-            {/* --- Artistas tab --- */}
-            {activeTab === "Artistas" && (
+            {/* --- Artists tab --- */}
+            {activeTab === "artists" && (
               <div>
                 {artistsQuery.isLoading && (
                   <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
@@ -431,14 +432,14 @@ export default function LibraryPage() {
                 {artistsQuery.isError && (
                   <div className="flex flex-col items-center gap-4 py-16 text-center">
                     <p className="text-sm text-[var(--color-muted)]">
-                      No pudimos cargar tu biblioteca. Intenta de nuevo.
+                      {t("library.loadError")}
                     </p>
                     <button
                       type="button"
                       onClick={() => artistsQuery.refetch()}
                       className="rounded-xl border border-[var(--color-primary)] px-5 py-2 text-sm font-medium text-[var(--color-primary)] transition hover:bg-[var(--color-secondary)]"
                     >
-                      Reintentar
+                      {t("library.retry")}
                     </button>
                   </div>
                 )}
@@ -450,7 +451,7 @@ export default function LibraryPage() {
                       strokeWidth={1.5}
                     />
                     <p className="text-sm text-[var(--color-muted)]">
-                      Tu biblioteca está vacía. Sube tus primeras canciones.
+                      {t("library.empty")}
                     </p>
                   </div>
                 )}
