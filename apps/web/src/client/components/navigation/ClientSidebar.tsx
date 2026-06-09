@@ -18,6 +18,8 @@ import {
   useLatestSavedCoverQuery,
   useSavedTracksQuery,
 } from "../../../shared/hooks/useLibrarySaves";
+import { usePreferences } from "../../../shared/hooks/usePreferences";
+import NumberedTrackList from "../../features/sidebar/NumberedTrackList";
 
 type LibraryFilter = "all" | "playlists" | "artists" | "albums";
 
@@ -161,7 +163,7 @@ function FilterChips({
             onClick={() => onChange(active ? "all" : it.id)}
             className={`rounded-full px-2.5 py-1 text-xs font-medium transition ${
               active
-                ? "bg-[var(--color-primary)] text-[var(--color-primary-contrast,#0b0b0b)]"
+                ? "bg-[var(--color-primary)] text-[var(--color-primary-contrast)]"
                 : "bg-[var(--color-page)] text-[var(--color-text)] hover:bg-[var(--color-surface-alt)]"
             }`}
           >
@@ -294,6 +296,14 @@ export default function ClientSidebar({
   const navigate = useNavigate();
   const [filter, setFilter] = useState<LibraryFilter>("all");
   const [filterText, setFilterText] = useState("");
+  const { sidebarLayout } = usePreferences();
+
+  // When collapsed the numbered list (text-heavy) is meaningless, so we
+  // fall back to playlists-only icons.
+  const showPlaylists =
+    collapsed || sidebarLayout === "playlists" || sidebarLayout === "both";
+  const showNumbered =
+    !collapsed && (sidebarLayout === "numbered" || sidebarLayout === "both");
 
   const playlistsQ = useQuery({
     queryKey: ["playlists"],
@@ -431,14 +441,17 @@ export default function ClientSidebar({
             collapsed={collapsed}
             onClick={() => navigate("/library?scope=mylibrary")}
           />
-          {visiblePlaylists.map((p) => (
-            <PlaylistItem
-              key={p.id}
-              playlist={p}
-              collapsed={collapsed}
-              onClick={() => navigate("/playlists")}
-            />
-          ))}
+          {showNumbered ? <NumberedTrackList /> : null}
+          {showPlaylists
+            ? visiblePlaylists.map((p) => (
+                <PlaylistItem
+                  key={p.id}
+                  playlist={p}
+                  collapsed={collapsed}
+                  onClick={() => navigate("/playlists")}
+                />
+              ))
+            : null}
           {!collapsed && filter === "artists" ? (
             <button
               type="button"
@@ -461,7 +474,8 @@ export default function ClientSidebar({
               })}
             </button>
           ) : null}
-          {!collapsed &&
+          {showPlaylists &&
+          !collapsed &&
           playlistsQ.isSuccess &&
           visiblePlaylists.length === 0 &&
           filter !== "artists" &&
