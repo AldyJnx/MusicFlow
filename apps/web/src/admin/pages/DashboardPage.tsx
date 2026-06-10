@@ -1,11 +1,18 @@
 import { useQuery } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useNavigate } from "react-router-dom";
 import {
+  ArrowRight,
   Crown,
   ListMusic,
+  Minus,
   Music,
+  RefreshCw,
   Sparkles,
   ThumbsUp,
+  TrendingDown,
+  TrendingUp,
   Users,
 } from "lucide-react";
 import {
@@ -48,27 +55,167 @@ function SkeletonCard() {
 // Stat card
 // ---------------------------------------------------------------------------
 
+type StatTone = "primary" | "accent" | "positive" | "warning";
+
+interface StatTrend {
+  /** Numeric change vs prior period. Sign drives arrow direction. */
+  delta: number;
+  /** Localized label, e.g. "vs semana pasada". */
+  label: string;
+  /** When true a negative delta is shown as positive (e.g. "churn dropped"). */
+  invertSemantics?: boolean;
+}
+
 interface StatCardProps {
   icon: React.ReactNode;
   label: string;
   value: string | number;
   subtitle?: string;
+  tone?: StatTone;
+  trend?: StatTrend;
+  /** Action label rendered as a hover-revealed "Ver detalle →" CTA. */
+  href?: string;
+  /** Variant — "hero" doubles the title size for the two headline KPIs. */
+  size?: "default" | "hero";
+  /** Show "—" with this hint instead of the value when the metric is N/A. */
+  empty?: string;
 }
 
-function StatCard({ icon, label, value, subtitle }: StatCardProps) {
+const TONE_BG: Record<StatTone, string> = {
+  primary: "var(--color-primary)",
+  accent: "var(--color-accent)",
+  positive: "#22c55e",
+  warning: "#f59e0b",
+};
+
+function StatCard({
+  icon,
+  label,
+  value,
+  subtitle,
+  tone = "primary",
+  trend,
+  href,
+  size = "default",
+  empty,
+}: StatCardProps) {
+  const navigate = useNavigate();
+  const clickable = !!href;
+  const isHero = size === "hero";
+  const isEmpty = empty !== undefined;
+  const accent = TONE_BG[tone];
+
+  const TrendIcon = trend
+    ? trend.delta > 0
+      ? TrendingUp
+      : trend.delta < 0
+        ? TrendingDown
+        : Minus
+    : null;
+  // For positive metrics (users, satisfaction) up = good. For inverted ones
+  // (churn, errors) down = good — the caller toggles `invertSemantics`.
+  const trendPositive = trend
+    ? (trend.invertSemantics ? -trend.delta : trend.delta) > 0
+    : false;
+  const trendColor = trend
+    ? trend.delta === 0
+      ? "var(--color-muted)"
+      : trendPositive
+        ? "#22c55e"
+        : "#ef4444"
+    : undefined;
+
+  function handleClick() {
+    if (href) navigate(href);
+  }
+
   return (
-    <article className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-alt)] p-5">
-      <div className="mb-3 flex items-center gap-2">
-        <span className="text-[var(--color-primary)]">{icon}</span>
-        <span className="text-[10px] font-semibold uppercase tracking-widest text-[var(--color-muted)]">
-          {label}
-        </span>
+    <article
+      onClick={clickable ? handleClick : undefined}
+      onKeyDown={
+        clickable
+          ? (e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                handleClick();
+              }
+            }
+          : undefined
+      }
+      role={clickable ? "button" : undefined}
+      tabIndex={clickable ? 0 : undefined}
+      aria-label={clickable ? `${label}: ${value}` : undefined}
+      className={`group relative overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-alt)] p-5 transition ${
+        clickable
+          ? "cursor-pointer hover:-translate-y-0.5 hover:border-[color:var(--accent-tone)] hover:shadow-[0_18px_40px_rgba(0,0,0,0.32)]"
+          : ""
+      } ${isHero ? "sm:p-6" : ""}`}
+      style={{ ["--accent-tone" as string]: accent }}
+    >
+      {/* Top-left tinted glow per tone — subtle wayfinding */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute -top-10 -left-10 h-24 w-24 rounded-full opacity-20 blur-2xl"
+        style={{ backgroundColor: accent }}
+      />
+
+      <div className="relative mb-3 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <span style={{ color: accent }}>{icon}</span>
+          <span className="text-[10px] font-semibold uppercase tracking-widest text-[var(--color-muted)]">
+            {label}
+          </span>
+        </div>
+        {clickable ? (
+          <ArrowRight
+            className="h-3.5 w-3.5 -translate-x-1 text-[var(--color-muted)] opacity-0 transition group-hover:translate-x-0 group-hover:opacity-100"
+            strokeWidth={2.4}
+            style={{ color: accent }}
+          />
+        ) : null}
       </div>
-      <p className="text-3xl font-bold tracking-tight text-[var(--color-text)]">
-        {value}
-      </p>
-      {subtitle && (
-        <p className="mt-1 text-xs text-[var(--color-muted)]">{subtitle}</p>
+
+      {isEmpty ? (
+        <>
+          <p
+            className={`font-bold tracking-tight text-[var(--color-muted)] ${
+              isHero ? "text-5xl" : "text-3xl"
+            }`}
+          >
+            —
+          </p>
+          <p className="mt-1 text-xs text-[var(--color-muted)]">{empty}</p>
+        </>
+      ) : (
+        <>
+          <p
+            className={`font-bold tracking-tight text-[var(--color-text)] ${
+              isHero ? "text-4xl sm:text-5xl" : "text-3xl"
+            }`}
+          >
+            {value}
+          </p>
+          {(subtitle || trend) && (
+            <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+              {trend && TrendIcon ? (
+                <span
+                  className="inline-flex items-center gap-1 font-semibold"
+                  style={{ color: trendColor }}
+                >
+                  <TrendIcon className="h-3 w-3" strokeWidth={2.6} />
+                  {trend.delta > 0 ? "+" : ""}
+                  {trend.delta}
+                  <span className="font-normal text-[var(--color-muted)]">
+                    {trend.label}
+                  </span>
+                </span>
+              ) : null}
+              {subtitle && (
+                <span className="text-[var(--color-muted)]">{subtitle}</span>
+              )}
+            </div>
+          )}
+        </>
       )}
     </article>
   );
@@ -496,6 +643,35 @@ function ErrorBanner({ message, onRetry }: ErrorBannerProps) {
 // Main page
 // ---------------------------------------------------------------------------
 
+/** Formats "actualizado hace Xs / Xm" for the header freshness indicator. */
+function useTimeAgo(timestamp: number | null): string {
+  const { t } = useTranslation();
+  const [, force] = useState(0);
+  useEffect(() => {
+    const id = window.setInterval(() => force((v) => v + 1), 15_000);
+    return () => window.clearInterval(id);
+  }, []);
+  if (!timestamp)
+    return t("admin.dashboard.neverUpdated", { defaultValue: "—" });
+  const seconds = Math.floor((Date.now() - timestamp) / 1000);
+  if (seconds < 60)
+    return t("admin.dashboard.updatedSeconds", {
+      defaultValue: "hace {{n}}s",
+      n: seconds,
+    });
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60)
+    return t("admin.dashboard.updatedMinutes", {
+      defaultValue: "hace {{n}} min",
+      n: minutes,
+    });
+  const hours = Math.floor(minutes / 60);
+  return t("admin.dashboard.updatedHours", {
+    defaultValue: "hace {{n}}h",
+    n: hours,
+  });
+}
+
 export default function DashboardPage() {
   const { t } = useTranslation();
   const dashboardQ = useQuery<DashboardStats>({
@@ -525,6 +701,28 @@ export default function DashboardPage() {
   const isLoading = dashboardQ.isPending || feedbackQ.isPending;
   const hasError = dashboardQ.isError || feedbackQ.isError;
 
+  // Track the latest successful fetch across all four queries — that's what
+  // the user actually cares about when reading the freshness indicator.
+  const lastUpdated = Math.max(
+    dashboardQ.dataUpdatedAt ?? 0,
+    feedbackQ.dataUpdatedAt ?? 0,
+    growthQ.dataUpdatedAt ?? 0,
+    catalogQ.dataUpdatedAt ?? 0,
+  );
+  const timeAgo = useTimeAgo(lastUpdated || null);
+  const anyRefreshing =
+    dashboardQ.isFetching ||
+    feedbackQ.isFetching ||
+    growthQ.isFetching ||
+    catalogQ.isFetching;
+
+  function refreshAll() {
+    void dashboardQ.refetch();
+    void feedbackQ.refetch();
+    void growthQ.refetch();
+    void catalogQ.refetch();
+  }
+
   function handleRetry() {
     if (dashboardQ.isError) void dashboardQ.refetch();
     if (feedbackQ.isError) void feedbackQ.refetch();
@@ -546,14 +744,50 @@ export default function DashboardPage() {
   return (
     <section className="min-h-screen w-full bg-[var(--color-page)] px-4 py-6 text-[var(--color-text)] sm:px-6 xl:px-8">
       <div className="mx-auto flex max-w-7xl flex-col gap-8">
-        {/* ── Header ── */}
-        <header>
-          <h1 className="text-2xl font-bold tracking-tight text-[var(--color-text)] sm:text-3xl">
-            {t("admin.dashboard.title")}
-          </h1>
-          <p className="mt-1 text-sm text-[var(--color-muted)]">
-            {t("admin.dashboard.subtitle")}
-          </p>
+        {/* ── Header with freshness + refresh ── */}
+        <header className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-[var(--color-text)] sm:text-3xl">
+              {t("admin.dashboard.title")}
+            </h1>
+            <p className="mt-1 text-sm text-[var(--color-muted)]">
+              {t("admin.dashboard.subtitle")}
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <span
+              className="inline-flex items-center gap-1.5 rounded-full border border-[var(--color-border)] bg-[var(--color-surface-alt)] px-3 py-1.5 text-xs text-[var(--color-muted)]"
+              aria-live="polite"
+            >
+              <span
+                className={`h-1.5 w-1.5 rounded-full ${
+                  anyRefreshing
+                    ? "animate-pulse bg-amber-400"
+                    : "bg-emerald-400"
+                }`}
+                aria-hidden="true"
+              />
+              {t("admin.dashboard.updated", { defaultValue: "Actualizado" })}{" "}
+              {timeAgo}
+            </span>
+            <button
+              type="button"
+              onClick={refreshAll}
+              disabled={anyRefreshing}
+              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[var(--color-border)] bg-[var(--color-surface-alt)] text-[var(--color-muted)] transition hover:border-[var(--color-primary)] hover:text-[var(--color-primary)] disabled:opacity-60"
+              title={t("admin.dashboard.refresh", {
+                defaultValue: "Refrescar",
+              })}
+              aria-label={t("admin.dashboard.refresh", {
+                defaultValue: "Refrescar",
+              })}
+            >
+              <RefreshCw
+                className={`h-4 w-4 ${anyRefreshing ? "animate-spin" : ""}`}
+                strokeWidth={2.3}
+              />
+            </button>
+          </div>
         </header>
 
         {/* ── Error banner ── */}
@@ -564,54 +798,105 @@ export default function DashboardPage() {
           />
         )}
 
-        {/* ── Stat cards grid ── */}
+        {/* ── Hero KPIs (2 cards) — Users + AI Satisfaction ── */}
         {isLoading ? (
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {Array.from({ length: 6 }).map((_, i) => (
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <SkeletonCard />
+            <SkeletonCard />
+          </div>
+        ) : stats && feedbackStats ? (
+          <div
+            className="grid grid-cols-1 gap-4 md:grid-cols-2"
+            aria-label={t("admin.dashboard.heroKpisAria", {
+              defaultValue: "Indicadores principales",
+            })}
+          >
+            <StatCard
+              size="hero"
+              tone="primary"
+              icon={<Users className="h-4 w-4" />}
+              label={t("admin.dashboard.totalUsers")}
+              value={stats.users.total}
+              trend={{
+                delta: stats.users.recentWeek,
+                label: t("admin.dashboard.trendWeek", {
+                  defaultValue: "esta semana",
+                }),
+              }}
+              subtitle={t("admin.dashboard.premiumSubtitle", {
+                premium: stats.users.premium,
+                recent: stats.users.recentWeek,
+              })}
+              href="/admin/users"
+            />
+            <StatCard
+              size="hero"
+              tone="accent"
+              icon={<ThumbsUp className="h-4 w-4" />}
+              label={t("admin.dashboard.aiSatisfaction")}
+              value={
+                feedbackStats.total === 0
+                  ? "—"
+                  : `${feedbackStats.satisfactionRate.toFixed(1)}%`
+              }
+              empty={
+                feedbackStats.total === 0
+                  ? t("admin.dashboard.aiNoFeedback", {
+                      defaultValue:
+                        "Aún no hay feedback registrado de los usuarios.",
+                    })
+                  : undefined
+              }
+              subtitle={
+                feedbackStats.total > 0
+                  ? t("admin.dashboard.aiSatisfactionSubtitle", {
+                      good: feedbackStats.good,
+                      bad: feedbackStats.bad,
+                      neutral: feedbackStats.neutral,
+                      total: feedbackStats.total,
+                    })
+                  : undefined
+              }
+              href="/admin/ai"
+            />
+          </div>
+        ) : null}
+
+        {/* ── Secondary KPIs (4 cards) ── */}
+        {isLoading ? (
+          <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+            {Array.from({ length: 4 }).map((_, i) => (
               <SkeletonCard key={i} />
             ))}
           </div>
         ) : stats && feedbackStats ? (
           <div
-            className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3"
-            aria-label="Estadísticas generales"
+            className="grid grid-cols-2 gap-4 md:grid-cols-4"
+            aria-label={t("admin.dashboard.secondaryKpisAria", {
+              defaultValue: "Indicadores secundarios",
+            })}
           >
             <StatCard
-              icon={<Users className="h-4 w-4" />}
-              label={t("admin.dashboard.totalUsers")}
-              value={stats.users.total}
-              subtitle={t("admin.dashboard.premiumSubtitle", {
-                premium: stats.users.premium,
-                recent: stats.users.recentWeek,
-              })}
-            />
-            <StatCard
+              tone="primary"
               icon={<Music className="h-4 w-4" />}
               label={t("admin.dashboard.tracks")}
               value={stats.content.tracks}
             />
             <StatCard
+              tone="primary"
               icon={<ListMusic className="h-4 w-4" />}
               label={t("admin.dashboard.playlists")}
               value={stats.content.playlists}
             />
             <StatCard
+              tone="accent"
               icon={<Sparkles className="h-4 w-4" />}
               label={t("admin.dashboard.aiRequests")}
               value={stats.ai.totalRequests}
+              href="/admin/ai"
             />
             <StatCard
-              icon={<ThumbsUp className="h-4 w-4" />}
-              label={t("admin.dashboard.aiSatisfaction")}
-              value={`${feedbackStats.satisfactionRate.toFixed(1)}%`}
-              subtitle={t("admin.dashboard.aiSatisfactionSubtitle", {
-                good: feedbackStats.good,
-                bad: feedbackStats.bad,
-                neutral: feedbackStats.neutral,
-                total: feedbackStats.total,
-              })}
-            />
-            <StatCard
+              tone="warning"
               icon={<Crown className="h-4 w-4" />}
               label={t("admin.dashboard.premiumConversions")}
               value={`${premiumRate}%`}
@@ -619,6 +904,7 @@ export default function DashboardPage() {
                 premium: stats.users.premium,
                 total: stats.users.total,
               })}
+              href="/admin/users"
             />
           </div>
         ) : null}
