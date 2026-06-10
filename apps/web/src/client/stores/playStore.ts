@@ -36,6 +36,12 @@ interface PlayerState {
   eqDrawerOpen: boolean;
   /** Quick-prompt AI modal triggered from the persistent player. */
   aiPromptOpen: boolean;
+  /**
+   * EQ bypass — when true the engine is forced to flat (all bands at 0)
+   * but the previous curve is held in memory so the user can toggle it
+   * back on without losing their work.
+   */
+  eqBypassed: boolean;
 }
 
 interface PlayerActions {
@@ -58,6 +64,7 @@ interface PlayerActions {
   closeEqDrawer: () => void;
   openAiPrompt: () => void;
   closeAiPrompt: () => void;
+  toggleEqBypass: () => void;
   addToQueue: (track: PlayerTrack) => void;
   removeFromQueue: (index: number) => void;
   clearQueue: () => void;
@@ -92,6 +99,15 @@ export function initializePlayerEngine(): void {
 
 // ─── Internal helper ─────────────────────────────────────────────────────────
 
+/**
+ * Module-scoped stash for the EQ bypass flow. Holding it outside Zustand
+ * keeps non-serializable details (engine snapshot shape) away from persist().
+ * Cleared every time bypass is turned back off.
+ */
+let bypassStash: ReturnType<
+  ReturnType<typeof getAudioEngine>["getCurrentEqState"]
+> | null = null;
+
 async function loadAndPlay(track: PlayerTrack): Promise<void> {
   initializePlayerEngine();
   const engine = getAudioEngine();
@@ -117,6 +133,7 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
       isExpanded: false,
       eqDrawerOpen: false,
       aiPromptOpen: false,
+      eqBypassed: false,
 
       // ── Actions ────────────────────────────────────────────────────────────
 
@@ -222,6 +239,35 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
         set({ aiPromptOpen: true, eqDrawerOpen: false });
       },
       closeAiPrompt: () => set({ aiPromptOpen: false }),
+
+      // EQ bypass — when turning OFF we snapshot the live curve so we can
+      // restore it on the next toggle; turning ON we just flatten the engine.
+      toggleEqBypass: () => {
+        const engine = getAudioEngine();
+        const wasBypassed = get().eqBypassed;
+        if (wasBypassed) {
+          // Re-enable EQ: replay the stashed bands and effects.
+          const stash = bypassStash;
+          if (stash) {
+            engine.equalizer.setBands(stash.bands, 200);
+            engine.setEffects(stash.effects);
+          }
+          bypassStash = null;
+          set({ eqBypassed: false });
+        } else {
+          // Disable EQ: stash and flatten.
+          bypassStash = engine.getCurrentEqState();
+          engine.equalizer.setBands(new Array(10).fill(0), 200);
+          engine.setEffects({
+            bassBoost: 0,
+            virtualizer: 0,
+            loudness: 0,
+            reverbPreset: "NONE",
+            reverbAmount: 0,
+          });
+          set({ eqBypassed: true });
+        }
+      },
 
       addToQueue: (track) => {
         set((s) => ({ queue: [...s.queue, track] }));

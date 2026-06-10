@@ -8,9 +8,10 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
+import { useSearchParams } from "react-router-dom";
 
 import ClientLayout from "../../layout/ClientLayout";
 import WaveformTimeline from "./WaveformTimeline";
@@ -423,8 +424,21 @@ function EditorModal({
 export default function Segments() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
+  const [searchParams] = useSearchParams();
 
-  const [selectedTrackId, setSelectedTrackId] = useState<string | null>(null);
+  const [selectedTrackId, setSelectedTrackId] = useState<string | null>(
+    searchParams.get("track"),
+  );
+
+  // If the route param changes after mount (e.g. user navigates again from
+  // the player to a different track), follow it.
+  useEffect(() => {
+    const fromUrl = searchParams.get("track");
+    if (fromUrl && fromUrl !== selectedTrackId) setSelectedTrackId(fromUrl);
+    // selectedTrackId intentionally NOT in deps — we only want this to fire
+    // when the URL changes, not when the user picks a track in the UI.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
   const [addingMode, setAddingMode] = useState(false);
   const [editor, setEditor] = useState<EditorState | null>(null);
   const [editorError, setEditorError] = useState<string | null>(null);
