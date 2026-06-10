@@ -251,6 +251,30 @@ export class AdminService {
     return { days: clamped, total, series };
   }
 
+  /**
+   * DAU / WAU / MAU. A user is "active" in a window if their `lastLogin`
+   * falls inside that window. Users who have never logged in (`lastLogin`
+   * is null) are excluded — they count as registered, not active.
+   *
+   * Total is provided so the UI can show "X of Y" ratios without an
+   * extra round-trip.
+   */
+  async getActiveUsers() {
+    const now = Date.now();
+    const day = new Date(now - 24 * 60 * 60 * 1000);
+    const week = new Date(now - 7 * 24 * 60 * 60 * 1000);
+    const month = new Date(now - 30 * 24 * 60 * 60 * 1000);
+
+    const [dau, wau, mau, total] = await Promise.all([
+      this.prisma.user.count({ where: { lastLogin: { gte: day } } }),
+      this.prisma.user.count({ where: { lastLogin: { gte: week } } }),
+      this.prisma.user.count({ where: { lastLogin: { gte: month } } }),
+      this.prisma.user.count(),
+    ]);
+
+    return { dau, wau, mau, total };
+  }
+
   async getCatalogDistribution() {
     const [byGenreRaw, byCodecRaw, totals] = await Promise.all([
       this.prisma.track.groupBy({

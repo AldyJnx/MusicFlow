@@ -115,6 +115,12 @@ export class AuthService {
       throw new UnauthorizedException("Account is deactivated");
     }
 
+    // Stamp lastLogin so the admin dashboard can compute DAU/WAU/MAU.
+    // Fire-and-forget — failures here must never break login.
+    this.prisma.user
+      .update({ where: { id: user.id }, data: { lastLogin: new Date() } })
+      .catch(() => {});
+
     return { ...this.generateTokens(user), user: toSafeUser(user) };
   }
 

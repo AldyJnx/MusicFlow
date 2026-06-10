@@ -3,7 +3,10 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import {
+  Activity,
   ArrowRight,
+  CalendarDays,
+  CalendarRange,
   Crown,
   HardDrive,
   ListMusic,
@@ -23,9 +26,11 @@ import {
   getAiFeedbackStats,
   getUserGrowth,
   getCatalogDistribution,
+  getActiveUsers,
 } from "../../shared/api/admin";
 import type {
   AIFeedbackStats,
+  ActiveUsersStats,
   CatalogDistribution,
   DashboardStats,
   UserGrowth,
@@ -701,6 +706,12 @@ export default function DashboardPage() {
     staleTime: 60_000,
   });
 
+  const activeQ = useQuery<ActiveUsersStats>({
+    queryKey: ["admin", "dashboard", "active-users"],
+    queryFn: getActiveUsers,
+    staleTime: 60_000,
+  });
+
   const isLoading = dashboardQ.isPending || feedbackQ.isPending;
   const hasError = dashboardQ.isError || feedbackQ.isError;
 
@@ -711,19 +722,22 @@ export default function DashboardPage() {
     feedbackQ.dataUpdatedAt ?? 0,
     growthQ.dataUpdatedAt ?? 0,
     catalogQ.dataUpdatedAt ?? 0,
+    activeQ.dataUpdatedAt ?? 0,
   );
   const timeAgo = useTimeAgo(lastUpdated || null);
   const anyRefreshing =
     dashboardQ.isFetching ||
     feedbackQ.isFetching ||
     growthQ.isFetching ||
-    catalogQ.isFetching;
+    catalogQ.isFetching ||
+    activeQ.isFetching;
 
   function refreshAll() {
     void dashboardQ.refetch();
     void feedbackQ.refetch();
     void growthQ.refetch();
     void catalogQ.refetch();
+    void activeQ.refetch();
   }
 
   function handleRetry() {
@@ -731,6 +745,7 @@ export default function DashboardPage() {
     if (feedbackQ.isError) void feedbackQ.refetch();
     if (growthQ.isError) void growthQ.refetch();
     if (catalogQ.isError) void catalogQ.refetch();
+    if (activeQ.isError) void activeQ.refetch();
   }
 
   // Derived values (safe-guards against undefined while loading)
@@ -863,6 +878,104 @@ export default function DashboardPage() {
               href="/admin/ai"
             />
           </div>
+        ) : null}
+
+        {/* ── Activity KPIs — DAU / WAU / MAU ── */}
+        {activeQ.isPending ? (
+          <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <SkeletonCard key={i} />
+            ))}
+          </div>
+        ) : activeQ.data ? (
+          <section
+            className="flex flex-col gap-3"
+            aria-labelledby="activity-section-title"
+          >
+            <h2
+              id="activity-section-title"
+              className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--color-muted)]"
+            >
+              {t("admin.dashboard.activitySection", {
+                defaultValue: "Actividad real",
+              })}
+            </h2>
+            <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+              <StatCard
+                tone="positive"
+                icon={<Activity className="h-4 w-4" />}
+                label={t("admin.dashboard.dau", {
+                  defaultValue: "DAU · últimas 24h",
+                })}
+                value={activeQ.data.dau}
+                subtitle={
+                  activeQ.data.total > 0
+                    ? t("admin.dashboard.activeOfTotal", {
+                        defaultValue: "{{pct}}% de {{total}}",
+                        pct: pct(activeQ.data.dau, activeQ.data.total),
+                        total: activeQ.data.total,
+                      })
+                    : undefined
+                }
+              />
+              <StatCard
+                tone="accent"
+                icon={<CalendarDays className="h-4 w-4" />}
+                label={t("admin.dashboard.wau", {
+                  defaultValue: "WAU · 7 días",
+                })}
+                value={activeQ.data.wau}
+                subtitle={
+                  activeQ.data.total > 0
+                    ? t("admin.dashboard.activeOfTotal", {
+                        defaultValue: "{{pct}}% de {{total}}",
+                        pct: pct(activeQ.data.wau, activeQ.data.total),
+                        total: activeQ.data.total,
+                      })
+                    : undefined
+                }
+              />
+              <StatCard
+                tone="primary"
+                icon={<CalendarRange className="h-4 w-4" />}
+                label={t("admin.dashboard.mau", {
+                  defaultValue: "MAU · 30 días",
+                })}
+                value={activeQ.data.mau}
+                subtitle={
+                  activeQ.data.total > 0
+                    ? t("admin.dashboard.activeOfTotal", {
+                        defaultValue: "{{pct}}% de {{total}}",
+                        pct: pct(activeQ.data.mau, activeQ.data.total),
+                        total: activeQ.data.total,
+                      })
+                    : undefined
+                }
+              />
+              <StatCard
+                tone="warning"
+                icon={<TrendingUp className="h-4 w-4" />}
+                label={t("admin.dashboard.stickiness", {
+                  defaultValue: "Stickiness · DAU/MAU",
+                })}
+                value={
+                  activeQ.data.mau > 0
+                    ? `${pct(activeQ.data.dau, activeQ.data.mau)}%`
+                    : "—"
+                }
+                subtitle={t("admin.dashboard.stickinessHint", {
+                  defaultValue: "Qué tan recurrente es la app",
+                })}
+                empty={
+                  activeQ.data.mau === 0
+                    ? t("admin.dashboard.stickinessEmpty", {
+                        defaultValue: "Sin actividad reciente para calcular.",
+                      })
+                    : undefined
+                }
+              />
+            </div>
+          </section>
         ) : null}
 
         {/* ── Operational KPIs — user base health ── */}

@@ -60,6 +60,15 @@ export class AdminController {
     return this.adminService.getCatalogDistribution();
   }
 
+  @Get("dashboard/active-users")
+  @ApiOperation({
+    summary: "Active users in the last 24h, 7d and 30d (DAU/WAU/MAU)",
+  })
+  @ApiResponse({ status: 200, description: "Active user counts retrieved" })
+  async getDashboardActiveUsers() {
+    return this.adminService.getActiveUsers();
+  }
+
   @Get("users")
   @ApiOperation({ summary: "Get all users" })
   @ApiQuery({ name: "skip", required: false, type: Number })

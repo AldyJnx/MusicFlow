@@ -54,6 +54,17 @@ export interface CatalogDistribution {
   byCodec: CatalogBucket[];
 }
 
+export interface ActiveUsersStats {
+  /** Active in the last 24h. */
+  dau: number;
+  /** Active in the last 7 days. */
+  wau: number;
+  /** Active in the last 30 days. */
+  mau: number;
+  /** Total registered users — denominator for ratios. */
+  total: number;
+}
+
 export type DeviceType =
   | "DESKTOP_WIN"
   | "DESKTOP_MAC"
@@ -313,6 +324,13 @@ export async function getUserGrowth(days = 30): Promise<UserGrowth> {
 export async function getCatalogDistribution(): Promise<CatalogDistribution> {
   const { data } = await api.get<CatalogDistribution>(
     "/admin/dashboard/catalog",
+  );
+  return data;
+}
+
+export async function getActiveUsers(): Promise<ActiveUsersStats> {
+  const { data } = await api.get<ActiveUsersStats>(
+    "/admin/dashboard/active-users",
   );
   return data;
 }
