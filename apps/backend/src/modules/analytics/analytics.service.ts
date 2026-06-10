@@ -100,16 +100,10 @@ export class AnalyticsService {
         break;
     }
 
-    // Try to find pre-computed stats
-    const cachedStats = await this.prisma.listeningStats.findFirst({
-      where: { userId, period, periodStart },
-    });
-
-    if (cachedStats) {
-      return cachedStats;
-    }
-
-    // Compute stats on the fly
+    // Always compute live so the user-facing stats panel reflects plays the
+    // moment they happen. The pre-computed ListeningStats rows (written by the
+    // aggregation worker) lag behind real time, so we don't read them here —
+    // they remain available for historical/admin reporting.
     return this.computeStats(userId, period, periodStart);
   }
 

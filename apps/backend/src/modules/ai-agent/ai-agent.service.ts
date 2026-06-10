@@ -10,6 +10,7 @@ import { ConfigService } from "@nestjs/config";
 import Anthropic from "@anthropic-ai/sdk";
 import { PrismaService } from "@/prisma/prisma.service";
 import { AIAppliedTo, AIFeedback } from "@prisma/client";
+import { SegmentsService } from "@/modules/equalizer/segments.service";
 
 export interface SuggestedSegment {
   label: string;
@@ -100,6 +101,34 @@ Rules:
 - Be conservative with extreme values. Prefer subtle adjustments unless the user asks for dramatic change.
 - If the request is ambiguous, use the genre and current EQ (provided in context) to guide your choice.`;
 
+const SEGMENT_DETECTION_PROMPT = `You are MusicFlow's audio assistant: an expert audio engineer.
+Given a song's metadata (title, artist, genre, total duration), split the song into its
+typical musical sections across its ENTIRE duration and propose a tailored 10-band EQ for each.
+
+The 10 EQ bands map to: 31Hz, 62Hz, 125Hz, 250Hz, 500Hz, 1kHz, 2kHz, 4kHz, 8kHz, 16kHz.
+Each band value is an integer between -15 and +15 (dB).
+
+RESPOND WITH ONLY A SINGLE JSON OBJECT, no prose or markdown fences:
+{
+  "segments": [
+    {
+      "label": "Intro" | "Verso" | "Coro" | "Puente" | "Outro" | etc (Spanish),
+      "startMs": int,
+      "endMs": int,
+      "bands": [int x 10],
+      "explanation": "1 short sentence in Spanish"
+    }
+  ]
+}
+
+Rules:
+- Cover the WHOLE song from 0 to the given duration. Segments must be contiguous and
+  NON-overlapping, ordered by startMs. The first starts at 0; the last ends at the duration.
+- Produce between 3 and 7 segments. Times are in MILLISECONDS and must stay within the duration.
+- Differentiate the EQ per section: choruses usually need more energy (lows + highs),
+  verses are flatter, intros/outros can be softer. Be tasteful, not extreme.
+- You don't know the exact arrangement — infer a plausible structure from genre and duration.`;
+
 @Injectable()
 export class AiAgentService {
   private readonly logger = new Logger(AiAgentService.name);
@@ -109,6 +138,7 @@ export class AiAgentService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly configService: ConfigService,
+    private readonly segmentsService: SegmentsService,
   ) {
     this.model = this.configService.get<string>(
       "ANTHROPIC_MODEL",
@@ -140,7 +170,7 @@ export class AiAgentService {
 
     if (data.trackId) {
       const track = await this.prisma.track.findFirst({
-        where: { id: data.trackId, userId },
+        where: { id: data.trackId, OR: [{ userId }, { isCatalog: true }] },
       });
       if (track) {
         context.track = {
@@ -177,6 +207,100 @@ export class AiAgentService {
 
     return {
       suggestion: result.suggestion,
+      requestId: aiRequest.id,
+    };
+  }
+
+  /**
+   * Auto-detect EQ segments for a track. Asks the agent (or the mock fallback)
+   * to split the song into musical sections with a tailored EQ each, sanitizes
+   * the result into contiguous non-overlapping ranges, and persists them as
+   * AI-authored segments. Returns the created segments.
+   *
+   * Refuses if the track already has segments — the caller should clear them
+   * first, so detection never collides with manual work.
+   */
+  async detectSegments(
+    userId: string,
+    trackId: string,
+  ): Promise<{ segments: unknown[]; count: number; requestId: string }> {
+    const startTime = Date.now();
+
+    // Visibility, not ownership: segments may attach to catalog tracks too.
+    const track = await this.prisma.track.findFirst({
+      where: { id: trackId, OR: [{ userId }, { isCatalog: true }] },
+    });
+    if (!track) {
+      throw new NotFoundException("Track not found");
+    }
+
+    const existing = await this.prisma.eQSegment.count({
+      where: { trackId, userId },
+    });
+    if (existing > 0) {
+      throw new BadRequestException(
+        "La canción ya tiene segmentos. Elimínalos antes de detectar con IA.",
+      );
+    }
+
+    const trackInfo = {
+      title: track.title,
+      artist: track.artist,
+      album: track.album,
+      genre: track.genre,
+      durationMs: track.durationMs,
+    };
+
+    const result = this.anthropic
+      ? await this.callAgentForSegments(trackInfo)
+      : await this.mockDetectSegments(trackInfo);
+
+    const sanitized = this.sanitizeSegments(result.segments, track.durationMs);
+
+    if (sanitized.length === 0) {
+      throw new ServiceUnavailableException(
+        "La IA no devolvió segmentos válidos. Intenta de nuevo.",
+      );
+    }
+
+    const responseTimeMs = Date.now() - startTime;
+
+    // Record the request first so each created segment can reference it.
+    const aiRequest = await this.prisma.aIRequest.create({
+      data: {
+        userId,
+        trackId,
+        prompt: "[detect-segments]",
+        context: { track: trackInfo } as object,
+        response: { segments: sanitized } as unknown as object,
+        explanation: `Detección automática de ${sanitized.length} segmentos.`,
+        modelUsed: result.modelUsed,
+        responseTimeMs,
+        tokensInput: result.tokensInput,
+        tokensOutput: result.tokensOutput,
+        costUsd: result.costUsd,
+      },
+    });
+
+    // Persist sequentially: each create re-checks overlap, and our sanitized
+    // ranges are already non-overlapping, so they all succeed in order.
+    const created: unknown[] = [];
+    for (const seg of sanitized) {
+      const segment = await this.segmentsService.create(userId, {
+        trackId,
+        label: seg.label,
+        startMs: seg.startMs,
+        endMs: seg.endMs,
+        createdBy: "AI",
+        aiRequestId: aiRequest.id,
+        eqConfig: { bands: seg.bands },
+      });
+      created.push(segment);
+    }
+
+    return {
+      segments: created,
+      count: created.length,
       requestId: aiRequest.id,
     };
   }
@@ -306,6 +430,129 @@ export class AiAgentService {
         "AI service is temporarily unavailable. Please try again.",
       );
     }
+  }
+
+  private async callAgentForSegments(track: {
+    title: string;
+    artist: string;
+    album: string;
+    genre: string | null;
+    durationMs: number;
+  }): Promise<{
+    segments: SuggestedSegment[];
+    tokensInput: number;
+    tokensOutput: number;
+    costUsd: number;
+    modelUsed: string;
+  }> {
+    if (!this.anthropic) {
+      throw new ServiceUnavailableException("AI agent not configured");
+    }
+
+    const lines = [
+      "Split this song into EQ segments covering its full duration.",
+      "",
+      "Track:",
+      `- Title: ${track.title}`,
+      `- Artist: ${track.artist}`,
+      `- Album: ${track.album}`,
+    ];
+    if (track.genre) lines.push(`- Genre: ${track.genre}`);
+    lines.push(`- Duration: ${track.durationMs}ms`);
+
+    try {
+      const response = await this.anthropic.messages.create({
+        model: this.model,
+        max_tokens: 1500,
+        system: [
+          {
+            type: "text",
+            text: SEGMENT_DETECTION_PROMPT,
+            cache_control: { type: "ephemeral" },
+          },
+        ],
+        messages: [{ role: "user", content: lines.join("\n") }],
+      });
+
+      const textBlock = response.content.find((c) => c.type === "text");
+      if (!textBlock || textBlock.type !== "text") {
+        throw new Error("AI provider returned no text content");
+      }
+
+      const segments = this.parseSegmentsArray(textBlock.text);
+
+      const tokensInput =
+        (response.usage.input_tokens ?? 0) +
+        (response.usage.cache_creation_input_tokens ?? 0) +
+        (response.usage.cache_read_input_tokens ?? 0);
+      const tokensOutput = response.usage.output_tokens ?? 0;
+      const costUsd =
+        (tokensInput / 1_000_000) * PRICE_INPUT_PER_MTOK +
+        (tokensOutput / 1_000_000) * PRICE_OUTPUT_PER_MTOK;
+
+      return {
+        segments,
+        tokensInput,
+        tokensOutput,
+        costUsd,
+        modelUsed: response.model,
+      };
+    } catch (error) {
+      if (error instanceof HttpException) throw error;
+      this.logger.error("AI segment detection failed", error as Error);
+      throw new ServiceUnavailableException(
+        "AI service is temporarily unavailable. Please try again.",
+      );
+    }
+  }
+
+  private parseSegmentsArray(raw: string): SuggestedSegment[] {
+    let jsonText = raw.trim();
+    const fenceMatch = jsonText.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/);
+    if (fenceMatch) jsonText = fenceMatch[1].trim();
+
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(jsonText);
+    } catch {
+      throw new Error("AI provider returned invalid JSON");
+    }
+
+    const rawSegments = Array.isArray(parsed)
+      ? parsed
+      : (parsed as { segments?: unknown }).segments;
+
+    if (!Array.isArray(rawSegments)) return [];
+
+    return rawSegments
+      .map((s) => this.validateSegment(s))
+      .filter((s): s is SuggestedSegment => s !== null);
+  }
+
+  /**
+   * Turn a raw list of suggested segments into contiguous, non-overlapping,
+   * in-bounds ranges. Sorts by start, clamps to the track duration, trims each
+   * start past the previous end, and drops anything shorter than 1s.
+   */
+  private sanitizeSegments(
+    segments: SuggestedSegment[],
+    durationMs: number,
+  ): SuggestedSegment[] {
+    const MIN_LEN = 1000;
+    const sorted = [...segments].sort((a, b) => a.startMs - b.startMs);
+    const result: SuggestedSegment[] = [];
+    let cursor = 0;
+
+    for (const seg of sorted) {
+      const start = Math.max(cursor, Math.min(seg.startMs, durationMs));
+      const end = Math.min(Math.max(seg.endMs, start), durationMs);
+      if (end - start < MIN_LEN) continue;
+      result.push({ ...seg, startMs: start, endMs: end });
+      cursor = end;
+      if (cursor >= durationMs) break;
+    }
+
+    return result.slice(0, 12);
   }
 
   private buildUserMessage(
@@ -486,6 +733,100 @@ export class AiAgentService {
         reverbAmount: 0,
         explanation,
       },
+      tokensInput: 0,
+      tokensOutput: 0,
+      costUsd: 0,
+      modelUsed: `${this.model}-mock`,
+    };
+  }
+
+  /**
+   * Deterministic offline fallback for segment detection. Splits the song into
+   * a canonical Intro / Verso / Coro / Verso / Coro final structure by fraction
+   * of the duration, with a flatter EQ on verses and more energetic choruses
+   * (nudged by genre). Lets the feature work end-to-end without an API key.
+   */
+  private async mockDetectSegments(track: {
+    genre: string | null;
+    durationMs: number;
+  }): Promise<{
+    segments: SuggestedSegment[];
+    tokensInput: number;
+    tokensOutput: number;
+    costUsd: number;
+    modelUsed: string;
+  }> {
+    const genre = (track.genre ?? "").toLowerCase();
+    const bassy =
+      genre.includes("hip") ||
+      genre.includes("electro") ||
+      genre.includes("reggae") ||
+      genre.includes("pop");
+
+    const verse = bassy
+      ? [3, 2, 1, 0, 0, 0, 0, 1, 1, 0]
+      : [1, 1, 0, 0, 0, 0, 0, 1, 1, 1];
+    const chorus = bassy
+      ? [6, 5, 3, 1, 0, 0, 1, 3, 4, 3]
+      : [4, 3, 1, 0, -1, 0, 2, 4, 5, 4];
+    const soft = [2, 1, 0, 0, -1, -1, 0, 1, 2, 2];
+
+    // Section boundaries as fractions of the total duration.
+    const plan: Array<{
+      label: string;
+      from: number;
+      to: number;
+      bands: number[];
+      explanation: string;
+    }> = [
+      {
+        label: "Intro",
+        from: 0,
+        to: 0.08,
+        bands: soft,
+        explanation: "Entrada suave para abrir la canción.",
+      },
+      {
+        label: "Verso",
+        from: 0.08,
+        to: 0.34,
+        bands: verse,
+        explanation: "EQ equilibrado que prioriza la voz.",
+      },
+      {
+        label: "Coro",
+        from: 0.34,
+        to: 0.56,
+        bands: chorus,
+        explanation: "Más energía en graves y agudos para el coro.",
+      },
+      {
+        label: "Verso",
+        from: 0.56,
+        to: 0.74,
+        bands: verse,
+        explanation: "Vuelve a un balance neutro.",
+      },
+      {
+        label: "Coro final",
+        from: 0.74,
+        to: 1,
+        bands: chorus,
+        explanation: "Coro final con la mayor presencia.",
+      },
+    ];
+
+    const dur = track.durationMs;
+    const segments: SuggestedSegment[] = plan.map((p) => ({
+      label: p.label,
+      startMs: Math.round(p.from * dur),
+      endMs: Math.round(p.to * dur),
+      bands: p.bands,
+      explanation: p.explanation,
+    }));
+
+    return {
+      segments,
       tokensInput: 0,
       tokensOutput: 0,
       costUsd: 0,

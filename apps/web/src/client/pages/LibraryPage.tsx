@@ -25,6 +25,7 @@ import { listGenres, type Track } from "../../shared/api/tracks";
 import { usePlayerStore, type PlayerTrack } from "../stores/playStore";
 import SaveButton from "../../shared/ui/SaveButton";
 import ImportModal from "../features/import/ImportModal";
+import AddToPlaylistModal from "../features/playlists/AddToPlaylistModal";
 
 type LibraryScope = "catalog" | "mylibrary";
 type LibraryTab = "songs" | "albums" | "artists";
@@ -101,9 +102,14 @@ export default function LibraryPage() {
   const navigate = useNavigate();
   const initialScope: LibraryScope =
     searchParams.get("scope") === "mylibrary" ? "mylibrary" : "catalog";
+  const tabParam = searchParams.get("tab");
+  const initialTab: LibraryTab =
+    tabParam === "albums" || tabParam === "artists" ? tabParam : "songs";
   const [scope, setScope] = useState<LibraryScope>(initialScope);
   const [importOpen, setImportOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<LibraryTab>("songs");
+  // Track queued for the "add to playlist" modal (null = modal closed).
+  const [playlistTarget, setPlaylistTarget] = useState<Track | null>(null);
+  const [activeTab, setActiveTab] = useState<LibraryTab>(initialTab);
   const [activeGenre, setActiveGenre] = useState<string | null>(null);
   const [searchInput, setSearchInput] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -480,7 +486,13 @@ export default function LibraryPage() {
 
                         <button
                           type="button"
-                          onClick={(e) => e.stopPropagation()}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setPlaylistTarget(track);
+                          }}
+                          aria-label={t("library.addToPlaylistAria", {
+                            defaultValue: "Agregar a una playlist",
+                          })}
                           className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-[var(--color-muted)] transition hover:bg-[var(--color-surface)] hover:text-[var(--color-text)]"
                         >
                           <MoreHorizontal
@@ -638,6 +650,12 @@ export default function LibraryPage() {
         </div>
       </section>
       <ImportModal open={importOpen} onClose={() => setImportOpen(false)} />
+      <AddToPlaylistModal
+        open={playlistTarget !== null}
+        onClose={() => setPlaylistTarget(null)}
+        trackId={playlistTarget?.id ?? null}
+        trackTitle={playlistTarget?.title}
+      />
     </ClientLayout>
   );
 }

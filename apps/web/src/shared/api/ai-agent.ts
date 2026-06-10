@@ -104,3 +104,23 @@ export async function getHistory(params?: {
   });
   return data;
 }
+
+export interface DetectSegmentsResponse {
+  segments: unknown[];
+  count: number;
+  requestId: string;
+}
+
+/**
+ * Ask the AI to split a track into EQ segments and persist them. The track
+ * must have no existing segments (the backend refuses otherwise).
+ */
+export async function detectSegments(
+  trackId: string,
+): Promise<DetectSegmentsResponse> {
+  const { data } = await api.post<DetectSegmentsResponse>(
+    "/ai/detect-segments",
+    { trackId },
+  );
+  return data;
+}

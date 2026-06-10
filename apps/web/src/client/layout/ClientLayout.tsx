@@ -12,6 +12,7 @@ import ImportModal from "../features/import/ImportModal";
 import { usePlayerStore } from "../stores/playStore";
 import { useSegmentEngineSync } from "../../shared/hooks/useTrackSegments";
 import { useAutoApplyEQ } from "../../shared/hooks/useAutoApplyEQ";
+import { useRecordPlays } from "../../shared/hooks/useAnalytics";
 
 export default function ClientLayout({ children }: { children: ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
@@ -27,6 +28,8 @@ export default function ClientLayout({ children }: { children: ReactNode }) {
   // Resolves and applies the EQ cascade (Segment → Track → Playlist → Global)
   // whenever the current track or its playlist context changes.
   useAutoApplyEQ();
+  // Records a play event each time the current track changes (best-effort).
+  useRecordPlays();
 
   return (
     <div className="flex min-h-screen bg-[var(--color-page)] text-[var(--color-text)]">

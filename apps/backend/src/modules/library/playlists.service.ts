@@ -117,6 +117,17 @@ export class PlaylistsService {
       throw new NotFoundException("Playlist not found");
     }
 
+    // Idempotent: if the track is already in the playlist, return the existing
+    // entry instead of hitting the unique constraint on (playlistId, trackId).
+    const existing = await this.prisma.playlistTrack.findUnique({
+      where: { playlistId_trackId: { playlistId, trackId } },
+      include: { track: true },
+    });
+
+    if (existing) {
+      return existing;
+    }
+
     // Get the next position
     const lastTrack = await this.prisma.playlistTrack.findFirst({
       where: { playlistId },

@@ -24,6 +24,9 @@ describe("AuthService", () => {
         update: jest.fn(),
       },
     };
+    // login() stamps lastLogin via a fire-and-forget update(...).catch(...),
+    // so the mock must return a thenable by default or .catch() throws.
+    prisma.user.update.mockResolvedValue({});
     mail = { sendPasswordReset: jest.fn() };
 
     const module: TestingModule = await Test.createTestingModule({

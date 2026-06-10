@@ -220,7 +220,16 @@ export class SyncService {
     } else if (resolution === "SERVER_WINS") {
       // Keep server version (no action needed)
     } else if (resolution === "MERGE") {
-      // TODO: Implement merge logic
+      // Field-level merge: combine both edits instead of discarding either.
+      const merged = this.mergeVersions(
+        conflict.localVersion as Record<string, unknown>,
+        conflict.serverVersion as Record<string, unknown>,
+      );
+      await this.applyConflictResolution(
+        conflict.entityType,
+        conflict.entityId,
+        merged,
+      );
     }
 
     return this.prisma.conflictLog.update({
@@ -251,6 +260,54 @@ export class SyncService {
     });
   }
 
+  /**
+   * Produce a merged entity from a conflicting pair. Strategy:
+   * server snapshot is the base, and the client's snapshot overlays it on a
+   * per-field basis — so edits only the server made are preserved, while the
+   * fields the client actually carries win. Identity, ownership, creation
+   * metadata, and relational arrays are never taken from the snapshot (they
+   * aren't writable scalar columns and must not be reassigned). `updatedAt`
+   * is dropped so Prisma's `@updatedAt` stamps the resolution time.
+   *
+   * This is a deterministic, last-writer-per-field merge — not a semantic
+   * three-way diff — which is the appropriate guarantee for a hybrid
+   * offline/online store without per-field version vectors.
+   */
+  private mergeVersions(
+    local: Record<string, unknown>,
+    server: Record<string, unknown>,
+  ): Record<string, unknown> {
+    const merged: Record<string, unknown> = { ...server };
+
+    for (const [key, value] of Object.entries(local)) {
+      if (value !== undefined && value !== null) {
+        merged[key] = value;
+      }
+    }
+
+    // Never let a snapshot reassign identity/ownership/creation metadata, and
+    // strip relational/nested fields that aren't scalar columns.
+    for (const protectedKey of [
+      "id",
+      "userId",
+      "user_id",
+      "createdAt",
+      "created_at",
+      "updatedAt",
+      "updated_at",
+      "user",
+      "tracks",
+      "segment",
+      "preset",
+      "playHistory",
+      "aiRequest",
+    ]) {
+      delete merged[protectedKey];
+    }
+
+    return merged;
+  }
+
   private async applyConflictResolution(
     entityType: string,
     entityId: string,
@@ -269,7 +326,18 @@ export class SyncService {
           data: data as Prisma.PlaylistUncheckedUpdateInput,
         });
         break;
-      // Add other entity types...
+      case "eqConfig":
+        await this.prisma.eQConfig.update({
+          where: { id: entityId },
+          data: data as Prisma.EQConfigUncheckedUpdateInput,
+        });
+        break;
+      case "eqSegment":
+        await this.prisma.eQSegment.update({
+          where: { id: entityId },
+          data: data as Prisma.EQSegmentUncheckedUpdateInput,
+        });
+        break;
     }
   }
 

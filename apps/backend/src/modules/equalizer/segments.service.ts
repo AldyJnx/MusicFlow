@@ -56,9 +56,12 @@ export class SegmentsService {
       throw new BadRequestException("startMs must be less than endMs");
     }
 
-    // Get track to validate duration
+    // Get track to validate duration. Segments are per-user EQ that can attach
+    // to any track the user can see — their own OR a shared catalog track — so
+    // we gate on visibility, not ownership (the segment/config carry the user's
+    // id regardless).
     const track = await this.prisma.track.findFirst({
-      where: { id: data.trackId, userId },
+      where: { id: data.trackId, OR: [{ userId }, { isCatalog: true }] },
     });
 
     if (!track) {

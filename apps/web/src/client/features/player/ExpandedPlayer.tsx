@@ -3,6 +3,7 @@ import {
   ArrowLeft,
   Image as ImageIcon,
   ListMusic,
+  ListPlus,
   Mic2,
   Pause,
   Play,
@@ -26,6 +27,7 @@ import { useLyrics } from "../../../shared/hooks/useLyrics";
 import { usePremiumGate } from "../../../shared/hooks/usePremiumGate";
 import TimelineWithSegments from "./TimelineWithSegments";
 import Wave from "./Wave";
+import AddToPlaylistModal from "../playlists/AddToPlaylistModal";
 
 type ExpandedPlayerProps = {
   sidebarOffset?: number;
@@ -84,6 +86,7 @@ export default function ExpandedPlayer({
   const isMuted = muted || volume === 0;
 
   const [view, setView] = useState<View>("cover");
+  const [addToPlaylistOpen, setAddToPlaylistOpen] = useState(false);
 
   const activeSegment = useMemo(
     () =>
@@ -358,6 +361,20 @@ export default function ExpandedPlayer({
 
             <button
               type="button"
+              onClick={() => setAddToPlaylistOpen(true)}
+              title={t("player.addToPlaylist", {
+                defaultValue: "Agregar a una playlist",
+              })}
+              className="inline-flex h-9 items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-3 text-[10px] font-semibold uppercase tracking-wider text-white/85 transition hover:border-[var(--color-primary)] hover:text-white"
+            >
+              <ListPlus className="h-3.5 w-3.5" strokeWidth={2.4} />
+              <span className="sr-only xl:not-sr-only">
+                {t("player.addToPlaylistShort", { defaultValue: "Playlist" })}
+              </span>
+            </button>
+
+            <button
+              type="button"
               onClick={openQueueDrawer}
               title={t("queue.open", { defaultValue: "Cola de reproducción" })}
               className="inline-flex h-9 items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-3 text-[10px] font-semibold uppercase tracking-wider text-white/85 transition hover:border-[var(--color-primary)] hover:text-white"
@@ -422,6 +439,13 @@ export default function ExpandedPlayer({
           box-shadow: 0 0 0 2px rgba(0,0,0,0.55);
         }
       `}</style>
+
+      <AddToPlaylistModal
+        open={addToPlaylistOpen}
+        onClose={() => setAddToPlaylistOpen(false)}
+        trackId={currentTrack.id}
+        trackTitle={currentTrack.title}
+      />
     </section>
   );
 }

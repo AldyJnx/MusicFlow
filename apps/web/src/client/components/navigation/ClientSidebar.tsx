@@ -1,8 +1,12 @@
 import {
+  Clock3,
+  Disc3,
   Heart,
   Home,
   ListMusic,
+  Mic2,
   Music4,
+  Play,
   Plus,
   Search,
   Upload,
@@ -18,8 +22,27 @@ import {
   useLatestSavedCoverQuery,
   useSavedTracksQuery,
 } from "../../../shared/hooks/useLibrarySaves";
+import {
+  useAlbumsQuery,
+  useArtistsQuery,
+} from "../../../shared/hooks/useTracks";
+import { useRecentlyPlayedQuery } from "../../../shared/hooks/useAnalytics";
 import { usePreferences } from "../../../shared/hooks/usePreferences";
+import { usePlayerStore, type PlayerTrack } from "../../stores/playStore";
+import type { Track } from "../../../shared/api/tracks";
 import NumberedTrackList from "../../features/sidebar/NumberedTrackList";
+
+function trackToPlayer(t: Track): PlayerTrack | null {
+  if (!t.fileUrlRemote) return null;
+  return {
+    id: t.id,
+    title: t.title,
+    artist: t.artist,
+    cover: t.coverArt,
+    url: t.fileUrlRemote,
+    durationMs: t.durationMs,
+  };
+}
 
 type LibraryFilter = "all" | "playlists" | "artists" | "albums";
 
@@ -235,6 +258,140 @@ function LikedSongsItem({
   );
 }
 
+/** A short, all-caps section divider (e.g. "ACCESOS RÁPIDOS"). */
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="px-3 pb-1 pt-2 text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--color-muted)]">
+      {children}
+    </p>
+  );
+}
+
+/**
+ * Quick-access cards for Álbumes / Artistas. Each shows a live count from the
+ * catalog and jumps to the matching tab in the library. Hidden when collapsed
+ * (the rail only has room for icons there).
+ */
+function QuickAccess() {
+  const { t } = useTranslation();
+  const navigate = useNavigate();
+  const albumsQ = useAlbumsQuery();
+  const artistsQ = useArtistsQuery();
+  const albumCount = albumsQ.data?.length ?? 0;
+  const artistCount = artistsQ.data?.length ?? 0;
+
+  const cards = [
+    {
+      key: "albums",
+      to: "/library?tab=albums",
+      icon: <Disc3 className="h-4 w-4" strokeWidth={2.1} />,
+      label: t("sidebar.filters.albums", { defaultValue: "Álbumes" }),
+      count: albumCount,
+    },
+    {
+      key: "artists",
+      to: "/library?tab=artists",
+      icon: <Mic2 className="h-4 w-4" strokeWidth={2.1} />,
+      label: t("sidebar.filters.artists", { defaultValue: "Artistas" }),
+      count: artistCount,
+    },
+  ];
+
+  return (
+    <div className="grid grid-cols-2 gap-1.5 px-1">
+      {cards.map((c) => (
+        <button
+          key={c.key}
+          type="button"
+          onClick={() => navigate(c.to)}
+          className="flex flex-col gap-1.5 rounded-md bg-[var(--color-page)] p-2.5 text-left transition hover:bg-[var(--color-surface-alt)]"
+        >
+          <span className="flex h-8 w-8 items-center justify-center rounded-md bg-[var(--color-primary)]/12 text-[var(--color-primary)]">
+            {c.icon}
+          </span>
+          <span className="truncate text-xs font-semibold text-[var(--color-text)]">
+            {c.label}
+          </span>
+          <span className="text-[10px] text-[var(--color-muted)]">
+            {t("sidebar.itemCount", {
+              defaultValue: "{{count}}",
+              count: c.count,
+            })}
+          </span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * Compact "recently played" list, backed by /analytics/recently-played.
+ * Clicking a row plays the track. Renders nothing until there's history.
+ */
+function RecentlyPlayed() {
+  const { t } = useTranslation();
+  const recentQ = useRecentlyPlayedQuery(6);
+  const playTrack = usePlayerStore((s) => s.playTrack);
+  const tracks = recentQ.data ?? [];
+
+  if (tracks.length === 0) return null;
+
+  return (
+    <>
+      <SectionLabel>
+        {t("sidebar.recentlyPlayed", {
+          defaultValue: "Reproducido recientemente",
+        })}
+      </SectionLabel>
+      <ul className="flex flex-col gap-0.5 px-1">
+        {tracks.map((track) => (
+          <li key={track.id}>
+            <button
+              type="button"
+              onClick={() => {
+                const p = trackToPlayer(track);
+                if (p) void playTrack(p);
+              }}
+              className="group flex w-full items-center gap-2 rounded-md p-1.5 text-left transition hover:bg-[var(--color-surface-alt)]"
+              title={`${track.title} — ${track.artist}`}
+            >
+              <span className="relative flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded bg-[var(--color-surface-alt)]">
+                {track.coverArt ? (
+                  <img
+                    src={track.coverArt}
+                    alt=""
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <Music4
+                    className="h-4 w-4 text-[var(--color-muted)]"
+                    strokeWidth={1.6}
+                  />
+                )}
+                <span className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition group-hover:opacity-100">
+                  <Play
+                    className="h-3.5 w-3.5 text-white"
+                    strokeWidth={2.4}
+                    fill="currentColor"
+                  />
+                </span>
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-[11px] font-semibold text-[var(--color-text)]">
+                  {track.title}
+                </span>
+                <span className="block truncate text-[9px] text-[var(--color-muted)]">
+                  {track.artist}
+                </span>
+              </span>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </>
+  );
+}
+
 function PlaylistItem({
   playlist,
   collapsed,
@@ -298,10 +455,10 @@ export default function ClientSidebar({
   const [filterText, setFilterText] = useState("");
   const { sidebarLayout } = usePreferences();
 
-  // When collapsed the numbered list (text-heavy) is meaningless, so we
-  // fall back to playlists-only icons.
-  const showPlaylists =
-    collapsed || sidebarLayout === "playlists" || sidebarLayout === "both";
+  // Playlists are always visible now, regardless of the layout preference —
+  // they're the heart of the library and shouldn't hide behind a setting.
+  // The layout preference only toggles the inline numbered liked-tracks list.
+  const showPlaylists = true;
   const showNumbered =
     !collapsed && (sidebarLayout === "numbered" || sidebarLayout === "both");
 
@@ -437,18 +594,45 @@ export default function ClientSidebar({
         ) : null}
 
         <div className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto px-2 pb-3">
+          {/* Quick access — Álbumes / Artistas. Only in the expanded rail and
+              when not narrowing by a filter chip. */}
+          {!collapsed && filter === "all" ? (
+            <>
+              <SectionLabel>
+                {t("sidebar.quickAccess", {
+                  defaultValue: "Accesos rápidos",
+                })}
+              </SectionLabel>
+              <QuickAccess />
+            </>
+          ) : null}
+
+          {!collapsed && filter === "all" ? <RecentlyPlayed /> : null}
+
+          {!collapsed && filter === "all" ? (
+            <SectionLabel>
+              {t("sidebar.yourMusic", { defaultValue: "Tu música" })}
+            </SectionLabel>
+          ) : null}
           <LikedSongsItem
             collapsed={collapsed}
             onClick={() => navigate("/library?scope=mylibrary")}
           />
           {showNumbered ? <NumberedTrackList /> : null}
+
+          {/* Playlists — always shown (collapsed shows icons only). */}
+          {!collapsed && filter !== "artists" && filter !== "albums" ? (
+            <SectionLabel>
+              {t("sidebar.filters.playlists", { defaultValue: "Playlists" })}
+            </SectionLabel>
+          ) : null}
           {showPlaylists
             ? visiblePlaylists.map((p) => (
                 <PlaylistItem
                   key={p.id}
                   playlist={p}
                   collapsed={collapsed}
-                  onClick={() => navigate("/playlists")}
+                  onClick={() => navigate(`/playlists/${p.id}`)}
                 />
               ))
             : null}

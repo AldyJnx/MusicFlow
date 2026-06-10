@@ -19,7 +19,12 @@ import {
   ApiQuery,
 } from "@nestjs/swagger";
 import { AiAgentService } from "./ai-agent.service";
-import { SuggestEQDto, AcceptSuggestionDto, ProvideFeedbackDto } from "./dto";
+import {
+  SuggestEQDto,
+  AcceptSuggestionDto,
+  ProvideFeedbackDto,
+  DetectSegmentsDto,
+} from "./dto";
 import { JwtAuthGuard } from "@/common/guards/jwt-auth.guard";
 import {
   CurrentUser,
@@ -56,6 +61,28 @@ export class AiAgentController {
   async suggestEQ(@CurrentUser() user: AuthUser, @Body() dto: SuggestEQDto) {
     await this.quotaService.assertAiQuota(user);
     return this.aiAgentService.suggestEQ(user.id, dto);
+  }
+
+  @Post("detect-segments")
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @ApiOperation({ summary: "Auto-detect EQ segments for a track with AI" })
+  @ApiResponse({ status: 201, description: "Segments detected and created" })
+  @ApiResponse({
+    status: 400,
+    description: "Track already has segments",
+  })
+  @ApiResponse({
+    status: 403,
+    description: "Monthly AI request quota exceeded",
+  })
+  @ApiResponse({ status: 404, description: "Track not found" })
+  async detectSegments(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: DetectSegmentsDto,
+  ) {
+    await this.quotaService.assertAiQuota(user);
+    return this.aiAgentService.detectSegments(user.id, dto.trackId);
   }
 
   @Post(":requestId/accept")

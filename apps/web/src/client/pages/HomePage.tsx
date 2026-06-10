@@ -16,6 +16,10 @@ import {
   useSavedCheckQuery,
   useLatestSavedCoverQuery,
 } from "../../shared/hooks/useLibrarySaves";
+import {
+  useMostPlayedQuery,
+  useRecentlyPlayedQuery,
+} from "../../shared/hooks/useAnalytics";
 import { listPlaylists, type Playlist } from "../../shared/api/playlists";
 import SaveButton from "../../shared/ui/SaveButton";
 import HeroFeatured from "../features/home/HeroFeatured";
@@ -237,6 +241,10 @@ export default function HomePage() {
   const tracksQ = useTracksQuery({ take: 20 });
   const artistsQ = useArtistsQuery();
   const heroCoverQ = useLatestSavedCoverQuery();
+  const recentlyPlayedQ = useRecentlyPlayedQuery(12);
+  const mostPlayedQ = useMostPlayedQuery(12);
+  const recentlyPlayed = recentlyPlayedQ.data ?? [];
+  const mostPlayed = mostPlayedQ.data ?? [];
   // Used by the playlist hero variant. Cheap query, dedup'd by react-query
   // with the sidebar's listPlaylists call.
   const playlistsQ = useQuery({
@@ -295,6 +303,50 @@ export default function HomePage() {
         />
 
         <div className="mx-auto flex max-w-7xl flex-col gap-10 px-8 py-10">
+          {/* Recently played — only once the user has listening history. */}
+          {recentlyPlayed.length > 0 ? (
+            <Carousel
+              title={t("home.recentlyPlayed", {
+                defaultValue: "Reproducidas recientemente",
+              })}
+            >
+              {recentlyPlayed.map((track) => (
+                <TrackCard
+                  key={track.id}
+                  track={track}
+                  saved={savedSet.has(track.id)}
+                  onPlay={() => playOne(track)}
+                  onAddToQueue={() => {
+                    const playable = toPlayerTrack(track);
+                    if (playable) addToQueue(playable);
+                  }}
+                />
+              ))}
+            </Carousel>
+          ) : null}
+
+          {/* Most played */}
+          {mostPlayed.length > 0 ? (
+            <Carousel
+              title={t("home.mostPlayed", {
+                defaultValue: "Más escuchadas",
+              })}
+            >
+              {mostPlayed.map((track) => (
+                <TrackCard
+                  key={track.id}
+                  track={track}
+                  saved={savedSet.has(track.id)}
+                  onPlay={() => playOne(track)}
+                  onAddToQueue={() => {
+                    const playable = toPlayerTrack(track);
+                    if (playable) addToQueue(playable);
+                  }}
+                />
+              ))}
+            </Carousel>
+          ) : null}
+
           {/* Popular Songs carousel */}
           <Carousel
             title={t("home.popularSongs", {

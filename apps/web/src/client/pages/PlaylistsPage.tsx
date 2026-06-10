@@ -218,6 +218,7 @@ function LikedSongsCard() {
 function PlaylistCard({ playlist }: { playlist: Playlist }) {
   const { t } = useTranslation();
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const [eqOpen, setEqOpen] = useState(false);
 
   const remove = useMutation({
@@ -240,7 +241,18 @@ function PlaylistCard({ playlist }: { playlist: Playlist }) {
 
   return (
     <>
-      <article className="group flex flex-col gap-3 rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-surface)] p-4 transition duration-200 hover:-translate-y-1 hover:border-[var(--color-primary)] hover:bg-[var(--color-surface-alt)]">
+      <article
+        role="button"
+        tabIndex={0}
+        onClick={() => navigate(`/playlists/${playlist.id}`)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            navigate(`/playlists/${playlist.id}`);
+          }
+        }}
+        className="group flex cursor-pointer flex-col gap-3 rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-surface)] p-4 transition duration-200 hover:-translate-y-1 hover:border-[var(--color-primary)] hover:bg-[var(--color-surface-alt)]"
+      >
         <div className="relative flex aspect-square w-full items-center justify-center overflow-hidden rounded-2xl bg-[var(--color-surface-alt)]">
           {playlist.coverArt ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -280,7 +292,10 @@ function PlaylistCard({ playlist }: { playlist: Playlist }) {
           <div className="flex items-center gap-1 opacity-0 transition group-hover:opacity-100">
             <button
               type="button"
-              onClick={() => setEqOpen(true)}
+              onClick={(e) => {
+                e.stopPropagation();
+                setEqOpen(true);
+              }}
               aria-label={t("playlists.eq.openAria", {
                 defaultValue: "Configurar EQ de la playlist",
               })}
@@ -290,7 +305,8 @@ function PlaylistCard({ playlist }: { playlist: Playlist }) {
             </button>
             <button
               type="button"
-              onClick={() => {
+              onClick={(e) => {
+                e.stopPropagation();
                 if (
                   confirm(t("playlists.deleteConfirm", { name: playlist.name }))
                 ) {

@@ -1,15 +1,17 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import {
   ChevronDown,
   ChevronUp,
   ListMusic,
+  ListPlus,
   Play,
   Trash2,
   X,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
-import { usePlayerStore } from "../../stores/playStore";
+import { usePlayerStore, type PlayerTrack } from "../../stores/playStore";
+import AddToPlaylistModal from "../playlists/AddToPlaylistModal";
 
 /**
  * Side panel showing what's queued up next. Mounted at the layout level
@@ -31,6 +33,10 @@ export default function QueueDrawer() {
   const reorderQueue = usePlayerStore((s) => s.reorderQueue);
   const clearQueue = usePlayerStore((s) => s.clearQueue);
   const { t } = useTranslation();
+  // Track queued for the "add to playlist" modal (null = modal closed).
+  const [playlistTarget, setPlaylistTarget] = useState<PlayerTrack | null>(
+    null,
+  );
 
   // ESC to close.
   useEffect(() => {
@@ -111,6 +117,19 @@ export default function QueueDrawer() {
                   {currentTrack.artist}
                 </p>
               </div>
+              <button
+                type="button"
+                onClick={() => setPlaylistTarget(currentTrack)}
+                title={t("player.addToPlaylist", {
+                  defaultValue: "Agregar a una playlist",
+                })}
+                aria-label={t("player.addToPlaylist", {
+                  defaultValue: "Agregar a una playlist",
+                })}
+                className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[var(--color-muted)] transition hover:bg-[var(--color-primary)]/15 hover:text-[var(--color-primary)]"
+              >
+                <ListPlus className="h-4 w-4" strokeWidth={2.2} />
+              </button>
             </div>
           </section>
         ) : null}
@@ -228,6 +247,19 @@ export default function QueueDrawer() {
                           </button>
                           <button
                             type="button"
+                            onClick={() => setPlaylistTarget(track)}
+                            title={t("player.addToPlaylist", {
+                              defaultValue: "Agregar a una playlist",
+                            })}
+                            className="inline-flex h-7 w-7 items-center justify-center rounded text-[var(--color-muted)] transition hover:bg-[var(--color-primary)]/15 hover:text-[var(--color-primary)]"
+                          >
+                            <ListPlus
+                              className="h-3.5 w-3.5"
+                              strokeWidth={2.4}
+                            />
+                          </button>
+                          <button
+                            type="button"
                             onClick={() => removeFromQueue(absoluteIndex)}
                             title={t("queue.remove", {
                               defaultValue: "Quitar de la cola",
@@ -246,6 +278,13 @@ export default function QueueDrawer() {
           </div>
         </section>
       </aside>
+
+      <AddToPlaylistModal
+        open={playlistTarget !== null}
+        onClose={() => setPlaylistTarget(null)}
+        trackId={playlistTarget?.id ?? null}
+        trackTitle={playlistTarget?.title}
+      />
     </>
   );
 }

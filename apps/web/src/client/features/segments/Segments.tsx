@@ -1,6 +1,7 @@
 import {
   AlertCircle,
   ChevronDown,
+  Loader2,
   Music2,
   PencilLine,
   Play,
@@ -34,6 +35,7 @@ import {
   listSegments,
   updateSegment,
 } from "../../../shared/api/segments";
+import { detectSegments } from "../../../shared/api/ai-agent";
 
 const FREQ_LABELS = [
   "31",
@@ -611,7 +613,23 @@ function SegmentsContent() {
     void queryClient.invalidateQueries({
       queryKey: ["segments", selectedTrackId],
     });
+    // Keep the player/engine sync hook (different key) in step too.
+    void queryClient.invalidateQueries({
+      queryKey: ["track-segments", selectedTrackId],
+    });
   }
+
+  // AI auto-detection: splits the track into EQ segments server-side and
+  // refetches so they appear on the timeline.
+  const [detectError, setDetectError] = useState<string | null>(null);
+  const detect = useMutation({
+    mutationFn: () => detectSegments(selectedTrackId!),
+    onSuccess: () => {
+      setDetectError(null);
+      invalidateSegments();
+    },
+    onError: (err) => setDetectError(extractErrorMessage(err)),
+  });
 
   function extractErrorMessage(err: unknown): string {
     if (err && typeof err === "object" && "response" in err) {
@@ -620,7 +638,11 @@ function SegmentsContent() {
       };
       const status = axiosErr.response?.status;
       if (status === 409) return t("segments.editor.errorOverlap");
-      if (status === 400) {
+      if (status === 403)
+        return t("segments.errorQuota", {
+          defaultValue: "Alcanzaste tu límite mensual de peticiones a la IA.",
+        });
+      if (status === 400 || status === 404) {
         const msg = axiosErr.response?.data?.message;
         return typeof msg === "string"
           ? msg
@@ -828,19 +850,31 @@ function SegmentsContent() {
                 <div className="flex flex-wrap items-center gap-2">
                   <button
                     type="button"
-                    onClick={() => {
-                      // Placeholder for the future AI detection flow — fires
-                      // the same quick-prompt modal we use elsewhere so the
-                      // user can already ask the agent to suggest segments.
-                      const open = (
-                        window as unknown as { __mfOpenAi?: () => void }
-                      ).__mfOpenAi;
-                      if (typeof open === "function") open();
-                    }}
-                    className="inline-flex items-center gap-2 rounded-xl border border-[var(--color-accent)]/40 bg-[var(--color-accent)]/10 px-4 py-2.5 text-sm font-semibold text-[var(--color-accent)] transition hover:bg-[var(--color-accent)]/20"
+                    onClick={() => detect.mutate()}
+                    disabled={detect.isPending || segments.length > 0}
+                    title={
+                      segments.length > 0
+                        ? t("segments.detectHasSegments", {
+                            defaultValue:
+                              "Elimina los segmentos actuales para detectar con IA",
+                          })
+                        : undefined
+                    }
+                    className="inline-flex items-center gap-2 rounded-xl border border-[var(--color-accent)]/40 bg-[var(--color-accent)]/10 px-4 py-2.5 text-sm font-semibold text-[var(--color-accent)] transition hover:bg-[var(--color-accent)]/20 disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    <Sparkles className="h-4 w-4" strokeWidth={2.4} />
-                    {t("segments.detectWithAi")}
+                    {detect.isPending ? (
+                      <Loader2
+                        className="h-4 w-4 animate-spin"
+                        strokeWidth={2.4}
+                      />
+                    ) : (
+                      <Sparkles className="h-4 w-4" strokeWidth={2.4} />
+                    )}
+                    {detect.isPending
+                      ? t("segments.detecting", {
+                          defaultValue: "Detectando…",
+                        })
+                      : t("segments.detectWithAi")}
                   </button>
 
                   <button
@@ -859,6 +893,16 @@ function SegmentsContent() {
                   </button>
                 </div>
               </div>
+
+              {detectError ? (
+                <div
+                  role="alert"
+                  className="flex items-center gap-2 rounded-xl border border-rose-500/40 bg-rose-500/10 px-4 py-2.5 text-sm text-rose-200"
+                >
+                  <AlertCircle className="h-4 w-4 shrink-0" strokeWidth={2.2} />
+                  {detectError}
+                </div>
+              ) : null}
 
               <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
                 <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-[var(--color-muted)]">

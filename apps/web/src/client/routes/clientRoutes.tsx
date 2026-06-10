@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import LibraryPage from "../pages/LibraryPage";
 import NowPlayingPage from "../pages/NowPlayingPage";
 import PlaylistsPage from "../pages/PlaylistsPage";
+import PlaylistDetailPage from "../pages/PlaylistDetailPage";
 import SettingsPage from "../pages/SettingsPage";
 import BillingPage from "../pages/BillingPage";
 import HomePage from "../pages/HomePage";
@@ -25,6 +26,7 @@ export default function ClientRoutes() {
         <Route path="/library" element={<LibraryPage />} />
         <Route path="/artist/:name" element={<ArtistPage />} />
         <Route path="/playlists" element={<PlaylistsPage />} />
+        <Route path="/playlists/:id" element={<PlaylistDetailPage />} />
         <Route path="/equalizer" element={<Equalizer />} />
         <Route path="/now-playing" element={<NowPlayingPage />} />
         <Route path="/ai-mixer" element={<Agent />} />
