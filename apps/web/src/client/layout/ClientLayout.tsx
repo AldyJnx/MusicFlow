@@ -5,6 +5,7 @@ import MiniPlayer from "../features/player/MiniPlayer";
 import EqDrawer from "../features/player/EqDrawer";
 import AIQuickPrompt from "../features/player/AIQuickPrompt";
 import QueueDrawer from "../features/player/QueueDrawer";
+import UpgradeModal from "../features/billing/UpgradeModal";
 import Navbar, { type NavbarRef } from "../../shared/ui/navigation/Navbar";
 import ClientSidebar from "../components/navigation/ClientSidebar";
 import ImportModal from "../features/import/ImportModal";
@@ -43,11 +44,12 @@ export default function ClientLayout({ children }: { children: ReactNode }) {
       </div>
 
       {/* Overlays driven from the persistent player. Mounted once at the
-          layout so they share state across MiniPlayer / ExpandedPlayer and
-          survive route changes. */}
+            layout so they share state across MiniPlayer / ExpandedPlayer and
+            survive route changes. */}
       <EqDrawer />
       <AIQuickPrompt />
       <QueueDrawer />
+      <UpgradeModal />
       <ImportModal open={importOpen} onClose={() => setImportOpen(false)} />
     </div>
   );

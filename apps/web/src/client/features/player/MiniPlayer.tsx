@@ -16,6 +16,7 @@ import { useTranslation } from "react-i18next";
 import { usePlayerStore } from "../../stores/playStore";
 import { useTrackSegments } from "../../../shared/hooks/useTrackSegments";
 import { usePreferences } from "../../../shared/hooks/usePreferences";
+import { usePremiumGate } from "../../../shared/hooks/usePremiumGate";
 import TimelineWithSegments from "./TimelineWithSegments";
 import EqBandIndicator from "./EqBandIndicator";
 import Wave from "./Wave";
@@ -52,6 +53,7 @@ export default function MiniPlayer({ sidebarOffset = 0 }: MiniPlayerProps) {
 
   const { segments } = useTrackSegments(currentTrack?.id ?? null);
   const { showWave, playerLayout } = usePreferences();
+  const { guard } = usePremiumGate();
 
   // `auto` maps to the existing layout (expanded). `compact` shrinks padding,
   // cover, controls and hides the redundant expand button (clicking the bar
@@ -215,7 +217,7 @@ export default function MiniPlayer({ sidebarOffset = 0 }: MiniPlayerProps) {
             type="button"
             onClick={(e) => {
               preventExpand(e);
-              openAiPrompt();
+              guard("ai", openAiPrompt);
             }}
             className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-alt)] text-[var(--color-accent)] transition hover:border-[var(--color-accent)]"
             aria-label={t("player.openAi", { defaultValue: "Ask AI" })}

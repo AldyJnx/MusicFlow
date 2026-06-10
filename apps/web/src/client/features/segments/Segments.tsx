@@ -14,6 +14,8 @@ import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";
 
 import ClientLayout from "../../layout/ClientLayout";
+import PremiumLockedPage from "../billing/PremiumLockedPage";
+import { usePremiumGate } from "../../../shared/hooks/usePremiumGate";
 import WaveformTimeline from "./WaveformTimeline";
 import type { Track } from "../../../shared/api/tracks";
 import { listTracks } from "../../../shared/api/tracks";
@@ -422,6 +424,18 @@ function EditorModal({
 }
 
 export default function Segments() {
+  const { isPremium } = usePremiumGate();
+  if (!isPremium) {
+    return (
+      <ClientLayout>
+        <PremiumLockedPage feature="segments" />
+      </ClientLayout>
+    );
+  }
+  return <SegmentsContent />;
+}
+
+function SegmentsContent() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [searchParams] = useSearchParams();

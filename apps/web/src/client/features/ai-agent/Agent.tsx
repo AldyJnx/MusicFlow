@@ -9,6 +9,8 @@ import {
 import { useMutation } from "@tanstack/react-query";
 
 import ClientLayout from "../../layout/ClientLayout";
+import PremiumLockedPage from "../billing/PremiumLockedPage";
+import { usePremiumGate } from "../../../shared/hooks/usePremiumGate";
 import {
   acceptSuggestion,
   provideFeedback,
@@ -228,6 +230,18 @@ function SuggestionCard({
 // ── Main Component ─────────────────────────────────────────────────────────
 
 export default function Agent() {
+  const { isPremium } = usePremiumGate();
+  if (!isPremium) {
+    return (
+      <ClientLayout>
+        <PremiumLockedPage feature="ai" />
+      </ClientLayout>
+    );
+  }
+  return <AgentContent />;
+}
+
+function AgentContent() {
   const [messages, setMessages] = useState<ChatMessage[]>([
     { id: 1, role: "assistant", content: WELCOME_CONTENT },
   ]);

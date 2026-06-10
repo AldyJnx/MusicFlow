@@ -7,6 +7,7 @@ import ClientLayout from "../layout/ClientLayout";
 import { useTracksQuery } from "../../shared/hooks/useTracks";
 import SaveButton from "../../shared/ui/SaveButton";
 import { useSavedCheckQuery } from "../../shared/hooks/useLibrarySaves";
+import { usePremiumGate } from "../../shared/hooks/usePremiumGate";
 import { usePlayerStore, type PlayerTrack } from "../stores/playStore";
 import type { Track } from "../../shared/api/tracks";
 
@@ -45,6 +46,7 @@ export default function ArtistPage() {
   const playTrackList = usePlayerStore((s) => s.playTrackList);
   const openEqDrawer = usePlayerStore((s) => s.openEqDrawer);
   const openAiPrompt = usePlayerStore((s) => s.openAiPrompt);
+  const { guard } = usePremiumGate();
 
   const tracksQ = useTracksQuery({ artist: artistName, take: 100 });
   const tracks = tracksQ.data?.tracks ?? [];
@@ -182,7 +184,7 @@ export default function ArtistPage() {
               {/* Outline accent — IA action. */}
               <button
                 type="button"
-                onClick={openAiPrompt}
+                onClick={() => guard("ai", openAiPrompt)}
                 className="inline-flex items-center gap-2 rounded-full border-2 border-[var(--color-accent)] bg-transparent px-5 py-3 text-xs font-bold uppercase tracking-wider text-[var(--color-accent)] transition hover:bg-[var(--color-accent)]/10"
               >
                 <Sparkles className="h-3.5 w-3.5" strokeWidth={2.5} />

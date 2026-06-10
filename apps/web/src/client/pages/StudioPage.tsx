@@ -1,5 +1,6 @@
 import {
   ArrowRight,
+  Crown,
   Scissors,
   Settings as SettingsIcon,
   Sliders,
@@ -10,6 +11,10 @@ import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 
 import ClientLayout from "../layout/ClientLayout";
+import {
+  usePremiumGate,
+  type PremiumFeature,
+} from "../../shared/hooks/usePremiumGate";
 
 type StudioCardProps = {
   to: string;
@@ -18,6 +23,9 @@ type StudioCardProps = {
   title: string;
   description: string;
   tone: "primary" | "accent";
+  /** When set, the card requires Premium. Free users see a corona badge
+   *  and clicking opens the upgrade modal instead of navigating. */
+  premium?: PremiumFeature;
 };
 
 function StudioCard({
@@ -27,16 +35,34 @@ function StudioCard({
   title,
   description,
   tone,
+  premium,
 }: StudioCardProps) {
   const navigate = useNavigate();
+  const { guard, isPremium } = usePremiumGate();
+  const showPremiumBadge = !!premium && !isPremium;
   const accentVar =
     tone === "primary" ? "var(--color-primary)" : "var(--color-accent)";
+
+  function handleClick() {
+    if (premium) {
+      guard(premium, () => navigate(to));
+    } else {
+      navigate(to);
+    }
+  }
+
   return (
     <button
       type="button"
-      onClick={() => navigate(to)}
-      className="group flex flex-col gap-4 rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-surface)] p-6 text-left transition hover:-translate-y-1 hover:border-[var(--color-primary)] hover:shadow-[0_18px_40px_rgba(0,0,0,0.32)]"
+      onClick={handleClick}
+      className="group relative flex flex-col gap-4 rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-surface)] p-6 text-left transition hover:-translate-y-1 hover:border-[var(--color-primary)] hover:shadow-[0_18px_40px_rgba(0,0,0,0.32)]"
     >
+      {showPremiumBadge ? (
+        <span className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-full border border-amber-400/40 bg-amber-400/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-amber-300">
+          <Crown className="h-2.5 w-2.5" strokeWidth={2.6} />
+          Premium
+        </span>
+      ) : null}
       <div
         className="inline-flex h-12 w-12 items-center justify-center rounded-2xl"
         style={{
@@ -123,6 +149,7 @@ export default function StudioPage() {
           <StudioCard
             to="/segments"
             tone="accent"
+            premium="segments"
             icon={<Scissors className="h-6 w-6" strokeWidth={2.2} />}
             eyebrow={t("studio.segments.eyebrow", {
               defaultValue: "Granular",
@@ -136,6 +163,7 @@ export default function StudioPage() {
           <StudioCard
             to="/ai-mixer"
             tone="accent"
+            premium="ai"
             icon={<Sparkles className="h-6 w-6" strokeWidth={2.2} />}
             eyebrow={t("studio.ai.eyebrow", { defaultValue: "Asistente" })}
             title={t("studio.ai.title", { defaultValue: "Agente IA" })}

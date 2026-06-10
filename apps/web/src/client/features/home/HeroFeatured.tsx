@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 
 import SaveButton from "../../../shared/ui/SaveButton";
 import { usePreferences } from "../../../shared/hooks/usePreferences";
+import { usePremiumGate } from "../../../shared/hooks/usePremiumGate";
 import { usePlayerStore, type PlayerTrack } from "../../stores/playStore";
 import type { Track } from "../../../shared/api/tracks";
 import type { Playlist } from "../../../shared/api/playlists";
@@ -53,6 +54,7 @@ export default function HeroFeatured({
   const playTrack = usePlayerStore((s) => s.playTrack);
   const openEqDrawer = usePlayerStore((s) => s.openEqDrawer);
   const openAiPrompt = usePlayerStore((s) => s.openAiPrompt);
+  const { guard } = usePremiumGate();
 
   // Mount-only fade-in so route changes feel less abrupt.
   const [heroIn, setHeroIn] = useState(false);
@@ -168,7 +170,7 @@ export default function HeroFeatured({
               {/* Outline accent — AI / "wow" action. */}
               <button
                 type="button"
-                onClick={openAiPrompt}
+                onClick={() => guard("ai", openAiPrompt)}
                 className="inline-flex items-center gap-2 rounded-full border-2 border-[var(--color-accent)] bg-transparent px-5 py-3 text-xs font-bold uppercase tracking-wider text-[var(--color-accent)] transition hover:bg-[var(--color-accent)]/10"
                 title={t("home.aiSuggest", { defaultValue: "IA sugiere" })}
               >

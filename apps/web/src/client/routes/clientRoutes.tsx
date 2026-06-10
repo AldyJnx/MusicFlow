@@ -11,23 +11,29 @@ import Equalizer from "../features/equalizer/Equalizer";
 import Segments from "../features/segments/Segments";
 import Agent from "../features/ai-agent/Agent";
 import ProfileSettings from "../features/profile/ProfileSettings";
+import { PremiumGateProvider } from "../../shared/hooks/usePremiumGate";
 
 export default function ClientRoutes() {
+  // The Provider sits above <Routes> so every page can call usePremiumGate
+  // — including pages like Segments and Agent that need to render a locked
+  // fallback *before* ClientLayout mounts.
   return (
-    <Routes>
-      <Route path="/" element={<Navigate to="/inicio" replace />} />
-      <Route path="/inicio" element={<HomePage />} />
-      <Route path="/library" element={<LibraryPage />} />
-      <Route path="/artist/:name" element={<ArtistPage />} />
-      <Route path="/playlists" element={<PlaylistsPage />} />
-      <Route path="/equalizer" element={<Equalizer />} />
-      <Route path="/now-playing" element={<NowPlayingPage />} />
-      <Route path="/ai-mixer" element={<Agent />} />
-      <Route path="/profile" element={<ProfileSettings />} />
-      <Route path="/segments" element={<Segments />} />
-      <Route path="/studio" element={<StudioPage />} />
-      <Route path="/settings" element={<SettingsPage />} />
-      <Route path="/settings/billing" element={<BillingPage />} />
-    </Routes>
+    <PremiumGateProvider>
+      <Routes>
+        <Route path="/" element={<Navigate to="/inicio" replace />} />
+        <Route path="/inicio" element={<HomePage />} />
+        <Route path="/library" element={<LibraryPage />} />
+        <Route path="/artist/:name" element={<ArtistPage />} />
+        <Route path="/playlists" element={<PlaylistsPage />} />
+        <Route path="/equalizer" element={<Equalizer />} />
+        <Route path="/now-playing" element={<NowPlayingPage />} />
+        <Route path="/ai-mixer" element={<Agent />} />
+        <Route path="/profile" element={<ProfileSettings />} />
+        <Route path="/segments" element={<Segments />} />
+        <Route path="/studio" element={<StudioPage />} />
+        <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/settings/billing" element={<BillingPage />} />
+      </Routes>
+    </PremiumGateProvider>
   );
 }

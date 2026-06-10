@@ -23,6 +23,7 @@ import { useTrackSegments } from "../../../shared/hooks/useTrackSegments";
 import { usePreferences } from "../../../shared/hooks/usePreferences";
 import { useEqualizer } from "../../../shared/hooks/useEqualizer";
 import { useLyrics } from "../../../shared/hooks/useLyrics";
+import { usePremiumGate } from "../../../shared/hooks/usePremiumGate";
 import TimelineWithSegments from "./TimelineWithSegments";
 import Wave from "./Wave";
 
@@ -79,6 +80,7 @@ export default function ExpandedPlayer({
   const { segments } = useTrackSegments(currentTrack?.id ?? null);
   const { showWave } = usePreferences();
   const { bands, syncFromEngine } = useEqualizer();
+  const { guard } = usePremiumGate();
   const isMuted = muted || volume === 0;
 
   const [view, setView] = useState<View>("cover");
@@ -117,8 +119,14 @@ export default function ExpandedPlayer({
 
   function openSegmentsForCurrentTrack() {
     if (!currentTrack) return;
-    setExpanded(false);
-    navigate(`/segments?track=${encodeURIComponent(currentTrack.id)}`);
+    guard("segments", () => {
+      setExpanded(false);
+      navigate(`/segments?track=${encodeURIComponent(currentTrack.id)}`);
+    });
+  }
+
+  function tryOpenAi() {
+    guard("ai", openAiPrompt);
   }
 
   return (
@@ -338,7 +346,7 @@ export default function ExpandedPlayer({
 
             <button
               type="button"
-              onClick={openAiPrompt}
+              onClick={tryOpenAi}
               title={t("player.openAi", { defaultValue: "Pedirle a la IA" })}
               className="inline-flex h-9 items-center gap-2 rounded-xl border border-[var(--color-accent)]/60 bg-[var(--color-accent)]/10 px-3 text-[10px] font-semibold uppercase tracking-wider text-[var(--color-accent)] transition hover:bg-[var(--color-accent)]/20"
             >

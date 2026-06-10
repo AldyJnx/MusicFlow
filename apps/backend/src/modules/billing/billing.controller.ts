@@ -18,6 +18,7 @@ import {
 import { JwtAuthGuard } from "@/common/guards/jwt-auth.guard";
 import { CurrentUser } from "@/common/decorators/current-user.decorator";
 import { Public } from "@/common/decorators/public.decorator";
+import { PrismaService } from "@/prisma/prisma.service";
 import { QuotaService } from "./quota.service";
 import { StripeService } from "./stripe.service";
 
@@ -34,6 +35,7 @@ export class BillingController {
   constructor(
     private readonly quotaService: QuotaService,
     private readonly stripeService: StripeService,
+    private readonly prisma: PrismaService,
   ) {}
 
   @Get("quota")
@@ -62,6 +64,23 @@ export class BillingController {
   @ApiResponse({ status: 503, description: "Stripe not configured" })
   async createCheckout(@CurrentUser() user: AuthUser) {
     return this.stripeService.createCheckoutSession(user.id);
+  }
+
+  @Post("simulate-upgrade")
+  @ApiOperation({
+    summary:
+      "[DEV] Flip the current user to premium without going through Stripe",
+    description:
+      "Simulated checkout path for demos and showcases. Sets is_premium=true on the authenticated user and returns the fresh isPremium flag. Do not expose this in production.",
+  })
+  @ApiResponse({ status: 200, description: "User upgraded to premium" })
+  @HttpCode(HttpStatus.OK)
+  async simulateUpgrade(@CurrentUser() user: AuthUser) {
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { isPremium: true },
+    });
+    return { isPremium: true };
   }
 
   @Public()
