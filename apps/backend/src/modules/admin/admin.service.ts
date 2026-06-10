@@ -275,6 +275,38 @@ export class AdminService {
     return { dau, wau, mau, total };
   }
 
+  /**
+   * Top N most-recently-active users — used by the admin dashboard "power
+   * users" widget. Excludes users who never logged in (lastLogin null) and
+   * inactive accounts since they don't help the admin understand who's
+   * actually pushing the platform forward.
+   */
+  async getTopActiveUsers(limit = 5) {
+    const clamped = Math.min(Math.max(Math.floor(limit), 1), 20);
+
+    const users = await this.prisma.user.findMany({
+      where: {
+        isActive: true,
+        lastLogin: { not: null },
+      },
+      orderBy: { lastLogin: "desc" },
+      take: clamped,
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        avatar: true,
+        isPremium: true,
+        role: true,
+        lastLogin: true,
+        createdAt: true,
+        _count: { select: { tracks: true, playlists: true } },
+      },
+    });
+
+    return users;
+  }
+
   async getCatalogDistribution() {
     const [byGenreRaw, byCodecRaw, totals] = await Promise.all([
       this.prisma.track.groupBy({

@@ -65,6 +65,18 @@ export interface ActiveUsersStats {
   total: number;
 }
 
+export interface TopActiveUser {
+  id: string;
+  username: string;
+  email: string;
+  avatar: string | null;
+  isPremium: boolean;
+  role: UserRole;
+  lastLogin: string;
+  createdAt: string;
+  _count: { tracks: number; playlists: number };
+}
+
 export type DeviceType =
   | "DESKTOP_WIN"
   | "DESKTOP_MAC"
@@ -331,6 +343,14 @@ export async function getCatalogDistribution(): Promise<CatalogDistribution> {
 export async function getActiveUsers(): Promise<ActiveUsersStats> {
   const { data } = await api.get<ActiveUsersStats>(
     "/admin/dashboard/active-users",
+  );
+  return data;
+}
+
+export async function getTopActiveUsers(limit = 5): Promise<TopActiveUser[]> {
+  const { data } = await api.get<TopActiveUser[]>(
+    "/admin/dashboard/top-users",
+    { params: { limit } },
   );
   return data;
 }

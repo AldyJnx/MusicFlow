@@ -27,12 +27,14 @@ import {
   getUserGrowth,
   getCatalogDistribution,
   getActiveUsers,
+  getTopActiveUsers,
 } from "../../shared/api/admin";
 import type {
   AIFeedbackStats,
   ActiveUsersStats,
   CatalogDistribution,
   DashboardStats,
+  TopActiveUser,
   UserGrowth,
 } from "../../shared/api/admin";
 
@@ -619,6 +621,83 @@ function formatDuration(ms: number): string {
   return `${d}d ${h % 24}h`;
 }
 
+/** Coarse "hace 5 min / hace 3h / hace 2d" — enough resolution for a list. */
+function formatRelativeTime(iso: string): string {
+  const ms = Date.now() - new Date(iso).getTime();
+  const minutes = Math.floor(ms / 60000);
+  if (minutes < 1) return "ahora";
+  if (minutes < 60) return `hace ${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `hace ${hours}h`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `hace ${days}d`;
+  const months = Math.floor(days / 30);
+  return `hace ${months}m`;
+}
+
+/**
+ * Compact row in the "Power users" widget. Same gradient-initials pattern
+ * the client uses for ArtistAvatar so admin and client stay visually
+ * consistent.
+ */
+function PowerUserRow({ user }: { user: TopActiveUser }) {
+  const navigate = useNavigate();
+  let hue = 0;
+  for (let i = 0; i < user.username.length; i++) {
+    hue = (hue * 31 + user.username.charCodeAt(i)) % 360;
+  }
+  const initials = user.username
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((p) => p[0]?.toUpperCase() ?? "")
+    .join("");
+  return (
+    <button
+      type="button"
+      onClick={() => navigate(`/admin/users/${user.id}`)}
+      className="group flex w-full items-center gap-3 rounded-xl border border-transparent px-2 py-2 text-left transition hover:border-[var(--color-border)] hover:bg-[var(--color-page)]"
+    >
+      <div
+        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white shadow-[0_6px_14px_rgba(0,0,0,0.3)]"
+        style={{
+          background: `linear-gradient(135deg, hsl(${hue} 70% 50%) 0%, hsl(${(hue + 40) % 360} 65% 35%) 100%)`,
+        }}
+      >
+        {initials || "?"}
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2">
+          <p className="truncate text-sm font-semibold text-[var(--color-text)]">
+            {user.username}
+          </p>
+          {user.isPremium ? (
+            <span className="inline-flex items-center gap-0.5 rounded-full bg-amber-500/15 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-amber-400">
+              <Crown className="h-2.5 w-2.5" strokeWidth={2.6} />
+              Premium
+            </span>
+          ) : null}
+        </div>
+        <p className="truncate text-[11px] text-[var(--color-muted)]">
+          {user.email}
+        </p>
+      </div>
+      <div className="hidden shrink-0 flex-col items-end text-right sm:flex">
+        <p className="text-xs font-semibold text-[var(--color-text)]">
+          {formatRelativeTime(user.lastLogin)}
+        </p>
+        <p className="text-[10px] text-[var(--color-muted)]">
+          {user._count.tracks} pistas · {user._count.playlists} listas
+        </p>
+      </div>
+      <ArrowRight
+        className="h-3.5 w-3.5 shrink-0 -translate-x-1 text-[var(--color-muted)] opacity-0 transition group-hover:translate-x-0 group-hover:opacity-100"
+        strokeWidth={2.4}
+      />
+    </button>
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Error banner
 // ---------------------------------------------------------------------------
@@ -682,6 +761,7 @@ function useTimeAgo(timestamp: number | null): string {
 
 export default function DashboardPage() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const dashboardQ = useQuery<DashboardStats>({
     queryKey: ["admin", "dashboard"],
     queryFn: getDashboardStats,
@@ -712,6 +792,12 @@ export default function DashboardPage() {
     staleTime: 60_000,
   });
 
+  const topUsersQ = useQuery<TopActiveUser[]>({
+    queryKey: ["admin", "dashboard", "top-users", 5],
+    queryFn: () => getTopActiveUsers(5),
+    staleTime: 60_000,
+  });
+
   const isLoading = dashboardQ.isPending || feedbackQ.isPending;
   const hasError = dashboardQ.isError || feedbackQ.isError;
 
@@ -723,6 +809,7 @@ export default function DashboardPage() {
     growthQ.dataUpdatedAt ?? 0,
     catalogQ.dataUpdatedAt ?? 0,
     activeQ.dataUpdatedAt ?? 0,
+    topUsersQ.dataUpdatedAt ?? 0,
   );
   const timeAgo = useTimeAgo(lastUpdated || null);
   const anyRefreshing =
@@ -730,7 +817,8 @@ export default function DashboardPage() {
     feedbackQ.isFetching ||
     growthQ.isFetching ||
     catalogQ.isFetching ||
-    activeQ.isFetching;
+    activeQ.isFetching ||
+    topUsersQ.isFetching;
 
   function refreshAll() {
     void dashboardQ.refetch();
@@ -738,6 +826,7 @@ export default function DashboardPage() {
     void growthQ.refetch();
     void catalogQ.refetch();
     void activeQ.refetch();
+    void topUsersQ.refetch();
   }
 
   function handleRetry() {
@@ -746,6 +835,7 @@ export default function DashboardPage() {
     if (growthQ.isError) void growthQ.refetch();
     if (catalogQ.isError) void catalogQ.refetch();
     if (activeQ.isError) void activeQ.refetch();
+    if (topUsersQ.isError) void topUsersQ.refetch();
   }
 
   // Derived values (safe-guards against undefined while loading)
@@ -977,6 +1067,66 @@ export default function DashboardPage() {
             </div>
           </section>
         ) : null}
+
+        {/* ── Power users widget ── */}
+        {!isLoading && (
+          <article
+            className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-alt)] p-5"
+            aria-labelledby="power-users-title"
+          >
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <h2
+                id="power-users-title"
+                className="text-sm font-semibold uppercase tracking-widest text-[var(--color-muted)]"
+              >
+                {t("admin.dashboard.powerUsersTitle", {
+                  defaultValue: "Power users · más activos",
+                })}
+              </h2>
+              <button
+                type="button"
+                onClick={() => navigate("/admin/users")}
+                className="inline-flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wider text-[var(--color-muted)] transition hover:text-[var(--color-primary)]"
+              >
+                {t("admin.dashboard.viewAllUsers", {
+                  defaultValue: "Ver todos",
+                })}
+                <ArrowRight className="h-3 w-3" strokeWidth={2.4} />
+              </button>
+            </div>
+            {topUsersQ.isPending ? (
+              <div className="flex flex-col gap-2">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <div
+                    key={i}
+                    className="flex animate-pulse items-center gap-3 rounded-xl p-2"
+                  >
+                    <div className="h-10 w-10 rounded-full bg-[var(--color-border)]" />
+                    <div className="flex flex-1 flex-col gap-2">
+                      <div className="h-3 w-32 rounded bg-[var(--color-border)]" />
+                      <div className="h-2 w-48 rounded bg-[var(--color-border)]" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : topUsersQ.data && topUsersQ.data.length > 0 ? (
+              <ul className="flex flex-col gap-1">
+                {topUsersQ.data.map((u) => (
+                  <li key={u.id}>
+                    <PowerUserRow user={u} />
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="py-6 text-center text-sm text-[var(--color-muted)]">
+                {t("admin.dashboard.powerUsersEmpty", {
+                  defaultValue:
+                    "Aún no hay actividad — nadie se ha conectado todavía.",
+                })}
+              </p>
+            )}
+          </article>
+        )}
 
         {/* ── Operational KPIs — user base health ── */}
         {isLoading ? (

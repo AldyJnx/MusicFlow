@@ -69,6 +69,16 @@ export class AdminController {
     return this.adminService.getActiveUsers();
   }
 
+  @Get("dashboard/top-users")
+  @ApiOperation({ summary: "Top N most-recently-active users" })
+  @ApiQuery({ name: "limit", required: false, type: Number })
+  @ApiResponse({ status: 200, description: "Top active users retrieved" })
+  async getDashboardTopUsers(@Query("limit") limit?: number) {
+    return this.adminService.getTopActiveUsers(
+      limit ? Number(limit) : undefined,
+    );
+  }
+
   @Get("users")
   @ApiOperation({ summary: "Get all users" })
   @ApiQuery({ name: "skip", required: false, type: Number })
