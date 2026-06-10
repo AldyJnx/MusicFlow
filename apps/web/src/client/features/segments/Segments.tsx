@@ -8,7 +8,7 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";
@@ -131,72 +131,172 @@ function LoadingSkeleton() {
   );
 }
 
-function TrackSelector({
+/**
+ * Visual track picker — a grid of cover cards instead of a dropdown.
+ * Built-in search filter so the user can find a song quickly when their
+ * library is large. When a track is selected the parent renders
+ * `<SelectedTrackHeader>` instead of this picker.
+ */
+function TrackPicker({
   tracks,
-  selectedId,
   onSelect,
 }: {
   tracks: Track[];
-  selectedId: string | null;
   onSelect: (id: string) => void;
 }) {
   const { t } = useTranslation();
-  const [open, setOpen] = useState(false);
-  const selected = tracks.find((t) => t.id === selectedId);
+  const [query, setQuery] = useState("");
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return tracks;
+    return tracks.filter(
+      (tr) =>
+        tr.title.toLowerCase().includes(q) ||
+        tr.artist.toLowerCase().includes(q) ||
+        (tr.album ?? "").toLowerCase().includes(q),
+    );
+  }, [tracks, query]);
+
+  if (tracks.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-[var(--color-border)] py-16 text-center">
+        <Music2
+          className="h-10 w-10 text-[var(--color-muted)]"
+          strokeWidth={1.5}
+        />
+        <p className="text-base font-medium text-[var(--color-muted)]">
+          {t("segments.noTracks")}
+        </p>
+      </div>
+    );
+  }
 
   return (
-    <div className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center justify-between gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-alt)] px-4 py-3 text-sm font-medium text-[var(--color-text)] transition hover:border-[var(--color-primary)]"
-      >
-        <span className="flex items-center gap-2 truncate">
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-2">
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-muted)]">
+          {t("segments.pickATrack", { defaultValue: "Elegí una canción" })}
+        </p>
+        <div className="relative">
           <Music2
-            className="h-4 w-4 shrink-0 text-[var(--color-primary)]"
+            className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-muted)]"
             strokeWidth={2}
           />
-          {selected
-            ? `${selected.title} — ${selected.artist}`
-            : t("segments.selectTrack")}
-        </span>
-        <ChevronDown
-          className={`h-4 w-4 shrink-0 text-[var(--color-muted)] transition ${open ? "rotate-180" : ""}`}
-          strokeWidth={2}
-        />
-      </button>
+          <input
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder={t("segments.searchPlaceholder", {
+              defaultValue: "Buscar por título, artista o álbum…",
+            })}
+            className="h-11 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-alt)] pl-10 pr-3 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-primary)]"
+          />
+        </div>
+      </div>
 
-      {open && (
-        <ul className="absolute z-50 mt-1 max-h-64 w-full overflow-y-auto rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-xl">
-          {tracks.map((tr) => (
+      {filtered.length === 0 ? (
+        <p className="py-8 text-center text-sm text-[var(--color-muted)]">
+          {t("segments.noMatches", {
+            defaultValue: "Ninguna canción coincide con la búsqueda.",
+          })}
+        </p>
+      ) : (
+        <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5">
+          {filtered.map((tr) => (
             <li key={tr.id}>
               <button
                 type="button"
-                onClick={() => {
-                  onSelect(tr.id);
-                  setOpen(false);
-                }}
-                className={`w-full px-4 py-2.5 text-left text-sm transition hover:bg-[var(--color-surface-alt)] ${
-                  tr.id === selectedId
-                    ? "text-[var(--color-primary)]"
-                    : "text-[var(--color-text)]"
-                }`}
+                onClick={() => onSelect(tr.id)}
+                className="group flex w-full flex-col gap-3 rounded-2xl bg-[var(--color-surface)] p-3 text-left transition hover:-translate-y-1 hover:bg-[var(--color-surface-alt)] hover:shadow-[0_18px_40px_rgba(0,0,0,0.32)]"
               >
-                <span className="font-medium">{tr.title}</span>
-                <span className="ml-2 text-[var(--color-muted)]">
-                  {tr.artist}
-                </span>
+                <div className="relative aspect-square overflow-hidden rounded-xl bg-[var(--color-surface-alt)]">
+                  {tr.coverArt ? (
+                    <img
+                      src={tr.coverArt}
+                      alt={tr.title}
+                      className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.04]"
+                    />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center">
+                      <Music2
+                        className="h-10 w-10 text-[var(--color-muted)]"
+                        strokeWidth={1.4}
+                      />
+                    </div>
+                  )}
+                  <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-transparent opacity-0 transition group-hover:opacity-100" />
+                </div>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-bold text-[var(--color-text)]">
+                    {tr.title}
+                  </p>
+                  <p className="truncate text-xs text-[var(--color-muted)]">
+                    {tr.artist}
+                  </p>
+                </div>
               </button>
             </li>
           ))}
-          {tracks.length === 0 && (
-            <li className="px-4 py-3 text-sm text-[var(--color-muted)]">
-              {t("segments.noTracks")}
-            </li>
-          )}
         </ul>
       )}
     </div>
+  );
+}
+
+/**
+ * Header rendered after a track has been picked. Big cover, name, "change
+ * track" affordance — gives the segment editor the same protagonist feel
+ * the ExpandedPlayer has, so the user knows exactly which song they're
+ * editing.
+ */
+function SelectedTrackHeader({
+  track,
+  onClear,
+}: {
+  track: Track;
+  onClear: () => void;
+}) {
+  const { t } = useTranslation();
+  return (
+    <article className="flex flex-col gap-4 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 sm:flex-row sm:items-center sm:p-5">
+      <div className="relative h-28 w-28 shrink-0 overflow-hidden rounded-xl bg-[var(--color-surface-alt)] shadow-[0_14px_30px_rgba(0,0,0,0.32)] sm:h-32 sm:w-32">
+        {track.coverArt ? (
+          <img
+            src={track.coverArt}
+            alt={track.title}
+            className="h-full w-full object-cover"
+          />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center">
+            <Music2
+              className="h-10 w-10 text-[var(--color-muted)]"
+              strokeWidth={1.4}
+            />
+          </div>
+        )}
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--color-primary)]">
+          {t("segments.editingTrack", { defaultValue: "Editando canción" })}
+        </p>
+        <h2 className="mt-1 truncate text-2xl font-bold tracking-tight text-[var(--color-text)] sm:text-3xl">
+          {track.title}
+        </h2>
+        <p className="truncate text-sm text-[var(--color-muted)]">
+          {track.artist}
+          {track.album ? ` · ${track.album}` : ""} ·{" "}
+          {formatMs(track.durationMs)}
+        </p>
+      </div>
+      <button
+        type="button"
+        onClick={onClear}
+        className="inline-flex h-10 shrink-0 items-center gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-alt)] px-4 text-xs font-semibold uppercase tracking-wider text-[var(--color-muted)] transition hover:border-[var(--color-primary)] hover:text-[var(--color-text)]"
+      >
+        <ChevronDown className="h-3.5 w-3.5 rotate-90" strokeWidth={2.4} />
+        {t("segments.changeTrack", { defaultValue: "Cambiar canción" })}
+      </button>
+    </article>
   );
 }
 
@@ -609,29 +709,36 @@ function SegmentsContent() {
           </div>
 
           {tracksQuery.isLoading ? (
-            <div className="h-12 w-full animate-pulse rounded-xl bg-[var(--color-surface-alt)]" />
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="animate-pulse rounded-2xl bg-[var(--color-surface)] p-3"
+                >
+                  <div className="aspect-square rounded-xl bg-[var(--color-surface-alt)]" />
+                  <div className="mt-3 h-3 w-3/4 rounded bg-[var(--color-surface-alt)]" />
+                  <div className="mt-2 h-3 w-1/2 rounded bg-[var(--color-surface-alt)]" />
+                </div>
+              ))}
+            </div>
+          ) : selectedTrack ? (
+            <SelectedTrackHeader
+              track={selectedTrack}
+              onClear={() => {
+                setSelectedTrackId(null);
+                setEditor(null);
+                setAddingMode(false);
+              }}
+            />
           ) : (
-            <TrackSelector
+            <TrackPicker
               tracks={tracks}
-              selectedId={selectedTrackId}
               onSelect={(id) => {
                 setSelectedTrackId(id);
                 setEditor(null);
                 setAddingMode(false);
               }}
             />
-          )}
-
-          {!selectedTrackId && (
-            <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-[var(--color-border)] py-16 text-center">
-              <Music2
-                className="h-10 w-10 text-[var(--color-muted)]"
-                strokeWidth={1.5}
-              />
-              <p className="text-base font-medium text-[var(--color-muted)]">
-                {t("segments.noTrackSelected")}
-              </p>
-            </div>
           )}
 
           {selectedTrackId && selectedTrack && (
