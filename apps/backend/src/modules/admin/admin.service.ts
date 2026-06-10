@@ -276,6 +276,49 @@ export class AdminService {
   }
 
   /**
+   * Daily Active Users series over the last N days. Each point is the
+   * count of users whose `lastLogin` falls inside that 24h UTC bucket.
+   * Used as a sparkline in the admin dashboard DAU card.
+   *
+   * Caveat: a user shows up in the bucket of their MOST RECENT login,
+   * not in every day they were active — Prisma doesn't store login
+   * history. Adequate for a rough trend line; replace with a sessions
+   * table if you need true daily uniques.
+   */
+  async getActiveUsersTrend(days = 30) {
+    const clamped = Math.min(Math.max(Math.floor(days), 1), 90);
+
+    const today = new Date();
+    today.setUTCHours(0, 0, 0, 0);
+    const start = new Date(today);
+    start.setUTCDate(start.getUTCDate() - (clamped - 1));
+
+    const rows = await this.prisma.$queryRaw<{ day: Date; count: bigint }[]>`
+      SELECT date_trunc('day', "last_login") AS day, COUNT(*)::bigint AS count
+      FROM "users"
+      WHERE "last_login" >= ${start}
+      GROUP BY day
+      ORDER BY day ASC
+    `;
+
+    const counts = new Map<string, number>();
+    for (const r of rows) {
+      const key = r.day.toISOString().slice(0, 10);
+      counts.set(key, Number(r.count));
+    }
+
+    const series: { date: string; count: number }[] = [];
+    for (let i = 0; i < clamped; i++) {
+      const d = new Date(start);
+      d.setUTCDate(start.getUTCDate() + i);
+      const key = d.toISOString().slice(0, 10);
+      series.push({ date: key, count: counts.get(key) ?? 0 });
+    }
+
+    return { days: clamped, series };
+  }
+
+  /**
    * Top N most-recently-active users — used by the admin dashboard "power
    * users" widget. Excludes users who never logged in (lastLogin null) and
    * inactive accounts since they don't help the admin understand who's

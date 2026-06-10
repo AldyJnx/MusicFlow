@@ -65,6 +65,16 @@ export interface ActiveUsersStats {
   total: number;
 }
 
+export interface ActiveUsersTrendPoint {
+  date: string; // YYYY-MM-DD UTC
+  count: number;
+}
+
+export interface ActiveUsersTrend {
+  days: number;
+  series: ActiveUsersTrendPoint[];
+}
+
 export interface TopActiveUser {
   id: string;
   username: string;
@@ -351,6 +361,16 @@ export async function getTopActiveUsers(limit = 5): Promise<TopActiveUser[]> {
   const { data } = await api.get<TopActiveUser[]>(
     "/admin/dashboard/top-users",
     { params: { limit } },
+  );
+  return data;
+}
+
+export async function getActiveUsersTrend(
+  days = 30,
+): Promise<ActiveUsersTrend> {
+  const { data } = await api.get<ActiveUsersTrend>(
+    "/admin/dashboard/active-users-trend",
+    { params: { days } },
   );
   return data;
 }

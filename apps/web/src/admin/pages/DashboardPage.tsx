@@ -27,11 +27,13 @@ import {
   getUserGrowth,
   getCatalogDistribution,
   getActiveUsers,
+  getActiveUsersTrend,
   getTopActiveUsers,
 } from "../../shared/api/admin";
 import type {
   AIFeedbackStats,
   ActiveUsersStats,
+  ActiveUsersTrend,
   CatalogDistribution,
   DashboardStats,
   TopActiveUser,
@@ -89,6 +91,53 @@ interface StatCardProps {
   size?: "default" | "hero";
   /** Show "—" with this hint instead of the value when the metric is N/A. */
   empty?: string;
+  /** Optional sparkline data — rendered as a tiny SVG in the corner. */
+  sparkline?: number[];
+}
+
+/**
+ * Compact SVG sparkline for embedding in a StatCard. No axes, no labels,
+ * just shape. Scales the series to fit the box; flat zero series renders
+ * a baseline so the card doesn't look broken when there's no activity yet.
+ */
+function Sparkline({
+  data,
+  color,
+  width = 80,
+  height = 24,
+}: {
+  data: number[];
+  color: string;
+  width?: number;
+  height?: number;
+}) {
+  if (data.length < 2) return null;
+  const max = Math.max(...data, 1);
+  const stepX = width / (data.length - 1);
+  const points = data
+    .map((v, i) => `${i * stepX},${height - (v / max) * height}`)
+    .join(" ");
+  const last = data[data.length - 1];
+  const lastY = height - (last / max) * height;
+  return (
+    <svg
+      width={width}
+      height={height}
+      viewBox={`0 0 ${width} ${height}`}
+      className="overflow-visible"
+      aria-hidden="true"
+    >
+      <polyline
+        fill="none"
+        stroke={color}
+        strokeWidth={1.5}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        points={points}
+      />
+      <circle cx={width} cy={lastY} r={2.2} fill={color} />
+    </svg>
+  );
 }
 
 const TONE_BG: Record<StatTone, string> = {
@@ -108,6 +157,7 @@ function StatCard({
   href,
   size = "default",
   empty,
+  sparkline,
 }: StatCardProps) {
   const navigate = useNavigate();
   const clickable = !!href;
@@ -176,13 +226,18 @@ function StatCard({
             {label}
           </span>
         </div>
-        {clickable ? (
-          <ArrowRight
-            className="h-3.5 w-3.5 -translate-x-1 text-[var(--color-muted)] opacity-0 transition group-hover:translate-x-0 group-hover:opacity-100"
-            strokeWidth={2.4}
-            style={{ color: accent }}
-          />
-        ) : null}
+        <div className="flex items-center gap-2">
+          {sparkline && sparkline.length > 1 ? (
+            <Sparkline data={sparkline} color={accent} />
+          ) : null}
+          {clickable ? (
+            <ArrowRight
+              className="h-3.5 w-3.5 -translate-x-1 text-[var(--color-muted)] opacity-0 transition group-hover:translate-x-0 group-hover:opacity-100"
+              strokeWidth={2.4}
+              style={{ color: accent }}
+            />
+          ) : null}
+        </div>
       </div>
 
       {isEmpty ? (
@@ -798,6 +853,12 @@ export default function DashboardPage() {
     staleTime: 60_000,
   });
 
+  const dauTrendQ = useQuery<ActiveUsersTrend>({
+    queryKey: ["admin", "dashboard", "active-users-trend", 30],
+    queryFn: () => getActiveUsersTrend(30),
+    staleTime: 60_000,
+  });
+
   const isLoading = dashboardQ.isPending || feedbackQ.isPending;
   const hasError = dashboardQ.isError || feedbackQ.isError;
 
@@ -810,6 +871,7 @@ export default function DashboardPage() {
     catalogQ.dataUpdatedAt ?? 0,
     activeQ.dataUpdatedAt ?? 0,
     topUsersQ.dataUpdatedAt ?? 0,
+    dauTrendQ.dataUpdatedAt ?? 0,
   );
   const timeAgo = useTimeAgo(lastUpdated || null);
   const anyRefreshing =
@@ -818,7 +880,8 @@ export default function DashboardPage() {
     growthQ.isFetching ||
     catalogQ.isFetching ||
     activeQ.isFetching ||
-    topUsersQ.isFetching;
+    topUsersQ.isFetching ||
+    dauTrendQ.isFetching;
 
   function refreshAll() {
     void dashboardQ.refetch();
@@ -827,6 +890,7 @@ export default function DashboardPage() {
     void catalogQ.refetch();
     void activeQ.refetch();
     void topUsersQ.refetch();
+    void dauTrendQ.refetch();
   }
 
   function handleRetry() {
@@ -836,6 +900,7 @@ export default function DashboardPage() {
     if (catalogQ.isError) void catalogQ.refetch();
     if (activeQ.isError) void activeQ.refetch();
     if (topUsersQ.isError) void topUsersQ.refetch();
+    if (dauTrendQ.isError) void dauTrendQ.refetch();
   }
 
   // Derived values (safe-guards against undefined while loading)
@@ -1007,6 +1072,7 @@ export default function DashboardPage() {
                       })
                     : undefined
                 }
+                sparkline={dauTrendQ.data?.series.map((p) => p.count)}
               />
               <StatCard
                 tone="accent"

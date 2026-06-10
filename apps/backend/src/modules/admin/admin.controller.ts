@@ -79,6 +79,18 @@ export class AdminController {
     );
   }
 
+  @Get("dashboard/active-users-trend")
+  @ApiOperation({
+    summary: "Daily Active Users series over the last N days (sparkline)",
+  })
+  @ApiQuery({ name: "days", required: false, type: Number })
+  @ApiResponse({ status: 200, description: "DAU trend retrieved" })
+  async getDashboardActiveUsersTrend(@Query("days") days?: number) {
+    return this.adminService.getActiveUsersTrend(
+      days ? Number(days) : undefined,
+    );
+  }
+
   @Get("users")
   @ApiOperation({ summary: "Get all users" })
   @ApiQuery({ name: "skip", required: false, type: Number })
