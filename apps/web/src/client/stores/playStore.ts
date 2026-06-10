@@ -36,6 +36,8 @@ interface PlayerState {
   eqDrawerOpen: boolean;
   /** Quick-prompt AI modal triggered from the persistent player. */
   aiPromptOpen: boolean;
+  /** Lateral queue drawer showing what's playing next. */
+  queueDrawerOpen: boolean;
   /**
    * EQ bypass — when true the engine is forced to flat (all bands at 0)
    * but the previous curve is held in memory so the user can toggle it
@@ -64,7 +66,12 @@ interface PlayerActions {
   closeEqDrawer: () => void;
   openAiPrompt: () => void;
   closeAiPrompt: () => void;
+  openQueueDrawer: () => void;
+  closeQueueDrawer: () => void;
   toggleEqBypass: () => void;
+  /** Insert a track right after the currently playing one. */
+  playNext: (track: PlayerTrack) => void;
+  reorderQueue: (from: number, to: number) => void;
   addToQueue: (track: PlayerTrack) => void;
   removeFromQueue: (index: number) => void;
   clearQueue: () => void;
@@ -133,6 +140,7 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
       isExpanded: false,
       eqDrawerOpen: false,
       aiPromptOpen: false,
+      queueDrawerOpen: false,
       eqBypassed: false,
 
       // ── Actions ────────────────────────────────────────────────────────────
@@ -239,6 +247,11 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
         set({ aiPromptOpen: true, eqDrawerOpen: false });
       },
       closeAiPrompt: () => set({ aiPromptOpen: false }),
+      openQueueDrawer: () => {
+        if (!get().currentTrack) return;
+        set({ queueDrawerOpen: true });
+      },
+      closeQueueDrawer: () => set({ queueDrawerOpen: false }),
 
       // EQ bypass — when turning OFF we snapshot the live curve so we can
       // restore it on the next toggle; turning ON we just flatten the engine.
@@ -271,6 +284,29 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
 
       addToQueue: (track) => {
         set((s) => ({ queue: [...s.queue, track] }));
+      },
+
+      playNext: (track) => {
+        set((s) => {
+          const next = [...s.queue];
+          next.splice(s.queueIndex + 1, 0, track);
+          return { queue: next };
+        });
+      },
+
+      reorderQueue: (from, to) => {
+        set((s) => {
+          if (from === to) return s;
+          const next = [...s.queue];
+          const [moved] = next.splice(from, 1);
+          next.splice(to, 0, moved);
+          // Keep queueIndex pointing at the same logical track.
+          let queueIndex = s.queueIndex;
+          if (from === s.queueIndex) queueIndex = to;
+          else if (from < s.queueIndex && to >= s.queueIndex) queueIndex--;
+          else if (from > s.queueIndex && to <= s.queueIndex) queueIndex++;
+          return { queue: next, queueIndex };
+        });
       },
 
       removeFromQueue: (index) => {

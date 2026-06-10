@@ -1,4 +1,10 @@
-import { ChevronLeft, ChevronRight, Music4, Play } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  ListPlus,
+  Music4,
+  Play,
+} from "lucide-react";
 import { useMemo, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
@@ -106,10 +112,12 @@ function TrackCard({
   track,
   saved,
   onPlay,
+  onAddToQueue,
 }: {
   track: Track;
   saved: boolean;
   onPlay: () => void;
+  onAddToQueue?: () => void;
 }) {
   return (
     <article
@@ -131,17 +139,34 @@ function TrackCard({
             />
           </div>
         )}
-        <button
-          type="button"
-          aria-label="Reproducir"
-          onClick={(e) => {
-            e.stopPropagation();
-            onPlay();
-          }}
-          className="absolute bottom-2 right-2 inline-flex h-10 w-10 translate-y-2 items-center justify-center rounded-full bg-[var(--color-primary)] text-[var(--color-primary-contrast)] opacity-0 shadow-[0_8px_18px_rgba(0,0,0,0.35)] transition-all duration-200 hover:scale-105 group-hover:translate-y-0 group-hover:opacity-100"
-        >
-          <Play className="h-4 w-4" strokeWidth={2.4} fill="currentColor" />
-        </button>
+        {/* Cluster of hover-revealed actions in the cover corner. */}
+        <div className="absolute bottom-2 right-2 flex items-center gap-1.5 opacity-0 transition-all duration-200 group-hover:opacity-100">
+          {onAddToQueue ? (
+            <button
+              type="button"
+              aria-label="Agregar a la cola"
+              title="Agregar a la cola"
+              onClick={(e) => {
+                e.stopPropagation();
+                onAddToQueue();
+              }}
+              className="inline-flex h-10 w-10 translate-y-2 items-center justify-center rounded-full bg-black/55 text-white shadow-[0_8px_18px_rgba(0,0,0,0.35)] backdrop-blur transition-all duration-200 hover:scale-105 hover:bg-black/75 group-hover:translate-y-0"
+            >
+              <ListPlus className="h-4 w-4" strokeWidth={2.4} />
+            </button>
+          ) : null}
+          <button
+            type="button"
+            aria-label="Reproducir"
+            onClick={(e) => {
+              e.stopPropagation();
+              onPlay();
+            }}
+            className="inline-flex h-10 w-10 translate-y-2 items-center justify-center rounded-full bg-[var(--color-primary)] text-[var(--color-primary-contrast)] shadow-[0_8px_18px_rgba(0,0,0,0.35)] transition-all duration-200 hover:scale-105 group-hover:translate-y-0"
+          >
+            <Play className="h-4 w-4" strokeWidth={2.4} fill="currentColor" />
+          </button>
+        </div>
       </div>
       <div className="mt-3 flex items-start justify-between gap-2">
         <div className="min-w-0">
@@ -207,6 +232,7 @@ export default function HomePage() {
   const navigate = useNavigate();
   const playTrackList = usePlayerStore((s) => s.playTrackList);
   const playTrack = usePlayerStore((s) => s.playTrack);
+  const addToQueue = usePlayerStore((s) => s.addToQueue);
 
   const tracksQ = useTracksQuery({ take: 20 });
   const artistsQ = useArtistsQuery();
@@ -287,16 +313,18 @@ export default function HomePage() {
                     <div className="mt-2 h-3 w-1/2 rounded bg-[var(--color-surface-alt)]" />
                   </div>
                 ))
-              : tracks
-                  .slice(0, 12)
-                  .map((track) => (
-                    <TrackCard
-                      key={track.id}
-                      track={track}
-                      saved={savedSet.has(track.id)}
-                      onPlay={() => playOne(track)}
-                    />
-                  ))}
+              : tracks.slice(0, 12).map((track) => (
+                  <TrackCard
+                    key={track.id}
+                    track={track}
+                    saved={savedSet.has(track.id)}
+                    onPlay={() => playOne(track)}
+                    onAddToQueue={() => {
+                      const playable = toPlayerTrack(track);
+                      if (playable) addToQueue(playable);
+                    }}
+                  />
+                ))}
             {tracksQ.isSuccess && tracks.length > 1 ? (
               <button
                 type="button"

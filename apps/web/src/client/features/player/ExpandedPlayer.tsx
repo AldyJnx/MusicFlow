@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  ChevronDown,
+  ArrowLeft,
   Image as ImageIcon,
+  ListMusic,
   Mic2,
   Pause,
   Play,
@@ -69,7 +70,11 @@ export default function ExpandedPlayer({
   const previous = usePlayerStore((s) => s.previous);
   const openEqDrawer = usePlayerStore((s) => s.openEqDrawer);
   const openAiPrompt = usePlayerStore((s) => s.openAiPrompt);
+  const openQueueDrawer = usePlayerStore((s) => s.openQueueDrawer);
   const toggleEqBypass = usePlayerStore((s) => s.toggleEqBypass);
+  const queueLength = usePlayerStore((s) => s.queue.length);
+  const queueIndex = usePlayerStore((s) => s.queueIndex);
+  const upcomingCount = Math.max(0, queueLength - queueIndex - 1);
 
   const { segments } = useTrackSegments(currentTrack?.id ?? null);
   const { showWave } = usePreferences();
@@ -78,22 +83,26 @@ export default function ExpandedPlayer({
 
   const [view, setView] = useState<View>("cover");
 
-  // Keep the local copy of bands aligned with the engine so the EQ pill
-  // stays truthful no matter which path wrote to it (preset, AI, segment).
-  useEffect(() => {
-    if (!isExpanded) return;
-    syncFromEngine();
-  }, [isExpanded, segments, positionMs, syncFromEngine]);
-
-  const eqActive = !eqBypassed && hasActiveEq(bands);
-  const hasEqCurveStashed = eqBypassed;
-
   const activeSegment = useMemo(
     () =>
       segments.find((s) => positionMs >= s.startMs && positionMs < s.endMs) ??
       null,
     [segments, positionMs],
   );
+
+  // Keep the local copy of bands aligned with the engine so the EQ pill
+  // stays truthful no matter which path wrote to it (preset, AI, segment).
+  // We deliberately depend on `activeSegment?.id` instead of `positionMs`
+  // so we only re-sync when the *logical* state changes — depending on
+  // positionMs would re-run every audio frame and re-render forever.
+  const activeSegmentId = activeSegment?.id ?? null;
+  useEffect(() => {
+    if (!isExpanded) return;
+    syncFromEngine();
+  }, [isExpanded, activeSegmentId, syncFromEngine]);
+
+  const eqActive = !eqBypassed && hasActiveEq(bands);
+  const hasEqCurveStashed = eqBypassed;
 
   useEffect(() => {
     if (!isExpanded) return undefined;
@@ -117,7 +126,13 @@ export default function ExpandedPlayer({
       className="fixed bottom-0 right-0 top-0 z-50 overflow-hidden"
       style={{ left: `${sidebarOffset}px` }}
     >
-      {/* ── Backdrop — cover blurred to a colored matte ───────────────── */}
+      {/* ── Backdrop stack ──────────────────────────────────────────────
+          Three opaque layers so nothing of the underlying page can leak
+          through, even under translucent UI elements above:
+          1) solid page background (defeat all transparency)
+          2) colored matte from the cover (blurred + saturated)
+          3) dark gradient for text legibility                            */}
+      <div className="absolute inset-0 bg-[var(--color-page)]" />
       {currentTrack.cover ? (
         <div
           aria-hidden="true"
@@ -129,16 +144,13 @@ export default function ExpandedPlayer({
             filter: "blur(100px) saturate(180%)",
           }}
         />
-      ) : (
-        <div className="absolute inset-0 bg-[var(--color-page)]" />
-      )}
-      {/* Deep darkening so titles + controls stay legible on any art. */}
+      ) : null}
       <div
         aria-hidden="true"
         className="absolute inset-0"
         style={{
           background:
-            "linear-gradient(180deg, rgba(0,0,0,0.45) 0%, rgba(0,0,0,0.55) 50%, rgba(0,0,0,0.85) 100%)",
+            "linear-gradient(180deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.65) 50%, rgba(0,0,0,0.92) 100%)",
         }}
       />
 
@@ -148,10 +160,14 @@ export default function ExpandedPlayer({
           <button
             type="button"
             onClick={() => setExpanded(false)}
-            className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-black/30 text-white/80 backdrop-blur transition hover:border-[var(--color-primary)] hover:text-white"
-            aria-label={t("player.collapse")}
+            className="inline-flex h-10 items-center gap-2 rounded-full border border-white/10 bg-black/30 px-3 text-xs font-semibold uppercase tracking-wider text-white/85 backdrop-blur transition hover:border-[var(--color-primary)] hover:text-white"
+            aria-label={t("player.back", { defaultValue: "Atrás" })}
+            title={t("player.back", { defaultValue: "Atrás" })}
           >
-            <ChevronDown className="h-5 w-5" strokeWidth={2.3} />
+            <ArrowLeft className="h-4 w-4" strokeWidth={2.4} />
+            <span className="hidden sm:inline">
+              {t("player.back", { defaultValue: "Atrás" })}
+            </span>
           </button>
 
           {/* Track title in the header — a quiet anchor so the user knows
@@ -330,6 +346,23 @@ export default function ExpandedPlayer({
               <span className="sr-only xl:not-sr-only">
                 {t("player.askAi", { defaultValue: "Ajustar con IA" })}
               </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={openQueueDrawer}
+              title={t("queue.open", { defaultValue: "Cola de reproducción" })}
+              className="inline-flex h-9 items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-3 text-[10px] font-semibold uppercase tracking-wider text-white/85 transition hover:border-[var(--color-primary)] hover:text-white"
+            >
+              <ListMusic className="h-3.5 w-3.5" strokeWidth={2.4} />
+              <span className="sr-only xl:not-sr-only">
+                {t("queue.short", { defaultValue: "Cola" })}
+              </span>
+              {upcomingCount > 0 ? (
+                <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--color-primary)] px-1 text-[9px] font-bold text-[var(--color-primary-contrast)]">
+                  {upcomingCount}
+                </span>
+              ) : null}
             </button>
 
             {/* Volume cluster */}

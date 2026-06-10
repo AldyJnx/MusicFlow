@@ -4,6 +4,7 @@ import ExpandedPlayer from "../features/player/ExpandedPlayer";
 import MiniPlayer from "../features/player/MiniPlayer";
 import EqDrawer from "../features/player/EqDrawer";
 import AIQuickPrompt from "../features/player/AIQuickPrompt";
+import QueueDrawer from "../features/player/QueueDrawer";
 import Navbar, { type NavbarRef } from "../../shared/ui/navigation/Navbar";
 import ClientSidebar from "../components/navigation/ClientSidebar";
 import ImportModal from "../features/import/ImportModal";
@@ -46,6 +47,7 @@ export default function ClientLayout({ children }: { children: ReactNode }) {
           survive route changes. */}
       <EqDrawer />
       <AIQuickPrompt />
+      <QueueDrawer />
       <ImportModal open={importOpen} onClose={() => setImportOpen(false)} />
     </div>
   );
