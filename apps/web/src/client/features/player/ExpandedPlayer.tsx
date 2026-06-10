@@ -1,6 +1,8 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ChevronDown,
+  Image as ImageIcon,
+  Mic2,
   Pause,
   Play,
   Power,
@@ -8,6 +10,7 @@ import {
   SkipBack,
   SkipForward,
   Sliders,
+  Sparkles,
   Volume2,
   VolumeX,
 } from "lucide-react";
@@ -18,14 +21,15 @@ import { usePlayerStore } from "../../stores/playStore";
 import { useTrackSegments } from "../../../shared/hooks/useTrackSegments";
 import { usePreferences } from "../../../shared/hooks/usePreferences";
 import { useEqualizer } from "../../../shared/hooks/useEqualizer";
+import { useLyrics } from "../../../shared/hooks/useLyrics";
 import TimelineWithSegments from "./TimelineWithSegments";
-import LyricsPanel from "./LyricsPanel";
-import AIDock from "./AIDock";
 import Wave from "./Wave";
 
 type ExpandedPlayerProps = {
   sidebarOffset?: number;
 };
+
+type View = "cover" | "lyrics";
 
 function formatMs(ms: number): string {
   const totalSeconds = Math.floor(ms / 1000);
@@ -35,9 +39,8 @@ function formatMs(ms: number): string {
 }
 
 /**
- * True when any band carries a non-trivial gain. We use 0.5 dB instead of 0
- * exact so the indicator doesn't flicker on float-precision noise from the
- * Web Audio engine.
+ * True when any band carries a non-trivial gain. 0.5 dB threshold avoids
+ * flicker from Web Audio float-precision noise.
  */
 function hasActiveEq(bands: number[]): boolean {
   return bands.some((b) => Math.abs(b) > 0.5);
@@ -65,6 +68,7 @@ export default function ExpandedPlayer({
   const next = usePlayerStore((s) => s.next);
   const previous = usePlayerStore((s) => s.previous);
   const openEqDrawer = usePlayerStore((s) => s.openEqDrawer);
+  const openAiPrompt = usePlayerStore((s) => s.openAiPrompt);
   const toggleEqBypass = usePlayerStore((s) => s.toggleEqBypass);
 
   const { segments } = useTrackSegments(currentTrack?.id ?? null);
@@ -72,17 +76,17 @@ export default function ExpandedPlayer({
   const { bands, syncFromEngine } = useEqualizer();
   const isMuted = muted || volume === 0;
 
-  // Keep the local hook copy in sync with the engine so the "EQ encendido"
-  // indicator reflects reality whether the curve came from a preset, an
-  // AI accept, a segment, or manual sliders.
+  const [view, setView] = useState<View>("cover");
+
+  // Keep the local copy of bands aligned with the engine so the EQ pill
+  // stays truthful no matter which path wrote to it (preset, AI, segment).
   useEffect(() => {
     if (!isExpanded) return;
     syncFromEngine();
-    // Re-pull when entering a segment in case its EQ overrides the track one.
   }, [isExpanded, segments, positionMs, syncFromEngine]);
 
   const eqActive = !eqBypassed && hasActiveEq(bands);
-  const hasEqCurveStashed = eqBypassed; // curve held in store stash
+  const hasEqCurveStashed = eqBypassed;
 
   const activeSegment = useMemo(
     () =>
@@ -113,40 +117,33 @@ export default function ExpandedPlayer({
       className="fixed bottom-0 right-0 top-0 z-50 overflow-hidden"
       style={{ left: `${sidebarOffset}px` }}
     >
-      {/* ── Backdrop: blurred cover stretched edge-to-edge ──────────────── */}
+      {/* ── Backdrop — cover blurred to a colored matte ───────────────── */}
       {currentTrack.cover ? (
         <div
           aria-hidden="true"
-          className="absolute inset-0 scale-110"
+          className="absolute inset-0 scale-125"
           style={{
             backgroundImage: `url(${currentTrack.cover})`,
             backgroundSize: "cover",
             backgroundPosition: "center",
-            filter: "blur(48px) saturate(140%)",
-            opacity: 0.55,
+            filter: "blur(100px) saturate(180%)",
           }}
         />
-      ) : null}
-      {/* Two-layer gradient: keeps text legible regardless of cover color. */}
+      ) : (
+        <div className="absolute inset-0 bg-[var(--color-page)]" />
+      )}
+      {/* Deep darkening so titles + controls stay legible on any art. */}
       <div
         aria-hidden="true"
         className="absolute inset-0"
         style={{
           background:
-            "linear-gradient(180deg, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0.55) 60%, rgba(0,0,0,0.85) 100%)",
-        }}
-      />
-      <div
-        aria-hidden="true"
-        className="absolute inset-0"
-        style={{
-          background:
-            "radial-gradient(80% 60% at 50% 110%, var(--color-page) 0%, transparent 70%)",
+            "linear-gradient(180deg, rgba(0,0,0,0.45) 0%, rgba(0,0,0,0.55) 50%, rgba(0,0,0,0.85) 100%)",
         }}
       />
 
-      <div className="relative flex h-full flex-col px-6 pb-6 pt-5 xl:px-10">
-        {/* ── Header ──────────────────────────────────────────────────── */}
+      <div className="relative flex h-full flex-col px-6 py-5 xl:px-10">
+        {/* ── Header ───────────────────────────────────────────────── */}
         <div className="flex items-center justify-between">
           <button
             type="button"
@@ -156,216 +153,210 @@ export default function ExpandedPlayer({
           >
             <ChevronDown className="h-5 w-5" strokeWidth={2.3} />
           </button>
-          <div className="flex items-center gap-3">
-            {showWave ? <Wave active={isPlaying} size={16} /> : null}
-            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--color-accent)]" />
-            <p className="text-[10px] font-semibold uppercase tracking-[0.32em] text-white/70">
-              {t("player.nowPlaying")}
+
+          {/* Track title in the header — a quiet anchor so the user knows
+              what they're looking at without competing with the artwork. */}
+          <div className="flex min-w-0 flex-col items-center gap-1 px-4">
+            <p className="truncate text-sm font-semibold text-white">
+              {currentTrack.title}
             </p>
-          </div>
-          <div className="w-10" />
-        </div>
-
-        {/* ── Main 3-panel grid ───────────────────────────────────────── */}
-        <div className="mt-5 grid min-h-0 flex-1 grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)_minmax(300px,360px)]">
-          {/* LEFT: Cover protagonist + meta + controls + timeline */}
-          <div className="flex min-h-0 flex-col gap-5">
-            {/* Cover — large, sharp, centered. Drops a glow that picks up
-                the dominant color via box-shadow. */}
-            <div className="mx-auto w-full max-w-[420px]">
-              <div className="relative aspect-square overflow-hidden rounded-[28px] shadow-[0_40px_80px_rgba(0,0,0,0.5)] ring-1 ring-white/10">
-                {currentTrack.cover ? (
-                  <img
-                    src={currentTrack.cover}
-                    alt={currentTrack.title}
-                    className="h-full w-full object-cover"
-                  />
-                ) : (
-                  <div className="flex h-full w-full items-center justify-center bg-[var(--color-surface-alt)] text-white/30">
-                    <Sliders className="h-16 w-16" strokeWidth={1.5} />
-                  </div>
-                )}
-                {/* Active-segment ribbon over the cover so the user sees in
-                    one glance that this part of the track has a custom EQ. */}
-                {activeSegment ? (
-                  <div className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-[var(--color-accent)] px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-[var(--color-primary-contrast)] shadow-[0_8px_20px_rgba(0,0,0,0.4)]">
-                    <Scissors className="h-3 w-3" strokeWidth={2.6} />
-                    {activeSegment.label || t("player.segment")}
-                  </div>
-                ) : null}
-              </div>
-            </div>
-
-            <div className="text-center">
-              <h1 className="text-3xl font-bold tracking-tight text-white drop-shadow-[0_2px_10px_rgba(0,0,0,0.6)]">
-                {currentTrack.title}
-              </h1>
-              <p className="mt-1 text-sm text-white/70">
-                {currentTrack.artist}
+            <div className="flex items-center gap-2">
+              {showWave ? <Wave active={isPlaying} size={12} /> : null}
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--color-accent)]" />
+              <p className="text-[10px] font-semibold uppercase tracking-[0.32em] text-white/70">
+                {t("player.nowPlaying")}
               </p>
             </div>
+          </div>
 
-            {/* Timeline with segment markers */}
-            <div>
-              <TimelineWithSegments
-                positionMs={positionMs}
-                durationMs={durationMs}
-                segments={segments}
-                onSeek={seek}
-                height={9}
-                preventBubble={false}
-              />
-              <div className="mt-2 flex items-center justify-between text-[11px] font-medium tabular-nums text-white/60">
-                <span>{formatMs(positionMs)}</span>
-                <span>{formatMs(durationMs)}</span>
-              </div>
+          {/* View toggle: Cover vs Lyrics. Pill-style segmented control. */}
+          <div className="inline-flex rounded-full border border-white/10 bg-black/30 p-1 backdrop-blur">
+            <ViewPill
+              active={view === "cover"}
+              onClick={() => setView("cover")}
+              icon={<ImageIcon className="h-3.5 w-3.5" strokeWidth={2.3} />}
+              label={t("player.viewCover", { defaultValue: "Portada" })}
+            />
+            <ViewPill
+              active={view === "lyrics"}
+              onClick={() => setView("lyrics")}
+              icon={<Mic2 className="h-3.5 w-3.5" strokeWidth={2.3} />}
+              label={t("player.viewLyrics", { defaultValue: "Letra" })}
+            />
+          </div>
+        </div>
+
+        {/* ── Main view ─────────────────────────────────────────────── */}
+        <div className="mt-6 flex min-h-0 flex-1 flex-col">
+          {view === "cover" ? (
+            <CoverView
+              cover={currentTrack.cover}
+              title={currentTrack.title}
+              artist={currentTrack.artist}
+              activeSegmentLabel={activeSegment?.label ?? null}
+              t={t}
+            />
+          ) : (
+            <LyricsKaraoke trackId={currentTrack.id} seek={seek} />
+          )}
+        </div>
+
+        {/* ── Bottom bar: timeline + controls + sound-detail strip ──── */}
+        <div className="mt-4 flex flex-col gap-3">
+          <div>
+            <TimelineWithSegments
+              positionMs={positionMs}
+              durationMs={durationMs}
+              segments={segments}
+              onSeek={seek}
+              height={6}
+              preventBubble={false}
+            />
+            <div className="mt-1.5 flex items-center justify-between text-[11px] font-medium tabular-nums text-white/60">
+              <span>{formatMs(positionMs)}</span>
+              <span>{formatMs(durationMs)}</span>
             </div>
+          </div>
 
-            {/* Controls */}
-            <div className="flex items-center justify-center gap-6 text-white/80">
-              <button
-                type="button"
-                onClick={() => void previous()}
-                className="inline-flex h-10 w-10 items-center justify-center transition hover:text-white"
-                aria-label={t("player.previous")}
-              >
-                <SkipBack className="h-5 w-5" strokeWidth={2.4} />
-              </button>
-              <button
-                type="button"
-                onClick={() => void togglePlay()}
-                className="inline-flex h-14 w-14 items-center justify-center rounded-full bg-[var(--color-primary)] text-[var(--color-primary-contrast)] shadow-[0_14px_30px_rgba(0,0,0,0.4)] transition hover:scale-[1.05]"
-                aria-label={isPlaying ? t("player.pause") : t("player.play")}
-              >
-                {isPlaying ? (
-                  <Pause className="h-6 w-6" strokeWidth={2.6} />
-                ) : (
-                  <Play className="ml-0.5 h-6 w-6" strokeWidth={2.6} />
-                )}
-              </button>
-              <button
-                type="button"
-                onClick={() => void next()}
-                className="inline-flex h-10 w-10 items-center justify-center transition hover:text-white"
-                aria-label={t("player.next")}
-              >
-                <SkipForward className="h-5 w-5" strokeWidth={2.4} />
-              </button>
-            </div>
+          {/* Transport */}
+          <div className="flex items-center justify-center gap-6 text-white/80">
+            <button
+              type="button"
+              onClick={() => void previous()}
+              className="inline-flex h-10 w-10 items-center justify-center transition hover:text-white"
+              aria-label={t("player.previous")}
+            >
+              <SkipBack className="h-5 w-5" strokeWidth={2.4} />
+            </button>
+            <button
+              type="button"
+              onClick={() => void togglePlay()}
+              className="inline-flex h-14 w-14 items-center justify-center rounded-full bg-[var(--color-primary)] text-[var(--color-primary-contrast)] shadow-[0_14px_30px_rgba(0,0,0,0.4)] transition hover:scale-[1.05]"
+              aria-label={isPlaying ? t("player.pause") : t("player.play")}
+            >
+              {isPlaying ? (
+                <Pause className="h-6 w-6" strokeWidth={2.6} />
+              ) : (
+                <Play className="ml-0.5 h-6 w-6" strokeWidth={2.6} />
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={() => void next()}
+              className="inline-flex h-10 w-10 items-center justify-center transition hover:text-white"
+              aria-label={t("player.next")}
+            >
+              <SkipForward className="h-5 w-5" strokeWidth={2.4} />
+            </button>
+          </div>
 
-            {/* ── Sound details strip ──────────────────────────────────
-                EQ status pill (with bypass toggle), Segments shortcut,
-                Open EQ, Mute + Volume. Sits at the very bottom and is
-                semi-transparent so the cover still feels protagonist. */}
-            <div className="mt-2 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-black/30 p-3 backdrop-blur-md">
-              {/* EQ status + bypass */}
-              <button
-                type="button"
-                onClick={toggleEqBypass}
-                disabled={!eqActive && !hasEqCurveStashed}
-                title={
-                  eqBypassed
-                    ? t("player.eqBypassResume", {
-                        defaultValue: "Reanudar EQ",
+          {/* Sound detail strip — EQ status + bypass, EQ drawer, segments,
+              AI, volume. Translucent so the cover/lyrics breathe through. */}
+          <div className="mx-auto flex w-full max-w-3xl flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-black/30 px-4 py-2.5 backdrop-blur-md">
+            <button
+              type="button"
+              onClick={toggleEqBypass}
+              disabled={!eqActive && !hasEqCurveStashed}
+              title={
+                eqBypassed
+                  ? t("player.eqBypassResume", { defaultValue: "Reanudar EQ" })
+                  : eqActive
+                    ? t("player.eqBypassPause", {
+                        defaultValue: "Pausar EQ (mantener curva)",
                       })
-                    : eqActive
-                      ? t("player.eqBypassPause", {
-                          defaultValue: "Pausar EQ (mantener curva)",
-                        })
-                      : t("player.eqInactive", {
-                          defaultValue: "Sin EQ activo",
-                        })
-                }
-                aria-pressed={eqActive}
-                className={`group inline-flex items-center gap-2 rounded-xl border-2 px-3 py-2 text-xs font-bold uppercase tracking-wider transition ${
-                  eqActive
-                    ? "border-[var(--color-primary)] bg-[var(--color-primary)]/15 text-[var(--color-primary)] shadow-[0_0_24px_-6px_var(--color-primary)]"
-                    : hasEqCurveStashed
-                      ? "border-white/30 bg-transparent text-white/60"
-                      : "border-white/10 bg-transparent text-white/30"
+                    : t("player.eqInactive", {
+                        defaultValue: "Sin EQ activo",
+                      })
+              }
+              aria-pressed={eqActive}
+              className={`group inline-flex items-center gap-2 rounded-xl border-2 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider transition ${
+                eqActive
+                  ? "border-[var(--color-primary)] bg-[var(--color-primary)]/15 text-[var(--color-primary)] shadow-[0_0_24px_-6px_var(--color-primary)]"
+                  : hasEqCurveStashed
+                    ? "border-white/30 bg-transparent text-white/70"
+                    : "border-white/10 bg-transparent text-white/40"
+              }`}
+            >
+              <span
+                className={`relative inline-flex h-2 w-2 rounded-full ${
+                  eqActive ? "bg-[var(--color-primary)]" : "bg-white/40"
                 }`}
               >
-                <span
-                  className={`relative inline-flex h-2 w-2 rounded-full ${
-                    eqActive ? "bg-[var(--color-primary)]" : "bg-white/40"
-                  }`}
-                >
-                  {eqActive ? (
-                    <span className="absolute inset-0 animate-ping rounded-full bg-[var(--color-primary)]/60" />
-                  ) : null}
-                </span>
-                <Power className="h-3.5 w-3.5" strokeWidth={2.6} />
-                {eqActive
-                  ? t("player.eqOn", { defaultValue: "EQ encendido" })
-                  : hasEqCurveStashed
-                    ? t("player.eqPaused", { defaultValue: "EQ en pausa" })
-                    : t("player.eqOff", { defaultValue: "Sin EQ" })}
-              </button>
+                {eqActive ? (
+                  <span className="absolute inset-0 animate-ping rounded-full bg-[var(--color-primary)]/60" />
+                ) : null}
+              </span>
+              <Power className="h-3 w-3" strokeWidth={2.6} />
+              {eqActive
+                ? t("player.eqOn", { defaultValue: "EQ encendido" })
+                : hasEqCurveStashed
+                  ? t("player.eqPaused", { defaultValue: "EQ en pausa" })
+                  : t("player.eqOff", { defaultValue: "Sin EQ" })}
+            </button>
 
-              {/* Open EQ drawer */}
+            <button
+              type="button"
+              onClick={openEqDrawer}
+              title={t("player.openEq")}
+              className="inline-flex h-9 items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-3 text-[10px] font-semibold uppercase tracking-wider text-white/85 transition hover:border-[var(--color-primary)] hover:text-white"
+            >
+              <Sliders className="h-3.5 w-3.5" strokeWidth={2.4} />
+              <span className="sr-only xl:not-sr-only">
+                {t("player.openEq")}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={openSegmentsForCurrentTrack}
+              title={t("player.editSegments", {
+                defaultValue: "Editar segmentos del track",
+              })}
+              className="inline-flex h-9 items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-3 text-[10px] font-semibold uppercase tracking-wider text-white/85 transition hover:border-[var(--color-accent)] hover:text-white"
+            >
+              <Scissors className="h-3.5 w-3.5" strokeWidth={2.4} />
+              <span className="sr-only xl:not-sr-only">
+                {t("nav.segments")}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={openAiPrompt}
+              title={t("player.openAi", { defaultValue: "Pedirle a la IA" })}
+              className="inline-flex h-9 items-center gap-2 rounded-xl border border-[var(--color-accent)]/60 bg-[var(--color-accent)]/10 px-3 text-[10px] font-semibold uppercase tracking-wider text-[var(--color-accent)] transition hover:bg-[var(--color-accent)]/20"
+            >
+              <Sparkles className="h-3.5 w-3.5" strokeWidth={2.4} />
+              <span className="sr-only xl:not-sr-only">
+                {t("player.askAi", { defaultValue: "Ajustar con IA" })}
+              </span>
+            </button>
+
+            {/* Volume cluster */}
+            <div className="flex items-center gap-2 text-white/80">
               <button
                 type="button"
-                onClick={openEqDrawer}
-                title={t("player.openEq")}
-                className="inline-flex h-10 shrink-0 items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-3 text-[10px] font-semibold uppercase tracking-wider text-white/85 transition hover:border-[var(--color-primary)] hover:text-white"
+                onClick={toggleMute}
+                className="inline-flex h-8 w-8 items-center justify-center transition hover:text-white"
+                aria-label={isMuted ? t("player.unmute") : t("player.mute")}
               >
-                <Sliders className="h-3.5 w-3.5" strokeWidth={2.4} />
-                <span className="sr-only xl:not-sr-only">
-                  {t("player.openEq")}
-                </span>
+                {isMuted ? (
+                  <VolumeX className="h-4 w-4" strokeWidth={2.2} />
+                ) : (
+                  <Volume2 className="h-4 w-4" strokeWidth={2.2} />
+                )}
               </button>
-
-              {/* Segments for THIS track */}
-              <button
-                type="button"
-                onClick={openSegmentsForCurrentTrack}
-                title={t("player.editSegments", {
-                  defaultValue: "Editar segmentos del track",
-                })}
-                className="inline-flex h-10 shrink-0 items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-3 text-[10px] font-semibold uppercase tracking-wider text-white/85 transition hover:border-[var(--color-accent)] hover:text-white"
-              >
-                <Scissors className="h-3.5 w-3.5" strokeWidth={2.4} />
-                <span className="sr-only xl:not-sr-only">
-                  {t("nav.segments")}
-                </span>
-              </button>
-
-              {/* Volume */}
-              <div className="flex items-center gap-2 text-white/80">
-                <button
-                  type="button"
-                  onClick={toggleMute}
-                  className="inline-flex h-8 w-8 items-center justify-center transition hover:text-white"
-                  aria-label={isMuted ? t("player.unmute") : t("player.mute")}
-                >
-                  {isMuted ? (
-                    <VolumeX className="h-4 w-4" strokeWidth={2.2} />
-                  ) : (
-                    <Volume2 className="h-4 w-4" strokeWidth={2.2} />
-                  )}
-                </button>
-                <input
-                  type="range"
-                  min="0"
-                  max="1"
-                  step="0.01"
-                  value={isMuted ? 0 : volume}
-                  onChange={(e) => setVolume(Number(e.target.value))}
-                  className="expanded-player-slider h-1 w-24 cursor-pointer appearance-none rounded-full bg-white/10"
-                  aria-label={t("player.volume")}
-                />
-              </div>
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.01"
+                value={isMuted ? 0 : volume}
+                onChange={(e) => setVolume(Number(e.target.value))}
+                className="expanded-player-slider h-1 w-24 cursor-pointer appearance-none rounded-full bg-white/10"
+                aria-label={t("player.volume")}
+              />
             </div>
-          </div>
-
-          {/* CENTER: Lyrics */}
-          <div className="min-h-0">
-            <LyricsPanel trackId={currentTrack.id} />
-          </div>
-
-          {/* RIGHT: AI Dock */}
-          <div className="min-h-0">
-            <AIDock trackId={currentTrack.id} />
           </div>
         </div>
       </div>
@@ -391,5 +382,158 @@ export default function ExpandedPlayer({
         }
       `}</style>
     </section>
+  );
+}
+
+function ViewPill({
+  active,
+  onClick,
+  icon,
+  label,
+}: {
+  active: boolean;
+  onClick: () => void;
+  icon: React.ReactNode;
+  label: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider transition ${
+        active ? "bg-white/95 text-black" : "text-white/70 hover:text-white"
+      }`}
+    >
+      {icon}
+      {label}
+    </button>
+  );
+}
+
+/**
+ * "Cover" view — the album art is the protagonist. Cover sits centered and
+ * large, with the title + artist + active-segment chip clustered just below.
+ */
+function CoverView({
+  cover,
+  title,
+  artist,
+  activeSegmentLabel,
+  t,
+}: {
+  cover: string | null | undefined;
+  title: string;
+  artist: string;
+  activeSegmentLabel: string | null;
+  t: (key: string, opts?: { defaultValue?: string }) => string;
+}) {
+  return (
+    <div className="flex flex-1 flex-col items-center justify-center gap-6">
+      <div className="relative w-full max-w-[min(60vh,520px)]">
+        <div className="relative aspect-square overflow-hidden rounded-[28px] shadow-[0_40px_120px_rgba(0,0,0,0.65)] ring-1 ring-white/10">
+          {cover ? (
+            <img
+              src={cover}
+              alt={title}
+              className="h-full w-full object-cover"
+            />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center bg-white/5 text-white/30">
+              <Sliders className="h-20 w-20" strokeWidth={1.2} />
+            </div>
+          )}
+          {activeSegmentLabel ? (
+            <div className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-[var(--color-accent)] px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-[var(--color-primary-contrast)] shadow-[0_8px_20px_rgba(0,0,0,0.4)]">
+              <Scissors className="h-3 w-3" strokeWidth={2.6} />
+              {activeSegmentLabel || t("player.segment")}
+            </div>
+          ) : null}
+        </div>
+      </div>
+      <div className="text-center">
+        <h1 className="text-4xl font-extrabold tracking-tight text-white drop-shadow-[0_2px_16px_rgba(0,0,0,0.7)]">
+          {title}
+        </h1>
+        <p className="mt-2 text-base text-white/75">{artist}</p>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * "Lyrics" view — karaoke-style. The active line is large + bright, past
+ * lines fade, upcoming lines hint at what's next. Auto-scroll keeps the
+ * active line centered. Click any line to seek there.
+ */
+function LyricsKaraoke({
+  trackId,
+  seek,
+}: {
+  trackId: string | null;
+  seek: (ms: number) => void;
+}) {
+  const { mode, lines, plainText, currentLineIndex, isLoading } =
+    useLyrics(trackId);
+  const activeRef = useRef<HTMLButtonElement | null>(null);
+
+  useEffect(() => {
+    if (mode !== "synced" || currentLineIndex < 0) return;
+    activeRef.current?.scrollIntoView({
+      block: "center",
+      behavior: "smooth",
+    });
+  }, [mode, currentLineIndex]);
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-1 items-center justify-center text-sm text-white/60">
+        Cargando letra…
+      </div>
+    );
+  }
+
+  if (mode === "none") {
+    return (
+      <div className="flex flex-1 flex-col items-center justify-center gap-2 text-center">
+        <Mic2 className="h-10 w-10 text-white/30" strokeWidth={1.5} />
+        <p className="text-sm text-white/60">
+          Esta canción aún no tiene letra.
+        </p>
+      </div>
+    );
+  }
+
+  if (mode === "plain") {
+    return (
+      <div className="mx-auto w-full max-w-2xl overflow-y-auto px-4 text-center text-2xl font-medium leading-[1.6] text-white/80">
+        <pre className="whitespace-pre-wrap font-sans">{plainText}</pre>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col overflow-y-auto px-4 py-12">
+      {lines.map((line, i) => {
+        const isActive = i === currentLineIndex;
+        const isPast = i < currentLineIndex;
+        return (
+          <button
+            key={`${line.timeMs}-${i}`}
+            ref={isActive ? activeRef : undefined}
+            type="button"
+            onClick={() => seek(line.timeMs)}
+            className={`w-full rounded-lg px-2 py-3 text-left transition ${
+              isActive
+                ? "text-4xl font-bold leading-tight text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.6)]"
+                : isPast
+                  ? "text-xl font-semibold leading-snug text-white/40 hover:text-white/70"
+                  : "text-xl font-semibold leading-snug text-white/55 hover:text-white/85"
+            }`}
+          >
+            {line.text || "♪"}
+          </button>
+        );
+      })}
+    </div>
   );
 }
