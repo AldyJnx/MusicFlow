@@ -32,7 +32,16 @@ export default function EqDrawer() {
   const close = usePlayerStore((s) => s.closeEqDrawer);
   const currentTrack = usePlayerStore((s) => s.currentTrack);
 
-  const { bands, effects, setBand, reset } = useEqualizer();
+  const { bands, effects, setBand, reset, syncFromEngine } = useEqualizer();
+
+  // The hook keeps its own state per consumer (a known limitation), so when
+  // the drawer opens we need to pull the engine's current curve to reflect
+  // anything that other surfaces — the AI accept flow most notably — wrote
+  // while we were closed. Without this the AI's bands would be audible but
+  // the sliders would render at 0.
+  useEffect(() => {
+    if (isOpen) syncFromEngine();
+  }, [isOpen, syncFromEngine]);
   const qc = useQueryClient();
 
   const [activeSegment, setActiveSegment] = useState<EngineSegment | null>(

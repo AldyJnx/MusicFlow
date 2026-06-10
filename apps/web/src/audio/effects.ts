@@ -69,6 +69,15 @@ export class EffectsChain {
   private readonly convolver: ConvolverNode;
 
   private currentReverb: ReverbPresetName = "NONE";
+  // Cached copy of the last values applied through the public setters.
+  // Web Audio nodes hold their derived gains (post-normalization), so we
+  // keep the original 0–100 amounts here so callers can read back the same
+  // values they wrote — used by useEqualizer to hydrate the UI from the
+  // engine when a panel is reopened after the AI applied a curve.
+  private cachedBassBoost = 0;
+  private cachedVirtualizer = 0;
+  private cachedLoudness = 0;
+  private cachedReverbAmount = 0;
   private readonly context: AudioContext;
 
   constructor(context: AudioContext) {
@@ -114,22 +123,27 @@ export class EffectsChain {
   }
 
   setBassBoost(amount: number): void {
-    const normalized = Math.min(100, Math.max(0, amount)) / 100;
-    this.bassBoostFilter.gain.value = normalized * 12;
+    const clamped = Math.min(100, Math.max(0, amount));
+    this.cachedBassBoost = clamped;
+    this.bassBoostFilter.gain.value = (clamped / 100) * 12;
   }
 
   setVirtualizer(amount: number): void {
-    const normalized = Math.min(100, Math.max(0, amount)) / 100;
-    this.virtualizerDelay.delayTime.value = normalized * 0.015;
+    const clamped = Math.min(100, Math.max(0, amount));
+    this.cachedVirtualizer = clamped;
+    this.virtualizerDelay.delayTime.value = (clamped / 100) * 0.015;
   }
 
   setLoudness(amount: number): void {
-    const normalized = Math.min(100, Math.max(0, amount)) / 100;
-    this.loudnessFilter.gain.value = normalized * 6;
+    const clamped = Math.min(100, Math.max(0, amount));
+    this.cachedLoudness = clamped;
+    this.loudnessFilter.gain.value = (clamped / 100) * 6;
   }
 
   setReverb(preset: ReverbPresetName, amount: number): void {
-    const normalized = Math.min(100, Math.max(0, amount)) / 100;
+    const clampedAmount = Math.min(100, Math.max(0, amount));
+    this.cachedReverbAmount = clampedAmount;
+    const normalized = clampedAmount / 100;
     if (preset === "NONE" || normalized === 0) {
       this.wetGain.gain.value = 0;
       this.dryGain.gain.value = 1;
@@ -145,6 +159,26 @@ export class EffectsChain {
     }
     this.wetGain.gain.value = normalized;
     this.dryGain.gain.value = 1 - normalized * 0.4;
+  }
+
+  /**
+   * Last values written via the setters above. Reverb amount goes back to
+   * 0 if the preset is "NONE" so the UI doesn't display a phantom number.
+   */
+  getState(): {
+    bassBoost: number;
+    virtualizer: number;
+    loudness: number;
+    reverbPreset: ReverbPresetName;
+    reverbAmount: number;
+  } {
+    return {
+      bassBoost: this.cachedBassBoost,
+      virtualizer: this.cachedVirtualizer,
+      loudness: this.cachedLoudness,
+      reverbPreset: this.currentReverb,
+      reverbAmount: this.currentReverb === "NONE" ? 0 : this.cachedReverbAmount,
+    };
   }
 
   dispose(): void {

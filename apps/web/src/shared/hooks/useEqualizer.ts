@@ -125,6 +125,29 @@ export function useEqualizer() {
     setEffects({ ...DEFAULT_EFFECTS });
   }, [setBands, setEffects]);
 
+  // ── Hydrate from engine ───────────────────────────────────────────────────
+
+  /**
+   * Pull the engine's live bands + effects into local state. Use this when
+   * a panel opens after some other code path (the AI accept flow, for
+   * example) wrote to the engine — without this the panel would render
+   * stale defaults while the audio is already curved.
+   */
+  const syncFromEngine = useCallback(() => {
+    const engine = getEngineIfNeeded();
+    if (!engine) return;
+    const snapshot = engine.getCurrentEqState();
+    const padded = Array.from({ length: 10 }, (_, i) => snapshot.bands[i] ?? 0);
+    setBandsState(padded);
+    setEffectsState({
+      bassBoost: snapshot.effects.bassBoost,
+      virtualizer: snapshot.effects.virtualizer,
+      loudness: snapshot.effects.loudness,
+      reverbPreset: snapshot.effects.reverbPreset,
+      reverbAmount: snapshot.effects.reverbAmount,
+    });
+  }, [getEngineIfNeeded]);
+
   return {
     // EQ bands
     bands,
@@ -139,5 +162,6 @@ export function useEqualizer() {
     // Helpers
     applyPreset,
     reset,
+    syncFromEngine,
   };
 }

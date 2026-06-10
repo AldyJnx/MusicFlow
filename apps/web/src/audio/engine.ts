@@ -161,6 +161,17 @@ export class AudioEngine {
     }
   }
 
+  /** Current bands + effects, suitable for hydrating a UI panel. */
+  getCurrentEqState(): {
+    bands: number[];
+    effects: ReturnType<EffectsChain["getState"]>;
+  } {
+    return {
+      bands: this.equalizer.getBands(),
+      effects: this.effects.getState(),
+    };
+  }
+
   // ============ Segments ============
 
   setSegments(segments: EQSegment[]): void {
