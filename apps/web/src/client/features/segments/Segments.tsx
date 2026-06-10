@@ -3,6 +3,7 @@ import {
   ChevronDown,
   Music2,
   PencilLine,
+  Play,
   Plus,
   Sparkles,
   Trash2,
@@ -16,6 +17,8 @@ import { useSearchParams } from "react-router-dom";
 import ClientLayout from "../../layout/ClientLayout";
 import PremiumLockedPage from "../billing/PremiumLockedPage";
 import { usePremiumGate } from "../../../shared/hooks/usePremiumGate";
+import { usePlayerStore, type PlayerTrack } from "../../stores/playStore";
+import { getAudioEngine } from "../../../audio/engine";
 import WaveformTimeline from "./WaveformTimeline";
 import type { Track } from "../../../shared/api/tracks";
 import { listTracks } from "../../../shared/api/tracks";
@@ -306,8 +309,10 @@ function EditorModal({
   onSave,
   onDelete,
   onCancel,
+  onPreview,
   isSaving,
   isDeleting,
+  isPreviewing,
   error,
 }: {
   state: EditorState;
@@ -315,8 +320,11 @@ function EditorModal({
   onSave: () => void;
   onDelete: () => void;
   onCancel: () => void;
+  /** Plays the segment with the in-editor curve applied live to the engine. */
+  onPreview: () => void;
   isSaving: boolean;
   isDeleting: boolean;
+  isPreviewing: boolean;
   error: string | null;
 }) {
   const { t } = useTranslation();
@@ -493,6 +501,25 @@ function EditorModal({
         <div className="flex items-center gap-3">
           <button
             type="button"
+            onClick={onPreview}
+            disabled={isPreviewing}
+            title={t("segments.editor.previewHint", {
+              defaultValue:
+                "Reproduce el segmento aplicando estos ajustes en vivo",
+            })}
+            className="inline-flex items-center gap-2 rounded-xl border-2 border-[var(--color-accent)] bg-[var(--color-accent)]/10 px-4 py-3 text-sm font-semibold uppercase tracking-wider text-[var(--color-accent)] transition hover:bg-[var(--color-accent)]/20 disabled:opacity-50"
+          >
+            <Play
+              className="h-3.5 w-3.5"
+              strokeWidth={2.5}
+              fill="currentColor"
+            />
+            {isPreviewing
+              ? t("segments.editor.previewing", { defaultValue: "Sonando…" })
+              : t("segments.editor.preview", { defaultValue: "Probar" })}
+          </button>
+          <button
+            type="button"
             onClick={onSave}
             disabled={isSaving}
             className="flex-1 rounded-xl bg-[linear-gradient(180deg,var(--color-cta-start)_0%,var(--color-cta-end)_100%)] px-4 py-3 text-sm font-semibold text-white shadow-[0_10px_24px_rgba(0,0,0,0.28)] transition hover:brightness-110 disabled:opacity-50"
@@ -557,6 +584,12 @@ function SegmentsContent() {
   const [editor, setEditor] = useState<EditorState | null>(null);
   const [editorError, setEditorError] = useState<string | null>(null);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const [isPreviewing, setIsPreviewing] = useState(false);
+
+  // Player store hooks for the editor's "Probar" preview.
+  const playTrack = usePlayerStore((s) => s.playTrack);
+  const currentPlayingId = usePlayerStore((s) => s.currentTrack?.id ?? null);
+  const seek = usePlayerStore((s) => s.seek);
 
   const tracksQuery = useQuery({
     queryKey: ["tracks"],
@@ -689,6 +722,49 @@ function SegmentsContent() {
       deleteMutation.mutate(editor.segmentId);
     } else {
       setPendingDeleteId(editor.segmentId);
+    }
+  }
+
+  /**
+   * Live preview: push the editor's curve straight into the audio engine,
+   * make sure the selected track is loaded, seek to the segment's start,
+   * and play. The change is audible immediately — no save required.
+   * Effects are routed through the engine too so reverb/loudness changes
+   * are part of the preview.
+   */
+  async function handlePreview() {
+    if (!editor || !selectedTrack) return;
+    setIsPreviewing(true);
+    try {
+      const engine = getAudioEngine();
+      engine.equalizer.setBands(editor.bands, 200);
+      engine.setEffects({
+        bassBoost: editor.bassBoost,
+        virtualizer: editor.virtualizer,
+        loudness: editor.loudness,
+        reverbPreset: editor.reverbPreset,
+        reverbAmount: editor.reverbAmount,
+      });
+      // If the track that's playing isn't the one we're editing, load it
+      // first; otherwise just seek to where the segment begins.
+      if (
+        currentPlayingId !== selectedTrack.id &&
+        selectedTrack.fileUrlRemote
+      ) {
+        const playable: PlayerTrack = {
+          id: selectedTrack.id,
+          title: selectedTrack.title,
+          artist: selectedTrack.artist,
+          cover: selectedTrack.coverArt,
+          url: selectedTrack.fileUrlRemote,
+          durationMs: selectedTrack.durationMs,
+        };
+        await playTrack(playable);
+      }
+      seek(editor.startMs);
+    } finally {
+      // Brief debounce so users see "Sonando…" feedback even on fast paths.
+      window.setTimeout(() => setIsPreviewing(false), 600);
     }
   }
 
@@ -943,6 +1019,7 @@ function SegmentsContent() {
           onChange={handleEditorChange}
           onSave={handleSave}
           onDelete={handleDelete}
+          onPreview={handlePreview}
           onCancel={() => {
             setEditor(null);
             setEditorError(null);
@@ -950,6 +1027,7 @@ function SegmentsContent() {
           }}
           isSaving={isSaving}
           isDeleting={isDeleting}
+          isPreviewing={isPreviewing}
           error={
             editorError ??
             (pendingDeleteId === editor.segmentId
