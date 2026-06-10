@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import {
   ArrowRight,
   Crown,
+  HardDrive,
   ListMusic,
   Minus,
   Music,
@@ -13,6 +14,8 @@ import {
   ThumbsUp,
   TrendingDown,
   TrendingUp,
+  UserMinus,
+  UserPlus,
   Users,
 } from "lucide-react";
 import {
@@ -862,7 +865,7 @@ export default function DashboardPage() {
           </div>
         ) : null}
 
-        {/* ── Secondary KPIs (4 cards) ── */}
+        {/* ── Operational KPIs — user base health ── */}
         {isLoading ? (
           <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
             {Array.from({ length: 4 }).map((_, i) => (
@@ -870,43 +873,166 @@ export default function DashboardPage() {
             ))}
           </div>
         ) : stats && feedbackStats ? (
-          <div
-            className="grid grid-cols-2 gap-4 md:grid-cols-4"
-            aria-label={t("admin.dashboard.secondaryKpisAria", {
-              defaultValue: "Indicadores secundarios",
-            })}
+          <section
+            className="flex flex-col gap-3"
+            aria-labelledby="ops-section-title"
           >
-            <StatCard
-              tone="primary"
-              icon={<Music className="h-4 w-4" />}
-              label={t("admin.dashboard.tracks")}
-              value={stats.content.tracks}
-            />
-            <StatCard
-              tone="primary"
-              icon={<ListMusic className="h-4 w-4" />}
-              label={t("admin.dashboard.playlists")}
-              value={stats.content.playlists}
-            />
-            <StatCard
-              tone="accent"
-              icon={<Sparkles className="h-4 w-4" />}
-              label={t("admin.dashboard.aiRequests")}
-              value={stats.ai.totalRequests}
-              href="/admin/ai"
-            />
-            <StatCard
-              tone="warning"
-              icon={<Crown className="h-4 w-4" />}
-              label={t("admin.dashboard.premiumConversions")}
-              value={`${premiumRate}%`}
-              subtitle={t("admin.dashboard.premiumConversionsSubtitle", {
-                premium: stats.users.premium,
-                total: stats.users.total,
+            <h2
+              id="ops-section-title"
+              className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--color-muted)]"
+            >
+              {t("admin.dashboard.opsSection", {
+                defaultValue: "Base de usuarios",
               })}
-              href="/admin/users"
-            />
+            </h2>
+            <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+              <StatCard
+                tone="warning"
+                icon={<Crown className="h-4 w-4" />}
+                label={t("admin.dashboard.premiumUsers", {
+                  defaultValue: "Premium",
+                })}
+                value={stats.users.premium}
+                subtitle={t("admin.dashboard.percentOfTotal", {
+                  defaultValue: "{{pct}}% del total",
+                  pct: pct(stats.users.premium, stats.users.total),
+                })}
+                href="/admin/users"
+              />
+              <StatCard
+                tone="primary"
+                icon={<UserMinus className="h-4 w-4" />}
+                label={t("admin.dashboard.freeUsers", {
+                  defaultValue: "Free",
+                })}
+                value={stats.users.total - stats.users.premium}
+                subtitle={t("admin.dashboard.percentOfTotal", {
+                  defaultValue: "{{pct}}% del total",
+                  pct: pct(
+                    stats.users.total - stats.users.premium,
+                    stats.users.total,
+                  ),
+                })}
+                href="/admin/users"
+              />
+              <StatCard
+                tone="positive"
+                icon={<UserPlus className="h-4 w-4" />}
+                label={t("admin.dashboard.newThisWeek", {
+                  defaultValue: "Nuevos esta semana",
+                })}
+                value={stats.users.recentWeek}
+                trend={{
+                  delta: stats.users.recentWeek,
+                  label: t("admin.dashboard.trendWeek", {
+                    defaultValue: "esta semana",
+                  }),
+                }}
+                href="/admin/users"
+              />
+              <StatCard
+                tone="accent"
+                icon={<TrendingUp className="h-4 w-4" />}
+                label={t("admin.dashboard.premiumConversions")}
+                value={`${premiumRate}%`}
+                subtitle={t("admin.dashboard.premiumConversionsSubtitle", {
+                  premium: stats.users.premium,
+                  total: stats.users.total,
+                })}
+                href="/admin/users"
+              />
+            </div>
+          </section>
+        ) : null}
+
+        {/* ── Content KPIs — catalog + AI usage ── */}
+        {isLoading ? (
+          <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <SkeletonCard key={i} />
+            ))}
           </div>
+        ) : stats && feedbackStats ? (
+          <section
+            className="flex flex-col gap-3"
+            aria-labelledby="content-section-title"
+          >
+            <h2
+              id="content-section-title"
+              className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--color-muted)]"
+            >
+              {t("admin.dashboard.contentSection", {
+                defaultValue: "Contenido y uso",
+              })}
+            </h2>
+            <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+              <StatCard
+                tone="primary"
+                icon={<Music className="h-4 w-4" />}
+                label={t("admin.dashboard.tracks")}
+                value={stats.content.tracks}
+                subtitle={
+                  stats.users.total > 0
+                    ? t("admin.dashboard.perUser", {
+                        defaultValue: "{{n}} por usuario",
+                        n: (stats.content.tracks / stats.users.total).toFixed(
+                          1,
+                        ),
+                      })
+                    : undefined
+                }
+              />
+              <StatCard
+                tone="primary"
+                icon={<ListMusic className="h-4 w-4" />}
+                label={t("admin.dashboard.playlists")}
+                value={stats.content.playlists}
+                subtitle={
+                  stats.users.total > 0
+                    ? t("admin.dashboard.perUser", {
+                        defaultValue: "{{n}} por usuario",
+                        n: (
+                          stats.content.playlists / stats.users.total
+                        ).toFixed(1),
+                      })
+                    : undefined
+                }
+              />
+              <StatCard
+                tone="accent"
+                icon={<Sparkles className="h-4 w-4" />}
+                label={t("admin.dashboard.aiRequests")}
+                value={stats.ai.totalRequests}
+                subtitle={
+                  stats.users.total > 0
+                    ? t("admin.dashboard.perUser", {
+                        defaultValue: "{{n}} por usuario",
+                        n: (stats.ai.totalRequests / stats.users.total).toFixed(
+                          1,
+                        ),
+                      })
+                    : undefined
+                }
+                href="/admin/ai"
+              />
+              <StatCard
+                tone="primary"
+                icon={<HardDrive className="h-4 w-4" />}
+                label={t("admin.dashboard.storage", {
+                  defaultValue: "Almacenamiento",
+                })}
+                value={catalog ? formatBytes(catalog.totalBytes) : "—"}
+                subtitle={
+                  catalog
+                    ? t("admin.dashboard.audioTotal", {
+                        defaultValue: "{{dur}} de audio",
+                        dur: formatDuration(catalog.totalDurationMs),
+                      })
+                    : undefined
+                }
+              />
+            </div>
+          </section>
         ) : null}
 
         {/* ── Feedback stacked bar (full-width) ── */}
