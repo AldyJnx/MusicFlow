@@ -29,6 +29,7 @@ export default function AdminLayout({ children }: { children?: ReactNode }) {
   }, []);
 
   function handleLogout() {
+    usePlayerStore.getState().stop();
     clear();
     navigate("/", { replace: true });
   }

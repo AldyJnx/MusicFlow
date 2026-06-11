@@ -9,6 +9,7 @@ import UpgradeModal from "../features/billing/UpgradeModal";
 import Navbar, { type NavbarRef } from "../../shared/ui/navigation/Navbar";
 import ClientSidebar from "../components/navigation/ClientSidebar";
 import ImportModal from "../features/import/ImportModal";
+import CommandPalette from "../features/command-palette/CommandPalette";
 import { usePlayerStore } from "../stores/playStore";
 import { useSegmentEngineSync } from "../../shared/hooks/useTrackSegments";
 import { useAutoApplyEQ } from "../../shared/hooks/useAutoApplyEQ";
@@ -54,6 +55,7 @@ export default function ClientLayout({ children }: { children: ReactNode }) {
       <QueueDrawer />
       <UpgradeModal />
       <ImportModal open={importOpen} onClose={() => setImportOpen(false)} />
+      <CommandPalette onOpenImport={() => setImportOpen(true)} />
     </div>
   );
 }

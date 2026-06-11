@@ -468,7 +468,7 @@
     "lyrics": {
       "title": "Letra",
       "loading": "Cargando letra…",
-      "empty": "Esta canción aún no tiene letra. Súbela desde admin.",
+      "empty": "Esta canción aún no tiene letra.",
       "plainFallback": "Letra sin sincronización"
     },
     "ai": {

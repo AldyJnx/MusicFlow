@@ -1,14 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  ArrowLeft,
-  Image as ImageIcon,
+  ChevronDown,
+  Heart,
   ListMusic,
-  ListPlus,
   Mic2,
   Pause,
   Play,
   Power,
+  Repeat,
+  Repeat1,
   Scissors,
+  Shuffle,
   SkipBack,
   SkipForward,
   Sliders,
@@ -71,6 +73,10 @@ export default function ExpandedPlayer({
   const setVolume = usePlayerStore((s) => s.setVolume);
   const next = usePlayerStore((s) => s.next);
   const previous = usePlayerStore((s) => s.previous);
+  const shuffle = usePlayerStore((s) => s.shuffle);
+  const repeatMode = usePlayerStore((s) => s.repeatMode);
+  const toggleShuffle = usePlayerStore((s) => s.toggleShuffle);
+  const cycleRepeat = usePlayerStore((s) => s.cycleRepeat);
   const openEqDrawer = usePlayerStore((s) => s.openEqDrawer);
   const openAiPrompt = usePlayerStore((s) => s.openAiPrompt);
   const openQueueDrawer = usePlayerStore((s) => s.openQueueDrawer);
@@ -87,6 +93,7 @@ export default function ExpandedPlayer({
 
   const [view, setView] = useState<View>("cover");
   const [addToPlaylistOpen, setAddToPlaylistOpen] = useState(false);
+  const [volumeOpen, setVolumeOpen] = useState(false);
 
   const activeSegment = useMemo(
     () =>
@@ -165,258 +172,294 @@ export default function ExpandedPlayer({
         }}
       />
 
-      <div className="relative flex h-full flex-col px-6 py-5 xl:px-10">
-        {/* ── Header ───────────────────────────────────────────────── */}
-        <div className="flex items-center justify-between">
+      <div className="relative flex h-full flex-col px-6 py-5 xl:px-12">
+        {/* ── Header: collapse chevron + centered title ─────────────── */}
+        <div className="relative flex items-center">
           <button
             type="button"
             onClick={() => setExpanded(false)}
-            className="inline-flex h-10 items-center gap-2 rounded-full border border-white/10 bg-black/30 px-3 text-xs font-semibold uppercase tracking-wider text-white/85 backdrop-blur transition hover:border-[var(--color-primary)] hover:text-white"
+            className="inline-flex h-11 items-center gap-2 rounded-full border border-white/15 bg-black/30 pl-2 pr-4 text-xs font-semibold uppercase tracking-wider text-white/85 backdrop-blur transition hover:border-[var(--color-primary)] hover:text-white"
             aria-label={t("player.back", { defaultValue: "Atrás" })}
             title={t("player.back", { defaultValue: "Atrás" })}
           >
-            <ArrowLeft className="h-4 w-4" strokeWidth={2.4} />
-            <span className="hidden sm:inline">
-              {t("player.back", { defaultValue: "Atrás" })}
+            <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-white/10">
+              <ChevronDown className="h-4 w-4" strokeWidth={2.4} />
             </span>
+            {t("player.back", { defaultValue: "Atrás" })}
           </button>
 
-          {/* Track title in the header — a quiet anchor so the user knows
-              what they're looking at without competing with the artwork. */}
-          <div className="flex min-w-0 flex-col items-center gap-1 px-4">
-            <p className="truncate text-sm font-semibold text-white">
-              {currentTrack.title}
-            </p>
+          <p className="pointer-events-none absolute left-1/2 -translate-x-1/2 text-[11px] font-semibold uppercase tracking-[0.42em] text-white/55">
+            {t("player.expandedTitle", { defaultValue: "Reproductor" })}
+          </p>
+        </div>
+
+        {/* ── Main: cover on the left, details + controls on the right ── */}
+        <div className="grid min-h-0 flex-1 grid-cols-1 items-center gap-8 py-4 lg:grid-cols-2 lg:gap-12 xl:gap-16">
+          {/* Left column — cover or, when toggled, the karaoke lyrics. */}
+          <div className="flex min-h-0 items-center justify-center">
+            {view === "cover" ? (
+              <CoverArt
+                cover={currentTrack.cover}
+                title={currentTrack.title}
+                activeSegmentLabel={activeSegment?.label ?? null}
+                t={t}
+              />
+            ) : (
+              <LyricsKaraoke trackId={currentTrack.id} seek={seek} />
+            )}
+          </div>
+
+          {/* Right column — now-playing meta, timeline, transport, CTAs. */}
+          <div className="flex min-w-0 flex-col">
             <div className="flex items-center gap-2">
               {showWave ? <Wave active={isPlaying} size={12} /> : null}
-              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--color-accent)]" />
-              <p className="text-[10px] font-semibold uppercase tracking-[0.32em] text-white/70">
+              <p className="text-[11px] font-bold uppercase tracking-[0.32em] text-[var(--color-primary)]">
                 {t("player.nowPlaying")}
               </p>
             </div>
-          </div>
 
-          {/* View toggle: Cover vs Lyrics. Pill-style segmented control. */}
-          <div className="inline-flex rounded-full border border-white/10 bg-black/30 p-1 backdrop-blur">
-            <ViewPill
-              active={view === "cover"}
-              onClick={() => setView("cover")}
-              icon={<ImageIcon className="h-3.5 w-3.5" strokeWidth={2.3} />}
-              label={t("player.viewCover", { defaultValue: "Portada" })}
-            />
-            <ViewPill
-              active={view === "lyrics"}
-              onClick={() => setView("lyrics")}
-              icon={<Mic2 className="h-3.5 w-3.5" strokeWidth={2.3} />}
-              label={t("player.viewLyrics", { defaultValue: "Letra" })}
-            />
-          </div>
-        </div>
+            <h1 className="mt-2 truncate text-4xl font-extrabold tracking-tight text-white drop-shadow-[0_2px_16px_rgba(0,0,0,0.7)] xl:text-5xl">
+              {currentTrack.title}
+            </h1>
+            <p className="mt-2 flex items-center gap-2 text-base text-white/75">
+              <span className="truncate">{currentTrack.artist}</span>
+              <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--color-accent)]" />
+            </p>
 
-        {/* ── Main view ─────────────────────────────────────────────── */}
-        <div className="mt-6 flex min-h-0 flex-1 flex-col">
-          {view === "cover" ? (
-            <CoverView
-              cover={currentTrack.cover}
-              title={currentTrack.title}
-              artist={currentTrack.artist}
-              activeSegmentLabel={activeSegment?.label ?? null}
-              t={t}
-            />
-          ) : (
-            <LyricsKaraoke trackId={currentTrack.id} seek={seek} />
-          )}
-        </div>
-
-        {/* ── Bottom bar: timeline + controls + sound-detail strip ──── */}
-        <div className="mt-4 flex flex-col gap-3">
-          <div>
-            <TimelineWithSegments
-              positionMs={positionMs}
-              durationMs={durationMs}
-              segments={segments}
-              onSeek={seek}
-              height={6}
-              preventBubble={false}
-            />
-            <div className="mt-1.5 flex items-center justify-between text-[11px] font-medium tabular-nums text-white/60">
-              <span>{formatMs(positionMs)}</span>
-              <span>{formatMs(durationMs)}</span>
+            {/* Timeline */}
+            <div className="mt-8">
+              <TimelineWithSegments
+                positionMs={positionMs}
+                durationMs={durationMs}
+                segments={segments}
+                onSeek={seek}
+                height={6}
+                preventBubble={false}
+              />
+              <div className="mt-1.5 flex items-center justify-between text-[11px] font-medium tabular-nums text-white/60">
+                <span>{formatMs(positionMs)}</span>
+                <span>{formatMs(durationMs)}</span>
+              </div>
             </div>
-          </div>
 
-          {/* Transport */}
-          <div className="flex items-center justify-center gap-6 text-white/80">
-            <button
-              type="button"
-              onClick={() => void previous()}
-              className="inline-flex h-10 w-10 items-center justify-center transition hover:text-white"
-              aria-label={t("player.previous")}
-            >
-              <SkipBack className="h-5 w-5" strokeWidth={2.4} />
-            </button>
-            <button
-              type="button"
-              onClick={() => void togglePlay()}
-              className="inline-flex h-14 w-14 items-center justify-center rounded-full bg-[var(--color-primary)] text-[var(--color-primary-contrast)] shadow-[0_14px_30px_rgba(0,0,0,0.4)] transition hover:scale-[1.05]"
-              aria-label={isPlaying ? t("player.pause") : t("player.play")}
-            >
-              {isPlaying ? (
-                <Pause className="h-6 w-6" strokeWidth={2.6} />
-              ) : (
-                <Play className="ml-0.5 h-6 w-6" strokeWidth={2.6} />
-              )}
-            </button>
-            <button
-              type="button"
-              onClick={() => void next()}
-              className="inline-flex h-10 w-10 items-center justify-center transition hover:text-white"
-              aria-label={t("player.next")}
-            >
-              <SkipForward className="h-5 w-5" strokeWidth={2.4} />
-            </button>
-          </div>
-
-          {/* Sound detail strip — EQ status + bypass, EQ drawer, segments,
-              AI, volume. Translucent so the cover/lyrics breathe through. */}
-          <div className="mx-auto flex w-full max-w-3xl flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-black/30 px-4 py-2.5 backdrop-blur-md">
-            <button
-              type="button"
-              onClick={toggleEqBypass}
-              disabled={!eqActive && !hasEqCurveStashed}
-              title={
-                eqBypassed
-                  ? t("player.eqBypassResume", { defaultValue: "Reanudar EQ" })
-                  : eqActive
-                    ? t("player.eqBypassPause", {
-                        defaultValue: "Pausar EQ (mantener curva)",
-                      })
-                    : t("player.eqInactive", {
-                        defaultValue: "Sin EQ activo",
-                      })
-              }
-              aria-pressed={eqActive}
-              className={`group inline-flex items-center gap-2 rounded-xl border-2 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider transition ${
-                eqActive
-                  ? "border-[var(--color-primary)] bg-[var(--color-primary)]/15 text-[var(--color-primary)] shadow-[0_0_24px_-6px_var(--color-primary)]"
-                  : hasEqCurveStashed
-                    ? "border-white/30 bg-transparent text-white/70"
-                    : "border-white/10 bg-transparent text-white/40"
-              }`}
-            >
-              <span
-                className={`relative inline-flex h-2 w-2 rounded-full ${
-                  eqActive ? "bg-[var(--color-primary)]" : "bg-white/40"
-                }`}
-              >
-                {eqActive ? (
-                  <span className="absolute inset-0 animate-ping rounded-full bg-[var(--color-primary)]/60" />
-                ) : null}
-              </span>
-              <Power className="h-3 w-3" strokeWidth={2.6} />
-              {eqActive
-                ? t("player.eqOn", { defaultValue: "EQ encendido" })
-                : hasEqCurveStashed
-                  ? t("player.eqPaused", { defaultValue: "EQ en pausa" })
-                  : t("player.eqOff", { defaultValue: "Sin EQ" })}
-            </button>
-
-            <button
-              type="button"
-              onClick={openEqDrawer}
-              title={t("player.openEq")}
-              className="inline-flex h-9 items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-3 text-[10px] font-semibold uppercase tracking-wider text-white/85 transition hover:border-[var(--color-primary)] hover:text-white"
-            >
-              <Sliders className="h-3.5 w-3.5" strokeWidth={2.4} />
-              <span className="sr-only xl:not-sr-only">
-                {t("player.openEq")}
-              </span>
-            </button>
-
-            <button
-              type="button"
-              onClick={openSegmentsForCurrentTrack}
-              title={t("player.editSegments", {
-                defaultValue: "Editar segmentos del track",
-              })}
-              className="inline-flex h-9 items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-3 text-[10px] font-semibold uppercase tracking-wider text-white/85 transition hover:border-[var(--color-accent)] hover:text-white"
-            >
-              <Scissors className="h-3.5 w-3.5" strokeWidth={2.4} />
-              <span className="sr-only xl:not-sr-only">
-                {t("nav.segments")}
-              </span>
-            </button>
-
-            <button
-              type="button"
-              onClick={tryOpenAi}
-              title={t("player.openAi", { defaultValue: "Pedirle a la IA" })}
-              className="inline-flex h-9 items-center gap-2 rounded-xl border border-[var(--color-accent)]/60 bg-[var(--color-accent)]/10 px-3 text-[10px] font-semibold uppercase tracking-wider text-[var(--color-accent)] transition hover:bg-[var(--color-accent)]/20"
-            >
-              <Sparkles className="h-3.5 w-3.5" strokeWidth={2.4} />
-              <span className="sr-only xl:not-sr-only">
-                {t("player.askAi", { defaultValue: "Ajustar con IA" })}
-              </span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setAddToPlaylistOpen(true)}
-              title={t("player.addToPlaylist", {
-                defaultValue: "Agregar a una playlist",
-              })}
-              className="inline-flex h-9 items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-3 text-[10px] font-semibold uppercase tracking-wider text-white/85 transition hover:border-[var(--color-primary)] hover:text-white"
-            >
-              <ListPlus className="h-3.5 w-3.5" strokeWidth={2.4} />
-              <span className="sr-only xl:not-sr-only">
-                {t("player.addToPlaylistShort", { defaultValue: "Playlist" })}
-              </span>
-            </button>
-
-            <button
-              type="button"
-              onClick={openQueueDrawer}
-              title={t("queue.open", { defaultValue: "Cola de reproducción" })}
-              className="inline-flex h-9 items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-3 text-[10px] font-semibold uppercase tracking-wider text-white/85 transition hover:border-[var(--color-primary)] hover:text-white"
-            >
-              <ListMusic className="h-3.5 w-3.5" strokeWidth={2.4} />
-              <span className="sr-only xl:not-sr-only">
-                {t("queue.short", { defaultValue: "Cola" })}
-              </span>
-              {upcomingCount > 0 ? (
-                <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--color-primary)] px-1 text-[9px] font-bold text-[var(--color-primary-contrast)]">
-                  {upcomingCount}
-                </span>
-              ) : null}
-            </button>
-
-            {/* Volume cluster */}
-            <div className="flex items-center gap-2 text-white/80">
+            {/* Transport — heart, prev, play, next, repeat */}
+            <div className="mt-6 flex items-center justify-center gap-5 text-white/80 sm:gap-6">
               <button
                 type="button"
-                onClick={toggleMute}
-                className="inline-flex h-8 w-8 items-center justify-center transition hover:text-white"
-                aria-label={isMuted ? t("player.unmute") : t("player.mute")}
+                onClick={() => setAddToPlaylistOpen(true)}
+                title={t("player.addToPlaylist", {
+                  defaultValue: "Guardar en una playlist",
+                })}
+                aria-label={t("player.addToPlaylist", {
+                  defaultValue: "Guardar en una playlist",
+                })}
+                className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white/70 transition hover:border-[var(--color-accent)] hover:text-white"
               >
-                {isMuted ? (
-                  <VolumeX className="h-4 w-4" strokeWidth={2.2} />
+                <Heart className="h-[18px] w-[18px]" strokeWidth={2.2} />
+              </button>
+              <button
+                type="button"
+                onClick={() => void previous()}
+                className="inline-flex h-11 w-11 items-center justify-center transition hover:text-white"
+                aria-label={t("player.previous")}
+              >
+                <SkipBack className="h-6 w-6" strokeWidth={2.4} />
+              </button>
+              <button
+                type="button"
+                onClick={() => void togglePlay()}
+                className="inline-flex h-16 w-16 items-center justify-center rounded-full bg-white text-black shadow-[0_14px_34px_rgba(0,0,0,0.5)] transition hover:scale-[1.05]"
+                aria-label={isPlaying ? t("player.pause") : t("player.play")}
+              >
+                {isPlaying ? (
+                  <Pause className="h-7 w-7" strokeWidth={2.6} />
                 ) : (
-                  <Volume2 className="h-4 w-4" strokeWidth={2.2} />
+                  <Play className="ml-0.5 h-7 w-7" strokeWidth={2.6} />
                 )}
               </button>
-              <input
-                type="range"
-                min="0"
-                max="1"
-                step="0.01"
-                value={isMuted ? 0 : volume}
-                onChange={(e) => setVolume(Number(e.target.value))}
-                className="expanded-player-slider h-1 w-24 cursor-pointer appearance-none rounded-full bg-white/10"
-                aria-label={t("player.volume")}
-              />
+              <button
+                type="button"
+                onClick={() => void next()}
+                className="inline-flex h-11 w-11 items-center justify-center transition hover:text-white"
+                aria-label={t("player.next")}
+              >
+                <SkipForward className="h-6 w-6" strokeWidth={2.4} />
+              </button>
+              <button
+                type="button"
+                onClick={cycleRepeat}
+                aria-pressed={repeatMode !== "off"}
+                title={
+                  repeatMode === "one"
+                    ? t("player.repeatOne", { defaultValue: "Repetir canción" })
+                    : repeatMode === "all"
+                      ? t("player.repeatAll", { defaultValue: "Repetir cola" })
+                      : t("player.repeatOff", { defaultValue: "Repetir" })
+                }
+                aria-label={t("player.repeat", { defaultValue: "Repetir" })}
+                className={`inline-flex h-11 w-11 items-center justify-center transition ${
+                  repeatMode !== "off"
+                    ? "text-[var(--color-primary)]"
+                    : "text-white/60 hover:text-white"
+                }`}
+              >
+                {repeatMode === "one" ? (
+                  <Repeat1 className="h-5 w-5" strokeWidth={2.4} />
+                ) : (
+                  <Repeat className="h-5 w-5" strokeWidth={2.4} />
+                )}
+              </button>
+            </div>
+
+            {/* Primary CTAs — AI adjust + lyrics toggle */}
+            <div className="mt-7 flex flex-wrap items-center justify-center gap-3">
+              <button
+                type="button"
+                onClick={tryOpenAi}
+                className="inline-flex h-12 items-center gap-2.5 rounded-2xl bg-[var(--color-primary)] px-6 text-sm font-semibold text-[var(--color-primary-contrast)] shadow-[0_12px_30px_-8px_var(--color-primary)] transition hover:brightness-110"
+              >
+                <Sparkles className="h-4 w-4" strokeWidth={2.4} />
+                {t("player.askAi", { defaultValue: "Ajustar con IA" })}
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  setView((v) => (v === "lyrics" ? "cover" : "lyrics"))
+                }
+                aria-pressed={view === "lyrics"}
+                className={`inline-flex h-12 items-center gap-2.5 rounded-2xl border px-6 text-sm font-semibold transition ${
+                  view === "lyrics"
+                    ? "border-white/70 bg-white/10 text-white"
+                    : "border-white/20 bg-white/5 text-white/85 hover:border-white/40 hover:text-white"
+                }`}
+              >
+                <Mic2 className="h-4 w-4" strokeWidth={2.4} />
+                {t("player.viewLyrics", { defaultValue: "Letra" })}
+              </button>
+            </div>
+
+            {/* Discreet sound-detail strip — EQ status + bypass, EQ drawer,
+                segments, shuffle, queue. Quieter than the primary CTAs so
+                the cover and transport stay the protagonists. */}
+            <div className="mx-auto mt-7 flex flex-wrap items-center justify-center gap-2.5 rounded-2xl border border-white/10 bg-black/25 px-3 py-2.5 backdrop-blur-md">
+              <button
+                type="button"
+                onClick={toggleEqBypass}
+                disabled={!eqActive && !hasEqCurveStashed}
+                title={
+                  eqBypassed
+                    ? t("player.eqBypassResume", {
+                        defaultValue: "Reanudar EQ",
+                      })
+                    : eqActive
+                      ? t("player.eqBypassPause", {
+                          defaultValue: "Pausar EQ sin perder los ajustes",
+                        })
+                      : t("player.eqInactive", {
+                          defaultValue: "Sin EQ activo",
+                        })
+                }
+                aria-pressed={eqActive}
+                className={`inline-flex items-center gap-2 rounded-xl border-2 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider transition ${
+                  eqActive
+                    ? "border-[var(--color-primary)] bg-[var(--color-primary)]/15 text-[var(--color-primary)] shadow-[0_0_24px_-6px_var(--color-primary)]"
+                    : hasEqCurveStashed
+                      ? "border-white/30 bg-transparent text-white/70"
+                      : "border-white/10 bg-transparent text-white/40"
+                }`}
+              >
+                <span
+                  className={`relative inline-flex h-2 w-2 rounded-full ${
+                    eqActive ? "bg-[var(--color-primary)]" : "bg-white/40"
+                  }`}
+                >
+                  {eqActive ? (
+                    <span className="absolute inset-0 animate-ping rounded-full bg-[var(--color-primary)]/60" />
+                  ) : null}
+                </span>
+                <Power className="h-3 w-3" strokeWidth={2.6} />
+                {eqActive
+                  ? t("player.eqOn", { defaultValue: "EQ activo" })
+                  : hasEqCurveStashed
+                    ? t("player.eqPaused", { defaultValue: "EQ en pausa" })
+                    : t("player.eqOff", { defaultValue: "Sin EQ" })}
+              </button>
+
+              <StripButton
+                onClick={openEqDrawer}
+                title={t("player.openEq")}
+                hoverColor="primary"
+              >
+                <Sliders className="h-4 w-4" strokeWidth={2.4} />
+              </StripButton>
+
+              <StripButton
+                onClick={openSegmentsForCurrentTrack}
+                title={t("player.editSegments", {
+                  defaultValue: "Editar segmentos del track",
+                })}
+                hoverColor="accent"
+              >
+                <Scissors className="h-4 w-4" strokeWidth={2.4} />
+              </StripButton>
+
+              <StripButton
+                onClick={toggleShuffle}
+                title={t("player.shuffle", { defaultValue: "Aleatorio" })}
+                active={shuffle}
+                hoverColor="primary"
+              >
+                <Shuffle className="h-4 w-4" strokeWidth={2.4} />
+              </StripButton>
+
+              <StripButton
+                onClick={openQueueDrawer}
+                title={t("queue.open", {
+                  defaultValue: "Cola de reproducción",
+                })}
+                hoverColor="primary"
+                badge={upcomingCount > 0 ? upcomingCount : undefined}
+              >
+                <ListMusic className="h-4 w-4" strokeWidth={2.4} />
+              </StripButton>
             </div>
           </div>
         </div>
+      </div>
+
+      {/* ── Floating volume control (bottom-right) ─────────────────────── */}
+      <div className="absolute bottom-6 right-6 flex flex-col items-center gap-3">
+        {volumeOpen ? (
+          <div className="flex flex-col items-center gap-2 rounded-full border border-white/10 bg-black/40 px-2 py-4 backdrop-blur-md">
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={isMuted ? 0 : volume}
+              onChange={(e) => setVolume(Number(e.target.value))}
+              className="expanded-player-slider h-1 w-24 -rotate-90 cursor-pointer appearance-none rounded-full bg-white/10"
+              aria-label={t("player.volume")}
+              style={{ marginTop: "2.5rem", marginBottom: "2.5rem" }}
+            />
+          </div>
+        ) : null}
+        <button
+          type="button"
+          onClick={() => {
+            if (volumeOpen) toggleMute();
+            setVolumeOpen((o) => !o);
+          }}
+          className="inline-flex h-12 w-12 items-center justify-center rounded-full border border-white/15 bg-black/40 text-white/85 backdrop-blur transition hover:border-[var(--color-primary)] hover:text-white"
+          aria-label={isMuted ? t("player.unmute") : t("player.mute")}
+          title={t("player.volume")}
+        >
+          {isMuted ? (
+            <VolumeX className="h-5 w-5" strokeWidth={2.2} />
+          ) : (
+            <Volume2 className="h-5 w-5" strokeWidth={2.2} />
+          )}
+        </button>
       </div>
 
       <style>{`
@@ -450,76 +493,81 @@ export default function ExpandedPlayer({
   );
 }
 
-function ViewPill({
-  active,
+/**
+ * A compact icon button for the discreet sound-detail strip. Optionally
+ * shows an "active" tint and a small count badge (used by the queue).
+ */
+function StripButton({
   onClick,
-  icon,
-  label,
+  title,
+  children,
+  active = false,
+  badge,
+  hoverColor = "primary",
 }: {
-  active: boolean;
   onClick: () => void;
-  icon: React.ReactNode;
-  label: string;
+  title: string;
+  children: React.ReactNode;
+  active?: boolean;
+  badge?: number;
+  hoverColor?: "primary" | "accent";
 }) {
+  const hover =
+    hoverColor === "accent"
+      ? "hover:border-[var(--color-accent)]"
+      : "hover:border-[var(--color-primary)]";
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider transition ${
-        active ? "bg-white/95 text-black" : "text-white/70 hover:text-white"
+      title={title}
+      aria-label={title}
+      aria-pressed={active}
+      className={`relative inline-flex h-9 w-9 items-center justify-center rounded-xl border border-white/15 bg-white/5 transition hover:text-white ${hover} ${
+        active ? "text-[var(--color-primary)]" : "text-white/85"
       }`}
     >
-      {icon}
-      {label}
+      {children}
+      {badge !== undefined ? (
+        <span className="absolute -right-1 -top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--color-primary)] px-1 text-[9px] font-bold text-[var(--color-primary-contrast)]">
+          {badge}
+        </span>
+      ) : null}
     </button>
   );
 }
 
 /**
- * "Cover" view — the album art is the protagonist. Cover sits centered and
- * large, with the title + artist + active-segment chip clustered just below.
+ * The album art — the protagonist of the left column. Square, rounded, with
+ * a soft floor shadow and the active-segment chip overlaid top-left.
  */
-function CoverView({
+function CoverArt({
   cover,
   title,
-  artist,
   activeSegmentLabel,
   t,
 }: {
   cover: string | null | undefined;
   title: string;
-  artist: string;
   activeSegmentLabel: string | null;
   t: (key: string, opts?: { defaultValue?: string }) => string;
 }) {
   return (
-    <div className="flex flex-1 flex-col items-center justify-center gap-6">
-      <div className="relative w-full max-w-[min(60vh,520px)]">
-        <div className="relative aspect-square overflow-hidden rounded-[28px] shadow-[0_40px_120px_rgba(0,0,0,0.65)] ring-1 ring-white/10">
-          {cover ? (
-            <img
-              src={cover}
-              alt={title}
-              className="h-full w-full object-cover"
-            />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center bg-white/5 text-white/30">
-              <Sliders className="h-20 w-20" strokeWidth={1.2} />
-            </div>
-          )}
-          {activeSegmentLabel ? (
-            <div className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-[var(--color-accent)] px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-[var(--color-primary-contrast)] shadow-[0_8px_20px_rgba(0,0,0,0.4)]">
-              <Scissors className="h-3 w-3" strokeWidth={2.6} />
-              {activeSegmentLabel || t("player.segment")}
-            </div>
-          ) : null}
-        </div>
-      </div>
-      <div className="text-center">
-        <h1 className="text-4xl font-extrabold tracking-tight text-white drop-shadow-[0_2px_16px_rgba(0,0,0,0.7)]">
-          {title}
-        </h1>
-        <p className="mt-2 text-base text-white/75">{artist}</p>
+    <div className="relative w-full max-w-[min(58vh,460px)]">
+      <div className="relative aspect-square overflow-hidden rounded-[28px] shadow-[0_40px_120px_rgba(0,0,0,0.65)] ring-1 ring-white/10">
+        {cover ? (
+          <img src={cover} alt={title} className="h-full w-full object-cover" />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center bg-white/5 text-white/30">
+            <Sliders className="h-20 w-20" strokeWidth={1.2} />
+          </div>
+        )}
+        {activeSegmentLabel ? (
+          <div className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-[var(--color-accent)] px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-[var(--color-primary-contrast)] shadow-[0_8px_20px_rgba(0,0,0,0.4)]">
+            <Scissors className="h-3 w-3" strokeWidth={2.6} />
+            {activeSegmentLabel || t("player.segment")}
+          </div>
+        ) : null}
       </div>
     </div>
   );
@@ -537,6 +585,7 @@ function LyricsKaraoke({
   trackId: string | null;
   seek: (ms: number) => void;
 }) {
+  const { t } = useTranslation();
   const { mode, lines, plainText, currentLineIndex, isLoading } =
     useLyrics(trackId);
   const activeRef = useRef<HTMLButtonElement | null>(null);
@@ -551,18 +600,20 @@ function LyricsKaraoke({
 
   if (isLoading) {
     return (
-      <div className="flex flex-1 items-center justify-center text-sm text-white/60">
-        Cargando letra…
+      <div className="flex h-full max-h-[60vh] w-full items-center justify-center text-sm text-white/60">
+        {t("player.lyrics.loading", { defaultValue: "Cargando letra…" })}
       </div>
     );
   }
 
   if (mode === "none") {
     return (
-      <div className="flex flex-1 flex-col items-center justify-center gap-2 text-center">
+      <div className="flex h-full max-h-[60vh] w-full flex-col items-center justify-center gap-2 text-center">
         <Mic2 className="h-10 w-10 text-white/30" strokeWidth={1.5} />
         <p className="text-sm text-white/60">
-          Esta canción aún no tiene letra.
+          {t("player.lyrics.empty", {
+            defaultValue: "Esta canción aún no tiene letra.",
+          })}
         </p>
       </div>
     );
@@ -570,14 +621,14 @@ function LyricsKaraoke({
 
   if (mode === "plain") {
     return (
-      <div className="mx-auto w-full max-w-2xl overflow-y-auto px-4 text-center text-2xl font-medium leading-[1.6] text-white/80">
+      <div className="mx-auto max-h-[60vh] w-full overflow-y-auto px-4 text-center text-2xl font-medium leading-[1.6] text-white/80">
         <pre className="whitespace-pre-wrap font-sans">{plainText}</pre>
       </div>
     );
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col overflow-y-auto px-4 py-12">
+    <div className="mx-auto flex max-h-[60vh] w-full flex-col overflow-y-auto px-4 py-8">
       {lines.map((line, i) => {
         const isActive = i === currentLineIndex;
         const isPast = i < currentLineIndex;
@@ -589,10 +640,10 @@ function LyricsKaraoke({
             onClick={() => seek(line.timeMs)}
             className={`w-full rounded-lg px-2 py-3 text-left transition ${
               isActive
-                ? "text-4xl font-bold leading-tight text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.6)]"
+                ? "text-3xl font-bold leading-tight text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.6)]"
                 : isPast
-                  ? "text-xl font-semibold leading-snug text-white/40 hover:text-white/70"
-                  : "text-xl font-semibold leading-snug text-white/55 hover:text-white/85"
+                  ? "text-lg font-semibold leading-snug text-white/40 hover:text-white/70"
+                  : "text-lg font-semibold leading-snug text-white/55 hover:text-white/85"
             }`}
           >
             {line.text || "♪"}

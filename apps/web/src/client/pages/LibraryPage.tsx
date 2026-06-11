@@ -2,6 +2,8 @@ import {
   Clock3,
   Globe,
   Heart,
+  ListMusic,
+  ListPlus,
   Music4,
   MoreHorizontal,
   Upload,
@@ -109,6 +111,13 @@ export default function LibraryPage() {
   const [importOpen, setImportOpen] = useState(false);
   // Track queued for the "add to playlist" modal (null = modal closed).
   const [playlistTarget, setPlaylistTarget] = useState<Track | null>(null);
+  // Row action menu (three-dots). Fixed-positioned so the table's
+  // overflow-hidden doesn't clip it. null = closed.
+  const [rowMenu, setRowMenu] = useState<{
+    track: Track;
+    x: number;
+    y: number;
+  } | null>(null);
   const [activeTab, setActiveTab] = useState<LibraryTab>(initialTab);
   const [activeGenre, setActiveGenre] = useState<string | null>(null);
   const [searchInput, setSearchInput] = useState("");
@@ -175,6 +184,7 @@ export default function LibraryPage() {
   // jumps directly to the clicked track. Tracks without a remote URL are
   // skipped silently (they wouldn't decode anyway).
   const playTrackList = usePlayerStore((s) => s.playTrackList);
+  const addToQueue = usePlayerStore((s) => s.addToQueue);
 
   function toPlayerTrack(t: Track): PlayerTrack | null {
     if (!t.fileUrlRemote) return null;
@@ -488,11 +498,22 @@ export default function LibraryPage() {
                           type="button"
                           onClick={(e) => {
                             e.stopPropagation();
-                            setPlaylistTarget(track);
+                            const rect =
+                              e.currentTarget.getBoundingClientRect();
+                            setRowMenu((cur) =>
+                              cur?.track.id === track.id
+                                ? null
+                                : {
+                                    track,
+                                    x: rect.right,
+                                    y: rect.bottom + 4,
+                                  },
+                            );
                           }}
-                          aria-label={t("library.addToPlaylistAria", {
-                            defaultValue: "Agregar a una playlist",
+                          aria-label={t("library.trackActionsAria", {
+                            defaultValue: "Más acciones",
                           })}
+                          aria-haspopup="menu"
                           className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-[var(--color-muted)] transition hover:bg-[var(--color-surface)] hover:text-[var(--color-text)]"
                         >
                           <MoreHorizontal
@@ -649,6 +670,51 @@ export default function LibraryPage() {
           </div>
         </div>
       </section>
+      {/* Row action menu — fixed-positioned so it escapes the table's
+          overflow-hidden. A full-screen backdrop closes it on any outside
+          click. */}
+      {rowMenu ? (
+        <>
+          <div
+            className="fixed inset-0 z-[60]"
+            onClick={() => setRowMenu(null)}
+          />
+          <div
+            role="menu"
+            className="fixed z-[61] w-52 -translate-x-full overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] py-1 shadow-[0_20px_50px_rgba(0,0,0,0.5)]"
+            style={{ left: rowMenu.x, top: rowMenu.y }}
+          >
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                const playable = toPlayerTrack(rowMenu.track);
+                if (playable) addToQueue(playable);
+                setRowMenu(null);
+              }}
+              className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-[var(--color-text)] transition hover:bg-[var(--color-surface-alt)]"
+            >
+              <ListPlus className="h-4 w-4" strokeWidth={2.1} />
+              {t("library.addToQueue", { defaultValue: "Agregar a la cola" })}
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                setPlaylistTarget(rowMenu.track);
+                setRowMenu(null);
+              }}
+              className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-[var(--color-text)] transition hover:bg-[var(--color-surface-alt)]"
+            >
+              <ListMusic className="h-4 w-4" strokeWidth={2.1} />
+              {t("library.addToPlaylistAria", {
+                defaultValue: "Agregar a una playlist",
+              })}
+            </button>
+          </div>
+        </>
+      ) : null}
+
       <ImportModal open={importOpen} onClose={() => setImportOpen(false)} />
       <AddToPlaylistModal
         open={playlistTarget !== null}

@@ -1,9 +1,13 @@
 import type { MouseEvent } from "react";
 import { useMemo } from "react";
 import {
+  ListMusic,
   Maximize2,
   Pause,
   Play,
+  Repeat,
+  Repeat1,
+  Shuffle,
   SkipBack,
   SkipForward,
   Sliders,
@@ -48,8 +52,16 @@ export default function MiniPlayer({ sidebarOffset = 0 }: MiniPlayerProps) {
   const toggleExpanded = usePlayerStore((s) => s.toggleExpanded);
   const next = usePlayerStore((s) => s.next);
   const previous = usePlayerStore((s) => s.previous);
+  const shuffle = usePlayerStore((s) => s.shuffle);
+  const repeatMode = usePlayerStore((s) => s.repeatMode);
+  const toggleShuffle = usePlayerStore((s) => s.toggleShuffle);
+  const cycleRepeat = usePlayerStore((s) => s.cycleRepeat);
   const openEqDrawer = usePlayerStore((s) => s.openEqDrawer);
   const openAiPrompt = usePlayerStore((s) => s.openAiPrompt);
+  const openQueueDrawer = usePlayerStore((s) => s.openQueueDrawer);
+  const queueLength = usePlayerStore((s) => s.queue.length);
+  const queueIndex = usePlayerStore((s) => s.queueIndex);
+  const upcomingCount = Math.max(0, queueLength - queueIndex - 1);
 
   const { segments } = useTrackSegments(currentTrack?.id ?? null);
   const { showWave, playerLayout } = usePreferences();
@@ -148,6 +160,23 @@ export default function MiniPlayer({ sidebarOffset = 0 }: MiniPlayerProps) {
               type="button"
               onClick={(e) => {
                 preventExpand(e);
+                toggleShuffle();
+              }}
+              aria-pressed={shuffle}
+              title={t("player.shuffle", { defaultValue: "Aleatorio" })}
+              aria-label={t("player.shuffle", { defaultValue: "Aleatorio" })}
+              className={`transition ${
+                shuffle
+                  ? "text-[var(--color-primary)]"
+                  : "hover:text-[var(--color-text)]"
+              }`}
+            >
+              <Shuffle className="h-3.5 w-3.5" strokeWidth={2.4} />
+            </button>
+            <button
+              type="button"
+              onClick={(e) => {
+                preventExpand(e);
                 void previous();
               }}
               className="transition hover:text-[var(--color-text)]"
@@ -187,6 +216,33 @@ export default function MiniPlayer({ sidebarOffset = 0 }: MiniPlayerProps) {
             >
               <SkipForward className="h-4 w-4" strokeWidth={2.4} />
             </button>
+            <button
+              type="button"
+              onClick={(e) => {
+                preventExpand(e);
+                cycleRepeat();
+              }}
+              aria-pressed={repeatMode !== "off"}
+              title={
+                repeatMode === "one"
+                  ? t("player.repeatOne", { defaultValue: "Repetir canción" })
+                  : repeatMode === "all"
+                    ? t("player.repeatAll", { defaultValue: "Repetir cola" })
+                    : t("player.repeatOff", { defaultValue: "Repetir" })
+              }
+              aria-label={t("player.repeat", { defaultValue: "Repetir" })}
+              className={`transition ${
+                repeatMode !== "off"
+                  ? "text-[var(--color-primary)]"
+                  : "hover:text-[var(--color-text)]"
+              }`}
+            >
+              {repeatMode === "one" ? (
+                <Repeat1 className="h-3.5 w-3.5" strokeWidth={2.4} />
+              ) : (
+                <Repeat className="h-3.5 w-3.5" strokeWidth={2.4} />
+              )}
+            </button>
           </div>
 
           <div
@@ -213,6 +269,25 @@ export default function MiniPlayer({ sidebarOffset = 0 }: MiniPlayerProps) {
 
         {/* AI + EQ + Volume + Expand */}
         <div className="flex min-w-0 items-center justify-end gap-2 text-[var(--color-muted)]">
+          <button
+            type="button"
+            onClick={(e) => {
+              preventExpand(e);
+              openQueueDrawer();
+            }}
+            className="relative inline-flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-alt)] transition hover:border-[var(--color-primary)] hover:text-[var(--color-text)]"
+            aria-label={t("queue.open", {
+              defaultValue: "Cola de reproducción",
+            })}
+            title={t("queue.open", { defaultValue: "Cola de reproducción" })}
+          >
+            <ListMusic className="h-3.5 w-3.5" strokeWidth={2.4} />
+            {upcomingCount > 0 ? (
+              <span className="absolute -right-1 -top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--color-primary)] px-1 text-[9px] font-bold text-[var(--color-primary-contrast)]">
+                {upcomingCount}
+              </span>
+            ) : null}
+          </button>
           <button
             type="button"
             onClick={(e) => {

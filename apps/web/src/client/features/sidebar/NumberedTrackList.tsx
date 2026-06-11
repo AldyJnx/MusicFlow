@@ -33,7 +33,7 @@ export default function NumberedTrackList({
 }: NumberedTrackListProps) {
   const { t } = useTranslation();
   const savedQ = useSavedTracksQuery({ take: limit });
-  const playTrack = usePlayerStore((s) => s.playTrack);
+  const playTrackList = usePlayerStore((s) => s.playTrackList);
   const { density } = usePreferences();
   const tracks = savedQ.data?.tracks ?? [];
 
@@ -47,9 +47,14 @@ export default function NumberedTrackList({
   const subText = isCompact ? "text-[8px]" : "text-[9px]";
   const idxText = isCompact ? "text-[9px]" : "text-[10px]";
 
+  // Play within the saved-tracks list so prev/next can move through it.
   function play(track: Track) {
-    const playable = toPlayerTrack(track);
-    if (playable) void playTrack(playable);
+    const playable = tracks
+      .map(toPlayerTrack)
+      .filter((p): p is PlayerTrack => p !== null);
+    if (playable.length === 0) return;
+    const idx = playable.findIndex((p) => p.id === track.id);
+    void playTrackList(playable, Math.max(0, idx));
   }
 
   if (savedQ.isLoading) {

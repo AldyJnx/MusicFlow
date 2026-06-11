@@ -235,7 +235,6 @@ export default function HomePage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const playTrackList = usePlayerStore((s) => s.playTrackList);
-  const playTrack = usePlayerStore((s) => s.playTrack);
   const addToQueue = usePlayerStore((s) => s.addToQueue);
 
   const tracksQ = useTracksQuery({ take: 20 });
@@ -280,9 +279,15 @@ export default function HomePage() {
     return withCover ?? tracks[0];
   }, [tracks, heroCoverQ.data]);
 
-  function playOne(track: Track) {
-    const playable = toPlayerTrack(track);
-    if (playable) void playTrack(playable);
+  // Play a track within the context of its list, so the queue holds the whole
+  // carousel and the prev/next arrows have somewhere to go.
+  function playFromList(list: Track[], track: Track) {
+    const playable = list
+      .map(toPlayerTrack)
+      .filter((p): p is PlayerTrack => p !== null);
+    if (playable.length === 0) return;
+    const idx = playable.findIndex((p) => p.id === track.id);
+    void playTrackList(playable, Math.max(0, idx));
   }
 
   function playAll() {
@@ -315,7 +320,7 @@ export default function HomePage() {
                   key={track.id}
                   track={track}
                   saved={savedSet.has(track.id)}
-                  onPlay={() => playOne(track)}
+                  onPlay={() => playFromList(recentlyPlayed, track)}
                   onAddToQueue={() => {
                     const playable = toPlayerTrack(track);
                     if (playable) addToQueue(playable);
@@ -337,7 +342,7 @@ export default function HomePage() {
                   key={track.id}
                   track={track}
                   saved={savedSet.has(track.id)}
-                  onPlay={() => playOne(track)}
+                  onPlay={() => playFromList(mostPlayed, track)}
                   onAddToQueue={() => {
                     const playable = toPlayerTrack(track);
                     if (playable) addToQueue(playable);
@@ -370,7 +375,7 @@ export default function HomePage() {
                     key={track.id}
                     track={track}
                     saved={savedSet.has(track.id)}
-                    onPlay={() => playOne(track)}
+                    onPlay={() => playFromList(tracks.slice(0, 12), track)}
                     onAddToQueue={() => {
                       const playable = toPlayerTrack(track);
                       if (playable) addToQueue(playable);

@@ -15,10 +15,17 @@ export interface PlayerTrack {
 
 // ─── State + Actions interface ───────────────────────────────────────────────
 
+/** off → no repeat · all → loop the queue/playlist · one → loop current track. */
+export type RepeatMode = "off" | "all" | "one";
+
 interface PlayerState {
   currentTrack: PlayerTrack | null;
   queue: PlayerTrack[];
   queueIndex: number;
+  /** Random next-track order. */
+  shuffle: boolean;
+  /** Repeat behaviour for the queue. */
+  repeatMode: RepeatMode;
   /**
    * The playlist that owns the current queue, if playback started from one.
    * Used by `useAutoApplyEQ` to resolve the EQ cascade with the playlist as
@@ -54,7 +61,13 @@ interface PlayerActions {
     opts?: { playlistId?: string | null },
   ) => Promise<void>;
   pause: () => void;
+  /** Stop playback and fully reset the player (e.g. on logout). */
+  stop: () => void;
   togglePlay: () => Promise<void>;
+  /** Toggle random next-track order. */
+  toggleShuffle: () => void;
+  /** Cycle repeat: off → all → one → off. */
+  cycleRepeat: () => void;
   next: () => Promise<void>;
   previous: () => Promise<void>;
   seek: (positionMs: number) => void;
@@ -98,8 +111,16 @@ export function initializePlayerEngine(): void {
     });
   });
 
-  // Auto-advance to next track when current ends
+  // Auto-advance when the current track ends. Repeat-one replays the same
+  // track; everything else falls through to next() (which itself honors
+  // shuffle and repeat-all).
   engine.onEnded(() => {
+    if (usePlayerStore.getState().repeatMode === "one") {
+      const eng = getAudioEngine();
+      eng.seek(0);
+      void eng.play();
+      return;
+    }
     void usePlayerStore.getState().next();
   });
 }
@@ -131,6 +152,8 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
       currentTrack: null,
       queue: [],
       queueIndex: 0,
+      shuffle: false,
+      repeatMode: "off",
       currentPlaylistId: null,
       isPlaying: false,
       positionMs: 0,
@@ -175,6 +198,30 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
         getAudioEngine().pause();
       },
 
+      stop: () => {
+        // Halt the audio element and wipe player state. Only touches the
+        // engine if it was ever initialized, so logout never spins up a
+        // fresh AudioContext just to pause silence.
+        if (engineInitialized) {
+          const engine = getAudioEngine();
+          engine.pause();
+          engine.seek(0);
+        }
+        set({
+          currentTrack: null,
+          queue: [],
+          queueIndex: 0,
+          currentPlaylistId: null,
+          isPlaying: false,
+          positionMs: 0,
+          durationMs: 0,
+          isExpanded: false,
+          eqDrawerOpen: false,
+          aiPromptOpen: false,
+          queueDrawerOpen: false,
+        });
+      },
+
       togglePlay: async () => {
         initializePlayerEngine();
         const { currentTrack } = get();
@@ -184,13 +231,39 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
 
       next: async () => {
         initializePlayerEngine();
-        const { queue, queueIndex } = get();
-        const nextIndex = queueIndex + 1;
-        if (nextIndex >= queue.length) return;
+        const { queue, queueIndex, shuffle, repeatMode } = get();
+        if (queue.length === 0) return;
+
+        let nextIndex: number;
+        if (shuffle && queue.length > 1) {
+          // Pick a random track other than the current one.
+          do {
+            nextIndex = Math.floor(Math.random() * queue.length);
+          } while (nextIndex === queueIndex);
+        } else {
+          nextIndex = queueIndex + 1;
+          if (nextIndex >= queue.length) {
+            if (repeatMode === "all") nextIndex = 0;
+            else return; // end of queue, no repeat → stop advancing
+          }
+        }
+
         const track = queue[nextIndex];
         set({ currentTrack: track, queueIndex: nextIndex });
         await loadAndPlay(track);
       },
+
+      toggleShuffle: () => set((s) => ({ shuffle: !s.shuffle })),
+
+      cycleRepeat: () =>
+        set((s) => ({
+          repeatMode:
+            s.repeatMode === "off"
+              ? "all"
+              : s.repeatMode === "all"
+                ? "one"
+                : "off",
+        })),
 
       previous: async () => {
         initializePlayerEngine();
@@ -330,6 +403,8 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
         queue: state.queue,
         queueIndex: state.queueIndex,
         currentPlaylistId: state.currentPlaylistId,
+        shuffle: state.shuffle,
+        repeatMode: state.repeatMode,
         volume: state.volume,
         muted: state.muted,
       }),
@@ -348,6 +423,7 @@ export const playerStore = {
     opts?: { playlistId?: string | null },
   ) => usePlayerStore.getState().playTrackList(tracks, startIndex, opts),
   pause: () => usePlayerStore.getState().pause(),
+  stop: () => usePlayerStore.getState().stop(),
   togglePlay: () => usePlayerStore.getState().togglePlay(),
   next: () => usePlayerStore.getState().next(),
   previous: () => usePlayerStore.getState().previous(),

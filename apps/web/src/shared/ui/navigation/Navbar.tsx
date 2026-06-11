@@ -65,6 +65,7 @@ const Navbar = forwardRef<NavbarRef, NavbarProps>(function Navbar(
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const clearSession = useAuthStore((s) => s.clear);
   const playTrack = usePlayerStore((s) => s.playTrack);
+  const stopPlayback = usePlayerStore((s) => s.stop);
   const { query, setQuery, results, isLoading } = useGlobalSearch();
   const [focused, setFocused] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -299,6 +300,7 @@ const Navbar = forwardRef<NavbarRef, NavbarProps>(function Navbar(
                     role="menuitem"
                     onClick={() => {
                       setMenuOpen(false);
+                      stopPlayback();
                       clearSession();
                       navigate("/");
                     }}

@@ -468,7 +468,7 @@
     "lyrics": {
       "title": "Lyrics",
       "loading": "Loading lyrics…",
-      "empty": "No lyrics yet. Upload them from admin.",
+      "empty": "This track has no lyrics yet.",
       "plainFallback": "Unsynced lyrics"
     },
     "ai": {
