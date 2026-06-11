@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:musicflow_mobile/app/routes.dart';
 
 class AppBottomNavigation extends StatelessWidget {
@@ -26,7 +27,7 @@ class AppBottomNavigation extends StatelessWidget {
       return;
     }
 
-    Navigator.of(context).pushReplacementNamed(route);
+    context.go(route);
   }
 
   int get _currentIndex {

@@ -13,7 +13,7 @@ class AiAgentRepository {
     Map<String, dynamic>? context,
   }) async {
     final res = await _client.dio.post<Map<String, dynamic>>(
-      '/ai-agent/suggest',
+      '/ai/suggest',
       data: {
         'prompt': prompt,
         if (trackId != null) 'trackId': trackId,
@@ -26,7 +26,7 @@ class AiAgentRepository {
 
   Future<void> accept(String requestId, String appliedTo, {String? appliedId}) async {
     await _client.dio.post(
-      '/ai-agent/$requestId/accept',
+      '/ai/$requestId/accept',
       data: {
         'appliedTo': appliedTo,
         if (appliedId != null) 'appliedId': appliedId,
@@ -36,7 +36,7 @@ class AiAgentRepository {
 
   Future<void> provideFeedback(String requestId, String feedback, {String? comment}) async {
     await _client.dio.post(
-      '/ai-agent/$requestId/feedback',
+      '/ai/$requestId/feedback',
       data: {
         'feedback': feedback,
         if (comment != null && comment.isNotEmpty) 'comment': comment,

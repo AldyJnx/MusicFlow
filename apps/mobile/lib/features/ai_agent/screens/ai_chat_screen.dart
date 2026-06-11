@@ -1,13 +1,19 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:musicflow_mobile/app/routes.dart';
+import 'package:musicflow_mobile/core/providers/providers.dart';
+import 'package:musicflow_mobile/features/player/providers/player_controller.dart';
 
-class AiChatScreen extends StatefulWidget {
+class AiChatScreen extends ConsumerStatefulWidget {
   const AiChatScreen({super.key});
 
   @override
-  State<AiChatScreen> createState() => _AiChatScreenState();
+  ConsumerState<AiChatScreen> createState() => _AiChatScreenState();
 }
 
-class _AiChatScreenState extends State<AiChatScreen> {
+class _AiChatScreenState extends ConsumerState<AiChatScreen> {
   static const Color _accentCyan = Color(0xFF00CFFF);
   static const Color _lightBlue = Color(0xFF4FC3F7);
   static const Color _bgDark = Color(0xFF071A24);
@@ -16,12 +22,14 @@ class _AiChatScreenState extends State<AiChatScreen> {
   static const Color _cardSoft = Color(0xFF142631);
 
   final TextEditingController _controller = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
+  bool _isSending = false;
 
   final List<_ChatMessage> _messages = [
     const _ChatMessage(
       text: 'Hola, soy Flow. ¿Como quieres que suene tu musica hoy?',
       isUser: false,
-      time: '14:01',
+      time: 'ahora',
       isHero: true,
     ),
   ];
@@ -29,34 +37,130 @@ class _AiChatScreenState extends State<AiChatScreen> {
   @override
   void dispose() {
     _controller.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
-  void _sendMessage() {
+  void _scrollToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeOut,
+        );
+      }
+    });
+  }
+
+  Future<void> _sendMessage() async {
     final text = _controller.text.trim();
-    if (text.isEmpty) return;
+    if (text.isEmpty || _isSending) return;
 
     setState(() {
-      _messages.add(
-        _ChatMessage(
-          text: text,
-          isUser: true,
-          time: '14:04',
-        ),
-      );
-
-      _messages.add(
-        _ChatMessage(
-          text:
-              'Entendido. He preparado una respuesta demo para "$text". Puedo sugerirte una mezcla con mas energia, enfoque o ambiente cinematografico segun el mood que busques.',
-          isUser: false,
-          time: '14:04',
-          suggestions: const ['Mas energia', 'Modo enfoque', 'Algo cinematico'],
-        ),
-      );
+      _messages.add(_ChatMessage(text: text, isUser: true, time: 'ahora'));
+      _isSending = true;
     });
-
     _controller.clear();
+    _scrollToBottom();
+
+    // Pass the currently playing track as context, when available.
+    final trackId = ref.read(playerControllerProvider).currentTrack?.id;
+
+    try {
+      final res = await ref.read(aiAgentRepositoryProvider).suggest(
+            prompt: text,
+            trackId: trackId,
+          );
+
+      final suggestion = res.suggestion;
+      final reply = suggestion.explanation.trim().isNotEmpty
+          ? suggestion.explanation.trim()
+          : 'Preparé un ajuste de ecualización para ti.';
+      final bandsLabel = suggestion.bands.isEmpty
+          ? null
+          : 'EQ sugerido: ${suggestion.bands.join(' · ')}';
+      final segmentsLabel = (suggestion.segments?.isNotEmpty ?? false)
+          ? '${suggestion.segments!.length} segmentos detectados'
+          : null;
+
+      if (!mounted) return;
+      setState(() {
+        _messages.add(
+          _ChatMessage(
+            text: reply,
+            isUser: false,
+            time: 'ahora',
+            suggestions: [
+              if (bandsLabel != null) bandsLabel,
+              if (segmentsLabel != null) segmentsLabel,
+            ],
+          ),
+        );
+        _isSending = false;
+      });
+    } on DioException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _messages.add(
+          _ChatMessage(text: _errorMessage(e), isUser: false, time: 'ahora'),
+        );
+        _isSending = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _messages.add(
+          const _ChatMessage(
+            text:
+                'No pude conectar con el asistente. Revisa tu conexión e inténtalo de nuevo.',
+            isUser: false,
+            time: 'ahora',
+          ),
+        );
+        _isSending = false;
+      });
+    }
+    _scrollToBottom();
+  }
+
+  String _errorMessage(DioException e) {
+    // NestJS error bodies carry a user-friendly `message` (e.g. off-topic
+    // rejections and quota limits already come back in Spanish).
+    final data = e.response?.data;
+    final serverMsg =
+        (data is Map && data['message'] is String) ? data['message'] as String : null;
+
+    switch (e.response?.statusCode) {
+      case 400:
+        return serverMsg ??
+            'Solo puedo ayudarte con la ecualización y el sonido de tu música.';
+      case 403:
+        return serverMsg ??
+            'El asistente de IA es una función Premium o alcanzaste tu límite mensual. Mejora tu plan para seguir usándolo.';
+      case 429:
+        return 'Vas muy rápido. Espera unos segundos e inténtalo otra vez.';
+      case 401:
+        return 'Tu sesión expiró. Vuelve a iniciar sesión.';
+      default:
+        return 'No pude conectar con el asistente. Revisa tu conexión e inténtalo de nuevo.';
+    }
+  }
+
+  void _onNavTap(int index) {
+    final route = switch (index) {
+      0 => AppRoutes.home,
+      1 => AppRoutes.playlists,
+      2 => AppRoutes.equalizer,
+      4 => AppRoutes.premium,
+      _ => null, // 3 == current screen (IA)
+    };
+    if (route == null) return;
+    if (route == AppRoutes.home || route == AppRoutes.playlists) {
+      context.go(route);
+    } else {
+      context.push(route);
+    }
   }
 
   @override
@@ -80,6 +184,7 @@ class _AiChatScreenState extends State<AiChatScreen> {
         ),
         child: BottomNavigationBar(
           currentIndex: 3,
+          onTap: _onNavTap,
           backgroundColor: Colors.transparent,
           elevation: 0,
           selectedItemColor: _accentCyan,
@@ -166,9 +271,13 @@ class _AiChatScreenState extends State<AiChatScreen> {
               ),
               Expanded(
                 child: ListView.builder(
+                  controller: _scrollController,
                   padding: const EdgeInsets.fromLTRB(8, 8, 8, 120),
-                  itemCount: _messages.length,
+                  itemCount: _messages.length + (_isSending ? 1 : 0),
                   itemBuilder: (context, index) {
+                    if (index >= _messages.length) {
+                      return const _TypingIndicator();
+                    }
                     final message = _messages[index];
                     return _MessageBubble(message: message);
                   },
@@ -215,7 +324,7 @@ class _AiChatScreenState extends State<AiChatScreen> {
                 ),
               ),
               GestureDetector(
-                onTap: _sendMessage,
+                onTap: _isSending ? null : _sendMessage,
                 child: Container(
                   width: 44,
                   height: 44,
@@ -230,10 +339,19 @@ class _AiChatScreenState extends State<AiChatScreen> {
                       ),
                     ],
                   ),
-                  child: const Icon(
-                    Icons.send_rounded,
-                    color: _bgDark,
-                  ),
+                  child: _isSending
+                      ? const Padding(
+                          padding: EdgeInsets.all(12),
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor:
+                                AlwaysStoppedAnimation<Color>(_bgDark),
+                          ),
+                        )
+                      : const Icon(
+                          Icons.send_rounded,
+                          color: _bgDark,
+                        ),
                 ),
               ),
             ],
@@ -379,6 +497,53 @@ class _MessageBubble extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _TypingIndicator extends StatelessWidget {
+  const _TypingIndicator();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(0, 0, 56, 14),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+        decoration: BoxDecoration(
+          color: _AiChatScreenState._cardSoft.withValues(alpha: 0.98),
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(28),
+            topRight: Radius.circular(28),
+            bottomLeft: Radius.circular(6),
+            bottomRight: Radius.circular(28),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(
+                  _AiChatScreenState._lightBlue,
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Text(
+              'Flow está pensando...',
+              style: theme.textTheme.titleMedium?.copyWith(
+                color: Colors.white70,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

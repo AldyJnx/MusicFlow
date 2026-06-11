@@ -15,7 +15,7 @@ class TracksRepository {
     int take = 50,
   }) async {
     final res = await _client.dio.get<Map<String, dynamic>>(
-      '/tracks',
+      '/library/tracks',
       queryParameters: {
         if (search != null && search.isNotEmpty) 'search': search,
         if (artist != null && artist.isNotEmpty) 'artist': artist,
@@ -29,17 +29,19 @@ class TracksRepository {
   }
 
   Future<Track> getTrack(String id) async {
-    final res = await _client.dio.get<Map<String, dynamic>>('/tracks/$id');
+    final res =
+        await _client.dio.get<Map<String, dynamic>>('/library/tracks/$id');
     return Track.fromJson(res.data!);
   }
 
   Future<List<String>> listArtists() async {
-    final res = await _client.dio.get<List<dynamic>>('/tracks/artists');
+    final res =
+        await _client.dio.get<List<dynamic>>('/library/tracks/artists');
     return res.data!.cast<String>();
   }
 
   Future<List<String>> listGenres() async {
-    final res = await _client.dio.get<List<dynamic>>('/tracks/genres');
+    final res = await _client.dio.get<List<dynamic>>('/library/tracks/genres');
     return res.data!.cast<String>();
   }
 }

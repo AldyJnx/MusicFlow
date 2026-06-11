@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:musicflow_mobile/core/api/ai_agent_repository.dart';
 import 'package:musicflow_mobile/core/api/auth_repository.dart';
 import 'package:musicflow_mobile/core/api/dio_client.dart';
+import 'package:musicflow_mobile/core/api/playlists_repository.dart';
 import 'package:musicflow_mobile/core/api/tracks_repository.dart';
 import 'package:musicflow_mobile/core/storage/token_storage.dart';
 
@@ -20,6 +21,10 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) {
 
 final tracksRepositoryProvider = Provider<TracksRepository>((ref) {
   return TracksRepository(ref.watch(dioClientProvider));
+});
+
+final playlistsRepositoryProvider = Provider<PlaylistsRepository>((ref) {
+  return PlaylistsRepository(ref.watch(dioClientProvider));
 });
 
 final aiAgentRepositoryProvider = Provider<AiAgentRepository>((ref) {

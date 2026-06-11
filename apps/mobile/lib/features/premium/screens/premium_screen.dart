@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:musicflow_mobile/app/routes.dart';
 
 class PremiumScreen extends StatelessWidget {
   const PremiumScreen({super.key});
@@ -58,6 +60,26 @@ class PremiumScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: GestureDetector(
+                    onTap: () => context.canPop()
+                        ? context.pop()
+                        : context.go(AppRoutes.home),
+                    child: Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.white.withValues(alpha: 0.06),
+                      ),
+                      child: const Icon(
+                        Icons.chevron_left_rounded,
+                        color: Colors.white70,
+                      ),
+                    ),
+                  ),
+                ),
                 const SizedBox(height: 8),
                 Center(
                   child: Text.rich(

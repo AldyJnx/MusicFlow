@@ -2,9 +2,12 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:musicflow_mobile/app/routes.dart';
 import 'package:musicflow_mobile/core/providers/providers.dart';
+import 'package:musicflow_mobile/core/widgets/app_bottom_navigation.dart';
 import 'package:musicflow_mobile/features/auth/providers/auth_controller.dart';
+import 'package:musicflow_mobile/features/player/providers/player_controller.dart';
 import 'package:musicflow_mobile/shared/models/track.dart';
 
 // ---------------------------------------------------------------------------
@@ -60,24 +63,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   void _openPlaylistScreen(BuildContext context) {
-    Navigator.of(context).pushNamed(AppRoutes.playlists);
+    context.go(AppRoutes.playlists);
   }
 
-  void _openProfileScreen(BuildContext context) {
-    Navigator.of(context).pushNamed(AppRoutes.profile);
+  void _openAiChat(BuildContext context) {
+    context.push(AppRoutes.aiAgent);
   }
 
-  void _handleBottomNavigation(BuildContext context, int index) {
-    switch (index) {
-      case 1:
-        _openPlaylistScreen(context);
-        break;
-      case 3:
-        _openProfileScreen(context);
-        break;
-      default:
-        break;
-    }
+  /// Plays [tracks] starting at [index] and opens the Now Playing screen.
+  void _playTracks(BuildContext context, List<Track> tracks, int index) {
+    if (tracks.isEmpty) return;
+    ref
+        .read(playerControllerProvider.notifier)
+        .playTrackList(tracks, startIndex: index);
+    context.push(AppRoutes.nowPlaying);
   }
 
   @override
@@ -87,6 +86,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final username = authState.user?.username ?? 'Oyente';
     final searchQuery = ref.watch(_tracksQueryProvider);
     final tracksAsync = ref.watch(_tracksProvider(searchQuery));
+    final tracks = tracksAsync.asData?.value.tracks ?? const <Track>[];
 
     final featuredPlaylists = [
       {
@@ -108,40 +108,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     return Scaffold(
       backgroundColor: HomeScreen._bgDark,
-      bottomNavigationBar: Container(
-        decoration: const BoxDecoration(
-          color: Color(0xFF0B1F2A),
-          border: Border(
-            top: BorderSide(color: Color(0x223CCEFF)),
-          ),
-        ),
-        child: BottomNavigationBar(
-          currentIndex: 0,
-          onTap: (index) => _handleBottomNavigation(context, index),
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          selectedItemColor: HomeScreen._accentCyan,
-          unselectedItemColor: Colors.white54,
-          type: BottomNavigationBarType.fixed,
-          items: const [
-            BottomNavigationBarItem(
-              icon: Icon(Icons.home_rounded),
-              label: 'Inicio',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.library_music_rounded),
-              label: 'Biblioteca',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.favorite_rounded),
-              label: 'Favoritos',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.person_rounded),
-              label: 'Perfil',
-            ),
-          ],
-        ),
+      bottomNavigationBar: const AppBottomNavigation(
+        currentRoute: AppRoutes.home,
       ),
       body: Container(
         decoration: const BoxDecoration(
@@ -306,7 +274,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       Row(
                         children: [
                           ElevatedButton.icon(
-                            onPressed: () {},
+                            onPressed: tracks.isEmpty
+                                ? null
+                                : () => _playTracks(context, tracks, 0),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: HomeScreen._primaryBlue,
                               foregroundColor: Colors.white,
@@ -323,15 +293,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             label: const Text('Reproducir'),
                           ),
                           const SizedBox(width: 12),
-                          Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.08),
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                            child: const Icon(
-                              Icons.auto_awesome_rounded,
-                              color: HomeScreen._accentCyan,
+                          InkWell(
+                            onTap: () => _openAiChat(context),
+                            borderRadius: BorderRadius.circular(14),
+                            child: Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.08),
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                              child: const Icon(
+                                Icons.auto_awesome_rounded,
+                                color: HomeScreen._accentCyan,
+                              ),
                             ),
                           ),
                         ],
@@ -474,15 +448,23 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       );
                     }
                     return Column(
-                      children: response.tracks
-                          .map((track) => _TrackCard(track: track))
-                          .toList(),
+                      children: [
+                        for (var i = 0; i < response.tracks.length; i++)
+                          _TrackCard(
+                            track: response.tracks[i],
+                            onTap: () =>
+                                _playTracks(context, response.tracks, i),
+                          ),
+                      ],
                     );
                   },
                 ),
                 const SizedBox(height: 8),
                 // AI recommendations promo
-                Container(
+                InkWell(
+                  onTap: () => _openAiChat(context),
+                  borderRadius: BorderRadius.circular(22),
+                  child: Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(18),
                   decoration: BoxDecoration(
@@ -530,6 +512,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     ],
                   ),
                 ),
+                ),
               ],
             ),
           ),
@@ -551,9 +534,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         const SizedBox(width: 12),
         Expanded(
           child: InkWell(
-            onTap: () {
-              Navigator.of(context).pushNamed(AppRoutes.premium);
-            },
+            onTap: () => context.push(AppRoutes.premium),
             borderRadius: BorderRadius.circular(999),
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -610,9 +591,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 // ---------------------------------------------------------------------------
 
 class _TrackCard extends StatelessWidget {
-  const _TrackCard({required this.track});
+  const _TrackCard({required this.track, required this.onTap});
 
   final Track track;
+  final VoidCallback onTap;
 
   static const Color _primaryBlue = Color(0xFF1E90FF);
   static const Color _accentCyan = Color(0xFF00CFFF);
@@ -623,10 +605,7 @@ class _TrackCard extends StatelessWidget {
     final theme = Theme.of(context);
 
     return GestureDetector(
-      onTap: () {
-        // TODO: connect to player controller (F3 agent owns the player)
-        debugPrint('[HomeScreen] Track tapped: ${track.id} - ${track.title}');
-      },
+      onTap: onTap,
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(14),
@@ -699,10 +678,7 @@ class _TrackCard extends StatelessWidget {
               ),
             ),
             IconButton(
-              onPressed: () {
-                // TODO: connect to player controller (F3 agent owns the player)
-                debugPrint('[HomeScreen] Play tapped: ${track.id}');
-              },
+              onPressed: onTap,
               icon: const Icon(Icons.play_circle_fill_rounded),
               color: _accentCyan,
             ),

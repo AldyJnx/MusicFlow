@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:musicflow_mobile/app/routes.dart';
+import 'package:musicflow_mobile/core/widgets/app_bottom_navigation.dart';
 import 'package:musicflow_mobile/features/auth/providers/auth_controller.dart';
 import 'package:musicflow_mobile/shared/models/user.dart';
 
@@ -37,43 +40,8 @@ class ProfileScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: _bgDark,
-      bottomNavigationBar: Container(
-        decoration: const BoxDecoration(
-          color: Color(0xFF0B1F2A),
-          border: Border(
-            top: BorderSide(color: Color(0x223CCEFF)),
-          ),
-        ),
-        child: BottomNavigationBar(
-          currentIndex: 3,
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          selectedItemColor: _accentCyan,
-          unselectedItemColor: Colors.white54,
-          type: BottomNavigationBarType.fixed,
-          items: const [
-            BottomNavigationBarItem(
-              icon: Icon(Icons.explore_outlined),
-              activeIcon: Icon(Icons.explore_rounded),
-              label: 'Explorar',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.radio_outlined),
-              activeIcon: Icon(Icons.radio_rounded),
-              label: 'Radio',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.library_music_outlined),
-              activeIcon: Icon(Icons.library_music_rounded),
-              label: 'Libreria',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.person_outline_rounded),
-              activeIcon: Icon(Icons.person_rounded),
-              label: 'Perfil',
-            ),
-          ],
-        ),
+      bottomNavigationBar: const AppBottomNavigation(
+        currentRoute: AppRoutes.profile,
       ),
       body: Container(
         decoration: const BoxDecoration(
@@ -120,19 +88,22 @@ class ProfileScreen extends ConsumerWidget {
                       ),
                     ),
                     const Spacer(),
-                    Container(
-                      width: 44,
-                      height: 44,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: _accentCyan.withOpacity(0.55),
+                    GestureDetector(
+                      onTap: () => context.push(AppRoutes.settings),
+                      child: Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: _accentCyan.withOpacity(0.55),
+                          ),
+                          color: Colors.white.withOpacity(0.03),
                         ),
-                        color: Colors.white.withOpacity(0.03),
-                      ),
-                      child: const Icon(
-                        Icons.settings_rounded,
-                        color: _accentCyan,
+                        child: const Icon(
+                          Icons.settings_rounded,
+                          color: _accentCyan,
+                        ),
                       ),
                     ),
                   ],
@@ -378,13 +349,15 @@ class ProfileScreen extends ConsumerWidget {
                   ),
                   child: Column(
                     children: [
-                      const _ProfileOptionTile(
+                      _ProfileOptionTile(
                         icon: Icons.edit_outlined,
                         title: 'Editar Perfil',
+                        onTap: () => context.push(AppRoutes.editProfile),
                       ),
-                      const _ProfileOptionTile(
+                      _ProfileOptionTile(
                         icon: Icons.payment_rounded,
                         title: 'Metodos de Pago',
+                        onTap: () => context.push(AppRoutes.paymentMethods),
                       ),
                       const _ProfileOptionTile(
                         icon: Icons.verified_user_outlined,
