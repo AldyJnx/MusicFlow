@@ -1,0 +1,174 @@
+---
+title: MusicFlow - Modelo Entidad-Relacion (MER)
+---
+erDiagram
+    User ||--o{ Device : tiene
+    User ||--o{ Track : posee
+    User ||--o{ Playlist : crea
+    User ||--o{ EQPreset : define
+    User ||--o{ EQConfig : configura
+    User ||--o{ EQSegment : ajusta
+    User ||--o{ AIRequest : solicita
+    User ||--o{ PlayHistory : reproduce
+    User ||--o{ ListeningStats : acumula
+    User ||--o{ SyncLog : sincroniza
+    User ||--o{ ConflictLog : resuelve
+    User ||--o{ UserLibrarySave : guarda
+    User ||--|| UserPreferences : ajusta
+
+    Device ||--o{ SyncLog : origina
+
+    Track ||--o{ PlaylistTrack : incluida_en
+    Track ||--o{ EQSegment : segmentada
+    Track ||--o{ AIRequest : analizada
+    Track ||--o{ PlayHistory : registrada
+    Track ||--o{ UserLibrarySave : marcada
+
+    Playlist ||--o{ PlaylistTrack : contiene
+
+    EQPreset ||--o{ EQConfig : base_de
+    EQConfig ||--|| EQSegment : aplica_a
+    EQConfig ||--o{ PlayHistory : usada_en
+
+    AIRequest ||--o{ EQSegment : genera
+
+    User {
+        uuid id PK
+        string email UK
+        string username UK
+        enum role "ADMIN | CLIENT"
+        boolean isPremium
+        string stripeCustomerId UK
+        datetime lastLogin
+    }
+
+    Device {
+        uuid id PK
+        uuid userId FK
+        enum deviceType
+        string deviceName
+        string fcmToken
+        datetime lastSyncAt
+    }
+
+    Track {
+        uuid id PK
+        uuid userId FK
+        string title
+        string artist
+        string album
+        int durationMs
+        string fileHash
+        boolean isCatalog
+        enum source "LOCAL | SYNCED | BOTH"
+        enum syncStatus
+    }
+
+    Playlist {
+        uuid id PK
+        uuid userId FK
+        string name
+        boolean isPublic
+        string shareToken UK
+    }
+
+    PlaylistTrack {
+        uuid id PK
+        uuid playlistId FK
+        uuid trackId FK
+        int position
+    }
+
+    UserLibrarySave {
+        uuid userId PK,FK
+        uuid trackId PK,FK
+        datetime savedAt
+    }
+
+    EQPreset {
+        uuid id PK
+        uuid userId FK "nullable"
+        string name
+        boolean isGlobal
+        json bands "10 bandas"
+        enum reverbPreset
+    }
+
+    EQConfig {
+        uuid id PK
+        uuid userId FK
+        enum scopeType "GLOBAL|PLAYLIST|TRACK|SEGMENT"
+        string scopeId
+        uuid presetId FK "nullable"
+        json bands
+        boolean isActive
+    }
+
+    EQSegment {
+        uuid id PK
+        uuid trackId FK
+        uuid userId FK
+        uuid eqConfigId FK,UK
+        string label
+        int startMs
+        int endMs
+        enum createdBy "MANUAL | AI"
+        uuid aiRequestId FK
+    }
+
+    AIRequest {
+        uuid id PK
+        uuid userId FK
+        uuid trackId FK "nullable"
+        string prompt
+        json response
+        boolean wasAccepted
+        decimal costUsd
+        string modelUsed
+    }
+
+    PlayHistory {
+        uuid id PK
+        uuid userId FK
+        uuid trackId FK
+        uuid eqConfigUsedId FK "nullable"
+        datetime playedAt
+        boolean completed
+        enum device
+    }
+
+    ListeningStats {
+        uuid id PK
+        uuid userId FK
+        enum period "DAY|WEEK|MONTH|ALL_TIME"
+        date periodStart
+        int totalPlays
+        bigint totalTimeMs
+    }
+
+    SyncLog {
+        uuid id PK
+        uuid userId FK
+        uuid deviceId FK
+        int entitiesUploaded
+        int conflictsDetected
+        boolean success
+    }
+
+    ConflictLog {
+        uuid id PK
+        uuid userId FK
+        string entityType
+        string entityId
+        boolean resolved
+        enum resolution
+    }
+
+    UserPreferences {
+        uuid userId PK,FK
+        string theme
+        enum playerLayout
+        enum libraryLayout
+        boolean crossfadeEnabled
+        boolean scrobbleEnabled
+    }

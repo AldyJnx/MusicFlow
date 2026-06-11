@@ -1,0 +1,83 @@
+---
+title: MusicFlow - Arquitectura del Sistema
+---
+flowchart TB
+
+    subgraph CLIENTS["CLIENTES"]
+        direction LR
+        WEB["Web App<br/>React 18 + Vite<br/>PWA"]
+        DESKTOP["Desktop<br/>Electron 30+<br/>(Win / Mac / Linux)"]
+        MOBILE["Mobile<br/>Flutter 3.x<br/>(Android / iOS)"]
+    end
+
+    subgraph WEBCORE["Capa Web/Desktop"]
+        direction LR
+        ZUSTAND["Zustand<br/>(estado)"]
+        TQUERY["TanStack Query<br/>+ Axios"]
+        WEBAUDIO["Web Audio API<br/>EQ Engine"]
+    end
+
+    subgraph MOBILECORE["Capa Mobile"]
+        direction LR
+        RIVERPOD["Riverpod 2"]
+        DIO["Dio HTTP"]
+        DRIFT["Drift SQLite<br/>(offline)"]
+        JUSTAUDIO["just_audio<br/>EQ Engine"]
+    end
+
+    subgraph BACKEND["BACKEND - NestJS 10 API"]
+        direction TB
+        GATEWAY["API REST + JWT Guards<br/>(Access 15m / Refresh 7d)"]
+        subgraph MODULES["Modulos"]
+            direction LR
+            AUTH["auth"]
+            LIBRARY["library<br/>tracks/playlists"]
+            EQ["equalizer<br/>presets/configs/segments"]
+            AI["ai-agent"]
+            ANALYTICS["analytics"]
+            SYNC["sync"]
+            ADMIN["admin"]
+        end
+    end
+
+    subgraph DATA["PERSISTENCIA"]
+        direction LR
+        POSTGRES[("PostgreSQL 16<br/>Prisma 5 ORM")]
+        REDIS[("Redis<br/>cache / BullMQ")]
+    end
+
+    subgraph EXTERNAL["SERVICIOS EXTERNOS"]
+        direction LR
+        CLAUDE["Claude API<br/>(Anthropic)<br/>sugerencias EQ"]
+        STRIPE["Stripe<br/>Premium / checkout"]
+        FCM["FCM<br/>push notifications"]
+    end
+
+    WEB --> WEBCORE
+    DESKTOP --> WEBCORE
+    MOBILE --> MOBILECORE
+
+    WEBCORE -->|HTTPS / REST| GATEWAY
+    MOBILECORE -->|HTTPS / REST| GATEWAY
+    DRIFT -. sync hibrido .-> SYNC
+
+    GATEWAY --> MODULES
+    MODULES --> POSTGRES
+    MODULES --> REDIS
+    AI -->|prompts| CLAUDE
+    LIBRARY --> STRIPE
+    SYNC --> FCM
+
+    classDef client fill:#E8F0FE,stroke:#4F86F7,color:#1A1A1A;
+    classDef web fill:#E8FAF0,stroke:#2BA86E,color:#1A1A1A;
+    classDef mobile fill:#FFF4E5,stroke:#E8911A,color:#1A1A1A;
+    classDef backend fill:#F3E8FE,stroke:#8B5CF6,color:#1A1A1A;
+    classDef data fill:#FDE8EC,stroke:#E0567A,color:#1A1A1A;
+    classDef ext fill:#EEF2F6,stroke:#5B6B7B,color:#1A1A1A;
+
+    class WEB,DESKTOP,MOBILE client;
+    class ZUSTAND,TQUERY,WEBAUDIO web;
+    class RIVERPOD,DIO,DRIFT,JUSTAUDIO mobile;
+    class GATEWAY,AUTH,LIBRARY,EQ,AI,ANALYTICS,SYNC,ADMIN backend;
+    class POSTGRES,REDIS data;
+    class CLAUDE,STRIPE,FCM ext;
