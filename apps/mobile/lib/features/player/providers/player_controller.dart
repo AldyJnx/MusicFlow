@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:musicflow_mobile/core/audio/audio_service_init.dart';
+import 'package:musicflow_mobile/core/providers/providers.dart';
+import 'package:musicflow_mobile/features/library/providers/tracks_providers.dart';
 import 'package:musicflow_mobile/shared/models/track.dart';
 
 // ── PlayerState ──────────────────────────────────────────────────────────────
@@ -34,7 +36,9 @@ class PlayerState {
     Duration? duration,
   }) {
     return PlayerState(
-      currentTrack: clearCurrentTrack ? null : (currentTrack ?? this.currentTrack),
+      currentTrack: clearCurrentTrack
+          ? null
+          : (currentTrack ?? this.currentTrack),
       queue: queue ?? this.queue,
       queueIndex: queueIndex ?? this.queueIndex,
       isPlaying: isPlaying ?? this.isPlaying,
@@ -47,11 +51,14 @@ class PlayerState {
 // ── PlayerController ─────────────────────────────────────────────────────────
 
 class PlayerController extends StateNotifier<PlayerState> {
-  PlayerController() : super(const PlayerState()) {
+  PlayerController(this._ref) : super(const PlayerState()) {
     _listenToHandler();
   }
 
+  final Ref _ref;
   final List<StreamSubscription<dynamic>> _subs = [];
+  String? _lastRecordedTrackId;
+  String? _expectedMediaItemId;
 
   // ── Private helpers ─────────────────────────────────────────────────────────
 
@@ -84,6 +91,12 @@ class PlayerController extends StateNotifier<PlayerState> {
     _subs.add(
       audioHandler.mediaItem.listen((item) {
         if (item == null) return;
+        if (_expectedMediaItemId != null && item.id != _expectedMediaItemId) {
+          return;
+        }
+        if (item.id == _expectedMediaItemId) {
+          _expectedMediaItemId = null;
+        }
         // Match by id to find the Track object in the queue.
         final idx = state.queue.indexWhere((t) => t.id == item.id);
         if (idx != -1) {
@@ -106,11 +119,15 @@ class PlayerController extends StateNotifier<PlayerState> {
 
   /// Set a list as the new queue and start at [startIndex].
   Future<void> playTrackList(List<Track> tracks, {int startIndex = 0}) async {
-    final validTracks = tracks.where((t) => t.fileUrlRemote != null && t.fileUrlRemote!.isNotEmpty).toList();
+    final validTracks = tracks
+        .where((t) => t.fileUrlRemote != null && t.fileUrlRemote!.isNotEmpty)
+        .toList();
     if (validTracks.isEmpty) return;
 
     final clampedIndex = startIndex.clamp(0, validTracks.length - 1);
     final items = validTracks.map(_toMediaItem).toList();
+    await _recordCurrentPlay(skipped: true);
+    _expectedMediaItemId = validTracks[clampedIndex].id;
 
     state = state.copyWith(
       queue: validTracks,
@@ -126,21 +143,63 @@ class PlayerController extends StateNotifier<PlayerState> {
 
   Future<void> togglePlay() async {
     if (state.isPlaying) {
+      await _recordCurrentPlay(skipped: false);
       await audioHandler.pause();
     } else {
       await audioHandler.play();
     }
   }
 
-  Future<void> pause() => audioHandler.pause();
+  Future<void> pause() async {
+    await _recordCurrentPlay(skipped: false);
+    await audioHandler.pause();
+  }
 
-  Future<void> next() => audioHandler.skipToNext();
+  Future<void> next() async {
+    await _recordCurrentPlay(skipped: true);
+    await audioHandler.skipToNext();
+  }
 
-  Future<void> previous() => audioHandler.skipToPrevious();
+  Future<void> previous() async {
+    await _recordCurrentPlay(skipped: true);
+    await audioHandler.skipToPrevious();
+  }
 
   Future<void> seek(Duration position) => audioHandler.seek(position);
 
-  Future<void> setQueueIndex(int index) => audioHandler.skipToQueueItem(index);
+  Future<void> setQueueIndex(int index) async {
+    await _recordCurrentPlay(skipped: true);
+    await audioHandler.skipToQueueItem(index);
+  }
+
+  Future<void> _recordCurrentPlay({required bool skipped}) async {
+    final track = state.currentTrack;
+    if (track == null) return;
+
+    final listenedMs = state.position.inMilliseconds;
+    if (listenedMs < 5000) return;
+
+    final completed =
+        state.duration.inMilliseconds > 0 &&
+        listenedMs >= state.duration.inMilliseconds - 3000;
+    final recordKey = '${track.id}:$listenedMs:$completed:$skipped';
+    if (_lastRecordedTrackId == recordKey) return;
+    _lastRecordedTrackId = recordKey;
+
+    try {
+      await _ref
+          .read(analyticsRepositoryProvider)
+          .recordPlay(
+            trackId: track.id,
+            durationListenedMs: listenedMs,
+            completed: completed,
+            skipped: skipped && !completed,
+          );
+      _ref.invalidate(recentlyPlayedTracksProvider(5));
+    } catch (_) {
+      // Playback must stay smooth even if analytics is unavailable.
+    }
+  }
 
   // ── Disposal ─────────────────────────────────────────────────────────────────
 
@@ -156,10 +215,8 @@ class PlayerController extends StateNotifier<PlayerState> {
 // ── Provider ─────────────────────────────────────────────────────────────────
 
 final playerControllerProvider =
-    StateNotifierProvider<PlayerController, PlayerState>(
-  (ref) {
-    final controller = PlayerController();
-    ref.onDispose(controller.dispose);
-    return controller;
-  },
-);
+    StateNotifierProvider<PlayerController, PlayerState>((ref) {
+      final controller = PlayerController(ref);
+      ref.onDispose(controller.dispose);
+      return controller;
+    });
