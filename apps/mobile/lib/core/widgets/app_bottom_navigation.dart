@@ -14,16 +14,36 @@ class AppBottomNavigation extends StatelessWidget {
   static const Color _background = Color(0xFF0B1F2A);
   static const Color _borderColor = Color(0x223CCEFF);
 
-  void _handleNavigation(BuildContext context, int index) {
-    final route = switch (index) {
-      0 => AppRoutes.home,
-      1 => AppRoutes.playlists,
-      2 => AppRoutes.equalizer,
-      3 => AppRoutes.profile,
-      _ => null,
-    };
+  static const List<_BottomNavItem> _items = [
+    _BottomNavItem(
+      route: AppRoutes.home,
+      label: 'Inicio',
+      icon: Icons.home_outlined,
+      activeIcon: Icons.home_rounded,
+    ),
+    _BottomNavItem(
+      route: AppRoutes.playlists,
+      label: 'Biblioteca',
+      icon: Icons.library_music_outlined,
+      activeIcon: Icons.library_music_rounded,
+    ),
+    _BottomNavItem(
+      route: AppRoutes.equalizer,
+      label: 'EQ',
+      icon: Icons.equalizer_outlined,
+      activeIcon: Icons.equalizer_rounded,
+    ),
+    _BottomNavItem(
+      route: AppRoutes.profile,
+      label: 'Perfil',
+      icon: Icons.person_outline_rounded,
+      activeIcon: Icons.person_rounded,
+    ),
+  ];
 
-    if (route == null || route == currentRoute) {
+  void _handleNavigation(BuildContext context, int index) {
+    final route = _items[index].route;
+    if (route == currentRoute) {
       return;
     }
 
@@ -31,17 +51,8 @@ class AppBottomNavigation extends StatelessWidget {
   }
 
   int get _currentIndex {
-    switch (currentRoute) {
-      case AppRoutes.playlists:
-        return 1;
-      case AppRoutes.equalizer:
-        return 2;
-      case AppRoutes.profile:
-        return 3;
-      case AppRoutes.home:
-      default:
-        return 0;
-    }
+    final index = _items.indexWhere((item) => item.route == currentRoute);
+    return index == -1 ? 0 : index;
   }
 
   @override
@@ -61,29 +72,30 @@ class AppBottomNavigation extends StatelessWidget {
         selectedItemColor: _accentCyan,
         unselectedItemColor: Colors.white54,
         type: BottomNavigationBarType.fixed,
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home_outlined),
-            activeIcon: Icon(Icons.home_rounded),
-            label: 'Inicio',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.library_music_outlined),
-            activeIcon: Icon(Icons.library_music_rounded),
-            label: 'Biblioteca',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.equalizer_outlined),
-            activeIcon: Icon(Icons.equalizer_rounded),
-            label: 'EQ',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person_outline_rounded),
-            activeIcon: Icon(Icons.person_rounded),
-            label: 'Perfil',
-          ),
-        ],
+        items: _items
+            .map(
+              (item) => BottomNavigationBarItem(
+                icon: Icon(item.icon),
+                activeIcon: Icon(item.activeIcon),
+                label: item.label,
+              ),
+            )
+            .toList(),
       ),
     );
   }
+}
+
+class _BottomNavItem {
+  const _BottomNavItem({
+    required this.route,
+    required this.label,
+    required this.icon,
+    required this.activeIcon,
+  });
+
+  final String route;
+  final String label;
+  final IconData icon;
+  final IconData activeIcon;
 }

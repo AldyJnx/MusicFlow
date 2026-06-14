@@ -2,8 +2,10 @@
 class AppConfig {
   AppConfig._();
 
-  // 10.0.2.2 is the Android emulator alias for the host machine's localhost.
-  // Backend uses port 8000 with /api global prefix (see apps/backend/src/main.ts).
+  // Use the host machine's LAN IP by default so a physical Android phone can
+  // reach the local backend. For Android emulator, override with:
+  // --dart-define=API_BASE_URL=http://10.0.2.2:8000/api 192.168.18.32
+  //192.168.18.32
   static const String apiBaseUrl = String.fromEnvironment(
     'API_BASE_URL',
     defaultValue: 'http://10.0.2.2:8000/api',

@@ -52,4 +52,22 @@ class AuthRepository {
       options: Options(extra: {'skipAuth': true}),
     );
   }
+
+  Future<AuthUser> updateProfile({
+    String? username,
+    String? password,
+  }) async {
+    final res = await _client.dio.patch<Map<String, dynamic>>(
+      '/users/me',
+      data: {
+        if (username != null && username.isNotEmpty) 'username': username,
+        if (password != null && password.isNotEmpty) 'password': password,
+      },
+    );
+    return AuthUser.fromJson(res.data!);
+  }
+
+  Future<void> deleteAccount() async {
+    await _client.dio.delete('/users/me');
+  }
 }

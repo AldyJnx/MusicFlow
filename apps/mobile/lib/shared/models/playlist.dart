@@ -6,39 +6,55 @@ import 'package:musicflow_mobile/shared/models/track.dart';
 class Playlist {
   const Playlist({
     required this.id,
+    this.userId = '',
     required this.name,
     required this.description,
     this.coverArt,
+    this.isPublic = false,
+    this.shareToken,
     required this.trackCount,
     this.tracks = const [],
   });
 
   final String id;
+  final String userId;
   final String name;
   final String description;
   final String? coverArt;
+  final bool isPublic;
+  final String? shareToken;
   final int trackCount;
   final List<Track> tracks;
 
   factory Playlist.fromJson(Map<String, dynamic> json) {
-    final count = json['_count'] as Map<String, dynamic>?;
-    final rawTracks = json['tracks'] as List<dynamic>?;
+    final count = json['_count'];
+    final rawTracks = json['tracks'];
 
-    final tracks = rawTracks == null
-        ? const <Track>[]
-        : rawTracks
-            .map((e) => (e as Map<String, dynamic>)['track'])
-            .whereType<Map<String, dynamic>>()
-            .map(Track.fromJson)
-            .toList();
+    final parsedTracks = rawTracks is List
+        ? rawTracks
+              .map((item) {
+                if (item is! Map<String, dynamic>) return null;
+                final track = item['track'];
+                return track is Map<String, dynamic>
+                    ? Track.fromJson(track)
+                    : null;
+              })
+              .whereType<Track>()
+              .toList()
+        : const <Track>[];
 
     return Playlist(
       id: json['id'] as String,
-      name: (json['name'] as String?) ?? '',
-      description: (json['description'] as String?) ?? '',
+      userId: json['userId'] as String? ?? '',
+      name: json['name'] as String? ?? 'Mi biblioteca',
+      description: json['description'] as String? ?? '',
       coverArt: json['coverArt'] as String?,
-      trackCount: (count?['tracks'] as int?) ?? tracks.length,
-      tracks: tracks,
+      isPublic: json['isPublic'] as bool? ?? false,
+      shareToken: json['shareToken'] as String?,
+      trackCount: count is Map
+          ? (count['tracks'] as num?)?.toInt() ?? parsedTracks.length
+          : parsedTracks.length,
+      tracks: parsedTracks,
     );
   }
 }

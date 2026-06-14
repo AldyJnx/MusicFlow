@@ -5,9 +5,11 @@ abstract final class AppRoutes {
 
   // Client
   static const String home = '/';
-  static const String library = '/';
-  static const String playlists = '/playlists';
+  static const String library = '/library';
+  static const String playlists = library;
+  static const String playlist = '/playlist';
   static const String equalizer = '/equalizer';
+  static const String artist = '/artist';
   static const String profile = '/profile';
   static const String editProfile = '/profile/edit';
   static const String paymentMethods = '/profile/payment-methods';
