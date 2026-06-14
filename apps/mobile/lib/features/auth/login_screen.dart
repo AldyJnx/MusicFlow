@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:musicflow_mobile/core/config/app_config.dart';
 import 'package:musicflow_mobile/features/auth/providers/auth_controller.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -12,7 +13,6 @@ class LoginScreen extends ConsumerStatefulWidget {
 }
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
-  static const Color _primaryBlue = Color(0xFF1E90FF);
   static const Color _accentCyan = Color(0xFF00CFFF);
   static const Color _lightBlue = Color(0xFF4FC3F7);
   static const Color _bgDark = Color(0xFF071A24);
@@ -52,7 +52,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     } on DioException catch (e) {
       final data = e.response?.data;
       String message;
-      if (data is Map && data['message'] != null) {
+      if (e.response == null) {
+        message =
+            'No se pudo conectar con la API en ${AppConfig.apiBaseUrl}. Verifica que el backend esté activo y que tu teléfono esté en la misma red Wi-Fi.';
+      } else if (data is Map && data['message'] != null) {
         final raw = data['message'];
         message = raw is List ? raw.join(', ') : raw.toString();
       } else {
@@ -63,7 +66,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       }
     } catch (_) {
       if (mounted) {
-        setState(() => _errorMessage = 'No pudimos iniciar sesión, intenta de nuevo.');
+        setState(
+          () => _errorMessage = 'No pudimos iniciar sesión, intenta de nuevo.',
+        );
       }
     } finally {
       if (mounted) {
@@ -116,25 +121,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           ),
                         ],
                       ),
-                      child: Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          Container(
-                            width: 44,
-                            height: 44,
-                            decoration: const BoxDecoration(
-                              shape: BoxShape.circle,
-                              gradient: LinearGradient(
-                                colors: [_primaryBlue, _accentCyan],
-                              ),
-                            ),
-                          ),
-                          const Icon(
-                            Icons.music_note_rounded,
-                            color: Colors.white,
-                            size: 34,
-                          ),
-                        ],
+                      child: Padding(
+                        padding: const EdgeInsets.all(14),
+                        child: Image.asset(
+                          'assets/icon/music-flow.png',
+                          fit: BoxFit.contain,
+                          filterQuality: FilterQuality.high,
+                        ),
                       ),
                     ),
                     const SizedBox(height: 18),
@@ -192,7 +185,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                 if (v == null || v.trim().isEmpty) {
                                   return 'Ingresa tu correo';
                                 }
-                                if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(v.trim())) {
+                                if (!RegExp(
+                                  r'^[^@]+@[^@]+\.[^@]+',
+                                ).hasMatch(v.trim())) {
                                   return 'Correo inválido';
                                 }
                                 return null;
@@ -280,7 +275,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                 foregroundColor: _bgDark,
                                 elevation: 0,
                                 shadowColor: _accentCyan,
-                                padding: const EdgeInsets.symmetric(vertical: 18),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 18,
+                                ),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(999),
                                 ),
@@ -296,10 +293,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                     )
                                   : Text(
                                       'Iniciar sesion',
-                                      style: theme.textTheme.titleMedium?.copyWith(
-                                        color: _bgDark,
-                                        fontWeight: FontWeight.w800,
-                                      ),
+                                      style: theme.textTheme.titleMedium
+                                          ?.copyWith(
+                                            color: _bgDark,
+                                            fontWeight: FontWeight.w800,
+                                          ),
                                     ),
                             ),
                           ),
@@ -361,10 +359,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 }
 
 class _FieldLabel extends StatelessWidget {
-  const _FieldLabel({
-    required this.text,
-    required this.color,
-  });
+  const _FieldLabel({required this.text, required this.color});
 
   final String text;
   final Color color;
@@ -374,18 +369,16 @@ class _FieldLabel extends StatelessWidget {
     return Text(
       text,
       style: Theme.of(context).textTheme.labelLarge?.copyWith(
-            color: color,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 0.8,
-          ),
+        color: color,
+        fontWeight: FontWeight.w800,
+        letterSpacing: 0.8,
+      ),
     );
   }
 }
 
 class _InputContainer extends StatelessWidget {
-  const _InputContainer({
-    required this.child,
-  });
+  const _InputContainer({required this.child});
 
   final Widget child;
 
@@ -395,9 +388,7 @@ class _InputContainer extends StatelessWidget {
       decoration: BoxDecoration(
         color: _LoginScreenState._inputFill,
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(
-          color: Colors.white.withOpacity(0.03),
-        ),
+        border: Border.all(color: Colors.white.withOpacity(0.03)),
       ),
       child: child,
     );

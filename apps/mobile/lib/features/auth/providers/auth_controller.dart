@@ -77,6 +77,23 @@ class AuthController extends StateNotifier<AuthState> {
     await _ref.read(tokenStorageProvider).clear();
     state = state.copyWith(clearUser: true, isInitializing: false);
   }
+
+  Future<void> updateProfile({
+    String? username,
+    String? password,
+  }) async {
+    final user = await _ref.read(authRepositoryProvider).updateProfile(
+          username: username,
+          password: password,
+        );
+    state = state.copyWith(user: user, isInitializing: false);
+  }
+
+  Future<void> deleteAccount() async {
+    await _ref.read(authRepositoryProvider).deleteAccount();
+    await _ref.read(tokenStorageProvider).clear();
+    state = state.copyWith(clearUser: true, isInitializing: false);
+  }
 }
 
 final authControllerProvider =

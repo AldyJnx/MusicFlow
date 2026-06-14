@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:musicflow_mobile/core/config/app_config.dart';
 import 'package:musicflow_mobile/features/auth/providers/auth_controller.dart';
 
 class RegisterScreen extends ConsumerStatefulWidget {
@@ -58,7 +59,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     } on DioException catch (e) {
       final data = e.response?.data;
       String message;
-      if (data is Map && data['message'] != null) {
+      if (e.response == null) {
+        message =
+            'No se pudo conectar con la API en ${AppConfig.apiBaseUrl}. Verifica que el backend esté activo y que tu teléfono esté en la misma red Wi-Fi.';
+      } else if (data is Map && data['message'] != null) {
         final raw = data['message'];
         message = raw is List ? raw.join(', ') : raw.toString();
       } else {
@@ -156,8 +160,15 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                               prefixIcon: Icons.person_outline_rounded,
                             ),
                             validator: (v) {
-                              if (v == null || v.trim().isEmpty) {
+                              final username = v?.trim() ?? '';
+                              if (username.isEmpty) {
                                 return 'Ingresa un nombre de usuario';
+                              }
+                              if (username.length < 3 || username.length > 30) {
+                                return 'Debe tener entre 3 y 30 caracteres';
+                              }
+                              if (!RegExp(r'^[a-zA-Z0-9_-]+$').hasMatch(username)) {
+                                return 'Solo letras, números, guion y guion bajo';
                               }
                               return null;
                             },
@@ -219,6 +230,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                               }
                               if (v.length < 8) {
                                 return 'La contraseña debe tener al menos 8 caracteres';
+                              }
+                              if (!RegExp(r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)')
+                                  .hasMatch(v)) {
+                                return 'Debe incluir mayúscula, minúscula y número';
                               }
                               return null;
                             },
