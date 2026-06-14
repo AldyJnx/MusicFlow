@@ -1,13 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:musicflow_mobile/app/routes.dart';
+import 'package:musicflow_mobile/core/providers/app_settings_provider.dart';
+import 'package:musicflow_mobile/features/auth/providers/auth_controller.dart';
 
-class SettingsScreen extends StatefulWidget {
+class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
 
   @override
-  State<SettingsScreen> createState() => _SettingsScreenState();
+  ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
 }
 
-class _SettingsScreenState extends State<SettingsScreen> {
+class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   static const Color _bg = Color(0xFF081017);
   static const Color _surface = Color(0xFF141C24);
   static const Color _surfaceAlt = Color(0xFF171F27);
@@ -17,11 +22,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   bool _notificationsEnabled = true;
   bool _wifiOnlyDownloads = false;
-  bool _assistantEnabled = true;
   String _streamingQuality = 'Alta';
 
   @override
   Widget build(BuildContext context) {
+    final user = ref.watch(authControllerProvider).user;
+    final settings = ref.watch(appSettingsProvider);
+    final username = user?.username ?? 'MusicFlow';
+    final plan = user?.isPremium == true ? 'PLAN PREMIUM' : 'PLAN GRATUITO';
+
     return Scaffold(
       backgroundColor: _bg,
       body: SafeArea(
@@ -59,45 +68,37 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
                 child: Row(
                   children: [
-                    Container(
-                      width: 68,
-                      height: 68,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(color: _accent.withOpacity(0.7), width: 2),
-                        image: const DecorationImage(
-                          image: NetworkImage('https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=300&q=80'),
-                          fit: BoxFit.cover,
-                        ),
-                      ),
-                    ),
+                    _SettingsAvatar(avatar: user?.avatar),
                     const SizedBox(width: 16),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Alex Nebula',
-                            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w800,
-                            ),
+                            username,
+                            style: Theme.of(context).textTheme.titleLarge
+                                ?.copyWith(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w800,
+                                ),
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            'PLAN PREMIUM',
-                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: _textMuted,
-                              letterSpacing: 0.8,
-                            ),
+                            plan,
+                            style: Theme.of(context).textTheme.bodyMedium
+                                ?.copyWith(
+                                  color: _textMuted,
+                                  letterSpacing: 0.8,
+                                ),
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            'VELOCITY',
-                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: Colors.white,
-                              letterSpacing: 0.8,
-                            ),
+                            'MUSICFLOW',
+                            style: Theme.of(context).textTheme.bodyMedium
+                                ?.copyWith(
+                                  color: Colors.white,
+                                  letterSpacing: 0.8,
+                                ),
                           ),
                         ],
                       ),
@@ -112,7 +113,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 icon: Icons.notifications_none_rounded,
                 title: 'Notificaciones',
                 value: _notificationsEnabled,
-                onChanged: (value) => setState(() => _notificationsEnabled = value),
+                onChanged: (value) =>
+                    setState(() => _notificationsEnabled = value),
               ),
               const SizedBox(height: 12),
               _SettingValueTile(
@@ -126,7 +128,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 icon: Icons.wifi_rounded,
                 title: 'Descarga solo con Wi-Fi',
                 value: _wifiOnlyDownloads,
-                onChanged: (value) => setState(() => _wifiOnlyDownloads = value),
+                onChanged: (value) =>
+                    setState(() => _wifiOnlyDownloads = value),
               ),
               const SizedBox(height: 28),
               _SectionLabel(title: 'IA Y EXPERIENCIA'),
@@ -158,15 +161,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         Expanded(
                           child: Text(
                             'Habilitar Asistente IA',
-                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w700,
-                            ),
+                            style: Theme.of(context).textTheme.titleMedium
+                                ?.copyWith(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w700,
+                                ),
                           ),
                         ),
                         _SettingsSwitch(
-                          value: _assistantEnabled,
-                          onChanged: (value) => setState(() => _assistantEnabled = value),
+                          value: settings.aiAssistantEnabled,
+                          onChanged: (value) => ref
+                              .read(appSettingsProvider.notifier)
+                              .setAiAssistantEnabled(value),
                         ),
                       ],
                     ),
@@ -183,6 +189,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                   ],
                 ),
+              ),
+              const SizedBox(height: 12),
+              _SettingValueTile(
+                icon: Icons.equalizer_rounded,
+                title: 'Ecualización Automática',
+                value: '',
+                onTap: () => context.push(AppRoutes.equalizer),
+              ),
+              const SizedBox(height: 28),
+              _SectionLabel(title: 'CUENTA'),
+              const SizedBox(height: 14),
+              _SettingValueTile(
+                icon: Icons.lock_outline_rounded,
+                title: 'Privacidad',
+                value: '',
+                onTap: () {},
               ),
             ],
           ),
@@ -213,6 +235,49 @@ class _SectionLabel extends StatelessWidget {
         fontWeight: FontWeight.w800,
         letterSpacing: 2.2,
       ),
+    );
+  }
+}
+
+class _SettingsAvatar extends StatelessWidget {
+  const _SettingsAvatar({required this.avatar});
+
+  final String? avatar;
+
+  @override
+  Widget build(BuildContext context) {
+    final hasAvatar = avatar != null && avatar!.trim().isNotEmpty;
+
+    return Container(
+      width: 68,
+      height: 68,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(
+          color: _SettingsScreenState._accent.withOpacity(0.7),
+          width: 2,
+        ),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: hasAvatar
+          ? Image.network(
+              avatar!,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => const _SettingsAvatarFallback(),
+            )
+          : const _SettingsAvatarFallback(),
+    );
+  }
+}
+
+class _SettingsAvatarFallback extends StatelessWidget {
+  const _SettingsAvatarFallback();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: _SettingsScreenState._surfaceAlt,
+      child: const Icon(Icons.person_rounded, color: Colors.white70, size: 36),
     );
   }
 }
@@ -307,10 +372,7 @@ class _SettingValueTile extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 4),
-              const Icon(
-                Icons.chevron_right_rounded,
-                color: Colors.white60,
-              ),
+              const Icon(Icons.chevron_right_rounded, color: Colors.white60),
             ],
           ),
         ),
@@ -354,7 +416,9 @@ class _SettingsSwitch extends StatelessWidget {
         height: 28,
         padding: const EdgeInsets.symmetric(horizontal: 3),
         decoration: BoxDecoration(
-          color: value ? _SettingsScreenState._accent : _SettingsScreenState._trackOff,
+          color: value
+              ? _SettingsScreenState._accent
+              : _SettingsScreenState._trackOff,
           borderRadius: BorderRadius.circular(999),
         ),
         child: Align(

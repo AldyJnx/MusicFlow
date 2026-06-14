@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:musicflow_mobile/app/routes.dart';
 import 'package:musicflow_mobile/core/widgets/app_bottom_navigation.dart';
 import 'package:musicflow_mobile/features/auth/providers/auth_controller.dart';
+import 'package:musicflow_mobile/features/profile/providers/profile_stats_provider.dart';
 import 'package:musicflow_mobile/shared/models/user.dart';
 
 class ProfileScreen extends ConsumerWidget {
@@ -23,6 +24,7 @@ class ProfileScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final authState = ref.watch(authControllerProvider);
+    final statsAsync = ref.watch(profileStatsProvider);
     final user = authState.user;
 
     // Defensive: if somehow unauthenticated here, show a placeholder.
@@ -37,6 +39,13 @@ class ProfileScreen extends ConsumerWidget {
 
     final isPremium = user.isPremium;
     final roleLabel = user.role == UserRole.admin ? 'Admin' : 'Cliente';
+    final stats = statsAsync.valueOrNull;
+    final listenedMinutes = stats == null
+        ? '–'
+        : _formatMinutes(stats.totalTimeMs);
+    final favoriteArtist = stats?.topArtists.isNotEmpty == true
+        ? stats!.topArtists.first.name
+        : '–';
 
     return Scaffold(
       backgroundColor: _bgDark,
@@ -88,8 +97,9 @@ class ProfileScreen extends ConsumerWidget {
                       ),
                     ),
                     const Spacer(),
-                    GestureDetector(
+                    InkWell(
                       onTap: () => context.push(AppRoutes.settings),
+                      borderRadius: BorderRadius.circular(12),
                       child: Container(
                         width: 44,
                         height: 44,
@@ -128,7 +138,10 @@ class ProfileScreen extends ConsumerWidget {
                                 gradient: const LinearGradient(
                                   begin: Alignment.topCenter,
                                   end: Alignment.bottomCenter,
-                                  colors: [Color(0xFF241F1E), Color(0xFF13181F)],
+                                  colors: [
+                                    Color(0xFF241F1E),
+                                    Color(0xFF13181F),
+                                  ],
                                 ),
                                 boxShadow: const [
                                   BoxShadow(
@@ -161,7 +174,9 @@ class ProfileScreen extends ConsumerWidget {
                                   vertical: 10,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: isPremium ? _lightBlue : const Color(0xFF2A3A45),
+                                  color: isPremium
+                                      ? _lightBlue
+                                      : const Color(0xFF2A3A45),
                                   borderRadius: BorderRadius.circular(999),
                                   boxShadow: const [
                                     BoxShadow(
@@ -172,7 +187,9 @@ class ProfileScreen extends ConsumerWidget {
                                   ],
                                 ),
                                 child: Text(
-                                  isPremium ? 'PLAN\nPREMIUM' : 'PLAN\nGRATUITO',
+                                  isPremium
+                                      ? 'PLAN\nPREMIUM'
+                                      : 'PLAN\nGRATUITO',
                                   textAlign: TextAlign.center,
                                   style: theme.textTheme.labelMedium?.copyWith(
                                     color: isPremium ? _bgDark : Colors.white70,
@@ -260,7 +277,7 @@ class ProfileScreen extends ConsumerWidget {
                             ),
                             const SizedBox(height: 10),
                             Text(
-                              '–',
+                              listenedMinutes,
                               style: theme.textTheme.displaySmall?.copyWith(
                                 color: _lightBlue,
                                 fontWeight: FontWeight.w900,
@@ -310,26 +327,11 @@ class ProfileScreen extends ConsumerWidget {
                   ),
                 ),
                 const SizedBox(height: 14),
-                Row(
-                  children: const [
-                    Expanded(
-                      child: _ProfileMetricCard(
-                        icon: Icons.favorite_border_rounded,
-                        iconColor: _primaryBlue,
-                        title: 'ARTISTAS FAVORITOS',
-                        value: '–',
-                      ),
-                    ),
-                    SizedBox(width: 14),
-                    Expanded(
-                      child: _ProfileMetricCard(
-                        icon: Icons.headphones_rounded,
-                        iconColor: Color(0xFF4FFFBF),
-                        title: 'GENERO TOP',
-                        value: '–',
-                      ),
-                    ),
-                  ],
+                _ProfileMetricCard(
+                  icon: Icons.favorite_border_rounded,
+                  iconColor: _primaryBlue,
+                  title: 'ARTISTA FAVORITO',
+                  value: favoriteArtist,
                 ),
                 const SizedBox(height: 28),
                 Text(
@@ -363,10 +365,7 @@ class ProfileScreen extends ConsumerWidget {
                         icon: Icons.verified_user_outlined,
                         title: 'Privacidad',
                       ),
-                      const Divider(
-                        height: 1,
-                        color: Color(0x223CCEFF),
-                      ),
+                      const Divider(height: 1, color: Color(0x223CCEFF)),
                       _ProfileOptionTile(
                         icon: Icons.logout_rounded,
                         title: 'Cerrar Sesion',
@@ -388,6 +387,12 @@ class ProfileScreen extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  String _formatMinutes(int totalTimeMs) {
+    final minutes = totalTimeMs ~/ 60000;
+    if (minutes <= 0) return '–';
+    return '$minutes min';
   }
 }
 
@@ -478,10 +483,7 @@ class _ProfileOptionTile extends StatelessWidget {
           fontWeight: FontWeight.w700,
         ),
       ),
-      trailing: Icon(
-        Icons.chevron_right_rounded,
-        color: arrowColor,
-      ),
+      trailing: Icon(Icons.chevron_right_rounded, color: arrowColor),
       onTap: onTap,
     );
   }
