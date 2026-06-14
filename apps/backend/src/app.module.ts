@@ -1,6 +1,8 @@
 import { Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
 import { ThrottlerModule } from "@nestjs/throttler";
+import { existsSync } from "fs";
+import { resolve } from "path";
 
 // Core modules
 import { HealthController } from "./health/health.controller";
@@ -20,12 +22,19 @@ import { PreferencesModule } from "./modules/preferences/preferences.module";
 import { AdminModule } from "./modules/admin/admin.module";
 import { BillingModule } from "./modules/billing/billing.module";
 
+const envFilePath = [
+  resolve(process.cwd(), "apps/backend/.env.local"),
+  resolve(process.cwd(), "apps/backend/.env"),
+  resolve(process.cwd(), ".env.local"),
+  resolve(process.cwd(), ".env"),
+].filter(existsSync);
+
 @Module({
   imports: [
     // Configuration
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: [".env", ".env.local"],
+      envFilePath,
     }),
 
     // Rate limiting

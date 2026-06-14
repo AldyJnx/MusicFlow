@@ -4,8 +4,7 @@ class AppConfig {
 
   // Use the host machine's LAN IP by default so a physical Android phone can
   // reach the local backend. For Android emulator, override with:
-  // --dart-define=API_BASE_URL=http://10.0.2.2:8000/api 192.168.18.32
-  //192.168.18.32
+  // --dart-define=API_BASE_URL=http://10.0.2.2:8000/api
   static const String apiBaseUrl = String.fromEnvironment(
     'API_BASE_URL',
     defaultValue: 'http://10.0.2.2:8000/api',

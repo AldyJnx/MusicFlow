@@ -24,7 +24,9 @@ function loadEnv() {
   const text = readFileSync(join(__dirname, "..", ".env"), "utf8");
   for (const line of text.split(/\r?\n/)) {
     const m = line.match(/^([A-Z0-9_]+)=(.*)$/);
-    if (m && process.env[m[1]] === undefined) process.env[m[1]] = m[2];
+    if (m && process.env[m[1]] === undefined) {
+      process.env[m[1]] = m[2].trim().replace(/^(['"])(.*)\1$/, "$2");
+    }
   }
 }
 loadEnv();
@@ -189,16 +191,26 @@ async function listAll(bucket: string) {
 }
 
 async function main() {
-  console.log("→ Loading admin user");
-  const admin = await prisma.user.findFirst({
-    where: { email: "admin@musicflow.app" },
+  const ownerEmail = process.env.R2_SEED_OWNER_EMAIL;
+  console.log("→ Loading seed owner user");
+  const owner = await prisma.user.findFirst({
+    where: ownerEmail
+      ? { email: ownerEmail }
+      : {
+          OR: [{ role: "ADMIN" }, { isActive: true }],
+        },
+    orderBy: ownerEmail ? undefined : [{ role: "asc" }, { createdAt: "asc" }],
     select: { id: true, email: true },
   });
-  if (!admin) {
-    console.error("Admin user not found. Run the auth seed first.");
+  if (!owner) {
+    console.error(
+      ownerEmail
+        ? `Seed owner ${ownerEmail} not found. Create that user or update R2_SEED_OWNER_EMAIL.`
+        : "No users found. Create an account before running the R2 seed.",
+    );
     process.exit(1);
   }
-  console.log("  owner =", admin.email, `(${admin.id})`);
+  console.log("  owner =", owner.email, `(${owner.id})`);
 
   console.log("→ Listing R2 buckets");
   const audios = await listAll(process.env.R2_BUCKET_AUDIO!);
@@ -243,10 +255,16 @@ async function main() {
 
     // Dedupe.
     const existing = await prisma.track.findUnique({
-      where: { userId_fileHash: { userId: admin.id, fileHash } },
-      select: { id: true },
+      where: { userId_fileHash: { userId: owner.id, fileHash } },
+      select: { id: true, isCatalog: true },
     });
     if (existing) {
+      if (!existing.isCatalog) {
+        await prisma.track.update({
+          where: { id: existing.id },
+          data: { isCatalog: true },
+        });
+      }
       skipped++;
       continue;
     }
@@ -263,7 +281,7 @@ async function main() {
     try {
       await prisma.track.create({
         data: {
-          userId: admin.id,
+          userId: owner.id,
           title,
           artist,
           album: "",
@@ -277,6 +295,7 @@ async function main() {
           bitrate: probe?.bitrate ?? null,
           sampleRate: probe?.sampleRate ?? null,
           coverArt: cover,
+          isCatalog: true,
           source: "SYNCED",
           syncStatus: "SYNCED",
         },
