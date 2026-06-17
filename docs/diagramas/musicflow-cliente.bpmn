@@ -1,0 +1,1757 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  id="Definitions_cliente" targetNamespace="http://musicflow.app/bpmn">
+  <bpmn:collaboration id="Collab_cliente" name="MusicFlow - Modulo Cliente">
+    <bpmn:participant id="Part_Home" name="Inicio" processRef="Proc_Home" />
+    <bpmn:participant id="Part_Library" name="Biblioteca" processRef="Proc_Library" />
+    <bpmn:participant id="Part_Artist" name="Artista" processRef="Proc_Artist" />
+    <bpmn:participant id="Part_Playlists" name="Playlists" processRef="Proc_Playlists" />
+    <bpmn:participant id="Part_PlaylistDetail" name="Detalle de playlist" processRef="Proc_PlaylistDetail" />
+    <bpmn:participant id="Part_NowPlaying" name="Now Playing" processRef="Proc_NowPlaying" />
+    <bpmn:participant id="Part_Equalizer" name="Ecualizador" processRef="Proc_Equalizer" />
+    <bpmn:participant id="Part_AiMixer" name="AI Mixer (Agente IA)" processRef="Proc_AiMixer" />
+    <bpmn:participant id="Part_Profile" name="Perfil" processRef="Proc_Profile" />
+    <bpmn:participant id="Part_Segments" name="Segmentos" processRef="Proc_Segments" />
+    <bpmn:participant id="Part_Studio" name="Studio" processRef="Proc_Studio" />
+    <bpmn:participant id="Part_Settings" name="Ajustes" processRef="Proc_Settings" />
+    <bpmn:participant id="Part_Billing" name="Facturacion" processRef="Proc_Billing" />
+  </bpmn:collaboration>
+  <bpmn:process id="Proc_Home" name="Inicio" isExecutable="false">
+    <bpmn:startEvent id="Home_s" name="Abrir Inicio">
+      <bpmn:outgoing>Home_f1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:task id="Home_t1" name="Cargar destacados, recientes, mas escuchadas y artistas">
+      <bpmn:incoming>Home_f1</bpmn:incoming>
+      <bpmn:outgoing>Home_f2</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:exclusiveGateway id="Home_g0" name="Hay catalogo?">
+      <bpmn:incoming>Home_f2</bpmn:incoming>
+      <bpmn:outgoing>Home_f3</bpmn:outgoing>
+      <bpmn:outgoing>Home_f4</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:endEvent id="Home_e0" name="Vacio -&gt; importar en Biblioteca">
+      <bpmn:incoming>Home_f3</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:task id="Home_t2" name="Mostrar Inicio (hero + carruseles)">
+      <bpmn:incoming>Home_f4</bpmn:incoming>
+      <bpmn:incoming>Home_f7</bpmn:incoming>
+      <bpmn:outgoing>Home_f5</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:exclusiveGateway id="Home_g" name="Accion?">
+      <bpmn:incoming>Home_f5</bpmn:incoming>
+      <bpmn:outgoing>Home_f6</bpmn:outgoing>
+      <bpmn:outgoing>Home_f8</bpmn:outgoing>
+      <bpmn:outgoing>Home_f9</bpmn:outgoing>
+      <bpmn:outgoing>Home_f10</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:task id="Home_t3" name="Guardar / agregar a cola">
+      <bpmn:incoming>Home_f6</bpmn:incoming>
+      <bpmn:outgoing>Home_f7</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:endEvent id="Home_e1" name="Ver todo -&gt; Biblioteca">
+      <bpmn:incoming>Home_f8</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:endEvent id="Home_e2" name="Abrir -&gt; Artista">
+      <bpmn:incoming>Home_f9</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:endEvent id="Home_e3" name="Reproducir -&gt; Now Playing">
+      <bpmn:incoming>Home_f10</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Home_f1" sourceRef="Home_s" targetRef="Home_t1" />
+    <bpmn:sequenceFlow id="Home_f2" sourceRef="Home_t1" targetRef="Home_g0" />
+    <bpmn:sequenceFlow id="Home_f3" name="No" sourceRef="Home_g0" targetRef="Home_e0" />
+    <bpmn:sequenceFlow id="Home_f4" name="Si" sourceRef="Home_g0" targetRef="Home_t2" />
+    <bpmn:sequenceFlow id="Home_f5" sourceRef="Home_t2" targetRef="Home_g" />
+    <bpmn:sequenceFlow id="Home_f6" name="Guardar / Cola" sourceRef="Home_g" targetRef="Home_t3" />
+    <bpmn:sequenceFlow id="Home_f7" sourceRef="Home_t3" targetRef="Home_t2" />
+    <bpmn:sequenceFlow id="Home_f8" name="Ver todo" sourceRef="Home_g" targetRef="Home_e1" />
+    <bpmn:sequenceFlow id="Home_f9" name="Artista" sourceRef="Home_g" targetRef="Home_e2" />
+    <bpmn:sequenceFlow id="Home_f10" name="Reproducir" sourceRef="Home_g" targetRef="Home_e3" />
+  </bpmn:process>
+  <bpmn:process id="Proc_Library" name="Biblioteca" isExecutable="false">
+    <bpmn:startEvent id="Library_s" name="Abrir Biblioteca">
+      <bpmn:outgoing>Library_f1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:task id="Library_t1" name="Cargar Catalogo / Mi biblioteca">
+      <bpmn:incoming>Library_f1</bpmn:incoming>
+      <bpmn:outgoing>Library_f2</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Library_t2" name="Mostrar lista (canciones, albumes, artistas)">
+      <bpmn:incoming>Library_f2</bpmn:incoming>
+      <bpmn:incoming>Library_f5</bpmn:incoming>
+      <bpmn:incoming>Library_f7</bpmn:incoming>
+      <bpmn:incoming>Library_f9</bpmn:incoming>
+      <bpmn:outgoing>Library_f3</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:exclusiveGateway id="Library_g" name="Accion?">
+      <bpmn:incoming>Library_f3</bpmn:incoming>
+      <bpmn:outgoing>Library_f4</bpmn:outgoing>
+      <bpmn:outgoing>Library_f6</bpmn:outgoing>
+      <bpmn:outgoing>Library_f8</bpmn:outgoing>
+      <bpmn:outgoing>Library_f10</bpmn:outgoing>
+      <bpmn:outgoing>Library_f11</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:task id="Library_b1" name="Buscar / filtrar genero / cambiar scope">
+      <bpmn:incoming>Library_f4</bpmn:incoming>
+      <bpmn:outgoing>Library_f5</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Library_imp" name="Importar (modal): subir pista">
+      <bpmn:incoming>Library_f6</bpmn:incoming>
+      <bpmn:outgoing>Library_f7</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Library_add" name="Guardar / a cola / a playlist">
+      <bpmn:incoming>Library_f8</bpmn:incoming>
+      <bpmn:outgoing>Library_f9</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:endEvent id="Library_e1" name="Reproducir -&gt; Now Playing">
+      <bpmn:incoming>Library_f10</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:endEvent id="Library_e2" name="Ir a Artista">
+      <bpmn:incoming>Library_f11</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Library_f1" sourceRef="Library_s" targetRef="Library_t1" />
+    <bpmn:sequenceFlow id="Library_f2" sourceRef="Library_t1" targetRef="Library_t2" />
+    <bpmn:sequenceFlow id="Library_f3" sourceRef="Library_t2" targetRef="Library_g" />
+    <bpmn:sequenceFlow id="Library_f4" name="Buscar / Filtrar" sourceRef="Library_g" targetRef="Library_b1" />
+    <bpmn:sequenceFlow id="Library_f5" sourceRef="Library_b1" targetRef="Library_t2" />
+    <bpmn:sequenceFlow id="Library_f6" name="Importar" sourceRef="Library_g" targetRef="Library_imp" />
+    <bpmn:sequenceFlow id="Library_f7" sourceRef="Library_imp" targetRef="Library_t2" />
+    <bpmn:sequenceFlow id="Library_f8" name="Guardar / Cola / Playlist" sourceRef="Library_g" targetRef="Library_add" />
+    <bpmn:sequenceFlow id="Library_f9" sourceRef="Library_add" targetRef="Library_t2" />
+    <bpmn:sequenceFlow id="Library_f10" name="Reproducir" sourceRef="Library_g" targetRef="Library_e1" />
+    <bpmn:sequenceFlow id="Library_f11" name="Artista" sourceRef="Library_g" targetRef="Library_e2" />
+  </bpmn:process>
+  <bpmn:process id="Proc_Artist" name="Artista" isExecutable="false">
+    <bpmn:startEvent id="Artist_s" name="Abrir Artista">
+      <bpmn:outgoing>Artist_f1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:task id="Artist_t1" name="Cargar tracks del artista">
+      <bpmn:incoming>Artist_f1</bpmn:incoming>
+      <bpmn:outgoing>Artist_f2</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:exclusiveGateway id="Artist_g0" name="Tiene canciones?">
+      <bpmn:incoming>Artist_f2</bpmn:incoming>
+      <bpmn:outgoing>Artist_f3</bpmn:outgoing>
+      <bpmn:outgoing>Artist_f4</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:endEvent id="Artist_e0" name="Estado vacio">
+      <bpmn:incoming>Artist_f3</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:task id="Artist_t2" name="Mostrar artista (hero + lista)">
+      <bpmn:incoming>Artist_f4</bpmn:incoming>
+      <bpmn:incoming>Artist_f7</bpmn:incoming>
+      <bpmn:outgoing>Artist_f5</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:exclusiveGateway id="Artist_g" name="Accion?">
+      <bpmn:incoming>Artist_f5</bpmn:incoming>
+      <bpmn:outgoing>Artist_f6</bpmn:outgoing>
+      <bpmn:outgoing>Artist_f8</bpmn:outgoing>
+      <bpmn:outgoing>Artist_f9</bpmn:outgoing>
+      <bpmn:outgoing>Artist_f10</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:task id="Artist_t3" name="Guardar (favorito)">
+      <bpmn:incoming>Artist_f6</bpmn:incoming>
+      <bpmn:outgoing>Artist_f7</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:endEvent id="Artist_e1" name="Reproducir -&gt; Now Playing">
+      <bpmn:incoming>Artist_f8</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:endEvent id="Artist_e2" name="Editar EQ (drawer) -&gt; Ecualizador">
+      <bpmn:incoming>Artist_f9</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:endEvent id="Artist_e3" name="IA sugiere (Premium) -&gt; AI Mixer">
+      <bpmn:incoming>Artist_f10</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Artist_f1" sourceRef="Artist_s" targetRef="Artist_t1" />
+    <bpmn:sequenceFlow id="Artist_f2" sourceRef="Artist_t1" targetRef="Artist_g0" />
+    <bpmn:sequenceFlow id="Artist_f3" name="No" sourceRef="Artist_g0" targetRef="Artist_e0" />
+    <bpmn:sequenceFlow id="Artist_f4" name="Si" sourceRef="Artist_g0" targetRef="Artist_t2" />
+    <bpmn:sequenceFlow id="Artist_f5" sourceRef="Artist_t2" targetRef="Artist_g" />
+    <bpmn:sequenceFlow id="Artist_f6" name="Guardar" sourceRef="Artist_g" targetRef="Artist_t3" />
+    <bpmn:sequenceFlow id="Artist_f7" sourceRef="Artist_t3" targetRef="Artist_t2" />
+    <bpmn:sequenceFlow id="Artist_f8" name="Reproducir" sourceRef="Artist_g" targetRef="Artist_e1" />
+    <bpmn:sequenceFlow id="Artist_f9" name="EQ" sourceRef="Artist_g" targetRef="Artist_e2" />
+    <bpmn:sequenceFlow id="Artist_f10" name="IA" sourceRef="Artist_g" targetRef="Artist_e3" />
+  </bpmn:process>
+  <bpmn:process id="Proc_Playlists" name="Playlists" isExecutable="false">
+    <bpmn:startEvent id="Playlists_s" name="Abrir Playlists">
+      <bpmn:outgoing>Playlists_f1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:task id="Playlists_t1" name="Cargar playlists + Me gustan">
+      <bpmn:incoming>Playlists_f1</bpmn:incoming>
+      <bpmn:outgoing>Playlists_f2</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Playlists_t2" name="Mostrar grid de playlists">
+      <bpmn:incoming>Playlists_f2</bpmn:incoming>
+      <bpmn:incoming>Playlists_f5</bpmn:incoming>
+      <bpmn:incoming>Playlists_f7</bpmn:incoming>
+      <bpmn:incoming>Playlists_f9</bpmn:incoming>
+      <bpmn:outgoing>Playlists_f3</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:exclusiveGateway id="Playlists_g" name="Accion?">
+      <bpmn:incoming>Playlists_f3</bpmn:incoming>
+      <bpmn:outgoing>Playlists_f4</bpmn:outgoing>
+      <bpmn:outgoing>Playlists_f6</bpmn:outgoing>
+      <bpmn:outgoing>Playlists_f8</bpmn:outgoing>
+      <bpmn:outgoing>Playlists_f10</bpmn:outgoing>
+      <bpmn:outgoing>Playlists_f11</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:task id="Playlists_c" name="Crear playlist (modal)">
+      <bpmn:incoming>Playlists_f4</bpmn:incoming>
+      <bpmn:outgoing>Playlists_f5</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Playlists_ec" name="Editar EQ de playlist (modal)">
+      <bpmn:incoming>Playlists_f6</bpmn:incoming>
+      <bpmn:outgoing>Playlists_f7</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Playlists_d" name="Eliminar playlist (confirmar)">
+      <bpmn:incoming>Playlists_f8</bpmn:incoming>
+      <bpmn:outgoing>Playlists_f9</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:endEvent id="Playlists_e1" name="Abrir -&gt; Detalle de playlist">
+      <bpmn:incoming>Playlists_f10</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:endEvent id="Playlists_e2" name="Me gustan -&gt; Biblioteca">
+      <bpmn:incoming>Playlists_f11</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Playlists_f1" sourceRef="Playlists_s" targetRef="Playlists_t1" />
+    <bpmn:sequenceFlow id="Playlists_f2" sourceRef="Playlists_t1" targetRef="Playlists_t2" />
+    <bpmn:sequenceFlow id="Playlists_f3" sourceRef="Playlists_t2" targetRef="Playlists_g" />
+    <bpmn:sequenceFlow id="Playlists_f4" name="Crear" sourceRef="Playlists_g" targetRef="Playlists_c" />
+    <bpmn:sequenceFlow id="Playlists_f5" sourceRef="Playlists_c" targetRef="Playlists_t2" />
+    <bpmn:sequenceFlow id="Playlists_f6" name="EQ playlist" sourceRef="Playlists_g" targetRef="Playlists_ec" />
+    <bpmn:sequenceFlow id="Playlists_f7" sourceRef="Playlists_ec" targetRef="Playlists_t2" />
+    <bpmn:sequenceFlow id="Playlists_f8" name="Eliminar" sourceRef="Playlists_g" targetRef="Playlists_d" />
+    <bpmn:sequenceFlow id="Playlists_f9" sourceRef="Playlists_d" targetRef="Playlists_t2" />
+    <bpmn:sequenceFlow id="Playlists_f10" name="Abrir" sourceRef="Playlists_g" targetRef="Playlists_e1" />
+    <bpmn:sequenceFlow id="Playlists_f11" name="Me gustan" sourceRef="Playlists_g" targetRef="Playlists_e2" />
+  </bpmn:process>
+  <bpmn:process id="Proc_PlaylistDetail" name="Detalle de playlist" isExecutable="false">
+    <bpmn:startEvent id="PlaylistDetail_s" name="Abrir Detalle de playlist">
+      <bpmn:outgoing>PlaylistDetail_f1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:task id="PlaylistDetail_t1" name="Cargar playlist y tracks">
+      <bpmn:incoming>PlaylistDetail_f1</bpmn:incoming>
+      <bpmn:outgoing>PlaylistDetail_f2</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:exclusiveGateway id="PlaylistDetail_g0" name="Tiene tracks?">
+      <bpmn:incoming>PlaylistDetail_f2</bpmn:incoming>
+      <bpmn:outgoing>PlaylistDetail_f3</bpmn:outgoing>
+      <bpmn:outgoing>PlaylistDetail_f4</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:endEvent id="PlaylistDetail_e0" name="Vacio -&gt; Biblioteca">
+      <bpmn:incoming>PlaylistDetail_f3</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:task id="PlaylistDetail_t2" name="Mostrar detalle (hero + lista)">
+      <bpmn:incoming>PlaylistDetail_f4</bpmn:incoming>
+      <bpmn:incoming>PlaylistDetail_f7</bpmn:incoming>
+      <bpmn:outgoing>PlaylistDetail_f5</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:exclusiveGateway id="PlaylistDetail_g" name="Accion?">
+      <bpmn:incoming>PlaylistDetail_f5</bpmn:incoming>
+      <bpmn:outgoing>PlaylistDetail_f6</bpmn:outgoing>
+      <bpmn:outgoing>PlaylistDetail_f8</bpmn:outgoing>
+      <bpmn:outgoing>PlaylistDetail_f9</bpmn:outgoing>
+      <bpmn:outgoing>PlaylistDetail_f10</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:task id="PlaylistDetail_t3" name="Reordenar / eliminar track">
+      <bpmn:incoming>PlaylistDetail_f6</bpmn:incoming>
+      <bpmn:outgoing>PlaylistDetail_f7</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:endEvent id="PlaylistDetail_e1" name="Reproducir -&gt; Now Playing">
+      <bpmn:incoming>PlaylistDetail_f8</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:endEvent id="PlaylistDetail_e2" name="EQ playlist (Premium) -&gt; Ecualizador">
+      <bpmn:incoming>PlaylistDetail_f9</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:endEvent id="PlaylistDetail_e3" name="IA sugiere (Premium) -&gt; AI Mixer">
+      <bpmn:incoming>PlaylistDetail_f10</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="PlaylistDetail_f1" sourceRef="PlaylistDetail_s" targetRef="PlaylistDetail_t1" />
+    <bpmn:sequenceFlow id="PlaylistDetail_f2" sourceRef="PlaylistDetail_t1" targetRef="PlaylistDetail_g0" />
+    <bpmn:sequenceFlow id="PlaylistDetail_f3" name="No" sourceRef="PlaylistDetail_g0" targetRef="PlaylistDetail_e0" />
+    <bpmn:sequenceFlow id="PlaylistDetail_f4" name="Si" sourceRef="PlaylistDetail_g0" targetRef="PlaylistDetail_t2" />
+    <bpmn:sequenceFlow id="PlaylistDetail_f5" sourceRef="PlaylistDetail_t2" targetRef="PlaylistDetail_g" />
+    <bpmn:sequenceFlow id="PlaylistDetail_f6" name="Editar tracks" sourceRef="PlaylistDetail_g" targetRef="PlaylistDetail_t3" />
+    <bpmn:sequenceFlow id="PlaylistDetail_f7" sourceRef="PlaylistDetail_t3" targetRef="PlaylistDetail_t2" />
+    <bpmn:sequenceFlow id="PlaylistDetail_f8" name="Reproducir" sourceRef="PlaylistDetail_g" targetRef="PlaylistDetail_e1" />
+    <bpmn:sequenceFlow id="PlaylistDetail_f9" name="EQ" sourceRef="PlaylistDetail_g" targetRef="PlaylistDetail_e2" />
+    <bpmn:sequenceFlow id="PlaylistDetail_f10" name="IA" sourceRef="PlaylistDetail_g" targetRef="PlaylistDetail_e3" />
+  </bpmn:process>
+  <bpmn:process id="Proc_NowPlaying" name="Now Playing" isExecutable="false">
+    <bpmn:startEvent id="NowPlaying_s" name="Abrir Now Playing">
+      <bpmn:outgoing>NowPlaying_f1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:exclusiveGateway id="NowPlaying_g0" name="Hay pista en reproduccion?">
+      <bpmn:incoming>NowPlaying_f1</bpmn:incoming>
+      <bpmn:outgoing>NowPlaying_f2</bpmn:outgoing>
+      <bpmn:outgoing>NowPlaying_f3</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:endEvent id="NowPlaying_e0" name="Vacio -&gt; Biblioteca">
+      <bpmn:incoming>NowPlaying_f2</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:task id="NowPlaying_t1" name="Mostrar reproductor expandido (caratula, onda)">
+      <bpmn:incoming>NowPlaying_f3</bpmn:incoming>
+      <bpmn:incoming>NowPlaying_f6</bpmn:incoming>
+      <bpmn:incoming>NowPlaying_f8</bpmn:incoming>
+      <bpmn:outgoing>NowPlaying_f4</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:exclusiveGateway id="NowPlaying_g" name="Accion?">
+      <bpmn:incoming>NowPlaying_f4</bpmn:incoming>
+      <bpmn:outgoing>NowPlaying_f5</bpmn:outgoing>
+      <bpmn:outgoing>NowPlaying_f7</bpmn:outgoing>
+      <bpmn:outgoing>NowPlaying_f9</bpmn:outgoing>
+      <bpmn:outgoing>NowPlaying_f10</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:task id="NowPlaying_t2" name="Play / Pause / Seek (EQ por segmento)">
+      <bpmn:incoming>NowPlaying_f5</bpmn:incoming>
+      <bpmn:outgoing>NowPlaying_f6</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="NowPlaying_t3" name="Ver / editar cola">
+      <bpmn:incoming>NowPlaying_f7</bpmn:incoming>
+      <bpmn:outgoing>NowPlaying_f8</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:endEvent id="NowPlaying_e1" name="Abrir Ecualizador">
+      <bpmn:incoming>NowPlaying_f9</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:endEvent id="NowPlaying_e2" name="Pedir IA -&gt; AI Mixer">
+      <bpmn:incoming>NowPlaying_f10</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="NowPlaying_f1" sourceRef="NowPlaying_s" targetRef="NowPlaying_g0" />
+    <bpmn:sequenceFlow id="NowPlaying_f2" name="No" sourceRef="NowPlaying_g0" targetRef="NowPlaying_e0" />
+    <bpmn:sequenceFlow id="NowPlaying_f3" name="Si" sourceRef="NowPlaying_g0" targetRef="NowPlaying_t1" />
+    <bpmn:sequenceFlow id="NowPlaying_f4" sourceRef="NowPlaying_t1" targetRef="NowPlaying_g" />
+    <bpmn:sequenceFlow id="NowPlaying_f5" name="Reproduccion" sourceRef="NowPlaying_g" targetRef="NowPlaying_t2" />
+    <bpmn:sequenceFlow id="NowPlaying_f6" sourceRef="NowPlaying_t2" targetRef="NowPlaying_t1" />
+    <bpmn:sequenceFlow id="NowPlaying_f7" name="Cola" sourceRef="NowPlaying_g" targetRef="NowPlaying_t3" />
+    <bpmn:sequenceFlow id="NowPlaying_f8" sourceRef="NowPlaying_t3" targetRef="NowPlaying_t1" />
+    <bpmn:sequenceFlow id="NowPlaying_f9" name="Ecualizador" sourceRef="NowPlaying_g" targetRef="NowPlaying_e1" />
+    <bpmn:sequenceFlow id="NowPlaying_f10" name="IA" sourceRef="NowPlaying_g" targetRef="NowPlaying_e2" />
+  </bpmn:process>
+  <bpmn:process id="Proc_Equalizer" name="Ecualizador" isExecutable="false">
+    <bpmn:startEvent id="Equalizer_s" name="Abrir Ecualizador">
+      <bpmn:outgoing>Equalizer_f1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:task id="Equalizer_t1" name="Cargar config del scope (Global / Playlist / Track / Segment)">
+      <bpmn:incoming>Equalizer_f1</bpmn:incoming>
+      <bpmn:incoming>Equalizer_f5</bpmn:incoming>
+      <bpmn:outgoing>Equalizer_f2</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Equalizer_t2" name="Mostrar bandas, curva y presets">
+      <bpmn:incoming>Equalizer_f2</bpmn:incoming>
+      <bpmn:incoming>Equalizer_f10</bpmn:incoming>
+      <bpmn:outgoing>Equalizer_f3</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:exclusiveGateway id="Equalizer_g" name="Accion?">
+      <bpmn:incoming>Equalizer_f3</bpmn:incoming>
+      <bpmn:outgoing>Equalizer_f4</bpmn:outgoing>
+      <bpmn:outgoing>Equalizer_f6</bpmn:outgoing>
+      <bpmn:outgoing>Equalizer_f8</bpmn:outgoing>
+      <bpmn:outgoing>Equalizer_f11</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:task id="Equalizer_t3" name="Cambiar scope">
+      <bpmn:incoming>Equalizer_f4</bpmn:incoming>
+      <bpmn:outgoing>Equalizer_f5</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Equalizer_t4" name="Ajustar bandas / efectos / reverb">
+      <bpmn:incoming>Equalizer_f6</bpmn:incoming>
+      <bpmn:outgoing>Equalizer_f7</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Equalizer_t5" name="Aplicar preset / Reset">
+      <bpmn:incoming>Equalizer_f8</bpmn:incoming>
+      <bpmn:outgoing>Equalizer_f9</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Equalizer_t6" name="Previsualizar en vivo y guardar config">
+      <bpmn:incoming>Equalizer_f7</bpmn:incoming>
+      <bpmn:incoming>Equalizer_f9</bpmn:incoming>
+      <bpmn:outgoing>Equalizer_f10</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:endEvent id="Equalizer_e" name="Config guardada">
+      <bpmn:incoming>Equalizer_f11</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Equalizer_f1" sourceRef="Equalizer_s" targetRef="Equalizer_t1" />
+    <bpmn:sequenceFlow id="Equalizer_f2" sourceRef="Equalizer_t1" targetRef="Equalizer_t2" />
+    <bpmn:sequenceFlow id="Equalizer_f3" sourceRef="Equalizer_t2" targetRef="Equalizer_g" />
+    <bpmn:sequenceFlow id="Equalizer_f4" name="Cambiar scope" sourceRef="Equalizer_g" targetRef="Equalizer_t3" />
+    <bpmn:sequenceFlow id="Equalizer_f5" sourceRef="Equalizer_t3" targetRef="Equalizer_t1" />
+    <bpmn:sequenceFlow id="Equalizer_f6" name="Ajustar" sourceRef="Equalizer_g" targetRef="Equalizer_t4" />
+    <bpmn:sequenceFlow id="Equalizer_f7" sourceRef="Equalizer_t4" targetRef="Equalizer_t6" />
+    <bpmn:sequenceFlow id="Equalizer_f8" name="Preset / Reset" sourceRef="Equalizer_g" targetRef="Equalizer_t5" />
+    <bpmn:sequenceFlow id="Equalizer_f9" sourceRef="Equalizer_t5" targetRef="Equalizer_t6" />
+    <bpmn:sequenceFlow id="Equalizer_f10" sourceRef="Equalizer_t6" targetRef="Equalizer_t2" />
+    <bpmn:sequenceFlow id="Equalizer_f11" name="Salir" sourceRef="Equalizer_g" targetRef="Equalizer_e" />
+  </bpmn:process>
+  <bpmn:process id="Proc_AiMixer" name="AI Mixer (Agente IA)" isExecutable="false">
+    <bpmn:startEvent id="AiMixer_s" name="Abrir AI Mixer">
+      <bpmn:outgoing>AiMixer_f1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:exclusiveGateway id="AiMixer_g0" name="Es Premium?">
+      <bpmn:incoming>AiMixer_f1</bpmn:incoming>
+      <bpmn:outgoing>AiMixer_f2</bpmn:outgoing>
+      <bpmn:outgoing>AiMixer_f3</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:endEvent id="AiMixer_e0" name="Bloqueado -&gt; Upsell">
+      <bpmn:incoming>AiMixer_f2</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:task id="AiMixer_t1" name="Escribir prompt o elegir atajo">
+      <bpmn:incoming>AiMixer_f3</bpmn:incoming>
+      <bpmn:incoming>AiMixer_f8</bpmn:incoming>
+      <bpmn:incoming>AiMixer_f10</bpmn:incoming>
+      <bpmn:outgoing>AiMixer_f4</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="AiMixer_t2" name="Enviar al Agente IA (suggestEQ)">
+      <bpmn:incoming>AiMixer_f4</bpmn:incoming>
+      <bpmn:outgoing>AiMixer_f5</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="AiMixer_t3" name="Mostrar sugerencia (bandas, efectos, segmentos)">
+      <bpmn:incoming>AiMixer_f5</bpmn:incoming>
+      <bpmn:outgoing>AiMixer_f6</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:exclusiveGateway id="AiMixer_g" name="Decision del usuario?">
+      <bpmn:incoming>AiMixer_f6</bpmn:incoming>
+      <bpmn:outgoing>AiMixer_f7</bpmn:outgoing>
+      <bpmn:outgoing>AiMixer_f9</bpmn:outgoing>
+      <bpmn:outgoing>AiMixer_f11</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:task id="AiMixer_t4" name="Enviar feedback (positivo / negativo)">
+      <bpmn:incoming>AiMixer_f7</bpmn:incoming>
+      <bpmn:outgoing>AiMixer_f8</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="AiMixer_t5" name="Descartar sugerencia">
+      <bpmn:incoming>AiMixer_f9</bpmn:incoming>
+      <bpmn:outgoing>AiMixer_f10</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="AiMixer_t6" name="Aplicar EQ (acceptSuggestion por scope)">
+      <bpmn:incoming>AiMixer_f11</bpmn:incoming>
+      <bpmn:outgoing>AiMixer_f12</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:endEvent id="AiMixer_e" name="EQ de IA aplicado">
+      <bpmn:incoming>AiMixer_f12</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="AiMixer_f1" sourceRef="AiMixer_s" targetRef="AiMixer_g0" />
+    <bpmn:sequenceFlow id="AiMixer_f2" name="No" sourceRef="AiMixer_g0" targetRef="AiMixer_e0" />
+    <bpmn:sequenceFlow id="AiMixer_f3" name="Si" sourceRef="AiMixer_g0" targetRef="AiMixer_t1" />
+    <bpmn:sequenceFlow id="AiMixer_f4" sourceRef="AiMixer_t1" targetRef="AiMixer_t2" />
+    <bpmn:sequenceFlow id="AiMixer_f5" sourceRef="AiMixer_t2" targetRef="AiMixer_t3" />
+    <bpmn:sequenceFlow id="AiMixer_f6" sourceRef="AiMixer_t3" targetRef="AiMixer_g" />
+    <bpmn:sequenceFlow id="AiMixer_f7" name="Feedback" sourceRef="AiMixer_g" targetRef="AiMixer_t4" />
+    <bpmn:sequenceFlow id="AiMixer_f8" sourceRef="AiMixer_t4" targetRef="AiMixer_t1" />
+    <bpmn:sequenceFlow id="AiMixer_f9" name="Descartar" sourceRef="AiMixer_g" targetRef="AiMixer_t5" />
+    <bpmn:sequenceFlow id="AiMixer_f10" sourceRef="AiMixer_t5" targetRef="AiMixer_t1" />
+    <bpmn:sequenceFlow id="AiMixer_f11" name="Aplicar" sourceRef="AiMixer_g" targetRef="AiMixer_t6" />
+    <bpmn:sequenceFlow id="AiMixer_f12" sourceRef="AiMixer_t6" targetRef="AiMixer_e" />
+  </bpmn:process>
+  <bpmn:process id="Proc_Profile" name="Perfil" isExecutable="false">
+    <bpmn:startEvent id="Profile_s" name="Abrir Perfil">
+      <bpmn:outgoing>Profile_f1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:task id="Profile_t1" name="Cargar estadisticas de escucha y actividad">
+      <bpmn:incoming>Profile_f1</bpmn:incoming>
+      <bpmn:outgoing>Profile_f2</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Profile_t2" name="Mostrar perfil (stats, top artistas, recientes)">
+      <bpmn:incoming>Profile_f2</bpmn:incoming>
+      <bpmn:incoming>Profile_f5</bpmn:incoming>
+      <bpmn:outgoing>Profile_f3</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:exclusiveGateway id="Profile_g" name="Accion?">
+      <bpmn:incoming>Profile_f3</bpmn:incoming>
+      <bpmn:outgoing>Profile_f4</bpmn:outgoing>
+      <bpmn:outgoing>Profile_f6</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:task id="Profile_t3" name="Reproducir track reciente">
+      <bpmn:incoming>Profile_f4</bpmn:incoming>
+      <bpmn:outgoing>Profile_f5</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:endEvent id="Profile_e1" name="Ver mi biblioteca -&gt; Biblioteca">
+      <bpmn:incoming>Profile_f6</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Profile_f1" sourceRef="Profile_s" targetRef="Profile_t1" />
+    <bpmn:sequenceFlow id="Profile_f2" sourceRef="Profile_t1" targetRef="Profile_t2" />
+    <bpmn:sequenceFlow id="Profile_f3" sourceRef="Profile_t2" targetRef="Profile_g" />
+    <bpmn:sequenceFlow id="Profile_f4" name="Reproducir" sourceRef="Profile_g" targetRef="Profile_t3" />
+    <bpmn:sequenceFlow id="Profile_f5" sourceRef="Profile_t3" targetRef="Profile_t2" />
+    <bpmn:sequenceFlow id="Profile_f6" name="Mi biblioteca" sourceRef="Profile_g" targetRef="Profile_e1" />
+  </bpmn:process>
+  <bpmn:process id="Proc_Segments" name="Segmentos" isExecutable="false">
+    <bpmn:startEvent id="Segments_s" name="Abrir Segmentos">
+      <bpmn:outgoing>Segments_f1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:exclusiveGateway id="Segments_g0" name="Es Premium?">
+      <bpmn:incoming>Segments_f1</bpmn:incoming>
+      <bpmn:outgoing>Segments_f2</bpmn:outgoing>
+      <bpmn:outgoing>Segments_f3</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:endEvent id="Segments_e0" name="Bloqueado -&gt; Upsell">
+      <bpmn:incoming>Segments_f2</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:task id="Segments_t1" name="Elegir track y cargar forma de onda">
+      <bpmn:incoming>Segments_f3</bpmn:incoming>
+      <bpmn:outgoing>Segments_f4</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Segments_t2" name="Mostrar timeline de segmentos">
+      <bpmn:incoming>Segments_f4</bpmn:incoming>
+      <bpmn:incoming>Segments_f7</bpmn:incoming>
+      <bpmn:incoming>Segments_f9</bpmn:incoming>
+      <bpmn:incoming>Segments_f11</bpmn:incoming>
+      <bpmn:outgoing>Segments_f5</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:exclusiveGateway id="Segments_g" name="Accion?">
+      <bpmn:incoming>Segments_f5</bpmn:incoming>
+      <bpmn:outgoing>Segments_f6</bpmn:outgoing>
+      <bpmn:outgoing>Segments_f8</bpmn:outgoing>
+      <bpmn:outgoing>Segments_f10</bpmn:outgoing>
+      <bpmn:outgoing>Segments_f12</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:task id="Segments_t3" name="Detectar automatico (IA)">
+      <bpmn:incoming>Segments_f6</bpmn:incoming>
+      <bpmn:outgoing>Segments_f7</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Segments_t4" name="Crear / editar segmento + asignar EQ">
+      <bpmn:incoming>Segments_f8</bpmn:incoming>
+      <bpmn:outgoing>Segments_f9</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Segments_t5" name="Reproducir / previsualizar segmento">
+      <bpmn:incoming>Segments_f10</bpmn:incoming>
+      <bpmn:outgoing>Segments_f11</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Segments_t6" name="Guardar y sincronizar">
+      <bpmn:incoming>Segments_f12</bpmn:incoming>
+      <bpmn:outgoing>Segments_f13</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:endEvent id="Segments_e" name="Segmentos guardados">
+      <bpmn:incoming>Segments_f13</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Segments_f1" sourceRef="Segments_s" targetRef="Segments_g0" />
+    <bpmn:sequenceFlow id="Segments_f2" name="No" sourceRef="Segments_g0" targetRef="Segments_e0" />
+    <bpmn:sequenceFlow id="Segments_f3" name="Si" sourceRef="Segments_g0" targetRef="Segments_t1" />
+    <bpmn:sequenceFlow id="Segments_f4" sourceRef="Segments_t1" targetRef="Segments_t2" />
+    <bpmn:sequenceFlow id="Segments_f5" sourceRef="Segments_t2" targetRef="Segments_g" />
+    <bpmn:sequenceFlow id="Segments_f6" name="Deteccion IA" sourceRef="Segments_g" targetRef="Segments_t3" />
+    <bpmn:sequenceFlow id="Segments_f7" sourceRef="Segments_t3" targetRef="Segments_t2" />
+    <bpmn:sequenceFlow id="Segments_f8" name="Editar" sourceRef="Segments_g" targetRef="Segments_t4" />
+    <bpmn:sequenceFlow id="Segments_f9" sourceRef="Segments_t4" targetRef="Segments_t2" />
+    <bpmn:sequenceFlow id="Segments_f10" name="Previsualizar" sourceRef="Segments_g" targetRef="Segments_t5" />
+    <bpmn:sequenceFlow id="Segments_f11" sourceRef="Segments_t5" targetRef="Segments_t2" />
+    <bpmn:sequenceFlow id="Segments_f12" name="Guardar" sourceRef="Segments_g" targetRef="Segments_t6" />
+    <bpmn:sequenceFlow id="Segments_f13" sourceRef="Segments_t6" targetRef="Segments_e" />
+  </bpmn:process>
+  <bpmn:process id="Proc_Studio" name="Studio" isExecutable="false">
+    <bpmn:startEvent id="Studio_s" name="Abrir Studio">
+      <bpmn:outgoing>Studio_f1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:task id="Studio_t1" name="Mostrar hub de estudio (4 accesos)">
+      <bpmn:incoming>Studio_f1</bpmn:incoming>
+      <bpmn:outgoing>Studio_f2</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:exclusiveGateway id="Studio_g" name="Accion?">
+      <bpmn:incoming>Studio_f2</bpmn:incoming>
+      <bpmn:outgoing>Studio_f3</bpmn:outgoing>
+      <bpmn:outgoing>Studio_f4</bpmn:outgoing>
+      <bpmn:outgoing>Studio_f5</bpmn:outgoing>
+      <bpmn:outgoing>Studio_f6</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:endEvent id="Studio_e1" name="Ecualizador">
+      <bpmn:incoming>Studio_f3</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:endEvent id="Studio_e2" name="Segmentos (Premium)">
+      <bpmn:incoming>Studio_f4</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:endEvent id="Studio_e3" name="Agente IA (Premium)">
+      <bpmn:incoming>Studio_f5</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:endEvent id="Studio_e4" name="Preferencias -&gt; Ajustes">
+      <bpmn:incoming>Studio_f6</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Studio_f1" sourceRef="Studio_s" targetRef="Studio_t1" />
+    <bpmn:sequenceFlow id="Studio_f2" sourceRef="Studio_t1" targetRef="Studio_g" />
+    <bpmn:sequenceFlow id="Studio_f3" name="EQ" sourceRef="Studio_g" targetRef="Studio_e1" />
+    <bpmn:sequenceFlow id="Studio_f4" name="Segmentos" sourceRef="Studio_g" targetRef="Studio_e2" />
+    <bpmn:sequenceFlow id="Studio_f5" name="IA" sourceRef="Studio_g" targetRef="Studio_e3" />
+    <bpmn:sequenceFlow id="Studio_f6" name="Ajustes" sourceRef="Studio_g" targetRef="Studio_e4" />
+  </bpmn:process>
+  <bpmn:process id="Proc_Settings" name="Ajustes" isExecutable="false">
+    <bpmn:startEvent id="Settings_s" name="Abrir Ajustes">
+      <bpmn:outgoing>Settings_f1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:task id="Settings_t1" name="Cargar preferencias">
+      <bpmn:incoming>Settings_f1</bpmn:incoming>
+      <bpmn:outgoing>Settings_f2</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Settings_t2" name="Mostrar ajustes (idioma, tema, audio, reproduccion)">
+      <bpmn:incoming>Settings_f2</bpmn:incoming>
+      <bpmn:incoming>Settings_f5</bpmn:incoming>
+      <bpmn:incoming>Settings_f7</bpmn:incoming>
+      <bpmn:outgoing>Settings_f3</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:exclusiveGateway id="Settings_g" name="Accion?">
+      <bpmn:incoming>Settings_f3</bpmn:incoming>
+      <bpmn:outgoing>Settings_f4</bpmn:outgoing>
+      <bpmn:outgoing>Settings_f6</bpmn:outgoing>
+      <bpmn:outgoing>Settings_f8</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:task id="Settings_t3" name="Cambiar idioma / tema (en vivo)">
+      <bpmn:incoming>Settings_f4</bpmn:incoming>
+      <bpmn:outgoing>Settings_f5</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Settings_t4" name="Audio: normalizar / crossfade / gapless">
+      <bpmn:incoming>Settings_f6</bpmn:incoming>
+      <bpmn:outgoing>Settings_f7</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:endEvent id="Settings_e" name="Guardar y salir">
+      <bpmn:incoming>Settings_f8</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Settings_f1" sourceRef="Settings_s" targetRef="Settings_t1" />
+    <bpmn:sequenceFlow id="Settings_f2" sourceRef="Settings_t1" targetRef="Settings_t2" />
+    <bpmn:sequenceFlow id="Settings_f3" sourceRef="Settings_t2" targetRef="Settings_g" />
+    <bpmn:sequenceFlow id="Settings_f4" name="Apariencia" sourceRef="Settings_g" targetRef="Settings_t3" />
+    <bpmn:sequenceFlow id="Settings_f5" sourceRef="Settings_t3" targetRef="Settings_t2" />
+    <bpmn:sequenceFlow id="Settings_f6" name="Audio" sourceRef="Settings_g" targetRef="Settings_t4" />
+    <bpmn:sequenceFlow id="Settings_f7" sourceRef="Settings_t4" targetRef="Settings_t2" />
+    <bpmn:sequenceFlow id="Settings_f8" name="Salir" sourceRef="Settings_g" targetRef="Settings_e" />
+  </bpmn:process>
+  <bpmn:process id="Proc_Billing" name="Facturacion" isExecutable="false">
+    <bpmn:startEvent id="Billing_s" name="Abrir Facturacion">
+      <bpmn:outgoing>Billing_f1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:task id="Billing_t1" name="Cargar plan y cuotas (IA, subidas, presets)">
+      <bpmn:incoming>Billing_f1</bpmn:incoming>
+      <bpmn:outgoing>Billing_f2</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Billing_t2" name="Mostrar plan y uso">
+      <bpmn:incoming>Billing_f2</bpmn:incoming>
+      <bpmn:outgoing>Billing_f3</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:exclusiveGateway id="Billing_g" name="Es Premium?">
+      <bpmn:incoming>Billing_f3</bpmn:incoming>
+      <bpmn:outgoing>Billing_f4</bpmn:outgoing>
+      <bpmn:outgoing>Billing_f5</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:endEvent id="Billing_e1" name="Premium: ver cuotas">
+      <bpmn:incoming>Billing_f4</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:task id="Billing_t3" name="Mejorar a Premium">
+      <bpmn:incoming>Billing_f5</bpmn:incoming>
+      <bpmn:outgoing>Billing_f6</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Billing_t4" name="Crear sesion de pago (Stripe)">
+      <bpmn:incoming>Billing_f6</bpmn:incoming>
+      <bpmn:outgoing>Billing_f7</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:endEvent id="Billing_e2" name="Ir a checkout (externo)">
+      <bpmn:incoming>Billing_f7</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Billing_f1" sourceRef="Billing_s" targetRef="Billing_t1" />
+    <bpmn:sequenceFlow id="Billing_f2" sourceRef="Billing_t1" targetRef="Billing_t2" />
+    <bpmn:sequenceFlow id="Billing_f3" sourceRef="Billing_t2" targetRef="Billing_g" />
+    <bpmn:sequenceFlow id="Billing_f4" name="Premium" sourceRef="Billing_g" targetRef="Billing_e1" />
+    <bpmn:sequenceFlow id="Billing_f5" name="Free: mejorar" sourceRef="Billing_g" targetRef="Billing_t3" />
+    <bpmn:sequenceFlow id="Billing_f6" sourceRef="Billing_t3" targetRef="Billing_t4" />
+    <bpmn:sequenceFlow id="Billing_f7" sourceRef="Billing_t4" targetRef="Billing_e2" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="Diag_cliente" name="MusicFlow - Modulo Cliente">
+    <bpmndi:BPMNPlane id="Plane_cliente" bpmnElement="Collab_cliente">
+      <bpmndi:BPMNShape id="S_Part_Home" bpmnElement="Part_Home" isHorizontal="true">
+        <dc:Bounds x="130" y="60" width="1390" height="500" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Home_s" bpmnElement="Home_s">
+        <dc:Bounds x="232" y="262" width="36" height="36" />
+        <bpmndi:BPMNLabel><dc:Bounds x="192" y="302" width="116" height="26" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Home_t1" bpmnElement="Home_t1">
+        <dc:Bounds x="380" y="243" width="170" height="74" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Home_g0" bpmnElement="Home_g0" isMarkerVisible="true">
+        <dc:Bounds x="655" y="255" width="50" height="50" />
+        <bpmndi:BPMNLabel><dc:Bounds x="615" y="309" width="130" height="26" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Home_e0" bpmnElement="Home_e0">
+        <dc:Bounds x="662" y="112" width="36" height="36" />
+        <bpmndi:BPMNLabel><dc:Bounds x="622" y="152" width="116" height="26" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Home_t2" bpmnElement="Home_t2">
+        <dc:Bounds x="810" y="243" width="170" height="74" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Home_g" bpmnElement="Home_g" isMarkerVisible="true">
+        <dc:Bounds x="1085" y="255" width="50" height="50" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1045" y="309" width="130" height="26" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Home_t3" bpmnElement="Home_t3">
+        <dc:Bounds x="1025" y="93" width="170" height="74" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Home_e1" bpmnElement="Home_e1">
+        <dc:Bounds x="1307" y="112" width="36" height="36" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1267" y="152" width="116" height="26" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Home_e2" bpmnElement="Home_e2">
+        <dc:Bounds x="1307" y="262" width="36" height="36" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1267" y="302" width="116" height="26" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Home_e3" bpmnElement="Home_e3">
+        <dc:Bounds x="1307" y="412" width="36" height="36" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1267" y="452" width="116" height="26" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="E_Home_f1" bpmnElement="Home_f1">
+        <di:waypoint x="268" y="280" />
+        <di:waypoint x="380" y="280" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Home_f2" bpmnElement="Home_f2">
+        <di:waypoint x="550" y="280" />
+        <di:waypoint x="655" y="280" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Home_f3" bpmnElement="Home_f3">
+        <di:waypoint x="680" y="255" />
+        <di:waypoint x="680" y="148" />
+        <bpmndi:BPMNLabel><dc:Bounds x="684" y="126" width="100" height="18" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Home_f4" bpmnElement="Home_f4">
+        <di:waypoint x="705" y="280" />
+        <di:waypoint x="810" y="280" />
+        <bpmndi:BPMNLabel><dc:Bounds x="814" y="258" width="100" height="18" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Home_f5" bpmnElement="Home_f5">
+        <di:waypoint x="980" y="280" />
+        <di:waypoint x="1085" y="280" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Home_f6" bpmnElement="Home_f6">
+        <di:waypoint x="1110" y="255" />
+        <di:waypoint x="1110" y="167" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1114" y="145" width="100" height="18" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Home_f7" bpmnElement="Home_f7">
+        <di:waypoint x="1110" y="167" />
+        <di:waypoint x="1110" y="376" />
+        <di:waypoint x="895" y="376" />
+        <di:waypoint x="895" y="317" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Home_f8" bpmnElement="Home_f8">
+        <di:waypoint x="1135" y="280" />
+        <di:waypoint x="1221" y="280" />
+        <di:waypoint x="1221" y="130" />
+        <di:waypoint x="1307" y="130" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1225" y="108" width="100" height="18" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Home_f9" bpmnElement="Home_f9">
+        <di:waypoint x="1135" y="280" />
+        <di:waypoint x="1307" y="280" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1311" y="258" width="100" height="18" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Home_f10" bpmnElement="Home_f10">
+        <di:waypoint x="1135" y="280" />
+        <di:waypoint x="1221" y="280" />
+        <di:waypoint x="1221" y="430" />
+        <di:waypoint x="1307" y="430" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1225" y="408" width="100" height="18" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="S_Part_Library" bpmnElement="Part_Library" isHorizontal="true">
+        <dc:Bounds x="130" y="615" width="1390" height="500" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Library_s" bpmnElement="Library_s">
+        <dc:Bounds x="232" y="817" width="36" height="36" />
+        <bpmndi:BPMNLabel><dc:Bounds x="192" y="857" width="116" height="26" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Library_t1" bpmnElement="Library_t1">
+        <dc:Bounds x="380" y="798" width="170" height="74" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Library_t2" bpmnElement="Library_t2">
+        <dc:Bounds x="595" y="798" width="170" height="74" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Library_g" bpmnElement="Library_g" isMarkerVisible="true">
+        <dc:Bounds x="870" y="810" width="50" height="50" />
+        <bpmndi:BPMNLabel><dc:Bounds x="830" y="864" width="130" height="26" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Library_b1" bpmnElement="Library_b1">
+        <dc:Bounds x="810" y="648" width="170" height="74" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Library_imp" bpmnElement="Library_imp">
+        <dc:Bounds x="1025" y="648" width="170" height="74" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Library_add" bpmnElement="Library_add">
+        <dc:Bounds x="1025" y="948" width="170" height="74" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Library_e1" bpmnElement="Library_e1">
+        <dc:Bounds x="1307" y="817" width="36" height="36" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1267" y="857" width="116" height="26" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Library_e2" bpmnElement="Library_e2">
+        <dc:Bounds x="1307" y="967" width="36" height="36" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1267" y="1007" width="116" height="26" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="E_Library_f1" bpmnElement="Library_f1">
+        <di:waypoint x="268" y="835" />
+        <di:waypoint x="380" y="835" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Library_f2" bpmnElement="Library_f2">
+        <di:waypoint x="550" y="835" />
+        <di:waypoint x="595" y="835" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Library_f3" bpmnElement="Library_f3">
+        <di:waypoint x="765" y="835" />
+        <di:waypoint x="870" y="835" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Library_f4" bpmnElement="Library_f4">
+        <di:waypoint x="895" y="810" />
+        <di:waypoint x="895" y="722" />
+        <bpmndi:BPMNLabel><dc:Bounds x="899" y="700" width="100" height="18" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Library_f5" bpmnElement="Library_f5">
+        <di:waypoint x="895" y="722" />
+        <di:waypoint x="895" y="931" />
+        <di:waypoint x="680" y="931" />
+        <di:waypoint x="680" y="872" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Library_f6" bpmnElement="Library_f6">
+        <di:waypoint x="920" y="835" />
+        <di:waypoint x="973" y="835" />
+        <di:waypoint x="973" y="685" />
+        <di:waypoint x="1025" y="685" />
+        <bpmndi:BPMNLabel><dc:Bounds x="977" y="663" width="100" height="18" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Library_f7" bpmnElement="Library_f7">
+        <di:waypoint x="1110" y="722" />
+        <di:waypoint x="1110" y="931" />
+        <di:waypoint x="680" y="931" />
+        <di:waypoint x="680" y="872" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Library_f8" bpmnElement="Library_f8">
+        <di:waypoint x="920" y="835" />
+        <di:waypoint x="973" y="835" />
+        <di:waypoint x="973" y="985" />
+        <di:waypoint x="1025" y="985" />
+        <bpmndi:BPMNLabel><dc:Bounds x="977" y="963" width="100" height="18" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Library_f9" bpmnElement="Library_f9">
+        <di:waypoint x="1110" y="1022" />
+        <di:waypoint x="1110" y="1081" />
+        <di:waypoint x="680" y="1081" />
+        <di:waypoint x="680" y="872" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Library_f10" bpmnElement="Library_f10">
+        <di:waypoint x="920" y="835" />
+        <di:waypoint x="1307" y="835" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1311" y="813" width="100" height="18" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Library_f11" bpmnElement="Library_f11">
+        <di:waypoint x="920" y="835" />
+        <di:waypoint x="1114" y="835" />
+        <di:waypoint x="1114" y="985" />
+        <di:waypoint x="1307" y="985" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1118" y="963" width="100" height="18" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="S_Part_Artist" bpmnElement="Part_Artist" isHorizontal="true">
+        <dc:Bounds x="130" y="1170" width="1390" height="500" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Artist_s" bpmnElement="Artist_s">
+        <dc:Bounds x="232" y="1372" width="36" height="36" />
+        <bpmndi:BPMNLabel><dc:Bounds x="192" y="1412" width="116" height="26" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Artist_t1" bpmnElement="Artist_t1">
+        <dc:Bounds x="380" y="1353" width="170" height="74" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Artist_g0" bpmnElement="Artist_g0" isMarkerVisible="true">
+        <dc:Bounds x="655" y="1365" width="50" height="50" />
+        <bpmndi:BPMNLabel><dc:Bounds x="615" y="1419" width="130" height="26" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Artist_e0" bpmnElement="Artist_e0">
+        <dc:Bounds x="662" y="1222" width="36" height="36" />
+        <bpmndi:BPMNLabel><dc:Bounds x="622" y="1262" width="116" height="26" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Artist_t2" bpmnElement="Artist_t2">
+        <dc:Bounds x="810" y="1353" width="170" height="74" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Artist_g" bpmnElement="Artist_g" isMarkerVisible="true">
+        <dc:Bounds x="1085" y="1365" width="50" height="50" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1045" y="1419" width="130" height="26" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Artist_t3" bpmnElement="Artist_t3">
+        <dc:Bounds x="1025" y="1203" width="170" height="74" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Artist_e1" bpmnElement="Artist_e1">
+        <dc:Bounds x="1307" y="1222" width="36" height="36" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1267" y="1262" width="116" height="26" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Artist_e2" bpmnElement="Artist_e2">
+        <dc:Bounds x="1307" y="1372" width="36" height="36" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1267" y="1412" width="116" height="26" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Artist_e3" bpmnElement="Artist_e3">
+        <dc:Bounds x="1307" y="1522" width="36" height="36" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1267" y="1562" width="116" height="26" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="E_Artist_f1" bpmnElement="Artist_f1">
+        <di:waypoint x="268" y="1390" />
+        <di:waypoint x="380" y="1390" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Artist_f2" bpmnElement="Artist_f2">
+        <di:waypoint x="550" y="1390" />
+        <di:waypoint x="655" y="1390" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Artist_f3" bpmnElement="Artist_f3">
+        <di:waypoint x="680" y="1365" />
+        <di:waypoint x="680" y="1258" />
+        <bpmndi:BPMNLabel><dc:Bounds x="684" y="1236" width="100" height="18" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Artist_f4" bpmnElement="Artist_f4">
+        <di:waypoint x="705" y="1390" />
+        <di:waypoint x="810" y="1390" />
+        <bpmndi:BPMNLabel><dc:Bounds x="814" y="1368" width="100" height="18" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Artist_f5" bpmnElement="Artist_f5">
+        <di:waypoint x="980" y="1390" />
+        <di:waypoint x="1085" y="1390" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Artist_f6" bpmnElement="Artist_f6">
+        <di:waypoint x="1110" y="1365" />
+        <di:waypoint x="1110" y="1277" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1114" y="1255" width="100" height="18" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Artist_f7" bpmnElement="Artist_f7">
+        <di:waypoint x="1110" y="1277" />
+        <di:waypoint x="1110" y="1486" />
+        <di:waypoint x="895" y="1486" />
+        <di:waypoint x="895" y="1427" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Artist_f8" bpmnElement="Artist_f8">
+        <di:waypoint x="1135" y="1390" />
+        <di:waypoint x="1221" y="1390" />
+        <di:waypoint x="1221" y="1240" />
+        <di:waypoint x="1307" y="1240" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1225" y="1218" width="100" height="18" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Artist_f9" bpmnElement="Artist_f9">
+        <di:waypoint x="1135" y="1390" />
+        <di:waypoint x="1307" y="1390" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1311" y="1368" width="100" height="18" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Artist_f10" bpmnElement="Artist_f10">
+        <di:waypoint x="1135" y="1390" />
+        <di:waypoint x="1221" y="1390" />
+        <di:waypoint x="1221" y="1540" />
+        <di:waypoint x="1307" y="1540" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1225" y="1518" width="100" height="18" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="S_Part_Playlists" bpmnElement="Part_Playlists" isHorizontal="true">
+        <dc:Bounds x="130" y="1725" width="1175" height="500" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Playlists_s" bpmnElement="Playlists_s">
+        <dc:Bounds x="232" y="1927" width="36" height="36" />
+        <bpmndi:BPMNLabel><dc:Bounds x="192" y="1967" width="116" height="26" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Playlists_t1" bpmnElement="Playlists_t1">
+        <dc:Bounds x="380" y="1908" width="170" height="74" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Playlists_t2" bpmnElement="Playlists_t2">
+        <dc:Bounds x="595" y="1908" width="170" height="74" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Playlists_g" bpmnElement="Playlists_g" isMarkerVisible="true">
+        <dc:Bounds x="870" y="1920" width="50" height="50" />
+        <bpmndi:BPMNLabel><dc:Bounds x="830" y="1974" width="130" height="26" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Playlists_c" bpmnElement="Playlists_c">
+        <dc:Bounds x="810" y="1758" width="170" height="74" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Playlists_ec" bpmnElement="Playlists_ec">
+        <dc:Bounds x="1025" y="1758" width="170" height="74" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Playlists_d" bpmnElement="Playlists_d">
+        <dc:Bounds x="810" y="2058" width="170" height="74" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Playlists_e1" bpmnElement="Playlists_e1">
+        <dc:Bounds x="1092" y="1927" width="36" height="36" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1052" y="1967" width="116" height="26" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Playlists_e2" bpmnElement="Playlists_e2">
+        <dc:Bounds x="1092" y="2077" width="36" height="36" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1052" y="2117" width="116" height="26" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="E_Playlists_f1" bpmnElement="Playlists_f1">
+        <di:waypoint x="268" y="1945" />
+        <di:waypoint x="380" y="1945" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Playlists_f2" bpmnElement="Playlists_f2">
+        <di:waypoint x="550" y="1945" />
+        <di:waypoint x="595" y="1945" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Playlists_f3" bpmnElement="Playlists_f3">
+        <di:waypoint x="765" y="1945" />
+        <di:waypoint x="870" y="1945" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Playlists_f4" bpmnElement="Playlists_f4">
+        <di:waypoint x="895" y="1920" />
+        <di:waypoint x="895" y="1832" />
+        <bpmndi:BPMNLabel><dc:Bounds x="899" y="1810" width="100" height="18" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Playlists_f5" bpmnElement="Playlists_f5">
+        <di:waypoint x="895" y="1832" />
+        <di:waypoint x="895" y="2041" />
+        <di:waypoint x="680" y="2041" />
+        <di:waypoint x="680" y="1982" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Playlists_f6" bpmnElement="Playlists_f6">
+        <di:waypoint x="920" y="1945" />
+        <di:waypoint x="973" y="1945" />
+        <di:waypoint x="973" y="1795" />
+        <di:waypoint x="1025" y="1795" />
+        <bpmndi:BPMNLabel><dc:Bounds x="977" y="1773" width="100" height="18" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Playlists_f7" bpmnElement="Playlists_f7">
+        <di:waypoint x="1110" y="1832" />
+        <di:waypoint x="1110" y="2041" />
+        <di:waypoint x="680" y="2041" />
+        <di:waypoint x="680" y="1982" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Playlists_f8" bpmnElement="Playlists_f8">
+        <di:waypoint x="895" y="1970" />
+        <di:waypoint x="895" y="2058" />
+        <bpmndi:BPMNLabel><dc:Bounds x="899" y="2036" width="100" height="18" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Playlists_f9" bpmnElement="Playlists_f9">
+        <di:waypoint x="895" y="2132" />
+        <di:waypoint x="895" y="2191" />
+        <di:waypoint x="680" y="2191" />
+        <di:waypoint x="680" y="1982" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Playlists_f10" bpmnElement="Playlists_f10">
+        <di:waypoint x="920" y="1945" />
+        <di:waypoint x="1092" y="1945" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1096" y="1923" width="100" height="18" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Playlists_f11" bpmnElement="Playlists_f11">
+        <di:waypoint x="920" y="1945" />
+        <di:waypoint x="1006" y="1945" />
+        <di:waypoint x="1006" y="2095" />
+        <di:waypoint x="1092" y="2095" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1010" y="2073" width="100" height="18" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="S_Part_PlaylistDetail" bpmnElement="Part_PlaylistDetail" isHorizontal="true">
+        <dc:Bounds x="130" y="2280" width="1390" height="500" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_PlaylistDetail_s" bpmnElement="PlaylistDetail_s">
+        <dc:Bounds x="232" y="2482" width="36" height="36" />
+        <bpmndi:BPMNLabel><dc:Bounds x="192" y="2522" width="116" height="26" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_PlaylistDetail_t1" bpmnElement="PlaylistDetail_t1">
+        <dc:Bounds x="380" y="2463" width="170" height="74" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_PlaylistDetail_g0" bpmnElement="PlaylistDetail_g0" isMarkerVisible="true">
+        <dc:Bounds x="655" y="2475" width="50" height="50" />
+        <bpmndi:BPMNLabel><dc:Bounds x="615" y="2529" width="130" height="26" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_PlaylistDetail_e0" bpmnElement="PlaylistDetail_e0">
+        <dc:Bounds x="662" y="2332" width="36" height="36" />
+        <bpmndi:BPMNLabel><dc:Bounds x="622" y="2372" width="116" height="26" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_PlaylistDetail_t2" bpmnElement="PlaylistDetail_t2">
+        <dc:Bounds x="810" y="2463" width="170" height="74" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_PlaylistDetail_g" bpmnElement="PlaylistDetail_g" isMarkerVisible="true">
+        <dc:Bounds x="1085" y="2475" width="50" height="50" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1045" y="2529" width="130" height="26" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_PlaylistDetail_t3" bpmnElement="PlaylistDetail_t3">
+        <dc:Bounds x="1025" y="2313" width="170" height="74" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_PlaylistDetail_e1" bpmnElement="PlaylistDetail_e1">
+        <dc:Bounds x="1307" y="2332" width="36" height="36" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1267" y="2372" width="116" height="26" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_PlaylistDetail_e2" bpmnElement="PlaylistDetail_e2">
+        <dc:Bounds x="1307" y="2482" width="36" height="36" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1267" y="2522" width="116" height="26" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_PlaylistDetail_e3" bpmnElement="PlaylistDetail_e3">
+        <dc:Bounds x="1307" y="2632" width="36" height="36" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1267" y="2672" width="116" height="26" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="E_PlaylistDetail_f1" bpmnElement="PlaylistDetail_f1">
+        <di:waypoint x="268" y="2500" />
+        <di:waypoint x="380" y="2500" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_PlaylistDetail_f2" bpmnElement="PlaylistDetail_f2">
+        <di:waypoint x="550" y="2500" />
+        <di:waypoint x="655" y="2500" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_PlaylistDetail_f3" bpmnElement="PlaylistDetail_f3">
+        <di:waypoint x="680" y="2475" />
+        <di:waypoint x="680" y="2368" />
+        <bpmndi:BPMNLabel><dc:Bounds x="684" y="2346" width="100" height="18" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_PlaylistDetail_f4" bpmnElement="PlaylistDetail_f4">
+        <di:waypoint x="705" y="2500" />
+        <di:waypoint x="810" y="2500" />
+        <bpmndi:BPMNLabel><dc:Bounds x="814" y="2478" width="100" height="18" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_PlaylistDetail_f5" bpmnElement="PlaylistDetail_f5">
+        <di:waypoint x="980" y="2500" />
+        <di:waypoint x="1085" y="2500" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_PlaylistDetail_f6" bpmnElement="PlaylistDetail_f6">
+        <di:waypoint x="1110" y="2475" />
+        <di:waypoint x="1110" y="2387" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1114" y="2365" width="100" height="18" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_PlaylistDetail_f7" bpmnElement="PlaylistDetail_f7">
+        <di:waypoint x="1110" y="2387" />
+        <di:waypoint x="1110" y="2596" />
+        <di:waypoint x="895" y="2596" />
+        <di:waypoint x="895" y="2537" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_PlaylistDetail_f8" bpmnElement="PlaylistDetail_f8">
+        <di:waypoint x="1135" y="2500" />
+        <di:waypoint x="1221" y="2500" />
+        <di:waypoint x="1221" y="2350" />
+        <di:waypoint x="1307" y="2350" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1225" y="2328" width="100" height="18" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_PlaylistDetail_f9" bpmnElement="PlaylistDetail_f9">
+        <di:waypoint x="1135" y="2500" />
+        <di:waypoint x="1307" y="2500" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1311" y="2478" width="100" height="18" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_PlaylistDetail_f10" bpmnElement="PlaylistDetail_f10">
+        <di:waypoint x="1135" y="2500" />
+        <di:waypoint x="1221" y="2500" />
+        <di:waypoint x="1221" y="2650" />
+        <di:waypoint x="1307" y="2650" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1225" y="2628" width="100" height="18" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="S_Part_NowPlaying" bpmnElement="Part_NowPlaying" isHorizontal="true">
+        <dc:Bounds x="130" y="2835" width="1175" height="500" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_NowPlaying_s" bpmnElement="NowPlaying_s">
+        <dc:Bounds x="232" y="3037" width="36" height="36" />
+        <bpmndi:BPMNLabel><dc:Bounds x="192" y="3077" width="116" height="26" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_NowPlaying_g0" bpmnElement="NowPlaying_g0" isMarkerVisible="true">
+        <dc:Bounds x="440" y="3030" width="50" height="50" />
+        <bpmndi:BPMNLabel><dc:Bounds x="400" y="3084" width="130" height="26" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_NowPlaying_e0" bpmnElement="NowPlaying_e0">
+        <dc:Bounds x="447" y="3187" width="36" height="36" />
+        <bpmndi:BPMNLabel><dc:Bounds x="407" y="3227" width="116" height="26" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_NowPlaying_t1" bpmnElement="NowPlaying_t1">
+        <dc:Bounds x="595" y="3018" width="170" height="74" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_NowPlaying_g" bpmnElement="NowPlaying_g" isMarkerVisible="true">
+        <dc:Bounds x="870" y="3030" width="50" height="50" />
+        <bpmndi:BPMNLabel><dc:Bounds x="830" y="3084" width="130" height="26" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_NowPlaying_t2" bpmnElement="NowPlaying_t2">
+        <dc:Bounds x="810" y="2868" width="170" height="74" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_NowPlaying_t3" bpmnElement="NowPlaying_t3">
+        <dc:Bounds x="1025" y="3168" width="170" height="74" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_NowPlaying_e1" bpmnElement="NowPlaying_e1">
+        <dc:Bounds x="1092" y="2887" width="36" height="36" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1052" y="2927" width="116" height="26" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_NowPlaying_e2" bpmnElement="NowPlaying_e2">
+        <dc:Bounds x="1092" y="3037" width="36" height="36" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1052" y="3077" width="116" height="26" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="E_NowPlaying_f1" bpmnElement="NowPlaying_f1">
+        <di:waypoint x="268" y="3055" />
+        <di:waypoint x="440" y="3055" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_NowPlaying_f2" bpmnElement="NowPlaying_f2">
+        <di:waypoint x="465" y="3080" />
+        <di:waypoint x="465" y="3187" />
+        <bpmndi:BPMNLabel><dc:Bounds x="469" y="3165" width="100" height="18" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_NowPlaying_f3" bpmnElement="NowPlaying_f3">
+        <di:waypoint x="490" y="3055" />
+        <di:waypoint x="595" y="3055" />
+        <bpmndi:BPMNLabel><dc:Bounds x="599" y="3033" width="100" height="18" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_NowPlaying_f4" bpmnElement="NowPlaying_f4">
+        <di:waypoint x="765" y="3055" />
+        <di:waypoint x="870" y="3055" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_NowPlaying_f5" bpmnElement="NowPlaying_f5">
+        <di:waypoint x="895" y="3030" />
+        <di:waypoint x="895" y="2942" />
+        <bpmndi:BPMNLabel><dc:Bounds x="899" y="2920" width="100" height="18" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_NowPlaying_f6" bpmnElement="NowPlaying_f6">
+        <di:waypoint x="895" y="2942" />
+        <di:waypoint x="895" y="3151" />
+        <di:waypoint x="680" y="3151" />
+        <di:waypoint x="680" y="3092" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_NowPlaying_f7" bpmnElement="NowPlaying_f7">
+        <di:waypoint x="920" y="3055" />
+        <di:waypoint x="973" y="3055" />
+        <di:waypoint x="973" y="3205" />
+        <di:waypoint x="1025" y="3205" />
+        <bpmndi:BPMNLabel><dc:Bounds x="977" y="3183" width="100" height="18" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_NowPlaying_f8" bpmnElement="NowPlaying_f8">
+        <di:waypoint x="1110" y="3242" />
+        <di:waypoint x="1110" y="3301" />
+        <di:waypoint x="680" y="3301" />
+        <di:waypoint x="680" y="3092" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_NowPlaying_f9" bpmnElement="NowPlaying_f9">
+        <di:waypoint x="920" y="3055" />
+        <di:waypoint x="1006" y="3055" />
+        <di:waypoint x="1006" y="2905" />
+        <di:waypoint x="1092" y="2905" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1010" y="2883" width="100" height="18" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_NowPlaying_f10" bpmnElement="NowPlaying_f10">
+        <di:waypoint x="920" y="3055" />
+        <di:waypoint x="1092" y="3055" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1096" y="3033" width="100" height="18" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="S_Part_Equalizer" bpmnElement="Part_Equalizer" isHorizontal="true">
+        <dc:Bounds x="130" y="3390" width="1605" height="500" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Equalizer_s" bpmnElement="Equalizer_s">
+        <dc:Bounds x="232" y="3592" width="36" height="36" />
+        <bpmndi:BPMNLabel><dc:Bounds x="192" y="3632" width="116" height="26" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Equalizer_t1" bpmnElement="Equalizer_t1">
+        <dc:Bounds x="380" y="3573" width="170" height="74" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Equalizer_t2" bpmnElement="Equalizer_t2">
+        <dc:Bounds x="595" y="3573" width="170" height="74" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Equalizer_g" bpmnElement="Equalizer_g" isMarkerVisible="true">
+        <dc:Bounds x="870" y="3585" width="50" height="50" />
+        <bpmndi:BPMNLabel><dc:Bounds x="830" y="3639" width="130" height="26" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Equalizer_t3" bpmnElement="Equalizer_t3">
+        <dc:Bounds x="810" y="3423" width="170" height="74" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Equalizer_t4" bpmnElement="Equalizer_t4">
+        <dc:Bounds x="1025" y="3423" width="170" height="74" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Equalizer_t5" bpmnElement="Equalizer_t5">
+        <dc:Bounds x="1025" y="3723" width="170" height="74" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Equalizer_t6" bpmnElement="Equalizer_t6">
+        <dc:Bounds x="1240" y="3573" width="170" height="74" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Equalizer_e" bpmnElement="Equalizer_e">
+        <dc:Bounds x="1522" y="3592" width="36" height="36" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1482" y="3632" width="116" height="26" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="E_Equalizer_f1" bpmnElement="Equalizer_f1">
+        <di:waypoint x="268" y="3610" />
+        <di:waypoint x="380" y="3610" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Equalizer_f2" bpmnElement="Equalizer_f2">
+        <di:waypoint x="550" y="3610" />
+        <di:waypoint x="595" y="3610" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Equalizer_f3" bpmnElement="Equalizer_f3">
+        <di:waypoint x="765" y="3610" />
+        <di:waypoint x="870" y="3610" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Equalizer_f4" bpmnElement="Equalizer_f4">
+        <di:waypoint x="895" y="3585" />
+        <di:waypoint x="895" y="3497" />
+        <bpmndi:BPMNLabel><dc:Bounds x="899" y="3475" width="100" height="18" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Equalizer_f5" bpmnElement="Equalizer_f5">
+        <di:waypoint x="895" y="3497" />
+        <di:waypoint x="895" y="3706" />
+        <di:waypoint x="465" y="3706" />
+        <di:waypoint x="465" y="3647" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Equalizer_f6" bpmnElement="Equalizer_f6">
+        <di:waypoint x="920" y="3610" />
+        <di:waypoint x="973" y="3610" />
+        <di:waypoint x="973" y="3460" />
+        <di:waypoint x="1025" y="3460" />
+        <bpmndi:BPMNLabel><dc:Bounds x="977" y="3438" width="100" height="18" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Equalizer_f7" bpmnElement="Equalizer_f7">
+        <di:waypoint x="1195" y="3460" />
+        <di:waypoint x="1218" y="3460" />
+        <di:waypoint x="1218" y="3610" />
+        <di:waypoint x="1240" y="3610" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Equalizer_f8" bpmnElement="Equalizer_f8">
+        <di:waypoint x="920" y="3610" />
+        <di:waypoint x="973" y="3610" />
+        <di:waypoint x="973" y="3760" />
+        <di:waypoint x="1025" y="3760" />
+        <bpmndi:BPMNLabel><dc:Bounds x="977" y="3738" width="100" height="18" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Equalizer_f9" bpmnElement="Equalizer_f9">
+        <di:waypoint x="1195" y="3760" />
+        <di:waypoint x="1218" y="3760" />
+        <di:waypoint x="1218" y="3610" />
+        <di:waypoint x="1240" y="3610" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Equalizer_f10" bpmnElement="Equalizer_f10">
+        <di:waypoint x="1325" y="3647" />
+        <di:waypoint x="1325" y="3706" />
+        <di:waypoint x="680" y="3706" />
+        <di:waypoint x="680" y="3647" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Equalizer_f11" bpmnElement="Equalizer_f11">
+        <di:waypoint x="920" y="3610" />
+        <di:waypoint x="1522" y="3610" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1526" y="3588" width="100" height="18" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="S_Part_AiMixer" bpmnElement="Part_AiMixer" isHorizontal="true">
+        <dc:Bounds x="130" y="3945" width="1820" height="500" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_AiMixer_s" bpmnElement="AiMixer_s">
+        <dc:Bounds x="232" y="4147" width="36" height="36" />
+        <bpmndi:BPMNLabel><dc:Bounds x="192" y="4187" width="116" height="26" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_AiMixer_g0" bpmnElement="AiMixer_g0" isMarkerVisible="true">
+        <dc:Bounds x="440" y="4140" width="50" height="50" />
+        <bpmndi:BPMNLabel><dc:Bounds x="400" y="4194" width="130" height="26" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_AiMixer_e0" bpmnElement="AiMixer_e0">
+        <dc:Bounds x="447" y="4297" width="36" height="36" />
+        <bpmndi:BPMNLabel><dc:Bounds x="407" y="4337" width="116" height="26" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_AiMixer_t1" bpmnElement="AiMixer_t1">
+        <dc:Bounds x="595" y="4128" width="170" height="74" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_AiMixer_t2" bpmnElement="AiMixer_t2">
+        <dc:Bounds x="810" y="4128" width="170" height="74" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_AiMixer_t3" bpmnElement="AiMixer_t3">
+        <dc:Bounds x="1025" y="4128" width="170" height="74" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_AiMixer_g" bpmnElement="AiMixer_g" isMarkerVisible="true">
+        <dc:Bounds x="1300" y="4140" width="50" height="50" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1260" y="4194" width="130" height="26" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_AiMixer_t4" bpmnElement="AiMixer_t4">
+        <dc:Bounds x="1240" y="3978" width="170" height="74" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_AiMixer_t5" bpmnElement="AiMixer_t5">
+        <dc:Bounds x="1240" y="4278" width="170" height="74" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_AiMixer_t6" bpmnElement="AiMixer_t6">
+        <dc:Bounds x="1455" y="4128" width="170" height="74" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_AiMixer_e" bpmnElement="AiMixer_e">
+        <dc:Bounds x="1737" y="4147" width="36" height="36" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1697" y="4187" width="116" height="26" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="E_AiMixer_f1" bpmnElement="AiMixer_f1">
+        <di:waypoint x="268" y="4165" />
+        <di:waypoint x="440" y="4165" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_AiMixer_f2" bpmnElement="AiMixer_f2">
+        <di:waypoint x="465" y="4190" />
+        <di:waypoint x="465" y="4297" />
+        <bpmndi:BPMNLabel><dc:Bounds x="469" y="4275" width="100" height="18" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_AiMixer_f3" bpmnElement="AiMixer_f3">
+        <di:waypoint x="490" y="4165" />
+        <di:waypoint x="595" y="4165" />
+        <bpmndi:BPMNLabel><dc:Bounds x="599" y="4143" width="100" height="18" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_AiMixer_f4" bpmnElement="AiMixer_f4">
+        <di:waypoint x="765" y="4165" />
+        <di:waypoint x="810" y="4165" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_AiMixer_f5" bpmnElement="AiMixer_f5">
+        <di:waypoint x="980" y="4165" />
+        <di:waypoint x="1025" y="4165" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_AiMixer_f6" bpmnElement="AiMixer_f6">
+        <di:waypoint x="1195" y="4165" />
+        <di:waypoint x="1300" y="4165" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_AiMixer_f7" bpmnElement="AiMixer_f7">
+        <di:waypoint x="1325" y="4140" />
+        <di:waypoint x="1325" y="4052" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1329" y="4030" width="100" height="18" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_AiMixer_f8" bpmnElement="AiMixer_f8">
+        <di:waypoint x="1325" y="4052" />
+        <di:waypoint x="1325" y="4261" />
+        <di:waypoint x="680" y="4261" />
+        <di:waypoint x="680" y="4202" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_AiMixer_f9" bpmnElement="AiMixer_f9">
+        <di:waypoint x="1325" y="4190" />
+        <di:waypoint x="1325" y="4278" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1329" y="4256" width="100" height="18" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_AiMixer_f10" bpmnElement="AiMixer_f10">
+        <di:waypoint x="1325" y="4352" />
+        <di:waypoint x="1325" y="4411" />
+        <di:waypoint x="680" y="4411" />
+        <di:waypoint x="680" y="4202" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_AiMixer_f11" bpmnElement="AiMixer_f11">
+        <di:waypoint x="1350" y="4165" />
+        <di:waypoint x="1455" y="4165" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1459" y="4143" width="100" height="18" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_AiMixer_f12" bpmnElement="AiMixer_f12">
+        <di:waypoint x="1625" y="4165" />
+        <di:waypoint x="1737" y="4165" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="S_Part_Profile" bpmnElement="Part_Profile" isHorizontal="true">
+        <dc:Bounds x="130" y="4500" width="1175" height="350" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Profile_s" bpmnElement="Profile_s">
+        <dc:Bounds x="232" y="4702" width="36" height="36" />
+        <bpmndi:BPMNLabel><dc:Bounds x="192" y="4742" width="116" height="26" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Profile_t1" bpmnElement="Profile_t1">
+        <dc:Bounds x="380" y="4683" width="170" height="74" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Profile_t2" bpmnElement="Profile_t2">
+        <dc:Bounds x="595" y="4683" width="170" height="74" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Profile_g" bpmnElement="Profile_g" isMarkerVisible="true">
+        <dc:Bounds x="870" y="4695" width="50" height="50" />
+        <bpmndi:BPMNLabel><dc:Bounds x="830" y="4749" width="130" height="26" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Profile_t3" bpmnElement="Profile_t3">
+        <dc:Bounds x="810" y="4533" width="170" height="74" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Profile_e1" bpmnElement="Profile_e1">
+        <dc:Bounds x="1092" y="4702" width="36" height="36" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1052" y="4742" width="116" height="26" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="E_Profile_f1" bpmnElement="Profile_f1">
+        <di:waypoint x="268" y="4720" />
+        <di:waypoint x="380" y="4720" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Profile_f2" bpmnElement="Profile_f2">
+        <di:waypoint x="550" y="4720" />
+        <di:waypoint x="595" y="4720" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Profile_f3" bpmnElement="Profile_f3">
+        <di:waypoint x="765" y="4720" />
+        <di:waypoint x="870" y="4720" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Profile_f4" bpmnElement="Profile_f4">
+        <di:waypoint x="895" y="4695" />
+        <di:waypoint x="895" y="4607" />
+        <bpmndi:BPMNLabel><dc:Bounds x="899" y="4585" width="100" height="18" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Profile_f5" bpmnElement="Profile_f5">
+        <di:waypoint x="895" y="4607" />
+        <di:waypoint x="895" y="4816" />
+        <di:waypoint x="680" y="4816" />
+        <di:waypoint x="680" y="4757" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Profile_f6" bpmnElement="Profile_f6">
+        <di:waypoint x="920" y="4720" />
+        <di:waypoint x="1092" y="4720" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1096" y="4698" width="100" height="18" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="S_Part_Segments" bpmnElement="Part_Segments" isHorizontal="true">
+        <dc:Bounds x="130" y="4905" width="1605" height="500" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Segments_s" bpmnElement="Segments_s">
+        <dc:Bounds x="232" y="5107" width="36" height="36" />
+        <bpmndi:BPMNLabel><dc:Bounds x="192" y="5147" width="116" height="26" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Segments_g0" bpmnElement="Segments_g0" isMarkerVisible="true">
+        <dc:Bounds x="440" y="5100" width="50" height="50" />
+        <bpmndi:BPMNLabel><dc:Bounds x="400" y="5154" width="130" height="26" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Segments_e0" bpmnElement="Segments_e0">
+        <dc:Bounds x="447" y="5257" width="36" height="36" />
+        <bpmndi:BPMNLabel><dc:Bounds x="407" y="5297" width="116" height="26" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Segments_t1" bpmnElement="Segments_t1">
+        <dc:Bounds x="595" y="5088" width="170" height="74" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Segments_t2" bpmnElement="Segments_t2">
+        <dc:Bounds x="810" y="5088" width="170" height="74" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Segments_g" bpmnElement="Segments_g" isMarkerVisible="true">
+        <dc:Bounds x="1085" y="5100" width="50" height="50" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1045" y="5154" width="130" height="26" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Segments_t3" bpmnElement="Segments_t3">
+        <dc:Bounds x="1025" y="4938" width="170" height="74" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Segments_t4" bpmnElement="Segments_t4">
+        <dc:Bounds x="1240" y="4938" width="170" height="74" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Segments_t5" bpmnElement="Segments_t5">
+        <dc:Bounds x="1025" y="5238" width="170" height="74" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Segments_t6" bpmnElement="Segments_t6">
+        <dc:Bounds x="1240" y="5238" width="170" height="74" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Segments_e" bpmnElement="Segments_e">
+        <dc:Bounds x="1522" y="5257" width="36" height="36" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1482" y="5297" width="116" height="26" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="E_Segments_f1" bpmnElement="Segments_f1">
+        <di:waypoint x="268" y="5125" />
+        <di:waypoint x="440" y="5125" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Segments_f2" bpmnElement="Segments_f2">
+        <di:waypoint x="465" y="5150" />
+        <di:waypoint x="465" y="5257" />
+        <bpmndi:BPMNLabel><dc:Bounds x="469" y="5235" width="100" height="18" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Segments_f3" bpmnElement="Segments_f3">
+        <di:waypoint x="490" y="5125" />
+        <di:waypoint x="595" y="5125" />
+        <bpmndi:BPMNLabel><dc:Bounds x="599" y="5103" width="100" height="18" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Segments_f4" bpmnElement="Segments_f4">
+        <di:waypoint x="765" y="5125" />
+        <di:waypoint x="810" y="5125" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Segments_f5" bpmnElement="Segments_f5">
+        <di:waypoint x="980" y="5125" />
+        <di:waypoint x="1085" y="5125" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Segments_f6" bpmnElement="Segments_f6">
+        <di:waypoint x="1110" y="5100" />
+        <di:waypoint x="1110" y="5012" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1114" y="4990" width="100" height="18" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Segments_f7" bpmnElement="Segments_f7">
+        <di:waypoint x="1110" y="5012" />
+        <di:waypoint x="1110" y="5221" />
+        <di:waypoint x="895" y="5221" />
+        <di:waypoint x="895" y="5162" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Segments_f8" bpmnElement="Segments_f8">
+        <di:waypoint x="1135" y="5125" />
+        <di:waypoint x="1188" y="5125" />
+        <di:waypoint x="1188" y="4975" />
+        <di:waypoint x="1240" y="4975" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1192" y="4953" width="100" height="18" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Segments_f9" bpmnElement="Segments_f9">
+        <di:waypoint x="1325" y="5012" />
+        <di:waypoint x="1325" y="5221" />
+        <di:waypoint x="895" y="5221" />
+        <di:waypoint x="895" y="5162" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Segments_f10" bpmnElement="Segments_f10">
+        <di:waypoint x="1110" y="5150" />
+        <di:waypoint x="1110" y="5238" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1114" y="5216" width="100" height="18" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Segments_f11" bpmnElement="Segments_f11">
+        <di:waypoint x="1110" y="5312" />
+        <di:waypoint x="1110" y="5371" />
+        <di:waypoint x="895" y="5371" />
+        <di:waypoint x="895" y="5162" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Segments_f12" bpmnElement="Segments_f12">
+        <di:waypoint x="1135" y="5125" />
+        <di:waypoint x="1188" y="5125" />
+        <di:waypoint x="1188" y="5275" />
+        <di:waypoint x="1240" y="5275" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1192" y="5253" width="100" height="18" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Segments_f13" bpmnElement="Segments_f13">
+        <di:waypoint x="1410" y="5275" />
+        <di:waypoint x="1522" y="5275" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="S_Part_Studio" bpmnElement="Part_Studio" isHorizontal="true">
+        <dc:Bounds x="130" y="5460" width="1175" height="500" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Studio_s" bpmnElement="Studio_s">
+        <dc:Bounds x="232" y="5662" width="36" height="36" />
+        <bpmndi:BPMNLabel><dc:Bounds x="192" y="5702" width="116" height="26" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Studio_t1" bpmnElement="Studio_t1">
+        <dc:Bounds x="380" y="5643" width="170" height="74" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Studio_g" bpmnElement="Studio_g" isMarkerVisible="true">
+        <dc:Bounds x="655" y="5655" width="50" height="50" />
+        <bpmndi:BPMNLabel><dc:Bounds x="615" y="5709" width="130" height="26" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Studio_e1" bpmnElement="Studio_e1">
+        <dc:Bounds x="877" y="5512" width="36" height="36" />
+        <bpmndi:BPMNLabel><dc:Bounds x="837" y="5552" width="116" height="26" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Studio_e2" bpmnElement="Studio_e2">
+        <dc:Bounds x="877" y="5662" width="36" height="36" />
+        <bpmndi:BPMNLabel><dc:Bounds x="837" y="5702" width="116" height="26" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Studio_e3" bpmnElement="Studio_e3">
+        <dc:Bounds x="877" y="5812" width="36" height="36" />
+        <bpmndi:BPMNLabel><dc:Bounds x="837" y="5852" width="116" height="26" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Studio_e4" bpmnElement="Studio_e4">
+        <dc:Bounds x="1092" y="5662" width="36" height="36" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1052" y="5702" width="116" height="26" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="E_Studio_f1" bpmnElement="Studio_f1">
+        <di:waypoint x="268" y="5680" />
+        <di:waypoint x="380" y="5680" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Studio_f2" bpmnElement="Studio_f2">
+        <di:waypoint x="550" y="5680" />
+        <di:waypoint x="655" y="5680" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Studio_f3" bpmnElement="Studio_f3">
+        <di:waypoint x="705" y="5680" />
+        <di:waypoint x="791" y="5680" />
+        <di:waypoint x="791" y="5530" />
+        <di:waypoint x="877" y="5530" />
+        <bpmndi:BPMNLabel><dc:Bounds x="795" y="5508" width="100" height="18" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Studio_f4" bpmnElement="Studio_f4">
+        <di:waypoint x="705" y="5680" />
+        <di:waypoint x="877" y="5680" />
+        <bpmndi:BPMNLabel><dc:Bounds x="881" y="5658" width="100" height="18" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Studio_f5" bpmnElement="Studio_f5">
+        <di:waypoint x="705" y="5680" />
+        <di:waypoint x="791" y="5680" />
+        <di:waypoint x="791" y="5830" />
+        <di:waypoint x="877" y="5830" />
+        <bpmndi:BPMNLabel><dc:Bounds x="795" y="5808" width="100" height="18" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Studio_f6" bpmnElement="Studio_f6">
+        <di:waypoint x="705" y="5680" />
+        <di:waypoint x="1092" y="5680" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1096" y="5658" width="100" height="18" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="S_Part_Settings" bpmnElement="Part_Settings" isHorizontal="true">
+        <dc:Bounds x="130" y="6015" width="1175" height="350" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Settings_s" bpmnElement="Settings_s">
+        <dc:Bounds x="232" y="6217" width="36" height="36" />
+        <bpmndi:BPMNLabel><dc:Bounds x="192" y="6257" width="116" height="26" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Settings_t1" bpmnElement="Settings_t1">
+        <dc:Bounds x="380" y="6198" width="170" height="74" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Settings_t2" bpmnElement="Settings_t2">
+        <dc:Bounds x="595" y="6198" width="170" height="74" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Settings_g" bpmnElement="Settings_g" isMarkerVisible="true">
+        <dc:Bounds x="870" y="6210" width="50" height="50" />
+        <bpmndi:BPMNLabel><dc:Bounds x="830" y="6264" width="130" height="26" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Settings_t3" bpmnElement="Settings_t3">
+        <dc:Bounds x="810" y="6048" width="170" height="74" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Settings_t4" bpmnElement="Settings_t4">
+        <dc:Bounds x="1025" y="6048" width="170" height="74" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Settings_e" bpmnElement="Settings_e">
+        <dc:Bounds x="1092" y="6217" width="36" height="36" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1052" y="6257" width="116" height="26" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="E_Settings_f1" bpmnElement="Settings_f1">
+        <di:waypoint x="268" y="6235" />
+        <di:waypoint x="380" y="6235" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Settings_f2" bpmnElement="Settings_f2">
+        <di:waypoint x="550" y="6235" />
+        <di:waypoint x="595" y="6235" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Settings_f3" bpmnElement="Settings_f3">
+        <di:waypoint x="765" y="6235" />
+        <di:waypoint x="870" y="6235" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Settings_f4" bpmnElement="Settings_f4">
+        <di:waypoint x="895" y="6210" />
+        <di:waypoint x="895" y="6122" />
+        <bpmndi:BPMNLabel><dc:Bounds x="899" y="6100" width="100" height="18" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Settings_f5" bpmnElement="Settings_f5">
+        <di:waypoint x="895" y="6122" />
+        <di:waypoint x="895" y="6331" />
+        <di:waypoint x="680" y="6331" />
+        <di:waypoint x="680" y="6272" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Settings_f6" bpmnElement="Settings_f6">
+        <di:waypoint x="920" y="6235" />
+        <di:waypoint x="973" y="6235" />
+        <di:waypoint x="973" y="6085" />
+        <di:waypoint x="1025" y="6085" />
+        <bpmndi:BPMNLabel><dc:Bounds x="977" y="6063" width="100" height="18" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Settings_f7" bpmnElement="Settings_f7">
+        <di:waypoint x="1110" y="6122" />
+        <di:waypoint x="1110" y="6331" />
+        <di:waypoint x="680" y="6331" />
+        <di:waypoint x="680" y="6272" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Settings_f8" bpmnElement="Settings_f8">
+        <di:waypoint x="920" y="6235" />
+        <di:waypoint x="1092" y="6235" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1096" y="6213" width="100" height="18" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="S_Part_Billing" bpmnElement="Part_Billing" isHorizontal="true">
+        <dc:Bounds x="130" y="6420" width="1605" height="350" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Billing_s" bpmnElement="Billing_s">
+        <dc:Bounds x="232" y="6622" width="36" height="36" />
+        <bpmndi:BPMNLabel><dc:Bounds x="192" y="6662" width="116" height="26" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Billing_t1" bpmnElement="Billing_t1">
+        <dc:Bounds x="380" y="6603" width="170" height="74" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Billing_t2" bpmnElement="Billing_t2">
+        <dc:Bounds x="595" y="6603" width="170" height="74" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Billing_g" bpmnElement="Billing_g" isMarkerVisible="true">
+        <dc:Bounds x="870" y="6615" width="50" height="50" />
+        <bpmndi:BPMNLabel><dc:Bounds x="830" y="6669" width="130" height="26" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Billing_e1" bpmnElement="Billing_e1">
+        <dc:Bounds x="877" y="6472" width="36" height="36" />
+        <bpmndi:BPMNLabel><dc:Bounds x="837" y="6512" width="116" height="26" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Billing_t3" bpmnElement="Billing_t3">
+        <dc:Bounds x="1025" y="6603" width="170" height="74" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Billing_t4" bpmnElement="Billing_t4">
+        <dc:Bounds x="1240" y="6603" width="170" height="74" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Billing_e2" bpmnElement="Billing_e2">
+        <dc:Bounds x="1522" y="6622" width="36" height="36" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1482" y="6662" width="116" height="26" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="E_Billing_f1" bpmnElement="Billing_f1">
+        <di:waypoint x="268" y="6640" />
+        <di:waypoint x="380" y="6640" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Billing_f2" bpmnElement="Billing_f2">
+        <di:waypoint x="550" y="6640" />
+        <di:waypoint x="595" y="6640" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Billing_f3" bpmnElement="Billing_f3">
+        <di:waypoint x="765" y="6640" />
+        <di:waypoint x="870" y="6640" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Billing_f4" bpmnElement="Billing_f4">
+        <di:waypoint x="895" y="6615" />
+        <di:waypoint x="895" y="6508" />
+        <bpmndi:BPMNLabel><dc:Bounds x="899" y="6486" width="100" height="18" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Billing_f5" bpmnElement="Billing_f5">
+        <di:waypoint x="920" y="6640" />
+        <di:waypoint x="1025" y="6640" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1029" y="6618" width="100" height="18" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Billing_f6" bpmnElement="Billing_f6">
+        <di:waypoint x="1195" y="6640" />
+        <di:waypoint x="1240" y="6640" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Billing_f7" bpmnElement="Billing_f7">
+        <di:waypoint x="1410" y="6640" />
+        <di:waypoint x="1522" y="6640" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

@@ -1,0 +1,643 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  id="Definitions_admin" targetNamespace="http://musicflow.app/bpmn">
+  <bpmn:collaboration id="Collab_admin" name="MusicFlow - Modulo Admin">
+    <bpmn:participant id="Part_Dashboard" name="Dashboard (Admin)" processRef="Proc_Dashboard" />
+    <bpmn:participant id="Part_Users" name="Usuarios (Admin)" processRef="Proc_Users" />
+    <bpmn:participant id="Part_UserDetail" name="Detalle de usuario (Admin)" processRef="Proc_UserDetail" />
+    <bpmn:participant id="Part_AiRequests" name="Solicitudes IA (Admin)" processRef="Proc_AiRequests" />
+    <bpmn:participant id="Part_EqPresets" name="Presets de EQ (Admin)" processRef="Proc_EqPresets" />
+  </bpmn:collaboration>
+  <bpmn:process id="Proc_Dashboard" name="Dashboard (Admin)" isExecutable="false">
+    <bpmn:startEvent id="Dashboard_s" name="Abrir Dashboard">
+      <bpmn:outgoing>Dashboard_f1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:task id="Dashboard_t0" name="Verificar rol admin (guard)">
+      <bpmn:incoming>Dashboard_f1</bpmn:incoming>
+      <bpmn:outgoing>Dashboard_f2</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Dashboard_t1" name="Cargar metricas (usuarios, IA, catalogo, actividad)">
+      <bpmn:incoming>Dashboard_f2</bpmn:incoming>
+      <bpmn:outgoing>Dashboard_f3</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Dashboard_t2" name="Mostrar dashboard (KPIs + graficos)">
+      <bpmn:incoming>Dashboard_f3</bpmn:incoming>
+      <bpmn:incoming>Dashboard_f6</bpmn:incoming>
+      <bpmn:outgoing>Dashboard_f4</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:exclusiveGateway id="Dashboard_g" name="Accion?">
+      <bpmn:incoming>Dashboard_f4</bpmn:incoming>
+      <bpmn:outgoing>Dashboard_f5</bpmn:outgoing>
+      <bpmn:outgoing>Dashboard_f7</bpmn:outgoing>
+      <bpmn:outgoing>Dashboard_f8</bpmn:outgoing>
+      <bpmn:outgoing>Dashboard_f9</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:task id="Dashboard_t3" name="Refrescar (auto cada 15s)">
+      <bpmn:incoming>Dashboard_f5</bpmn:incoming>
+      <bpmn:outgoing>Dashboard_f6</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:endEvent id="Dashboard_e1" name="Ir a Usuarios">
+      <bpmn:incoming>Dashboard_f7</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:endEvent id="Dashboard_e2" name="Ir a Solicitudes IA">
+      <bpmn:incoming>Dashboard_f8</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:endEvent id="Dashboard_e3" name="Power user -&gt; Detalle de usuario">
+      <bpmn:incoming>Dashboard_f9</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Dashboard_f1" sourceRef="Dashboard_s" targetRef="Dashboard_t0" />
+    <bpmn:sequenceFlow id="Dashboard_f2" sourceRef="Dashboard_t0" targetRef="Dashboard_t1" />
+    <bpmn:sequenceFlow id="Dashboard_f3" sourceRef="Dashboard_t1" targetRef="Dashboard_t2" />
+    <bpmn:sequenceFlow id="Dashboard_f4" sourceRef="Dashboard_t2" targetRef="Dashboard_g" />
+    <bpmn:sequenceFlow id="Dashboard_f5" name="Refrescar" sourceRef="Dashboard_g" targetRef="Dashboard_t3" />
+    <bpmn:sequenceFlow id="Dashboard_f6" sourceRef="Dashboard_t3" targetRef="Dashboard_t2" />
+    <bpmn:sequenceFlow id="Dashboard_f7" name="Usuarios" sourceRef="Dashboard_g" targetRef="Dashboard_e1" />
+    <bpmn:sequenceFlow id="Dashboard_f8" name="Solicitudes IA" sourceRef="Dashboard_g" targetRef="Dashboard_e2" />
+    <bpmn:sequenceFlow id="Dashboard_f9" name="Detalle usuario" sourceRef="Dashboard_g" targetRef="Dashboard_e3" />
+  </bpmn:process>
+  <bpmn:process id="Proc_Users" name="Usuarios (Admin)" isExecutable="false">
+    <bpmn:startEvent id="Users_s" name="Abrir Usuarios">
+      <bpmn:outgoing>Users_f1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:task id="Users_t1" name="Cargar usuarios (paginado)">
+      <bpmn:incoming>Users_f1</bpmn:incoming>
+      <bpmn:outgoing>Users_f2</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Users_t2" name="Mostrar tabla de usuarios">
+      <bpmn:incoming>Users_f2</bpmn:incoming>
+      <bpmn:incoming>Users_f5</bpmn:incoming>
+      <bpmn:incoming>Users_f7</bpmn:incoming>
+      <bpmn:incoming>Users_f9</bpmn:incoming>
+      <bpmn:outgoing>Users_f3</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:exclusiveGateway id="Users_g" name="Accion?">
+      <bpmn:incoming>Users_f3</bpmn:incoming>
+      <bpmn:outgoing>Users_f4</bpmn:outgoing>
+      <bpmn:outgoing>Users_f6</bpmn:outgoing>
+      <bpmn:outgoing>Users_f8</bpmn:outgoing>
+      <bpmn:outgoing>Users_f10</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:task id="Users_t3" name="Buscar / paginar">
+      <bpmn:incoming>Users_f4</bpmn:incoming>
+      <bpmn:outgoing>Users_f5</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Users_t4" name="Cambiar rol (confirmar) / toggle Premium">
+      <bpmn:incoming>Users_f6</bpmn:incoming>
+      <bpmn:outgoing>Users_f7</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Users_t5" name="Desactivar usuario (confirmar)">
+      <bpmn:incoming>Users_f8</bpmn:incoming>
+      <bpmn:outgoing>Users_f9</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:endEvent id="Users_e1" name="Ver detalle -&gt; Detalle de usuario">
+      <bpmn:incoming>Users_f10</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Users_f1" sourceRef="Users_s" targetRef="Users_t1" />
+    <bpmn:sequenceFlow id="Users_f2" sourceRef="Users_t1" targetRef="Users_t2" />
+    <bpmn:sequenceFlow id="Users_f3" sourceRef="Users_t2" targetRef="Users_g" />
+    <bpmn:sequenceFlow id="Users_f4" name="Buscar / Paginar" sourceRef="Users_g" targetRef="Users_t3" />
+    <bpmn:sequenceFlow id="Users_f5" sourceRef="Users_t3" targetRef="Users_t2" />
+    <bpmn:sequenceFlow id="Users_f6" name="Rol / Premium" sourceRef="Users_g" targetRef="Users_t4" />
+    <bpmn:sequenceFlow id="Users_f7" sourceRef="Users_t4" targetRef="Users_t2" />
+    <bpmn:sequenceFlow id="Users_f8" name="Desactivar" sourceRef="Users_g" targetRef="Users_t5" />
+    <bpmn:sequenceFlow id="Users_f9" sourceRef="Users_t5" targetRef="Users_t2" />
+    <bpmn:sequenceFlow id="Users_f10" name="Ver detalle" sourceRef="Users_g" targetRef="Users_e1" />
+  </bpmn:process>
+  <bpmn:process id="Proc_UserDetail" name="Detalle de usuario (Admin)" isExecutable="false">
+    <bpmn:startEvent id="UserDetail_s" name="Abrir Detalle de usuario">
+      <bpmn:outgoing>UserDetail_f1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:task id="UserDetail_t1" name="Cargar detalle (uso, dispositivos, IA, plays)">
+      <bpmn:incoming>UserDetail_f1</bpmn:incoming>
+      <bpmn:outgoing>UserDetail_f2</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="UserDetail_t2" name="Mostrar detalle">
+      <bpmn:incoming>UserDetail_f2</bpmn:incoming>
+      <bpmn:incoming>UserDetail_f5</bpmn:incoming>
+      <bpmn:incoming>UserDetail_f7</bpmn:incoming>
+      <bpmn:outgoing>UserDetail_f3</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:exclusiveGateway id="UserDetail_g" name="Accion?">
+      <bpmn:incoming>UserDetail_f3</bpmn:incoming>
+      <bpmn:outgoing>UserDetail_f4</bpmn:outgoing>
+      <bpmn:outgoing>UserDetail_f6</bpmn:outgoing>
+      <bpmn:outgoing>UserDetail_f8</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:task id="UserDetail_t3" name="Cambiar rol / Premium">
+      <bpmn:incoming>UserDetail_f4</bpmn:incoming>
+      <bpmn:outgoing>UserDetail_f5</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="UserDetail_t4" name="Desactivar (confirmar)">
+      <bpmn:incoming>UserDetail_f6</bpmn:incoming>
+      <bpmn:outgoing>UserDetail_f7</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:endEvent id="UserDetail_e1" name="Volver a Usuarios">
+      <bpmn:incoming>UserDetail_f8</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="UserDetail_f1" sourceRef="UserDetail_s" targetRef="UserDetail_t1" />
+    <bpmn:sequenceFlow id="UserDetail_f2" sourceRef="UserDetail_t1" targetRef="UserDetail_t2" />
+    <bpmn:sequenceFlow id="UserDetail_f3" sourceRef="UserDetail_t2" targetRef="UserDetail_g" />
+    <bpmn:sequenceFlow id="UserDetail_f4" name="Editar" sourceRef="UserDetail_g" targetRef="UserDetail_t3" />
+    <bpmn:sequenceFlow id="UserDetail_f5" sourceRef="UserDetail_t3" targetRef="UserDetail_t2" />
+    <bpmn:sequenceFlow id="UserDetail_f6" name="Desactivar" sourceRef="UserDetail_g" targetRef="UserDetail_t4" />
+    <bpmn:sequenceFlow id="UserDetail_f7" sourceRef="UserDetail_t4" targetRef="UserDetail_t2" />
+    <bpmn:sequenceFlow id="UserDetail_f8" name="Volver" sourceRef="UserDetail_g" targetRef="UserDetail_e1" />
+  </bpmn:process>
+  <bpmn:process id="Proc_AiRequests" name="Solicitudes IA (Admin)" isExecutable="false">
+    <bpmn:startEvent id="AiRequests_s" name="Abrir Solicitudes IA">
+      <bpmn:outgoing>AiRequests_f1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:task id="AiRequests_t1" name="Cargar feedback, costos y solicitudes">
+      <bpmn:incoming>AiRequests_f1</bpmn:incoming>
+      <bpmn:outgoing>AiRequests_f2</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="AiRequests_t2" name="Mostrar metricas y lista">
+      <bpmn:incoming>AiRequests_f2</bpmn:incoming>
+      <bpmn:incoming>AiRequests_f5</bpmn:incoming>
+      <bpmn:incoming>AiRequests_f7</bpmn:incoming>
+      <bpmn:outgoing>AiRequests_f3</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:exclusiveGateway id="AiRequests_g" name="Accion?">
+      <bpmn:incoming>AiRequests_f3</bpmn:incoming>
+      <bpmn:outgoing>AiRequests_f4</bpmn:outgoing>
+      <bpmn:outgoing>AiRequests_f6</bpmn:outgoing>
+      <bpmn:outgoing>AiRequests_f8</bpmn:outgoing>
+      <bpmn:outgoing>AiRequests_f9</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:task id="AiRequests_t3" name="Filtrar (limite, feedback, busqueda)">
+      <bpmn:incoming>AiRequests_f4</bpmn:incoming>
+      <bpmn:outgoing>AiRequests_f5</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="AiRequests_t4" name="Ver detalle (modal: prompt / respuesta)">
+      <bpmn:incoming>AiRequests_f6</bpmn:incoming>
+      <bpmn:outgoing>AiRequests_f7</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:endEvent id="AiRequests_e1" name="Top usuario por costo -&gt; Detalle de usuario">
+      <bpmn:incoming>AiRequests_f8</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:endEvent id="AiRequests_e2" name="Salir">
+      <bpmn:incoming>AiRequests_f9</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="AiRequests_f1" sourceRef="AiRequests_s" targetRef="AiRequests_t1" />
+    <bpmn:sequenceFlow id="AiRequests_f2" sourceRef="AiRequests_t1" targetRef="AiRequests_t2" />
+    <bpmn:sequenceFlow id="AiRequests_f3" sourceRef="AiRequests_t2" targetRef="AiRequests_g" />
+    <bpmn:sequenceFlow id="AiRequests_f4" name="Filtrar" sourceRef="AiRequests_g" targetRef="AiRequests_t3" />
+    <bpmn:sequenceFlow id="AiRequests_f5" sourceRef="AiRequests_t3" targetRef="AiRequests_t2" />
+    <bpmn:sequenceFlow id="AiRequests_f6" name="Ver detalle" sourceRef="AiRequests_g" targetRef="AiRequests_t4" />
+    <bpmn:sequenceFlow id="AiRequests_f7" sourceRef="AiRequests_t4" targetRef="AiRequests_t2" />
+    <bpmn:sequenceFlow id="AiRequests_f8" name="Top usuario" sourceRef="AiRequests_g" targetRef="AiRequests_e1" />
+    <bpmn:sequenceFlow id="AiRequests_f9" name="Salir" sourceRef="AiRequests_g" targetRef="AiRequests_e2" />
+  </bpmn:process>
+  <bpmn:process id="Proc_EqPresets" name="Presets de EQ (Admin)" isExecutable="false">
+    <bpmn:startEvent id="EqPresets_s" name="Abrir Presets de EQ">
+      <bpmn:outgoing>EqPresets_f1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:task id="EqPresets_t1" name="Cargar presets globales">
+      <bpmn:incoming>EqPresets_f1</bpmn:incoming>
+      <bpmn:outgoing>EqPresets_f2</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="EqPresets_t2" name="Mostrar lista de presets">
+      <bpmn:incoming>EqPresets_f2</bpmn:incoming>
+      <bpmn:incoming>EqPresets_f10</bpmn:incoming>
+      <bpmn:outgoing>EqPresets_f3</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:exclusiveGateway id="EqPresets_g" name="Accion?">
+      <bpmn:incoming>EqPresets_f3</bpmn:incoming>
+      <bpmn:outgoing>EqPresets_f4</bpmn:outgoing>
+      <bpmn:outgoing>EqPresets_f6</bpmn:outgoing>
+      <bpmn:outgoing>EqPresets_f9</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:task id="EqPresets_t3" name="Crear preset (nombre + bandas + efectos)">
+      <bpmn:incoming>EqPresets_f4</bpmn:incoming>
+      <bpmn:outgoing>EqPresets_f5</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="EqPresets_t4" name="Editar preset (sliders / reverb)">
+      <bpmn:incoming>EqPresets_f6</bpmn:incoming>
+      <bpmn:outgoing>EqPresets_f7</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="EqPresets_t6" name="Eliminar preset (confirmar)">
+      <bpmn:incoming>EqPresets_f9</bpmn:incoming>
+      <bpmn:outgoing>EqPresets_f10</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="EqPresets_t5" name="Guardar (si hay cambios)">
+      <bpmn:incoming>EqPresets_f5</bpmn:incoming>
+      <bpmn:incoming>EqPresets_f7</bpmn:incoming>
+      <bpmn:outgoing>EqPresets_f8</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:endEvent id="EqPresets_e" name="Cambios guardados">
+      <bpmn:incoming>EqPresets_f8</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="EqPresets_f1" sourceRef="EqPresets_s" targetRef="EqPresets_t1" />
+    <bpmn:sequenceFlow id="EqPresets_f2" sourceRef="EqPresets_t1" targetRef="EqPresets_t2" />
+    <bpmn:sequenceFlow id="EqPresets_f3" sourceRef="EqPresets_t2" targetRef="EqPresets_g" />
+    <bpmn:sequenceFlow id="EqPresets_f4" name="Crear" sourceRef="EqPresets_g" targetRef="EqPresets_t3" />
+    <bpmn:sequenceFlow id="EqPresets_f5" sourceRef="EqPresets_t3" targetRef="EqPresets_t5" />
+    <bpmn:sequenceFlow id="EqPresets_f6" name="Editar" sourceRef="EqPresets_g" targetRef="EqPresets_t4" />
+    <bpmn:sequenceFlow id="EqPresets_f7" sourceRef="EqPresets_t4" targetRef="EqPresets_t5" />
+    <bpmn:sequenceFlow id="EqPresets_f8" sourceRef="EqPresets_t5" targetRef="EqPresets_e" />
+    <bpmn:sequenceFlow id="EqPresets_f9" name="Eliminar" sourceRef="EqPresets_g" targetRef="EqPresets_t6" />
+    <bpmn:sequenceFlow id="EqPresets_f10" sourceRef="EqPresets_t6" targetRef="EqPresets_t2" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="Diag_admin" name="MusicFlow - Modulo Admin">
+    <bpmndi:BPMNPlane id="Plane_admin" bpmnElement="Collab_admin">
+      <bpmndi:BPMNShape id="S_Part_Dashboard" bpmnElement="Part_Dashboard" isHorizontal="true">
+        <dc:Bounds x="130" y="60" width="1390" height="500" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Dashboard_s" bpmnElement="Dashboard_s">
+        <dc:Bounds x="232" y="262" width="36" height="36" />
+        <bpmndi:BPMNLabel><dc:Bounds x="192" y="302" width="116" height="26" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Dashboard_t0" bpmnElement="Dashboard_t0">
+        <dc:Bounds x="380" y="243" width="170" height="74" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Dashboard_t1" bpmnElement="Dashboard_t1">
+        <dc:Bounds x="595" y="243" width="170" height="74" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Dashboard_t2" bpmnElement="Dashboard_t2">
+        <dc:Bounds x="810" y="243" width="170" height="74" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Dashboard_g" bpmnElement="Dashboard_g" isMarkerVisible="true">
+        <dc:Bounds x="1085" y="255" width="50" height="50" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1045" y="309" width="130" height="26" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Dashboard_t3" bpmnElement="Dashboard_t3">
+        <dc:Bounds x="1025" y="93" width="170" height="74" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Dashboard_e1" bpmnElement="Dashboard_e1">
+        <dc:Bounds x="1307" y="112" width="36" height="36" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1267" y="152" width="116" height="26" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Dashboard_e2" bpmnElement="Dashboard_e2">
+        <dc:Bounds x="1307" y="262" width="36" height="36" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1267" y="302" width="116" height="26" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Dashboard_e3" bpmnElement="Dashboard_e3">
+        <dc:Bounds x="1307" y="412" width="36" height="36" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1267" y="452" width="116" height="26" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="E_Dashboard_f1" bpmnElement="Dashboard_f1">
+        <di:waypoint x="268" y="280" />
+        <di:waypoint x="380" y="280" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Dashboard_f2" bpmnElement="Dashboard_f2">
+        <di:waypoint x="550" y="280" />
+        <di:waypoint x="595" y="280" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Dashboard_f3" bpmnElement="Dashboard_f3">
+        <di:waypoint x="765" y="280" />
+        <di:waypoint x="810" y="280" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Dashboard_f4" bpmnElement="Dashboard_f4">
+        <di:waypoint x="980" y="280" />
+        <di:waypoint x="1085" y="280" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Dashboard_f5" bpmnElement="Dashboard_f5">
+        <di:waypoint x="1110" y="255" />
+        <di:waypoint x="1110" y="167" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1114" y="145" width="100" height="18" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Dashboard_f6" bpmnElement="Dashboard_f6">
+        <di:waypoint x="1110" y="167" />
+        <di:waypoint x="1110" y="376" />
+        <di:waypoint x="895" y="376" />
+        <di:waypoint x="895" y="317" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Dashboard_f7" bpmnElement="Dashboard_f7">
+        <di:waypoint x="1135" y="280" />
+        <di:waypoint x="1221" y="280" />
+        <di:waypoint x="1221" y="130" />
+        <di:waypoint x="1307" y="130" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1225" y="108" width="100" height="18" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Dashboard_f8" bpmnElement="Dashboard_f8">
+        <di:waypoint x="1135" y="280" />
+        <di:waypoint x="1307" y="280" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1311" y="258" width="100" height="18" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Dashboard_f9" bpmnElement="Dashboard_f9">
+        <di:waypoint x="1135" y="280" />
+        <di:waypoint x="1221" y="280" />
+        <di:waypoint x="1221" y="430" />
+        <di:waypoint x="1307" y="430" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1225" y="408" width="100" height="18" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="S_Part_Users" bpmnElement="Part_Users" isHorizontal="true">
+        <dc:Bounds x="130" y="615" width="1390" height="500" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Users_s" bpmnElement="Users_s">
+        <dc:Bounds x="232" y="817" width="36" height="36" />
+        <bpmndi:BPMNLabel><dc:Bounds x="192" y="857" width="116" height="26" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Users_t1" bpmnElement="Users_t1">
+        <dc:Bounds x="380" y="798" width="170" height="74" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Users_t2" bpmnElement="Users_t2">
+        <dc:Bounds x="595" y="798" width="170" height="74" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Users_g" bpmnElement="Users_g" isMarkerVisible="true">
+        <dc:Bounds x="870" y="810" width="50" height="50" />
+        <bpmndi:BPMNLabel><dc:Bounds x="830" y="864" width="130" height="26" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Users_t3" bpmnElement="Users_t3">
+        <dc:Bounds x="810" y="648" width="170" height="74" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Users_t4" bpmnElement="Users_t4">
+        <dc:Bounds x="1025" y="648" width="170" height="74" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Users_t5" bpmnElement="Users_t5">
+        <dc:Bounds x="1025" y="948" width="170" height="74" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Users_e1" bpmnElement="Users_e1">
+        <dc:Bounds x="1307" y="817" width="36" height="36" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1267" y="857" width="116" height="26" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="E_Users_f1" bpmnElement="Users_f1">
+        <di:waypoint x="268" y="835" />
+        <di:waypoint x="380" y="835" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Users_f2" bpmnElement="Users_f2">
+        <di:waypoint x="550" y="835" />
+        <di:waypoint x="595" y="835" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Users_f3" bpmnElement="Users_f3">
+        <di:waypoint x="765" y="835" />
+        <di:waypoint x="870" y="835" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Users_f4" bpmnElement="Users_f4">
+        <di:waypoint x="895" y="810" />
+        <di:waypoint x="895" y="722" />
+        <bpmndi:BPMNLabel><dc:Bounds x="899" y="700" width="100" height="18" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Users_f5" bpmnElement="Users_f5">
+        <di:waypoint x="895" y="722" />
+        <di:waypoint x="895" y="931" />
+        <di:waypoint x="680" y="931" />
+        <di:waypoint x="680" y="872" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Users_f6" bpmnElement="Users_f6">
+        <di:waypoint x="920" y="835" />
+        <di:waypoint x="973" y="835" />
+        <di:waypoint x="973" y="685" />
+        <di:waypoint x="1025" y="685" />
+        <bpmndi:BPMNLabel><dc:Bounds x="977" y="663" width="100" height="18" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Users_f7" bpmnElement="Users_f7">
+        <di:waypoint x="1110" y="722" />
+        <di:waypoint x="1110" y="931" />
+        <di:waypoint x="680" y="931" />
+        <di:waypoint x="680" y="872" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Users_f8" bpmnElement="Users_f8">
+        <di:waypoint x="920" y="835" />
+        <di:waypoint x="973" y="835" />
+        <di:waypoint x="973" y="985" />
+        <di:waypoint x="1025" y="985" />
+        <bpmndi:BPMNLabel><dc:Bounds x="977" y="963" width="100" height="18" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Users_f9" bpmnElement="Users_f9">
+        <di:waypoint x="1110" y="1022" />
+        <di:waypoint x="1110" y="1081" />
+        <di:waypoint x="680" y="1081" />
+        <di:waypoint x="680" y="872" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Users_f10" bpmnElement="Users_f10">
+        <di:waypoint x="920" y="835" />
+        <di:waypoint x="1307" y="835" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1311" y="813" width="100" height="18" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="S_Part_UserDetail" bpmnElement="Part_UserDetail" isHorizontal="true">
+        <dc:Bounds x="130" y="1170" width="1175" height="500" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_UserDetail_s" bpmnElement="UserDetail_s">
+        <dc:Bounds x="232" y="1372" width="36" height="36" />
+        <bpmndi:BPMNLabel><dc:Bounds x="192" y="1412" width="116" height="26" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_UserDetail_t1" bpmnElement="UserDetail_t1">
+        <dc:Bounds x="380" y="1353" width="170" height="74" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_UserDetail_t2" bpmnElement="UserDetail_t2">
+        <dc:Bounds x="595" y="1353" width="170" height="74" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_UserDetail_g" bpmnElement="UserDetail_g" isMarkerVisible="true">
+        <dc:Bounds x="870" y="1365" width="50" height="50" />
+        <bpmndi:BPMNLabel><dc:Bounds x="830" y="1419" width="130" height="26" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_UserDetail_t3" bpmnElement="UserDetail_t3">
+        <dc:Bounds x="810" y="1203" width="170" height="74" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_UserDetail_t4" bpmnElement="UserDetail_t4">
+        <dc:Bounds x="810" y="1503" width="170" height="74" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_UserDetail_e1" bpmnElement="UserDetail_e1">
+        <dc:Bounds x="1092" y="1372" width="36" height="36" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1052" y="1412" width="116" height="26" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="E_UserDetail_f1" bpmnElement="UserDetail_f1">
+        <di:waypoint x="268" y="1390" />
+        <di:waypoint x="380" y="1390" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_UserDetail_f2" bpmnElement="UserDetail_f2">
+        <di:waypoint x="550" y="1390" />
+        <di:waypoint x="595" y="1390" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_UserDetail_f3" bpmnElement="UserDetail_f3">
+        <di:waypoint x="765" y="1390" />
+        <di:waypoint x="870" y="1390" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_UserDetail_f4" bpmnElement="UserDetail_f4">
+        <di:waypoint x="895" y="1365" />
+        <di:waypoint x="895" y="1277" />
+        <bpmndi:BPMNLabel><dc:Bounds x="899" y="1255" width="100" height="18" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_UserDetail_f5" bpmnElement="UserDetail_f5">
+        <di:waypoint x="895" y="1277" />
+        <di:waypoint x="895" y="1486" />
+        <di:waypoint x="680" y="1486" />
+        <di:waypoint x="680" y="1427" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_UserDetail_f6" bpmnElement="UserDetail_f6">
+        <di:waypoint x="895" y="1415" />
+        <di:waypoint x="895" y="1503" />
+        <bpmndi:BPMNLabel><dc:Bounds x="899" y="1481" width="100" height="18" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_UserDetail_f7" bpmnElement="UserDetail_f7">
+        <di:waypoint x="895" y="1577" />
+        <di:waypoint x="895" y="1636" />
+        <di:waypoint x="680" y="1636" />
+        <di:waypoint x="680" y="1427" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_UserDetail_f8" bpmnElement="UserDetail_f8">
+        <di:waypoint x="920" y="1390" />
+        <di:waypoint x="1092" y="1390" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1096" y="1368" width="100" height="18" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="S_Part_AiRequests" bpmnElement="Part_AiRequests" isHorizontal="true">
+        <dc:Bounds x="130" y="1725" width="1390" height="500" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_AiRequests_s" bpmnElement="AiRequests_s">
+        <dc:Bounds x="232" y="1927" width="36" height="36" />
+        <bpmndi:BPMNLabel><dc:Bounds x="192" y="1967" width="116" height="26" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_AiRequests_t1" bpmnElement="AiRequests_t1">
+        <dc:Bounds x="380" y="1908" width="170" height="74" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_AiRequests_t2" bpmnElement="AiRequests_t2">
+        <dc:Bounds x="595" y="1908" width="170" height="74" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_AiRequests_g" bpmnElement="AiRequests_g" isMarkerVisible="true">
+        <dc:Bounds x="870" y="1920" width="50" height="50" />
+        <bpmndi:BPMNLabel><dc:Bounds x="830" y="1974" width="130" height="26" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_AiRequests_t3" bpmnElement="AiRequests_t3">
+        <dc:Bounds x="810" y="1758" width="170" height="74" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_AiRequests_t4" bpmnElement="AiRequests_t4">
+        <dc:Bounds x="1025" y="1758" width="170" height="74" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_AiRequests_e1" bpmnElement="AiRequests_e1">
+        <dc:Bounds x="1092" y="2077" width="36" height="36" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1052" y="2117" width="116" height="26" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_AiRequests_e2" bpmnElement="AiRequests_e2">
+        <dc:Bounds x="1307" y="1927" width="36" height="36" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1267" y="1967" width="116" height="26" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="E_AiRequests_f1" bpmnElement="AiRequests_f1">
+        <di:waypoint x="268" y="1945" />
+        <di:waypoint x="380" y="1945" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_AiRequests_f2" bpmnElement="AiRequests_f2">
+        <di:waypoint x="550" y="1945" />
+        <di:waypoint x="595" y="1945" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_AiRequests_f3" bpmnElement="AiRequests_f3">
+        <di:waypoint x="765" y="1945" />
+        <di:waypoint x="870" y="1945" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_AiRequests_f4" bpmnElement="AiRequests_f4">
+        <di:waypoint x="895" y="1920" />
+        <di:waypoint x="895" y="1832" />
+        <bpmndi:BPMNLabel><dc:Bounds x="899" y="1810" width="100" height="18" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_AiRequests_f5" bpmnElement="AiRequests_f5">
+        <di:waypoint x="895" y="1832" />
+        <di:waypoint x="895" y="2041" />
+        <di:waypoint x="680" y="2041" />
+        <di:waypoint x="680" y="1982" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_AiRequests_f6" bpmnElement="AiRequests_f6">
+        <di:waypoint x="920" y="1945" />
+        <di:waypoint x="973" y="1945" />
+        <di:waypoint x="973" y="1795" />
+        <di:waypoint x="1025" y="1795" />
+        <bpmndi:BPMNLabel><dc:Bounds x="977" y="1773" width="100" height="18" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_AiRequests_f7" bpmnElement="AiRequests_f7">
+        <di:waypoint x="1110" y="1832" />
+        <di:waypoint x="1110" y="2041" />
+        <di:waypoint x="680" y="2041" />
+        <di:waypoint x="680" y="1982" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_AiRequests_f8" bpmnElement="AiRequests_f8">
+        <di:waypoint x="920" y="1945" />
+        <di:waypoint x="1006" y="1945" />
+        <di:waypoint x="1006" y="2095" />
+        <di:waypoint x="1092" y="2095" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1010" y="2073" width="100" height="18" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_AiRequests_f9" bpmnElement="AiRequests_f9">
+        <di:waypoint x="920" y="1945" />
+        <di:waypoint x="1307" y="1945" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1311" y="1923" width="100" height="18" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="S_Part_EqPresets" bpmnElement="Part_EqPresets" isHorizontal="true">
+        <dc:Bounds x="130" y="2280" width="1605" height="500" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_EqPresets_s" bpmnElement="EqPresets_s">
+        <dc:Bounds x="232" y="2482" width="36" height="36" />
+        <bpmndi:BPMNLabel><dc:Bounds x="192" y="2522" width="116" height="26" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_EqPresets_t1" bpmnElement="EqPresets_t1">
+        <dc:Bounds x="380" y="2463" width="170" height="74" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_EqPresets_t2" bpmnElement="EqPresets_t2">
+        <dc:Bounds x="595" y="2463" width="170" height="74" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_EqPresets_g" bpmnElement="EqPresets_g" isMarkerVisible="true">
+        <dc:Bounds x="870" y="2475" width="50" height="50" />
+        <bpmndi:BPMNLabel><dc:Bounds x="830" y="2529" width="130" height="26" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_EqPresets_t3" bpmnElement="EqPresets_t3">
+        <dc:Bounds x="810" y="2313" width="170" height="74" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_EqPresets_t4" bpmnElement="EqPresets_t4">
+        <dc:Bounds x="1025" y="2313" width="170" height="74" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_EqPresets_t6" bpmnElement="EqPresets_t6">
+        <dc:Bounds x="810" y="2613" width="170" height="74" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_EqPresets_t5" bpmnElement="EqPresets_t5">
+        <dc:Bounds x="1240" y="2463" width="170" height="74" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_EqPresets_e" bpmnElement="EqPresets_e">
+        <dc:Bounds x="1522" y="2482" width="36" height="36" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1482" y="2522" width="116" height="26" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="E_EqPresets_f1" bpmnElement="EqPresets_f1">
+        <di:waypoint x="268" y="2500" />
+        <di:waypoint x="380" y="2500" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_EqPresets_f2" bpmnElement="EqPresets_f2">
+        <di:waypoint x="550" y="2500" />
+        <di:waypoint x="595" y="2500" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_EqPresets_f3" bpmnElement="EqPresets_f3">
+        <di:waypoint x="765" y="2500" />
+        <di:waypoint x="870" y="2500" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_EqPresets_f4" bpmnElement="EqPresets_f4">
+        <di:waypoint x="895" y="2475" />
+        <di:waypoint x="895" y="2387" />
+        <bpmndi:BPMNLabel><dc:Bounds x="899" y="2365" width="100" height="18" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_EqPresets_f5" bpmnElement="EqPresets_f5">
+        <di:waypoint x="980" y="2350" />
+        <di:waypoint x="1110" y="2350" />
+        <di:waypoint x="1110" y="2500" />
+        <di:waypoint x="1240" y="2500" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_EqPresets_f6" bpmnElement="EqPresets_f6">
+        <di:waypoint x="920" y="2500" />
+        <di:waypoint x="973" y="2500" />
+        <di:waypoint x="973" y="2350" />
+        <di:waypoint x="1025" y="2350" />
+        <bpmndi:BPMNLabel><dc:Bounds x="977" y="2328" width="100" height="18" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_EqPresets_f7" bpmnElement="EqPresets_f7">
+        <di:waypoint x="1195" y="2350" />
+        <di:waypoint x="1218" y="2350" />
+        <di:waypoint x="1218" y="2500" />
+        <di:waypoint x="1240" y="2500" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_EqPresets_f8" bpmnElement="EqPresets_f8">
+        <di:waypoint x="1410" y="2500" />
+        <di:waypoint x="1522" y="2500" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_EqPresets_f9" bpmnElement="EqPresets_f9">
+        <di:waypoint x="895" y="2525" />
+        <di:waypoint x="895" y="2613" />
+        <bpmndi:BPMNLabel><dc:Bounds x="899" y="2591" width="100" height="18" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_EqPresets_f10" bpmnElement="EqPresets_f10">
+        <di:waypoint x="895" y="2687" />
+        <di:waypoint x="895" y="2746" />
+        <di:waypoint x="680" y="2746" />
+        <di:waypoint x="680" y="2537" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

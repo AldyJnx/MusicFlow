@@ -1,0 +1,543 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  id="Definitions_auth" targetNamespace="http://musicflow.app/bpmn">
+  <bpmn:collaboration id="Collab_auth" name="MusicFlow - Modulo Auth">
+    <bpmn:participant id="Part_Login" name="Login" processRef="Proc_Login" />
+    <bpmn:participant id="Part_Register" name="Registro" processRef="Proc_Register" />
+    <bpmn:participant id="Part_ForgotPassword" name="Recuperar contrasena" processRef="Proc_ForgotPassword" />
+    <bpmn:participant id="Part_VerifyCode" name="Verificar codigo" processRef="Proc_VerifyCode" />
+    <bpmn:participant id="Part_ChangePassword" name="Cambiar contrasena" processRef="Proc_ChangePassword" />
+  </bpmn:collaboration>
+  <bpmn:process id="Proc_Login" name="Login" isExecutable="false">
+    <bpmn:startEvent id="Login_s" name="Abrir Login">
+      <bpmn:outgoing>Login_f1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:task id="Login_m" name="Mostrar formulario de login">
+      <bpmn:incoming>Login_f1</bpmn:incoming>
+      <bpmn:outgoing>Login_f2</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:exclusiveGateway id="Login_g" name="Accion?">
+      <bpmn:incoming>Login_f2</bpmn:incoming>
+      <bpmn:outgoing>Login_f3</bpmn:outgoing>
+      <bpmn:outgoing>Login_f4</bpmn:outgoing>
+      <bpmn:outgoing>Login_f5</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:endEvent id="Login_e2" name="Olvide contrasena -&gt; Recuperar">
+      <bpmn:incoming>Login_f3</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:task id="Login_t1" name="Ingresar email y contrasena">
+      <bpmn:incoming>Login_f4</bpmn:incoming>
+      <bpmn:incoming>Login_f8</bpmn:incoming>
+      <bpmn:outgoing>Login_f6</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:endEvent id="Login_e3" name="Crear cuenta -&gt; Registro">
+      <bpmn:incoming>Login_f5</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:exclusiveGateway id="Login_g2" name="Credenciales validas?">
+      <bpmn:incoming>Login_f6</bpmn:incoming>
+      <bpmn:outgoing>Login_f7</bpmn:outgoing>
+      <bpmn:outgoing>Login_f9</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:task id="Login_err" name="Mostrar error">
+      <bpmn:incoming>Login_f7</bpmn:incoming>
+      <bpmn:outgoing>Login_f8</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Login_t2" name="Crear sesion (JWT access 15m / refresh 7d)">
+      <bpmn:incoming>Login_f9</bpmn:incoming>
+      <bpmn:outgoing>Login_f10</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:endEvent id="Login_e1" name="Ir a Biblioteca">
+      <bpmn:incoming>Login_f10</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Login_f1" sourceRef="Login_s" targetRef="Login_m" />
+    <bpmn:sequenceFlow id="Login_f2" sourceRef="Login_m" targetRef="Login_g" />
+    <bpmn:sequenceFlow id="Login_f3" name="Olvide contrasena" sourceRef="Login_g" targetRef="Login_e2" />
+    <bpmn:sequenceFlow id="Login_f4" name="Iniciar sesion" sourceRef="Login_g" targetRef="Login_t1" />
+    <bpmn:sequenceFlow id="Login_f5" name="Crear cuenta" sourceRef="Login_g" targetRef="Login_e3" />
+    <bpmn:sequenceFlow id="Login_f6" sourceRef="Login_t1" targetRef="Login_g2" />
+    <bpmn:sequenceFlow id="Login_f7" name="No" sourceRef="Login_g2" targetRef="Login_err" />
+    <bpmn:sequenceFlow id="Login_f8" sourceRef="Login_err" targetRef="Login_t1" />
+    <bpmn:sequenceFlow id="Login_f9" name="Si" sourceRef="Login_g2" targetRef="Login_t2" />
+    <bpmn:sequenceFlow id="Login_f10" sourceRef="Login_t2" targetRef="Login_e1" />
+  </bpmn:process>
+  <bpmn:process id="Proc_Register" name="Registro" isExecutable="false">
+    <bpmn:startEvent id="Register_s" name="Abrir Registro">
+      <bpmn:outgoing>Register_f1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:task id="Register_t1" name="Completar usuario, email y contrasena">
+      <bpmn:incoming>Register_f1</bpmn:incoming>
+      <bpmn:incoming>Register_f6</bpmn:incoming>
+      <bpmn:outgoing>Register_f2</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:exclusiveGateway id="Register_g" name="Accion?">
+      <bpmn:incoming>Register_f2</bpmn:incoming>
+      <bpmn:outgoing>Register_f3</bpmn:outgoing>
+      <bpmn:outgoing>Register_f4</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:endEvent id="Register_e2" name="Ya tengo cuenta -&gt; Login">
+      <bpmn:incoming>Register_f4</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:exclusiveGateway id="Register_gv" name="Datos validos? (usuario 3-30, pass &gt;= 8, coinciden)">
+      <bpmn:incoming>Register_f3</bpmn:incoming>
+      <bpmn:outgoing>Register_f5</bpmn:outgoing>
+      <bpmn:outgoing>Register_f7</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:task id="Register_err" name="Mostrar error de validacion">
+      <bpmn:incoming>Register_f5</bpmn:incoming>
+      <bpmn:outgoing>Register_f6</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Register_t2" name="Crear cuenta (API)">
+      <bpmn:incoming>Register_f7</bpmn:incoming>
+      <bpmn:outgoing>Register_f8</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Register_t3" name="Iniciar sesion">
+      <bpmn:incoming>Register_f8</bpmn:incoming>
+      <bpmn:outgoing>Register_f9</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:endEvent id="Register_e1" name="Ir a Biblioteca">
+      <bpmn:incoming>Register_f9</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Register_f1" sourceRef="Register_s" targetRef="Register_t1" />
+    <bpmn:sequenceFlow id="Register_f2" sourceRef="Register_t1" targetRef="Register_g" />
+    <bpmn:sequenceFlow id="Register_f3" name="Registrarme" sourceRef="Register_g" targetRef="Register_gv" />
+    <bpmn:sequenceFlow id="Register_f4" name="Ya tengo cuenta" sourceRef="Register_g" targetRef="Register_e2" />
+    <bpmn:sequenceFlow id="Register_f5" name="No" sourceRef="Register_gv" targetRef="Register_err" />
+    <bpmn:sequenceFlow id="Register_f6" sourceRef="Register_err" targetRef="Register_t1" />
+    <bpmn:sequenceFlow id="Register_f7" name="Si" sourceRef="Register_gv" targetRef="Register_t2" />
+    <bpmn:sequenceFlow id="Register_f8" sourceRef="Register_t2" targetRef="Register_t3" />
+    <bpmn:sequenceFlow id="Register_f9" sourceRef="Register_t3" targetRef="Register_e1" />
+  </bpmn:process>
+  <bpmn:process id="Proc_ForgotPassword" name="Recuperar contrasena" isExecutable="false">
+    <bpmn:startEvent id="ForgotPassword_s" name="Abrir Recuperar contrasena">
+      <bpmn:outgoing>ForgotPassword_f1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:task id="ForgotPassword_t1" name="Ingresar email">
+      <bpmn:incoming>ForgotPassword_f1</bpmn:incoming>
+      <bpmn:outgoing>ForgotPassword_f2</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:exclusiveGateway id="ForgotPassword_g" name="Accion?">
+      <bpmn:incoming>ForgotPassword_f2</bpmn:incoming>
+      <bpmn:outgoing>ForgotPassword_f3</bpmn:outgoing>
+      <bpmn:outgoing>ForgotPassword_f5</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:endEvent id="ForgotPassword_e2" name="Volver -&gt; Login">
+      <bpmn:incoming>ForgotPassword_f5</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:task id="ForgotPassword_t2" name="Enviar codigo de recuperacion">
+      <bpmn:incoming>ForgotPassword_f3</bpmn:incoming>
+      <bpmn:outgoing>ForgotPassword_f4</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:endEvent id="ForgotPassword_e1" name="Ir a Verificar codigo">
+      <bpmn:incoming>ForgotPassword_f4</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="ForgotPassword_f1" sourceRef="ForgotPassword_s" targetRef="ForgotPassword_t1" />
+    <bpmn:sequenceFlow id="ForgotPassword_f2" sourceRef="ForgotPassword_t1" targetRef="ForgotPassword_g" />
+    <bpmn:sequenceFlow id="ForgotPassword_f3" name="Enviar" sourceRef="ForgotPassword_g" targetRef="ForgotPassword_t2" />
+    <bpmn:sequenceFlow id="ForgotPassword_f4" sourceRef="ForgotPassword_t2" targetRef="ForgotPassword_e1" />
+    <bpmn:sequenceFlow id="ForgotPassword_f5" name="Volver" sourceRef="ForgotPassword_g" targetRef="ForgotPassword_e2" />
+  </bpmn:process>
+  <bpmn:process id="Proc_VerifyCode" name="Verificar codigo" isExecutable="false">
+    <bpmn:startEvent id="VerifyCode_s" name="Abrir Verificar codigo">
+      <bpmn:outgoing>VerifyCode_f1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:task id="VerifyCode_t1" name="Ingresar codigo de 6 digitos">
+      <bpmn:incoming>VerifyCode_f1</bpmn:incoming>
+      <bpmn:incoming>VerifyCode_f6</bpmn:incoming>
+      <bpmn:outgoing>VerifyCode_f2</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:exclusiveGateway id="VerifyCode_g" name="Accion?">
+      <bpmn:incoming>VerifyCode_f2</bpmn:incoming>
+      <bpmn:outgoing>VerifyCode_f3</bpmn:outgoing>
+      <bpmn:outgoing>VerifyCode_f5</bpmn:outgoing>
+      <bpmn:outgoing>VerifyCode_f7</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:task id="VerifyCode_t2" name="Reenviar codigo">
+      <bpmn:incoming>VerifyCode_f5</bpmn:incoming>
+      <bpmn:outgoing>VerifyCode_f6</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:endEvent id="VerifyCode_e2" name="Volver -&gt; Login">
+      <bpmn:incoming>VerifyCode_f7</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:task id="VerifyCode_t3" name="Validar codigo">
+      <bpmn:incoming>VerifyCode_f3</bpmn:incoming>
+      <bpmn:outgoing>VerifyCode_f4</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:endEvent id="VerifyCode_e1" name="Ir a Cambiar contrasena">
+      <bpmn:incoming>VerifyCode_f4</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="VerifyCode_f1" sourceRef="VerifyCode_s" targetRef="VerifyCode_t1" />
+    <bpmn:sequenceFlow id="VerifyCode_f2" sourceRef="VerifyCode_t1" targetRef="VerifyCode_g" />
+    <bpmn:sequenceFlow id="VerifyCode_f3" name="Verificar" sourceRef="VerifyCode_g" targetRef="VerifyCode_t3" />
+    <bpmn:sequenceFlow id="VerifyCode_f4" sourceRef="VerifyCode_t3" targetRef="VerifyCode_e1" />
+    <bpmn:sequenceFlow id="VerifyCode_f5" name="Reenviar" sourceRef="VerifyCode_g" targetRef="VerifyCode_t2" />
+    <bpmn:sequenceFlow id="VerifyCode_f6" sourceRef="VerifyCode_t2" targetRef="VerifyCode_t1" />
+    <bpmn:sequenceFlow id="VerifyCode_f7" name="Volver" sourceRef="VerifyCode_g" targetRef="VerifyCode_e2" />
+  </bpmn:process>
+  <bpmn:process id="Proc_ChangePassword" name="Cambiar contrasena" isExecutable="false">
+    <bpmn:startEvent id="ChangePassword_s" name="Abrir Cambiar contrasena">
+      <bpmn:outgoing>ChangePassword_f1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:task id="ChangePassword_t1" name="Ingresar nueva contrasena y confirmar">
+      <bpmn:incoming>ChangePassword_f1</bpmn:incoming>
+      <bpmn:incoming>ChangePassword_f4</bpmn:incoming>
+      <bpmn:outgoing>ChangePassword_f2</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:exclusiveGateway id="ChangePassword_g" name="Contrasenas coinciden?">
+      <bpmn:incoming>ChangePassword_f2</bpmn:incoming>
+      <bpmn:outgoing>ChangePassword_f3</bpmn:outgoing>
+      <bpmn:outgoing>ChangePassword_f5</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:task id="ChangePassword_err" name="Mostrar error">
+      <bpmn:incoming>ChangePassword_f3</bpmn:incoming>
+      <bpmn:outgoing>ChangePassword_f4</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="ChangePassword_t2" name="Restablecer contrasena">
+      <bpmn:incoming>ChangePassword_f5</bpmn:incoming>
+      <bpmn:outgoing>ChangePassword_f6</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:endEvent id="ChangePassword_e1" name="Ir a Login">
+      <bpmn:incoming>ChangePassword_f6</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="ChangePassword_f1" sourceRef="ChangePassword_s" targetRef="ChangePassword_t1" />
+    <bpmn:sequenceFlow id="ChangePassword_f2" sourceRef="ChangePassword_t1" targetRef="ChangePassword_g" />
+    <bpmn:sequenceFlow id="ChangePassword_f3" name="No" sourceRef="ChangePassword_g" targetRef="ChangePassword_err" />
+    <bpmn:sequenceFlow id="ChangePassword_f4" sourceRef="ChangePassword_err" targetRef="ChangePassword_t1" />
+    <bpmn:sequenceFlow id="ChangePassword_f5" name="Si" sourceRef="ChangePassword_g" targetRef="ChangePassword_t2" />
+    <bpmn:sequenceFlow id="ChangePassword_f6" sourceRef="ChangePassword_t2" targetRef="ChangePassword_e1" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="Diag_auth" name="MusicFlow - Modulo Auth">
+    <bpmndi:BPMNPlane id="Plane_auth" bpmnElement="Collab_auth">
+      <bpmndi:BPMNShape id="S_Part_Login" bpmnElement="Part_Login" isHorizontal="true">
+        <dc:Bounds x="130" y="60" width="1605" height="500" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Login_s" bpmnElement="Login_s">
+        <dc:Bounds x="232" y="262" width="36" height="36" />
+        <bpmndi:BPMNLabel><dc:Bounds x="192" y="302" width="116" height="26" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Login_m" bpmnElement="Login_m">
+        <dc:Bounds x="380" y="243" width="170" height="74" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Login_g" bpmnElement="Login_g" isMarkerVisible="true">
+        <dc:Bounds x="655" y="255" width="50" height="50" />
+        <bpmndi:BPMNLabel><dc:Bounds x="615" y="309" width="130" height="26" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Login_e2" bpmnElement="Login_e2">
+        <dc:Bounds x="877" y="112" width="36" height="36" />
+        <bpmndi:BPMNLabel><dc:Bounds x="837" y="152" width="116" height="26" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Login_t1" bpmnElement="Login_t1">
+        <dc:Bounds x="810" y="243" width="170" height="74" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Login_e3" bpmnElement="Login_e3">
+        <dc:Bounds x="877" y="412" width="36" height="36" />
+        <bpmndi:BPMNLabel><dc:Bounds x="837" y="452" width="116" height="26" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Login_g2" bpmnElement="Login_g2" isMarkerVisible="true">
+        <dc:Bounds x="1085" y="255" width="50" height="50" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1045" y="309" width="130" height="26" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Login_err" bpmnElement="Login_err">
+        <dc:Bounds x="1025" y="93" width="170" height="74" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Login_t2" bpmnElement="Login_t2">
+        <dc:Bounds x="1240" y="243" width="170" height="74" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Login_e1" bpmnElement="Login_e1">
+        <dc:Bounds x="1522" y="262" width="36" height="36" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1482" y="302" width="116" height="26" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="E_Login_f1" bpmnElement="Login_f1">
+        <di:waypoint x="268" y="280" />
+        <di:waypoint x="380" y="280" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Login_f2" bpmnElement="Login_f2">
+        <di:waypoint x="550" y="280" />
+        <di:waypoint x="655" y="280" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Login_f3" bpmnElement="Login_f3">
+        <di:waypoint x="705" y="280" />
+        <di:waypoint x="791" y="280" />
+        <di:waypoint x="791" y="130" />
+        <di:waypoint x="877" y="130" />
+        <bpmndi:BPMNLabel><dc:Bounds x="795" y="108" width="100" height="18" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Login_f4" bpmnElement="Login_f4">
+        <di:waypoint x="705" y="280" />
+        <di:waypoint x="810" y="280" />
+        <bpmndi:BPMNLabel><dc:Bounds x="814" y="258" width="100" height="18" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Login_f5" bpmnElement="Login_f5">
+        <di:waypoint x="705" y="280" />
+        <di:waypoint x="791" y="280" />
+        <di:waypoint x="791" y="430" />
+        <di:waypoint x="877" y="430" />
+        <bpmndi:BPMNLabel><dc:Bounds x="795" y="408" width="100" height="18" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Login_f6" bpmnElement="Login_f6">
+        <di:waypoint x="980" y="280" />
+        <di:waypoint x="1085" y="280" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Login_f7" bpmnElement="Login_f7">
+        <di:waypoint x="1110" y="255" />
+        <di:waypoint x="1110" y="167" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1114" y="145" width="100" height="18" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Login_f8" bpmnElement="Login_f8">
+        <di:waypoint x="1110" y="167" />
+        <di:waypoint x="1110" y="376" />
+        <di:waypoint x="895" y="376" />
+        <di:waypoint x="895" y="317" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Login_f9" bpmnElement="Login_f9">
+        <di:waypoint x="1135" y="280" />
+        <di:waypoint x="1240" y="280" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1244" y="258" width="100" height="18" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Login_f10" bpmnElement="Login_f10">
+        <di:waypoint x="1410" y="280" />
+        <di:waypoint x="1522" y="280" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="S_Part_Register" bpmnElement="Part_Register" isHorizontal="true">
+        <dc:Bounds x="130" y="615" width="1605" height="500" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Register_s" bpmnElement="Register_s">
+        <dc:Bounds x="232" y="817" width="36" height="36" />
+        <bpmndi:BPMNLabel><dc:Bounds x="192" y="857" width="116" height="26" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Register_t1" bpmnElement="Register_t1">
+        <dc:Bounds x="380" y="798" width="170" height="74" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Register_g" bpmnElement="Register_g" isMarkerVisible="true">
+        <dc:Bounds x="655" y="810" width="50" height="50" />
+        <bpmndi:BPMNLabel><dc:Bounds x="615" y="864" width="130" height="26" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Register_e2" bpmnElement="Register_e2">
+        <dc:Bounds x="662" y="967" width="36" height="36" />
+        <bpmndi:BPMNLabel><dc:Bounds x="622" y="1007" width="116" height="26" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Register_gv" bpmnElement="Register_gv" isMarkerVisible="true">
+        <dc:Bounds x="870" y="810" width="50" height="50" />
+        <bpmndi:BPMNLabel><dc:Bounds x="830" y="864" width="130" height="26" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Register_err" bpmnElement="Register_err">
+        <dc:Bounds x="810" y="648" width="170" height="74" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Register_t2" bpmnElement="Register_t2">
+        <dc:Bounds x="1025" y="798" width="170" height="74" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Register_t3" bpmnElement="Register_t3">
+        <dc:Bounds x="1240" y="798" width="170" height="74" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Register_e1" bpmnElement="Register_e1">
+        <dc:Bounds x="1522" y="817" width="36" height="36" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1482" y="857" width="116" height="26" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="E_Register_f1" bpmnElement="Register_f1">
+        <di:waypoint x="268" y="835" />
+        <di:waypoint x="380" y="835" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Register_f2" bpmnElement="Register_f2">
+        <di:waypoint x="550" y="835" />
+        <di:waypoint x="655" y="835" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Register_f3" bpmnElement="Register_f3">
+        <di:waypoint x="705" y="835" />
+        <di:waypoint x="870" y="835" />
+        <bpmndi:BPMNLabel><dc:Bounds x="874" y="813" width="100" height="18" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Register_f4" bpmnElement="Register_f4">
+        <di:waypoint x="680" y="860" />
+        <di:waypoint x="680" y="967" />
+        <bpmndi:BPMNLabel><dc:Bounds x="684" y="945" width="100" height="18" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Register_f5" bpmnElement="Register_f5">
+        <di:waypoint x="895" y="810" />
+        <di:waypoint x="895" y="722" />
+        <bpmndi:BPMNLabel><dc:Bounds x="899" y="700" width="100" height="18" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Register_f6" bpmnElement="Register_f6">
+        <di:waypoint x="895" y="722" />
+        <di:waypoint x="895" y="931" />
+        <di:waypoint x="465" y="931" />
+        <di:waypoint x="465" y="872" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Register_f7" bpmnElement="Register_f7">
+        <di:waypoint x="920" y="835" />
+        <di:waypoint x="1025" y="835" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1029" y="813" width="100" height="18" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Register_f8" bpmnElement="Register_f8">
+        <di:waypoint x="1195" y="835" />
+        <di:waypoint x="1240" y="835" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_Register_f9" bpmnElement="Register_f9">
+        <di:waypoint x="1410" y="835" />
+        <di:waypoint x="1522" y="835" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="S_Part_ForgotPassword" bpmnElement="Part_ForgotPassword" isHorizontal="true">
+        <dc:Bounds x="130" y="1170" width="1175" height="500" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_ForgotPassword_s" bpmnElement="ForgotPassword_s">
+        <dc:Bounds x="232" y="1372" width="36" height="36" />
+        <bpmndi:BPMNLabel><dc:Bounds x="192" y="1412" width="116" height="26" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_ForgotPassword_t1" bpmnElement="ForgotPassword_t1">
+        <dc:Bounds x="380" y="1353" width="170" height="74" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_ForgotPassword_g" bpmnElement="ForgotPassword_g" isMarkerVisible="true">
+        <dc:Bounds x="655" y="1365" width="50" height="50" />
+        <bpmndi:BPMNLabel><dc:Bounds x="615" y="1419" width="130" height="26" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_ForgotPassword_e2" bpmnElement="ForgotPassword_e2">
+        <dc:Bounds x="662" y="1522" width="36" height="36" />
+        <bpmndi:BPMNLabel><dc:Bounds x="622" y="1562" width="116" height="26" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_ForgotPassword_t2" bpmnElement="ForgotPassword_t2">
+        <dc:Bounds x="810" y="1353" width="170" height="74" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_ForgotPassword_e1" bpmnElement="ForgotPassword_e1">
+        <dc:Bounds x="1092" y="1372" width="36" height="36" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1052" y="1412" width="116" height="26" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="E_ForgotPassword_f1" bpmnElement="ForgotPassword_f1">
+        <di:waypoint x="268" y="1390" />
+        <di:waypoint x="380" y="1390" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_ForgotPassword_f2" bpmnElement="ForgotPassword_f2">
+        <di:waypoint x="550" y="1390" />
+        <di:waypoint x="655" y="1390" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_ForgotPassword_f3" bpmnElement="ForgotPassword_f3">
+        <di:waypoint x="705" y="1390" />
+        <di:waypoint x="810" y="1390" />
+        <bpmndi:BPMNLabel><dc:Bounds x="814" y="1368" width="100" height="18" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_ForgotPassword_f4" bpmnElement="ForgotPassword_f4">
+        <di:waypoint x="980" y="1390" />
+        <di:waypoint x="1092" y="1390" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_ForgotPassword_f5" bpmnElement="ForgotPassword_f5">
+        <di:waypoint x="680" y="1415" />
+        <di:waypoint x="680" y="1522" />
+        <bpmndi:BPMNLabel><dc:Bounds x="684" y="1500" width="100" height="18" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="S_Part_VerifyCode" bpmnElement="Part_VerifyCode" isHorizontal="true">
+        <dc:Bounds x="130" y="1725" width="1175" height="500" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_VerifyCode_s" bpmnElement="VerifyCode_s">
+        <dc:Bounds x="232" y="1927" width="36" height="36" />
+        <bpmndi:BPMNLabel><dc:Bounds x="192" y="1967" width="116" height="26" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_VerifyCode_t1" bpmnElement="VerifyCode_t1">
+        <dc:Bounds x="380" y="1908" width="170" height="74" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_VerifyCode_g" bpmnElement="VerifyCode_g" isMarkerVisible="true">
+        <dc:Bounds x="655" y="1920" width="50" height="50" />
+        <bpmndi:BPMNLabel><dc:Bounds x="615" y="1974" width="130" height="26" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_VerifyCode_t2" bpmnElement="VerifyCode_t2">
+        <dc:Bounds x="595" y="1758" width="170" height="74" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_VerifyCode_e2" bpmnElement="VerifyCode_e2">
+        <dc:Bounds x="662" y="2077" width="36" height="36" />
+        <bpmndi:BPMNLabel><dc:Bounds x="622" y="2117" width="116" height="26" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_VerifyCode_t3" bpmnElement="VerifyCode_t3">
+        <dc:Bounds x="810" y="1908" width="170" height="74" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_VerifyCode_e1" bpmnElement="VerifyCode_e1">
+        <dc:Bounds x="1092" y="1927" width="36" height="36" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1052" y="1967" width="116" height="26" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="E_VerifyCode_f1" bpmnElement="VerifyCode_f1">
+        <di:waypoint x="268" y="1945" />
+        <di:waypoint x="380" y="1945" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_VerifyCode_f2" bpmnElement="VerifyCode_f2">
+        <di:waypoint x="550" y="1945" />
+        <di:waypoint x="655" y="1945" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_VerifyCode_f3" bpmnElement="VerifyCode_f3">
+        <di:waypoint x="705" y="1945" />
+        <di:waypoint x="810" y="1945" />
+        <bpmndi:BPMNLabel><dc:Bounds x="814" y="1923" width="100" height="18" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_VerifyCode_f4" bpmnElement="VerifyCode_f4">
+        <di:waypoint x="980" y="1945" />
+        <di:waypoint x="1092" y="1945" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_VerifyCode_f5" bpmnElement="VerifyCode_f5">
+        <di:waypoint x="680" y="1920" />
+        <di:waypoint x="680" y="1832" />
+        <bpmndi:BPMNLabel><dc:Bounds x="684" y="1810" width="100" height="18" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_VerifyCode_f6" bpmnElement="VerifyCode_f6">
+        <di:waypoint x="680" y="1832" />
+        <di:waypoint x="680" y="2041" />
+        <di:waypoint x="465" y="2041" />
+        <di:waypoint x="465" y="1982" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_VerifyCode_f7" bpmnElement="VerifyCode_f7">
+        <di:waypoint x="680" y="1970" />
+        <di:waypoint x="680" y="2077" />
+        <bpmndi:BPMNLabel><dc:Bounds x="684" y="2055" width="100" height="18" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="S_Part_ChangePassword" bpmnElement="Part_ChangePassword" isHorizontal="true">
+        <dc:Bounds x="130" y="2280" width="1175" height="350" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_ChangePassword_s" bpmnElement="ChangePassword_s">
+        <dc:Bounds x="232" y="2482" width="36" height="36" />
+        <bpmndi:BPMNLabel><dc:Bounds x="192" y="2522" width="116" height="26" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_ChangePassword_t1" bpmnElement="ChangePassword_t1">
+        <dc:Bounds x="380" y="2463" width="170" height="74" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_ChangePassword_g" bpmnElement="ChangePassword_g" isMarkerVisible="true">
+        <dc:Bounds x="655" y="2475" width="50" height="50" />
+        <bpmndi:BPMNLabel><dc:Bounds x="615" y="2529" width="130" height="26" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_ChangePassword_err" bpmnElement="ChangePassword_err">
+        <dc:Bounds x="595" y="2313" width="170" height="74" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_ChangePassword_t2" bpmnElement="ChangePassword_t2">
+        <dc:Bounds x="810" y="2463" width="170" height="74" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_ChangePassword_e1" bpmnElement="ChangePassword_e1">
+        <dc:Bounds x="1092" y="2482" width="36" height="36" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1052" y="2522" width="116" height="26" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="E_ChangePassword_f1" bpmnElement="ChangePassword_f1">
+        <di:waypoint x="268" y="2500" />
+        <di:waypoint x="380" y="2500" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_ChangePassword_f2" bpmnElement="ChangePassword_f2">
+        <di:waypoint x="550" y="2500" />
+        <di:waypoint x="655" y="2500" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_ChangePassword_f3" bpmnElement="ChangePassword_f3">
+        <di:waypoint x="680" y="2475" />
+        <di:waypoint x="680" y="2387" />
+        <bpmndi:BPMNLabel><dc:Bounds x="684" y="2365" width="100" height="18" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_ChangePassword_f4" bpmnElement="ChangePassword_f4">
+        <di:waypoint x="680" y="2387" />
+        <di:waypoint x="680" y="2596" />
+        <di:waypoint x="465" y="2596" />
+        <di:waypoint x="465" y="2537" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_ChangePassword_f5" bpmnElement="ChangePassword_f5">
+        <di:waypoint x="705" y="2500" />
+        <di:waypoint x="810" y="2500" />
+        <bpmndi:BPMNLabel><dc:Bounds x="814" y="2478" width="100" height="18" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_ChangePassword_f6" bpmnElement="ChangePassword_f6">
+        <di:waypoint x="980" y="2500" />
+        <di:waypoint x="1092" y="2500" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>
