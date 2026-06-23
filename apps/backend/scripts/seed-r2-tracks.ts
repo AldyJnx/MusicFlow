@@ -1,10 +1,13 @@
 /**
- * One-shot seed: list R2 buckets `music-flow` (audio) + `music-flow-images`
- * (covers), parse "Artist - Title.wav" filenames, match covers by artist, fetch
- * the first 4 KiB of each WAV to read its fmt header (sampleRate + byteRate)
- * for accurate duration, and insert Track rows for the admin user.
+ * One-shot seed/sync: list R2 buckets `music-flow` (audio) + `music-flow-images`
+ * (covers), parse "Artist - Title.wav" filenames, match covers by title/album
+ * first and artist fallback second, fetch the first 4 KiB of each WAV to read
+ * its fmt header (sampleRate + byteRate) for accurate duration, and upsert Track
+ * rows for the admin user.
  *
- * Idempotent: dedupes on (userId, fileHash) where fileHash = sha256(key).
+ * Idempotent: dedupes on (userId, fileHash) where fileHash = sha256(key). When
+ * a track already exists, it still refreshes catalog visibility, coverArt and
+ * album if a better cover match is found.
  *
  * Run with:
  *   pnpm --filter @musicflow/backend run seed:r2
@@ -80,14 +83,14 @@ function norm(s: string): string {
  * "Artist – Title" (em dash), and unparseable names fall back to title-only.
  */
 function parseAudioKey(key: string): { artist: string; title: string } {
-  const noExt = key.replace(/\.(wav|mp3|flac|ogg|m4a)$/i, "");
+  const noExt = key.replace(/\.(wav|mp3|flac|ogg|m4a|mpeg)$/i, "");
   // Try common separators in order of strictness.
   const seps = [/ — /, / – /, / - /, / -/, /- /, /-/, / · /];
   for (const sep of seps) {
-    const idx = noExt.search(sep);
-    if (idx > 0) {
-      const artist = noExt.slice(0, idx).trim();
-      const titlePart = noExt.slice(idx + (sep.source.length || 1)).trim();
+    const match = noExt.match(sep);
+    if (match?.index && match.index > 0) {
+      const artist = noExt.slice(0, match.index).trim();
+      const titlePart = noExt.slice(match.index + match[0].length).trim();
       // Some titles have a trailing artist suffix like ", Artist2". Keep as-is.
       if (artist && titlePart) return { artist, title: titlePart };
     }
@@ -111,6 +114,116 @@ function parseCoverKey(key: string): { album: string; artist: string } {
   return { album: noExt.trim(), artist: "Unknown" };
 }
 
+type CoverCandidate = {
+  key: string;
+  url: string;
+  album: string;
+  artist: string;
+  normAlbum: string;
+  normArtist: string;
+};
+
+type TrackMetadata = {
+  artist: string;
+  title: string;
+  coverArtist?: string;
+  coverAlbum?: string;
+};
+
+function audioIdentity(key: string): string {
+  return norm(key.replace(/\.(wav|mp3|flac|ogg|m4a|mpeg)$/i, ""));
+}
+
+function r2FileHash(bucket: string, key: string): string {
+  return createHash("sha256").update(`r2://${bucket}/${key}`).digest("hex");
+}
+
+function addArtistAlias(
+  coversByArtist: Map<string, CoverCandidate[]>,
+  from: string,
+  to: string,
+) {
+  const source = coversByArtist.get(norm(from));
+  if (source && !coversByArtist.has(norm(to))) {
+    coversByArtist.set(norm(to), source);
+  }
+}
+
+function findCoverByArtistAlbum(
+  coversByArtist: Map<string, CoverCandidate[]>,
+  artist: string,
+  album: string,
+): CoverCandidate | null {
+  return (
+    coversByArtist
+      .get(norm(artist))
+      ?.find((cover) => cover.normAlbum === norm(album)) ?? null
+  );
+}
+
+function resolveCover(
+  artist: string,
+  title: string,
+  coversByArtist: Map<string, CoverCandidate[]>,
+): CoverCandidate | null {
+  const artistKeys = artist
+    .split(/,| feat\.? | ft\.? | & /i)
+    .map((part) => norm(part))
+    .filter(Boolean);
+  artistKeys.unshift(norm(artist));
+
+  const candidates = artistKeys
+    .flatMap((artistKey) => coversByArtist.get(artistKey) ?? [])
+    .filter((cover, index, all) => {
+      return all.findIndex((item) => item.key === cover.key) === index;
+    });
+  if (candidates.length === 0) return null;
+
+  const normTitle = norm(title);
+  const exactTitle = candidates.find((cover) => cover.normAlbum === normTitle);
+  if (exactTitle) return exactTitle;
+
+  const containsTitle = candidates.find((cover) => {
+    return (
+      normTitle.length >= 4 &&
+      (cover.normAlbum.includes(normTitle) ||
+        normTitle.includes(cover.normAlbum))
+    );
+  });
+  if (containsTitle) return containsTitle;
+
+  return candidates[0];
+}
+
+function normalizeAudioMetadata(
+  key: string,
+  coversByArtist: Map<string, CoverCandidate[]>,
+): { artist: string; title: string } {
+  const parsed = parseAudioKey(key);
+  if (coversByArtist.has(norm(parsed.artist))) return parsed;
+
+  const swapped = { artist: parsed.title, title: parsed.artist };
+  if (coversByArtist.has(norm(swapped.artist))) return swapped;
+
+  const firstTitlePart = parsed.title.split(/,| feat\.? | ft\.? | & /i)[0];
+  if (coversByArtist.has(norm(firstTitlePart))) {
+    return { artist: firstTitlePart.trim(), title: parsed.artist };
+  }
+
+  return parsed;
+}
+
+function resolveTrackMetadata(
+  key: string,
+  coversByArtist: Map<string, CoverCandidate[]>,
+  metadataOverrides: Map<string, TrackMetadata>,
+): TrackMetadata {
+  return (
+    metadataOverrides.get(audioIdentity(key)) ??
+    normalizeAudioMetadata(key, coversByArtist)
+  );
+}
+
 /** Build the public URL for an R2 key (proper percent-encoding for spaces, ', etc). */
 function publicUrl(base: string, key: string): string {
   // encodeURI keeps the slash structure; we manually encode characters that
@@ -130,7 +243,11 @@ async function probeWavDuration(
   bucket: string,
   key: string,
   totalBytes: number,
-): Promise<{ durationMs: number; sampleRate?: number; bitrate?: number } | null> {
+): Promise<{
+  durationMs: number;
+  sampleRate?: number;
+  bitrate?: number;
+} | null> {
   try {
     const obj = await s3.send(
       new GetObjectCommand({ Bucket: bucket, Key: key, Range: "bytes=0-4095" }),
@@ -154,7 +271,11 @@ async function probeWavDuration(
         if (byteRate > 0) {
           const audioBytes = Math.max(0, totalBytes - 44);
           const durationMs = Math.round((audioBytes / byteRate) * 1000);
-          return { durationMs, sampleRate, bitrate: Math.round((byteRate * 8) / 1000) };
+          return {
+            durationMs,
+            sampleRate,
+            bitrate: Math.round((byteRate * 8) / 1000),
+          };
         }
         return null;
       }
@@ -172,14 +293,17 @@ async function listAll(bucket: string) {
   const all: { Key: string; Size: number; LastModified?: Date }[] = [];
   let token: string | undefined;
   do {
-    const r: { Contents?: { Key?: string; Size?: number; LastModified?: Date }[]; IsTruncated?: boolean; NextContinuationToken?: string } =
-      await s3.send(
-        new ListObjectsV2Command({
-          Bucket: bucket,
-          ContinuationToken: token,
-          MaxKeys: 1000,
-        }),
-      );
+    const r: {
+      Contents?: { Key?: string; Size?: number; LastModified?: Date }[];
+      IsTruncated?: boolean;
+      NextContinuationToken?: string;
+    } = await s3.send(
+      new ListObjectsV2Command({
+        Bucket: bucket,
+        ContinuationToken: token,
+        MaxKeys: 1000,
+      }),
+    );
     for (const o of r.Contents ?? []) {
       if (o.Key && typeof o.Size === "number") {
         all.push({ Key: o.Key, Size: o.Size, LastModified: o.LastModified });
@@ -217,53 +341,158 @@ async function main() {
   const covers = await listAll(process.env.R2_BUCKET_IMAGES!);
   console.log(`  audio: ${audios.length} objects · images: ${covers.length}`);
 
-  // Build artist → coverUrl map (first cover per artist wins).
-  const coverByArtist = new Map<string, string>();
+  // Build artist → covers map. Exact title/album match is preferred; the first
+  // cover for an artist is only a fallback when the bucket has no better clue.
+  const coversByArtist = new Map<string, CoverCandidate[]>();
   for (const c of covers) {
-    const { artist } = parseCoverKey(c.Key);
-    const norm_ = norm(artist);
-    if (!coverByArtist.has(norm_)) {
-      coverByArtist.set(
-        norm_,
-        publicUrl(process.env.R2_PUBLIC_IMAGES_URL!, c.Key),
-      );
-    }
+    const { album, artist } = parseCoverKey(c.Key);
+    const candidate: CoverCandidate = {
+      key: c.Key,
+      url: publicUrl(process.env.R2_PUBLIC_IMAGES_URL!, c.Key),
+      album,
+      artist,
+      normAlbum: norm(album),
+      normArtist: norm(artist),
+    };
+    const bucket = coversByArtist.get(candidate.normArtist) ?? [];
+    bucket.push(candidate);
+    coversByArtist.set(candidate.normArtist, bucket);
   }
-  // Manual aliases for the bucket's known typos.
-  // "Billie Elish" (typo) → match "Billie Eilish" and vice-versa.
-  if (coverByArtist.has(norm("Billie Elish")) && !coverByArtist.has(norm("Billie Eilish"))) {
-    coverByArtist.set(norm("Billie Eilish"), coverByArtist.get(norm("Billie Elish"))!);
+  for (const list of coversByArtist.values()) {
+    list.sort((a, b) => {
+      const artistCompare = a.normArtist.localeCompare(b.normArtist);
+      return artistCompare || a.normAlbum.localeCompare(b.normAlbum);
+    });
   }
-  if (coverByArtist.has(norm("The Weekend")) && !coverByArtist.has(norm("The Weeknd"))) {
-    coverByArtist.set(norm("The Weeknd"), coverByArtist.get(norm("The Weekend"))!);
-  }
-  if (coverByArtist.has(norm("Guns And Roses")) && !coverByArtist.has(norm("Guns N' Roses"))) {
-    coverByArtist.set(norm("Guns N' Roses"), coverByArtist.get(norm("Guns And Roses"))!);
-  }
+  // Manual aliases for the bucket's known typos and artist variants.
+  addArtistAlias(coversByArtist, "Billie Elish", "Billie Eilish");
+  addArtistAlias(coversByArtist, "Billie Eilish", "Billie Elish");
+  addArtistAlias(coversByArtist, "The Weekend", "The Weeknd");
+  addArtistAlias(coversByArtist, "The Weeknd", "The Weekend");
+  addArtistAlias(coversByArtist, "Guns And Roses", "Guns N' Roses");
+  addArtistAlias(coversByArtist, "Guns N' Roses", "Guns And Roses");
+  addArtistAlias(coversByArtist, "Maroon 5", "Marron 5");
+  addArtistAlias(coversByArtist, "Marron 5", "Maroon 5");
+
+  const metadataOverrides = new Map<string, TrackMetadata>([
+    [
+      norm("Good Old-Fashioned Lover Boy"),
+      {
+        artist: "Queen",
+        title: "Good Old-Fashioned Lover Boy",
+        coverArtist: "Queen",
+        coverAlbum: "A day at the Races",
+      },
+    ],
+    [
+      norm("Crazy Little Thing Called Love"),
+      {
+        artist: "Queen",
+        title: "Crazy Little Thing Called Love",
+        coverArtist: "Queen",
+        coverAlbum: "The Game",
+      },
+    ],
+    [
+      norm("Love Of My Life"),
+      {
+        artist: "Queen",
+        title: "Love Of My Life",
+        coverArtist: "Queen",
+        coverAlbum: "A Night at the Opera",
+      },
+    ],
+    [
+      norm("The black Eyed Peas Just Can’t Get Enough"),
+      {
+        artist: "The Black Eyed Peas",
+        title: "Just Can't Get Enough",
+        coverArtist: "The Black Eyed Peas",
+        coverAlbum: "THE END (THE ENERGY NEVER DIES) Deluxe Version",
+      },
+    ],
+    [
+      norm("There Is a Light That Never Goes Out - The Smiths"),
+      {
+        artist: "The Smiths",
+        title: "There Is a Light That Never Goes Out",
+      },
+    ],
+    [
+      norm("Thriller - Michael Jackson"),
+      {
+        artist: "Michael Jackson",
+        title: "Thriller",
+        coverArtist: "Michael Jackson",
+        coverAlbum: "Thriller",
+      },
+    ],
+  ]);
 
   let created = 0,
     skipped = 0,
-    failed = 0;
+    refreshed = 0,
+    failed = 0,
+    removedFromCatalog = 0;
+  const liveFileHashes = new Set<string>();
 
   for (const a of audios) {
-    const { artist, title } = parseAudioKey(a.Key);
-    const cover = coverByArtist.get(norm(artist)) ?? null;
+    const metadata = resolveTrackMetadata(
+      a.Key,
+      coversByArtist,
+      metadataOverrides,
+    );
+    const { artist, title } = metadata;
+    const cover =
+      (metadata.coverArtist && metadata.coverAlbum
+        ? findCoverByArtistAlbum(
+            coversByArtist,
+            metadata.coverArtist,
+            metadata.coverAlbum,
+          )
+        : null) ?? resolveCover(artist, title, coversByArtist);
     const fileUrl = publicUrl(process.env.R2_PUBLIC_AUDIO_URL!, a.Key);
-    const fileHash = createHash("sha256")
-      .update(`r2://${process.env.R2_BUCKET_AUDIO}/${a.Key}`)
-      .digest("hex");
+    const fileHash = r2FileHash(process.env.R2_BUCKET_AUDIO!, a.Key);
+    liveFileHashes.add(fileHash);
 
     // Dedupe.
     const existing = await prisma.track.findUnique({
       where: { userId_fileHash: { userId: owner.id, fileHash } },
-      select: { id: true, isCatalog: true },
+      select: {
+        id: true,
+        isCatalog: true,
+        title: true,
+        artist: true,
+        albumArtist: true,
+        coverArt: true,
+        album: true,
+      },
     });
     if (existing) {
-      if (!existing.isCatalog) {
+      const updateData: {
+        isCatalog?: true;
+        title?: string;
+        artist?: string;
+        albumArtist?: string;
+        coverArt?: string;
+        album?: string;
+      } = {};
+      if (!existing.isCatalog) updateData.isCatalog = true;
+      if (existing.title !== title) updateData.title = title;
+      if (existing.artist !== artist) updateData.artist = artist;
+      if (existing.albumArtist !== artist) updateData.albumArtist = artist;
+      if (cover?.url && existing.coverArt !== cover.url) {
+        updateData.coverArt = cover.url;
+      }
+      if (cover?.album && (!existing.album || existing.album !== cover.album)) {
+        updateData.album = cover.album;
+      }
+      if (Object.keys(updateData).length > 0) {
         await prisma.track.update({
           where: { id: existing.id },
-          data: { isCatalog: true },
+          data: updateData,
         });
+        refreshed++;
       }
       skipped++;
       continue;
@@ -275,8 +504,7 @@ async function main() {
       a.Size,
     );
     // Fallback: assume CD-quality stereo (176_400 byte/s) if probe failed.
-    const durationMs =
-      probe?.durationMs ?? Math.round((a.Size - 44) / 176.4);
+    const durationMs = probe?.durationMs ?? Math.round((a.Size - 44) / 176.4);
 
     try {
       await prisma.track.create({
@@ -284,7 +512,7 @@ async function main() {
           userId: owner.id,
           title,
           artist,
-          album: "",
+          album: cover?.album ?? "",
           albumArtist: artist,
           genre: "",
           durationMs,
@@ -294,7 +522,7 @@ async function main() {
           codec: "wav",
           bitrate: probe?.bitrate ?? null,
           sampleRate: probe?.sampleRate ?? null,
-          coverArt: cover,
+          coverArt: cover?.url ?? null,
           isCatalog: true,
           source: "SYNCED",
           syncStatus: "SYNCED",
@@ -310,9 +538,37 @@ async function main() {
     }
   }
 
+  const staleCatalog = await prisma.track.updateMany({
+    where: {
+      userId: owner.id,
+      isCatalog: true,
+      source: "SYNCED",
+      fileUrlRemote: { startsWith: process.env.R2_PUBLIC_AUDIO_URL! },
+      fileHash: { notIn: Array.from(liveFileHashes) },
+    },
+    data: { isCatalog: false },
+  });
+  removedFromCatalog = staleCatalog.count;
+
   console.log(
-    `\nDone. created=${created} skipped=${skipped} failed=${failed} (covers matched=${
-      audios.filter((a) => coverByArtist.has(norm(parseAudioKey(a.Key).artist))).length
+    `\nDone. created=${created} skipped=${skipped} refreshed=${refreshed} removedFromCatalog=${removedFromCatalog} failed=${failed} (covers matched=${
+      audios.filter((a) => {
+        const metadata = resolveTrackMetadata(
+          a.Key,
+          coversByArtist,
+          metadataOverrides,
+        );
+        return (
+          (metadata.coverArtist && metadata.coverAlbum
+            ? findCoverByArtistAlbum(
+                coversByArtist,
+                metadata.coverArtist,
+                metadata.coverAlbum,
+              )
+            : null) ??
+          resolveCover(metadata.artist, metadata.title, coversByArtist)
+        );
+      }).length
     })`,
   );
   await prisma.$disconnect();

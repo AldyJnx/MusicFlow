@@ -9,6 +9,8 @@ abstract final class AppRoutes {
   static const String playlists = library;
   static const String playlist = '/playlist';
   static const String equalizer = '/equalizer';
+  static const String playlistEqualizer = '/equalizer/playlist';
+  static const String temporalSegments = '/equalizer/segments';
   static const String artist = '/artist';
   static const String profile = '/profile';
   static const String editProfile = '/profile/edit';

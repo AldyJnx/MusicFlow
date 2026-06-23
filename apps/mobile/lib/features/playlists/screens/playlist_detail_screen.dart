@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
 import 'package:musicflow_mobile/app/routes.dart';
 import 'package:musicflow_mobile/core/providers/providers.dart';
 import 'package:musicflow_mobile/core/widgets/app_bottom_navigation.dart';
@@ -129,6 +130,14 @@ class PlaylistDetailScreen extends ConsumerWidget {
                           color: _accentCyan,
                           tooltip: 'Compartir biblioteca',
                         ),
+                        IconButton(
+                          onPressed: () => context.push(
+                            '${AppRoutes.playlistEqualizer}/${playlist.id}',
+                          ),
+                          icon: const Icon(Icons.equalizer_rounded),
+                          color: _accentCyan,
+                          tooltip: 'Ecualizar biblioteca',
+                        ),
                       ],
                     ),
                     if (playlist.description.isNotEmpty) ...[
@@ -157,7 +166,11 @@ class PlaylistDetailScreen extends ConsumerWidget {
                             ? null
                             : () => ref
                                   .read(playerControllerProvider.notifier)
-                                  .playTrackList(tracks, startIndex: 0),
+                                  .playTrackList(
+                                    tracks,
+                                    startIndex: 0,
+                                    playlistId: playlist.id,
+                                  ),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: _accentCyan,
                           foregroundColor: _bgDark,
@@ -190,7 +203,11 @@ class PlaylistDetailScreen extends ConsumerWidget {
                             track: tracks[index],
                             onPlay: () => ref
                                 .read(playerControllerProvider.notifier)
-                                .playTrackList(tracks, startIndex: index),
+                                .playTrackList(
+                                  tracks,
+                                  startIndex: index,
+                                  playlistId: playlist.id,
+                                ),
                           );
                         },
                       ),

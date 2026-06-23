@@ -66,14 +66,30 @@ class NowPlayingScreen extends ConsumerWidget {
                       ),
                     ),
                     const Spacer(),
-                    IconButton(
-                      onPressed: track == null
-                          ? null
-                          : () => context.push(AppRoutes.equalizer),
-                      icon: const Icon(Icons.equalizer_rounded),
-                      color: _accentCyan,
-                      disabledColor: Colors.white24,
-                      iconSize: 28,
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          onPressed: track == null
+                              ? null
+                              : () => context.push(AppRoutes.temporalSegments),
+                          icon: const Icon(Icons.timeline_rounded),
+                          color: _accentCyan,
+                          disabledColor: Colors.white24,
+                          iconSize: 27,
+                          tooltip: 'Segmentacion temporal',
+                        ),
+                        IconButton(
+                          onPressed: track == null
+                              ? null
+                              : () => context.push(AppRoutes.equalizer),
+                          icon: const Icon(Icons.equalizer_rounded),
+                          color: _accentCyan,
+                          disabledColor: Colors.white24,
+                          iconSize: 28,
+                          tooltip: 'Ecualizador',
+                        ),
+                      ],
                     ),
                   ],
                 ),

@@ -5,16 +5,22 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:musicflow_mobile/app/routes.dart';
 import 'package:musicflow_mobile/core/providers/providers.dart';
 import 'package:musicflow_mobile/core/widgets/app_bottom_navigation.dart';
+import 'package:musicflow_mobile/features/library/providers/playlists_providers.dart';
 import 'package:musicflow_mobile/features/player/providers/player_controller.dart';
+import 'package:musicflow_mobile/shared/models/eq.dart';
 
-class EqualizerScreen extends ConsumerStatefulWidget {
-  const EqualizerScreen({super.key});
+class PlaylistEqualizerScreen extends ConsumerStatefulWidget {
+  const PlaylistEqualizerScreen({required this.playlistId, super.key});
+
+  final String playlistId;
 
   @override
-  ConsumerState<EqualizerScreen> createState() => _EqualizerScreenState();
+  ConsumerState<PlaylistEqualizerScreen> createState() =>
+      _PlaylistEqualizerScreenState();
 }
 
-class _EqualizerScreenState extends ConsumerState<EqualizerScreen> {
+class _PlaylistEqualizerScreenState
+    extends ConsumerState<PlaylistEqualizerScreen> {
   static const Color _bgDark = Color(0xFF071A24);
   static const Color _bgMid = Color(0xFF0A2230);
   static const Color _bgTop = Color(0xFF0E3447);
@@ -24,14 +30,6 @@ class _EqualizerScreenState extends ConsumerState<EqualizerScreen> {
 
   static const double _minDb = -15;
   static const double _maxDb = 15;
-
-  double _volume = 0.82;
-  double _balance = 0.5;
-  List<double> _bands = List<double>.filled(10, 0);
-  Timer? _saveDebounce;
-  String? _loadedTrackId;
-  bool _loadingConfig = false;
-
   static const List<String> _labels = [
     '31Hz',
     '62Hz',
@@ -45,6 +43,17 @@ class _EqualizerScreenState extends ConsumerState<EqualizerScreen> {
     '16kHz',
   ];
 
+  List<double> _bands = List<double>.filled(10, 0);
+  Timer? _saveDebounce;
+  bool _loading = true;
+  bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    Future.microtask(_loadConfig);
+  }
+
   @override
   void dispose() {
     _saveDebounce?.cancel();
@@ -54,17 +63,13 @@ class _EqualizerScreenState extends ConsumerState<EqualizerScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final currentTrack = ref.watch(playerControllerProvider).currentTrack;
-
-    if (currentTrack != null && _loadedTrackId != currentTrack.id) {
-      _loadedTrackId = currentTrack.id;
-      _loadTrackConfig(currentTrack.id);
-    }
+    final playlistAsync = ref.watch(playlistDetailProvider(widget.playlistId));
+    final playlistName = playlistAsync.valueOrNull?.name ?? 'Biblioteca';
 
     return Scaffold(
       backgroundColor: _bgDark,
       bottomNavigationBar: const AppBottomNavigation(
-        currentRoute: AppRoutes.equalizer,
+        currentRoute: AppRoutes.playlists,
       ),
       body: Container(
         decoration: const BoxDecoration(
@@ -83,17 +88,22 @@ class _EqualizerScreenState extends ConsumerState<EqualizerScreen> {
               children: [
                 Row(
                   children: [
+                    IconButton(
+                      onPressed: () => Navigator.of(context).maybePop(),
+                      icon: const Icon(Icons.arrow_back_ios_new_rounded),
+                      color: Colors.white,
+                    ),
+                    const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        'Ecualizador',
-                        style: theme.textTheme.displaySmall?.copyWith(
+                        'EQ de biblioteca',
+                        style: theme.textTheme.headlineSmall?.copyWith(
                           color: Colors.white,
                           fontWeight: FontWeight.w900,
-                          height: 0.95,
                         ),
                       ),
                     ),
-                    if (_loadingConfig)
+                    if (_loading || _saving)
                       const SizedBox(
                         width: 18,
                         height: 18,
@@ -104,59 +114,35 @@ class _EqualizerScreenState extends ConsumerState<EqualizerScreen> {
                       ),
                   ],
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 8),
                 Text(
-                  currentTrack == null
-                      ? 'Reproduce una cancion para guardar su ecualizacion.'
-                      : 'Ajustando: ${currentTrack.title}',
+                  playlistName,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.bodyLarge?.copyWith(
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    color: _accent,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Esta curva se aplicara automaticamente cuando reproduzcas canciones desde esta biblioteca.',
+                  style: theme.textTheme.bodyMedium?.copyWith(
                     color: Colors.white70,
                     height: 1.35,
                   ),
                 ),
                 const SizedBox(height: 24),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _ControlPill(
-                        label: 'VOLUMEN',
-                        valueLabel: '${(_volume * 100).round()}%',
-                        child: Slider(
-                          value: _volume,
-                          onChanged: (value) {
-                            setState(() => _volume = value);
-                            ref
-                                .read(playerControllerProvider.notifier)
-                                .setVolume(value);
-                          },
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _ControlPill(
-                        label: 'BALANCE',
-                        valueLabel: _balanceLabel,
-                        child: Slider(
-                          value: _balance,
-                          onChanged: (value) =>
-                              setState(() => _balance = value),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 30),
                 Container(
-                  height: 330,
+                  height: 340,
                   width: double.infinity,
                   padding: const EdgeInsets.fromLTRB(16, 22, 16, 12),
                   decoration: BoxDecoration(
-                    color: _panel.withOpacity(0.94),
+                    color: _panel.withValues(alpha: 0.94),
                     borderRadius: BorderRadius.circular(28),
-                    border: Border.all(color: Colors.white.withOpacity(0.04)),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.04),
+                    ),
                     boxShadow: const [
                       BoxShadow(
                         color: Color(0x3300CFFF),
@@ -173,14 +159,38 @@ class _EqualizerScreenState extends ConsumerState<EqualizerScreen> {
                           label: _labels[index],
                           value: _dbToSlider(_bands[index]),
                           gainLabel: _formatGain(_bands[index]),
-                          onChanged: (value) {
-                            final nextBands = [..._bands];
-                            nextBands[index] = _sliderToDb(value);
-                            _setBands(nextBands, persist: true);
-                          },
+                          onChanged: _loading
+                              ? null
+                              : (value) {
+                                  final nextBands = [..._bands];
+                                  nextBands[index] = _sliderToDb(value);
+                                  _setBands(nextBands, persist: true);
+                                },
                         ),
                       );
                     }),
+                  ),
+                ),
+                const SizedBox(height: 18),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: _loading
+                        ? null
+                        : () => _setBands(
+                            List<double>.filled(10, 0),
+                            persist: true,
+                          ),
+                    icon: const Icon(Icons.restart_alt_rounded),
+                    label: const Text('Restablecer EQ de biblioteca'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: _accent,
+                      side: const BorderSide(color: _accent),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(18),
+                      ),
+                    ),
                   ),
                 ),
               ],
@@ -191,29 +201,30 @@ class _EqualizerScreenState extends ConsumerState<EqualizerScreen> {
     );
   }
 
-  Future<void> _loadTrackConfig(String trackId) async {
-    setState(() => _loadingConfig = true);
+  Future<void> _loadConfig() async {
+    setState(() => _loading = true);
     try {
       final config = await ref
           .read(equalizerRepositoryProvider)
-          .resolveForTrack(trackId);
-      if (!mounted || _loadedTrackId != trackId) return;
+          .getConfigByScope(
+            scopeType: EQScopeType.playlist,
+            scopeId: widget.playlistId,
+          );
       final bands = config?.bands;
-      if (bands != null && bands.length == 10) {
-        _setBands(
-          bands.map((value) => value.toDouble()).toList(),
-          persist: false,
-        );
-      } else {
-        _setBands(List<double>.filled(10, 0), persist: false);
-      }
+      if (!mounted) return;
+      setState(() {
+        _bands = bands != null && bands.length == 10
+            ? bands.map((value) => value.toDouble()).toList()
+            : List<double>.filled(10, 0);
+        _loading = false;
+      });
     } catch (_) {
       if (!mounted) return;
-      _setBands(List<double>.filled(10, 0), persist: false);
-    } finally {
-      if (mounted && _loadedTrackId == trackId) {
-        setState(() => _loadingConfig = false);
-      }
+      setState(() {
+        _bands = List<double>.filled(10, 0);
+        _loading = false;
+      });
+      _showSnack('No se pudo cargar la ecualizacion de esta biblioteca.');
     }
   }
 
@@ -222,7 +233,13 @@ class _EqualizerScreenState extends ConsumerState<EqualizerScreen> {
         .map((value) => value.clamp(_minDb, _maxDb).toDouble())
         .toList(growable: false);
     setState(() => _bands = clampedBands);
-    ref.read(playerControllerProvider.notifier).setEqualizerBands(clampedBands);
+
+    final player = ref.read(playerControllerProvider);
+    if (player.currentPlaylistId == widget.playlistId) {
+      ref
+          .read(playerControllerProvider.notifier)
+          .setEqualizerBands(clampedBands);
+    }
 
     if (persist) {
       _scheduleSave(clampedBands);
@@ -230,27 +247,27 @@ class _EqualizerScreenState extends ConsumerState<EqualizerScreen> {
   }
 
   void _scheduleSave(List<double> bands) {
-    final track = ref.read(playerControllerProvider).currentTrack;
-    if (track == null) return;
-
     _saveDebounce?.cancel();
     _saveDebounce = Timer(const Duration(milliseconds: 650), () async {
+      if (mounted) setState(() => _saving = true);
       try {
         await ref
             .read(equalizerRepositoryProvider)
-            .upsertTrackConfig(
-              trackId: track.id,
+            .upsertPlaylistConfig(
+              playlistId: widget.playlistId,
               bands: bands.map((value) => value.round()).toList(),
             );
+        final player = ref.read(playerControllerProvider);
+        if (player.currentPlaylistId == widget.playlistId) {
+          await ref
+              .read(playerControllerProvider.notifier)
+              .refreshCurrentEqualizer();
+        }
       } catch (_) {
         if (!mounted) return;
-        ScaffoldMessenger.of(context)
-          ..hideCurrentSnackBar()
-          ..showSnackBar(
-            const SnackBar(
-              content: Text('No se pudo guardar la ecualizacion.'),
-            ),
-          );
+        _showSnack('No se pudo guardar la ecualizacion de la biblioteca.');
+      } finally {
+        if (mounted) setState(() => _saving = false);
       }
     });
   }
@@ -269,71 +286,10 @@ class _EqualizerScreenState extends ConsumerState<EqualizerScreen> {
     return '$sign${db.round()}dB';
   }
 
-  String get _balanceLabel {
-    if (_balance < 0.42) return 'L';
-    if (_balance > 0.58) return 'R';
-    return 'L/R';
-  }
-}
-
-class _ControlPill extends StatelessWidget {
-  const _ControlPill({
-    required this.label,
-    required this.valueLabel,
-    required this.child,
-  });
-
-  final String label;
-  final String valueLabel;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    return SliderTheme(
-      data: SliderTheme.of(context).copyWith(
-        trackHeight: 4,
-        activeTrackColor: _EqualizerScreenState._accent,
-        inactiveTrackColor: Colors.white.withOpacity(0.09),
-        thumbColor: Colors.white,
-        overlayColor: _EqualizerScreenState._accent.withOpacity(0.12),
-      ),
-      child: Container(
-        padding: const EdgeInsets.fromLTRB(18, 16, 14, 12),
-        decoration: BoxDecoration(
-          color: _EqualizerScreenState._panel.withOpacity(0.92),
-          borderRadius: BorderRadius.circular(28),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Text(
-                  label,
-                  style: const TextStyle(
-                    color: Color(0xFFB8C7D6),
-                    fontSize: 11,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 1.3,
-                  ),
-                ),
-                const Spacer(),
-                Text(
-                  valueLabel,
-                  style: const TextStyle(
-                    color: _EqualizerScreenState._accent,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 0.8,
-                  ),
-                ),
-              ],
-            ),
-            child,
-          ],
-        ),
-      ),
-    );
+  void _showSnack(String message) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
   }
 }
 
@@ -348,7 +304,7 @@ class _BandSlider extends StatelessWidget {
   final String label;
   final double value;
   final String gainLabel;
-  final ValueChanged<double> onChanged;
+  final ValueChanged<double>? onChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -372,10 +328,12 @@ class _BandSlider extends StatelessWidget {
             child: SliderTheme(
               data: SliderTheme.of(context).copyWith(
                 trackHeight: 6,
-                activeTrackColor: _EqualizerScreenState._accent,
-                inactiveTrackColor: Colors.white.withOpacity(0.05),
+                activeTrackColor: _PlaylistEqualizerScreenState._accent,
+                inactiveTrackColor: Colors.white.withValues(alpha: 0.05),
                 thumbColor: Colors.white,
-                overlayColor: _EqualizerScreenState._accent.withOpacity(0.14),
+                overlayColor: _PlaylistEqualizerScreenState._accent.withValues(
+                  alpha: 0.14,
+                ),
                 thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 9),
               ),
               child: Slider(value: value, onChanged: onChanged),
@@ -389,7 +347,7 @@ class _BandSlider extends StatelessWidget {
           overflow: TextOverflow.fade,
           softWrap: false,
           style: const TextStyle(
-            color: _EqualizerScreenState._accentSoft,
+            color: _PlaylistEqualizerScreenState._accentSoft,
             fontSize: 9,
             fontWeight: FontWeight.w800,
           ),
