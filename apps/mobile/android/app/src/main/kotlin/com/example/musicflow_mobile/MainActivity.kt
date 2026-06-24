@@ -1,6 +1,10 @@
 package com.example.musicflow_mobile
 
+import android.content.ActivityNotFoundException
+import android.content.Intent
 import android.media.audiofx.Equalizer
+import android.os.Build
+import android.provider.Settings
 import com.ryanheise.audioservice.AudioServiceActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -39,6 +43,37 @@ class MainActivity : AudioServiceActivity() {
             } catch (error: Throwable) {
                 result.error("EQUALIZER_ERROR", error.message, null)
             }
+        }
+
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            "musicflow/cast"
+        ).setMethodCallHandler { call, result ->
+            try {
+                when (call.method) {
+                    "openCastSettings" -> result.success(openCastSettings())
+                    else -> result.notImplemented()
+                }
+            } catch (error: Throwable) {
+                result.error("CAST_ERROR", error.message, null)
+            }
+        }
+    }
+
+    private fun openCastSettings(): Boolean {
+        val action = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            Settings.ACTION_CAST_SETTINGS
+        } else {
+            Settings.ACTION_WIRELESS_SETTINGS
+        }
+        return try {
+            startActivity(Intent(action).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            true
+        } catch (_: ActivityNotFoundException) {
+            startActivity(
+                Intent(Settings.ACTION_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            )
+            true
         }
     }
 

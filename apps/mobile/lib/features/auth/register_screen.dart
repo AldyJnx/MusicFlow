@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:musicflow_mobile/core/config/app_config.dart';
+import 'package:musicflow_mobile/core/theme/musicflow_theme.dart';
 import 'package:musicflow_mobile/features/auth/providers/auth_controller.dart';
 
 class RegisterScreen extends ConsumerStatefulWidget {
@@ -13,12 +14,6 @@ class RegisterScreen extends ConsumerStatefulWidget {
 }
 
 class _RegisterScreenState extends ConsumerState<RegisterScreen> {
-  static const Color _accentCyan = Color(0xFF00CFFF);
-  static const Color _lightBlue = Color(0xFF4FC3F7);
-  static const Color _bgDark = Color(0xFF071A24);
-  static const Color _bgMid = Color(0xFF0A2230);
-  static const Color _bgTop = Color(0xFF0E3447);
-  static const Color _cardDark = Color(0xFF11181F);
   static const Color _inputFill = Color(0xFF1C242D);
 
   final _formKey = GlobalKey<FormState>();
@@ -50,7 +45,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     });
 
     try {
-      await ref.read(authControllerProvider.notifier).register(
+      await ref
+          .read(authControllerProvider.notifier)
+          .register(
             _emailController.text.trim(),
             _usernameController.text.trim(),
             _passwordController.text,
@@ -73,7 +70,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       }
     } catch (_) {
       if (mounted) {
-        setState(() => _errorMessage = 'No pudimos iniciar sesión, intenta de nuevo.');
+        setState(
+          () => _errorMessage = 'No pudimos iniciar sesión, intenta de nuevo.',
+        );
       }
     } finally {
       if (mounted) {
@@ -85,15 +84,20 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final colors = context.musicFlowColors;
 
     return Scaffold(
-      backgroundColor: _bgDark,
+      backgroundColor: colors.background,
       body: Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [_bgTop, _bgMid, _bgDark],
+            colors: [
+              colors.gradientStart,
+              colors.gradientEnd,
+              colors.background,
+            ],
             stops: [0.0, 0.24, 0.8],
           ),
         ),
@@ -109,11 +113,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     width: double.infinity,
                     padding: const EdgeInsets.fromLTRB(18, 28, 18, 26),
                     decoration: BoxDecoration(
-                      color: _cardDark.withOpacity(0.95),
+                      color: colors.surface.withValues(alpha: 0.95),
                       borderRadius: BorderRadius.circular(30),
-                      border: Border.all(
-                        color: Colors.white.withOpacity(0.04),
-                      ),
+                      border: Border.all(color: Colors.white.withOpacity(0.04)),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -131,7 +133,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                                 text: 'Flow',
                                 style: theme.textTheme.displaySmall?.copyWith(
                                   fontWeight: FontWeight.w900,
-                                  color: _accentCyan,
+                                  color: colors.primary,
                                   height: 0.95,
                                 ),
                               ),
@@ -153,7 +155,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                         _RegisterInputContainer(
                           child: TextFormField(
                             controller: _usernameController,
-                            cursorColor: _accentCyan,
+                            cursorColor: colors.primary,
                             style: const TextStyle(color: Colors.white),
                             decoration: _inputDecoration(
                               hintText: 'Tu nombre de usuario',
@@ -167,7 +169,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                               if (username.length < 3 || username.length > 30) {
                                 return 'Debe tener entre 3 y 30 caracteres';
                               }
-                              if (!RegExp(r'^[a-zA-Z0-9_-]+$').hasMatch(username)) {
+                              if (!RegExp(
+                                r'^[a-zA-Z0-9_-]+$',
+                              ).hasMatch(username)) {
                                 return 'Solo letras, números, guion y guion bajo';
                               }
                               return null;
@@ -180,7 +184,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                         _RegisterInputContainer(
                           child: TextFormField(
                             controller: _emailController,
-                            cursorColor: _accentCyan,
+                            cursorColor: colors.primary,
                             keyboardType: TextInputType.emailAddress,
                             style: const TextStyle(color: Colors.white),
                             decoration: _inputDecoration(
@@ -191,7 +195,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                               if (v == null || v.trim().isEmpty) {
                                 return 'Ingresa tu correo';
                               }
-                              if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(v.trim())) {
+                              if (!RegExp(
+                                r'^[^@]+@[^@]+\.[^@]+',
+                              ).hasMatch(v.trim())) {
                                 return 'Correo inválido';
                               }
                               return null;
@@ -204,7 +210,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                         _RegisterInputContainer(
                           child: TextFormField(
                             controller: _passwordController,
-                            cursorColor: _accentCyan,
+                            cursorColor: colors.primary,
                             obscureText: _obscurePassword,
                             style: const TextStyle(color: Colors.white),
                             decoration: _inputDecoration(
@@ -231,8 +237,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                               if (v.length < 8) {
                                 return 'La contraseña debe tener al menos 8 caracteres';
                               }
-                              if (!RegExp(r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)')
-                                  .hasMatch(v)) {
+                              if (!RegExp(
+                                r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)',
+                              ).hasMatch(v)) {
                                 return 'Debe incluir mayúscula, minúscula y número';
                               }
                               return null;
@@ -245,7 +252,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                         _RegisterInputContainer(
                           child: TextFormField(
                             controller: _confirmPasswordController,
-                            cursorColor: _accentCyan,
+                            cursorColor: colors.primary,
                             obscureText: _obscureConfirmPassword,
                             style: const TextStyle(color: Colors.white),
                             decoration: _inputDecoration(
@@ -254,7 +261,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                               suffixIcon: IconButton(
                                 onPressed: () {
                                   setState(() {
-                                    _obscureConfirmPassword = !_obscureConfirmPassword;
+                                    _obscureConfirmPassword =
+                                        !_obscureConfirmPassword;
                                   });
                                 },
                                 icon: Icon(
@@ -312,34 +320,35 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                           child: ElevatedButton(
                             onPressed: _isLoading ? null : _submit,
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: _lightBlue,
-                              foregroundColor: _bgDark,
+                              backgroundColor: colors.secondary,
+                              foregroundColor: colors.background,
                               elevation: 0,
                               padding: const EdgeInsets.symmetric(vertical: 20),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(999),
                                 side: BorderSide(
-                                  color: _accentCyan.withOpacity(0.45),
+                                  color: colors.shadow.withValues(alpha: 0.45),
                                   width: 2,
                                 ),
                               ),
                             ),
                             child: _isLoading
-                                ? const SizedBox(
+                                ? SizedBox(
                                     width: 22,
                                     height: 22,
                                     child: CircularProgressIndicator(
                                       strokeWidth: 2.5,
-                                      color: Color(0xFF071A24),
+                                      color: colors.background,
                                     ),
                                   )
                                 : Text(
                                     'CREAR CUENTA',
-                                    style: theme.textTheme.titleMedium?.copyWith(
-                                      color: _bgDark,
-                                      fontWeight: FontWeight.w900,
-                                      letterSpacing: 0.6,
-                                    ),
+                                    style: theme.textTheme.titleMedium
+                                        ?.copyWith(
+                                          color: colors.background,
+                                          fontWeight: FontWeight.w900,
+                                          letterSpacing: 0.6,
+                                        ),
                                   ),
                           ),
                         ),
@@ -364,7 +373,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                               child: Text(
                                 'Inicia sesion',
                                 style: theme.textTheme.bodyLarge?.copyWith(
-                                  color: _lightBlue,
+                                  color: colors.secondary,
                                   fontWeight: FontWeight.w800,
                                 ),
                               ),
@@ -385,8 +394,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                           width: index.isEven ? 3 : 2,
                           height: index.isEven ? 14 : 8,
                           decoration: BoxDecoration(
-                            color: _accentCyan.withOpacity(
-                              index == 3 ? 1 : 0.55,
+                            color: colors.primary.withValues(
+                              alpha: index == 3 ? 1 : 0.55,
                             ),
                             borderRadius: BorderRadius.circular(999),
                           ),
@@ -421,9 +430,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 }
 
 class _RegisterFieldLabel extends StatelessWidget {
-  const _RegisterFieldLabel({
-    required this.text,
-  });
+  const _RegisterFieldLabel({required this.text});
 
   final String text;
 
@@ -432,18 +439,16 @@ class _RegisterFieldLabel extends StatelessWidget {
     return Text(
       text,
       style: Theme.of(context).textTheme.labelLarge?.copyWith(
-            color: const Color(0xFF5AD6FF),
-            fontWeight: FontWeight.w800,
-            letterSpacing: 1.2,
-          ),
+        color: const Color(0xFF5AD6FF),
+        fontWeight: FontWeight.w800,
+        letterSpacing: 1.2,
+      ),
     );
   }
 }
 
 class _RegisterInputContainer extends StatelessWidget {
-  const _RegisterInputContainer({
-    required this.child,
-  });
+  const _RegisterInputContainer({required this.child});
 
   final Widget child;
 

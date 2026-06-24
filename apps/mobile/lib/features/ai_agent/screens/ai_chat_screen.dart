@@ -4,6 +4,7 @@ import 'package:dio/dio.dart';
 import 'package:go_router/go_router.dart';
 import 'package:musicflow_mobile/app/routes.dart';
 import 'package:musicflow_mobile/core/providers/providers.dart';
+import 'package:musicflow_mobile/core/theme/musicflow_theme.dart';
 import 'package:musicflow_mobile/features/player/providers/player_controller.dart';
 
 class AiChatScreen extends ConsumerStatefulWidget {
@@ -17,8 +18,6 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
   static const Color _accentCyan = Color(0xFF00CFFF);
   static const Color _lightBlue = Color(0xFF4FC3F7);
   static const Color _bgDark = Color(0xFF071A24);
-  static const Color _bgMid = Color(0xFF0A2230);
-  static const Color _bgTop = Color(0xFF0E3447);
   static const Color _cardSoft = Color(0xFF142631);
 
   final TextEditingController _controller = TextEditingController();
@@ -191,17 +190,18 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final colors = context.musicFlowColors;
 
     return Scaffold(
-      backgroundColor: _bgDark,
+      backgroundColor: colors.background,
       bottomNavigationBar: Container(
         margin: const EdgeInsets.fromLTRB(10, 0, 10, 12),
         decoration: BoxDecoration(
-          color: const Color(0xFF111A22).withOpacity(0.96),
+          color: colors.surface.withValues(alpha: 0.96),
           borderRadius: BorderRadius.circular(28),
-          boxShadow: const [
+          boxShadow: [
             BoxShadow(
-              color: Color(0x33000000),
+              color: colors.shadow.withValues(alpha: 0.18),
               blurRadius: 18,
               offset: Offset(0, 8),
             ),
@@ -212,8 +212,8 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
           onTap: _handleNavigation,
           backgroundColor: Colors.transparent,
           elevation: 0,
-          selectedItemColor: _accentCyan,
-          unselectedItemColor: Colors.white38,
+          selectedItemColor: colors.primary,
+          unselectedItemColor: colors.textMuted,
           type: BottomNavigationBarType.fixed,
           items: const [
             BottomNavigationBarItem(
@@ -244,11 +244,15 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
         ),
       ),
       body: Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [_bgTop, _bgMid, _bgDark],
+            colors: [
+              colors.gradientStart,
+              colors.gradientEnd,
+              colors.background,
+            ],
             stops: [0.0, 0.12, 0.42],
           ),
         ),

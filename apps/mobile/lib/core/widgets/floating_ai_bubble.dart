@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:musicflow_mobile/core/theme/musicflow_theme.dart';
 
 class FloatingAIBubble extends StatefulWidget {
   const FloatingAIBubble({
@@ -25,11 +26,6 @@ class FloatingAIBubble extends StatefulWidget {
 class _FloatingAIBubbleState extends State<FloatingAIBubble> {
   Offset? _position;
 
-  static const Color _bubble = Color(0xFF123445);
-  static const Color _outline = Color(0x334FC3F7);
-  static const Color _iconColor = Color(0xFF65D9FF);
-  static const Color _indicator = Color(0xFF7BE4FF);
-
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -38,7 +34,8 @@ class _FloatingAIBubbleState extends State<FloatingAIBubble> {
 
   Offset _initialPosition() {
     final maxX = widget.boundsSize.width - widget.size - widget.padding.right;
-    final maxY = widget.boundsSize.height - widget.size - widget.padding.bottom - 72;
+    final maxY =
+        widget.boundsSize.height - widget.size - widget.padding.bottom - 72;
 
     return Offset(
       maxX.clamp(widget.padding.left, double.infinity),
@@ -67,6 +64,7 @@ class _FloatingAIBubbleState extends State<FloatingAIBubble> {
   @override
   Widget build(BuildContext context) {
     final position = _position ?? _initialPosition();
+    final colors = context.musicFlowColors;
 
     return Positioned(
       left: position.dx,
@@ -85,11 +83,11 @@ class _FloatingAIBubbleState extends State<FloatingAIBubble> {
                 height: widget.size,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: _bubble.withOpacity(0.94),
-                  border: Border.all(color: _outline, width: 2),
-                  boxShadow: const [
+                  color: colors.surface.withValues(alpha: 0.94),
+                  border: Border.all(color: colors.border, width: 2),
+                  boxShadow: [
                     BoxShadow(
-                      color: Color(0x3300CFFF),
+                      color: colors.shadow.withValues(alpha: 0.22),
                       blurRadius: 16,
                       offset: Offset(0, 8),
                     ),
@@ -97,7 +95,7 @@ class _FloatingAIBubbleState extends State<FloatingAIBubble> {
                 ),
                 child: Icon(
                   widget.icon,
-                  color: _iconColor,
+                  color: colors.primary,
                   size: widget.size * 0.38,
                 ),
               ),
@@ -108,12 +106,12 @@ class _FloatingAIBubbleState extends State<FloatingAIBubble> {
                   child: Container(
                     width: widget.size * 0.18,
                     height: widget.size * 0.18,
-                    decoration: const BoxDecoration(
+                    decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: _indicator,
+                      color: colors.secondary,
                       boxShadow: [
                         BoxShadow(
-                          color: Color(0x6637D9FF),
+                          color: colors.shadow.withValues(alpha: 0.4),
                           blurRadius: 8,
                         ),
                       ],

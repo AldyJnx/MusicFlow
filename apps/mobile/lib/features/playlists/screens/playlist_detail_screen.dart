@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:musicflow_mobile/app/routes.dart';
 import 'package:musicflow_mobile/core/providers/providers.dart';
+import 'package:musicflow_mobile/core/theme/musicflow_theme.dart';
 import 'package:musicflow_mobile/core/widgets/app_bottom_navigation.dart';
 import 'package:musicflow_mobile/core/widgets/mini_player_bar.dart';
 import 'package:musicflow_mobile/features/library/providers/playlists_providers.dart';
@@ -18,35 +19,37 @@ class PlaylistDetailScreen extends ConsumerWidget {
   static const Color _accentCyan = Color(0xFF00CFFF);
   static const Color _lightBlue = Color(0xFF4FC3F7);
   static const Color _bgDark = Color(0xFF071A24);
-  static const Color _bgMid = Color(0xFF0A2230);
-  static const Color _bgTop = Color(0xFF103244);
   static const Color _card = Color(0xFF102734);
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final colors = context.musicFlowColors;
     final playlistAsync = ref.watch(playlistDetailProvider(playlistId));
 
     return Scaffold(
-      backgroundColor: _bgDark,
+      backgroundColor: colors.background,
       bottomNavigationBar: const AppBottomNavigation(
         currentRoute: AppRoutes.playlists,
       ),
       bottomSheet: const MiniPlayerBar(),
       body: Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [_bgTop, _bgMid, _bgDark],
+            colors: [
+              colors.gradientStart,
+              colors.gradientEnd,
+              colors.background,
+            ],
             stops: [0.0, 0.28, 0.78],
           ),
         ),
         child: SafeArea(
           child: playlistAsync.when(
-            loading: () => const Center(
-              child: CircularProgressIndicator(color: _accentCyan),
-            ),
+            loading: () =>
+                Center(child: CircularProgressIndicator(color: colors.primary)),
             error: (_, __) => _PlaylistDetailMessage(
               message: 'No se pudo cargar esta biblioteca.',
               onRetry: () => ref.invalidate(playlistDetailProvider(playlistId)),

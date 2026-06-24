@@ -9,6 +9,7 @@ import 'package:musicflow_mobile/core/providers/providers.dart';
 import 'package:musicflow_mobile/core/widgets/app_bottom_navigation.dart';
 import 'package:musicflow_mobile/core/widgets/floating_ai_bubble.dart';
 import 'package:musicflow_mobile/core/widgets/mini_player_bar.dart';
+import 'package:musicflow_mobile/core/theme/musicflow_theme.dart';
 import 'package:musicflow_mobile/features/auth/providers/auth_controller.dart';
 import 'package:musicflow_mobile/features/library/providers/followed_artists_provider.dart';
 import 'package:musicflow_mobile/features/library/providers/tracks_providers.dart';
@@ -28,12 +29,8 @@ final _tracksQueryProvider = StateProvider.autoDispose<String>((ref) => '');
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
-  static const Color _primaryBlue = Color(0xFF1E90FF);
   static const Color _accentCyan = Color(0xFF00CFFF);
   static const Color _lightBlue = Color(0xFF4FC3F7);
-  static const Color _bgDark = Color(0xFF071A24);
-  static const Color _bgMid = Color(0xFF0A2230);
-  static const Color _bgTop = Color(0xFF0E3447);
   static const Color _cardSoft = Color(0xFF132F3F);
 
   @override
@@ -89,6 +86,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final colors = context.musicFlowColors;
     final authState = ref.watch(authControllerProvider);
     final username = authState.user?.username ?? 'Oyente';
     final searchQuery = ref.watch(_tracksQueryProvider);
@@ -102,7 +100,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final followedArtists = ref.watch(followedArtistsProvider);
 
     return Scaffold(
-      backgroundColor: HomeScreen._bgDark,
+      backgroundColor: colors.background,
       bottomNavigationBar: const AppBottomNavigation(
         currentRoute: AppRoutes.home,
       ),
@@ -110,14 +108,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       body: _withAiBubble(
         context,
         Container(
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                HomeScreen._bgTop,
-                HomeScreen._bgMid,
-                HomeScreen._bgDark,
+                colors.gradientStart,
+                colors.gradientEnd,
+                colors.background,
               ],
             ),
           ),
@@ -170,9 +168,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     decoration: BoxDecoration(
                       color: Colors.white.withOpacity(0.08),
                       borderRadius: BorderRadius.circular(22),
-                      border: Border.all(
-                        color: HomeScreen._lightBlue.withOpacity(0.22),
-                      ),
+                      border: Border.all(color: colors.border),
                     ),
                     child: TextField(
                       controller: _searchController,
@@ -204,17 +200,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       padding: const EdgeInsets.all(22),
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(28),
-                        gradient: const LinearGradient(
+                        gradient: LinearGradient(
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
-                          colors: [HomeScreen._bgDark, HomeScreen._bgTop],
+                          colors: [
+                            colors.cardGradientEnd,
+                            colors.cardGradientStart,
+                          ],
                         ),
-                        border: Border.all(
-                          color: HomeScreen._accentCyan.withOpacity(0.18),
-                        ),
-                        boxShadow: const [
+                        border: Border.all(color: colors.border),
+                        boxShadow: [
                           BoxShadow(
-                            color: Color(0x3300CFFF),
+                            color: colors.shadow.withValues(alpha: 0.24),
                             blurRadius: 24,
                             offset: Offset(0, 10),
                           ),
@@ -229,13 +226,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               vertical: 6,
                             ),
                             decoration: BoxDecoration(
-                              color: HomeScreen._accentCyan.withOpacity(0.12),
+                              color: colors.primary.withValues(alpha: 0.14),
                               borderRadius: BorderRadius.circular(999),
                             ),
                             child: Text(
                               'Playlist del dia',
                               style: theme.textTheme.labelLarge?.copyWith(
-                                color: HomeScreen._lightBlue,
+                                color: colors.secondary,
                                 fontWeight: FontWeight.w700,
                               ),
                             ),
@@ -262,7 +259,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               ElevatedButton.icon(
                                 onPressed: () {},
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: HomeScreen._primaryBlue,
+                                  backgroundColor: colors.secondary,
                                   foregroundColor: Colors.white,
                                   elevation: 0,
                                   padding: const EdgeInsets.symmetric(
@@ -283,9 +280,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                   color: Colors.white.withOpacity(0.08),
                                   borderRadius: BorderRadius.circular(14),
                                 ),
-                                child: const Icon(
+                                child: Icon(
                                   Icons.auto_awesome_rounded,
-                                  color: HomeScreen._accentCyan,
+                                  color: colors.primary,
                                 ),
                               ),
                             ],
@@ -304,10 +301,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   SizedBox(
                     height: 176,
                     child: tracksAsync.when(
-                      loading: () => const Center(
-                        child: CircularProgressIndicator(
-                          color: HomeScreen._accentCyan,
-                        ),
+                      loading: () => Center(
+                        child: CircularProgressIndicator(color: colors.primary),
                       ),
                       error: (error, _) => _SongsLoadMessage(
                         message:

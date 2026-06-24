@@ -2,17 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:musicflow_mobile/app/routes.dart';
+import 'package:musicflow_mobile/core/theme/musicflow_theme.dart';
 import 'package:musicflow_mobile/features/player/providers/player_controller.dart';
 
 class MiniPlayerBar extends ConsumerWidget {
   const MiniPlayerBar({super.key});
 
-  static const Color _bg = Color(0xFF102734);
-  static const Color _accent = Color(0xFF00CFFF);
-  static const Color _dark = Color(0xFF071A24);
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final colors = context.musicFlowColors;
     final player = ref.watch(playerControllerProvider);
     final track = player.currentTrack;
 
@@ -37,12 +35,12 @@ class MiniPlayerBar extends ConsumerWidget {
               height: 64,
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
               decoration: BoxDecoration(
-                color: _bg.withOpacity(0.98),
+                color: colors.surface.withValues(alpha: 0.98),
                 borderRadius: BorderRadius.circular(22),
-                border: Border.all(color: Colors.white.withOpacity(0.06)),
-                boxShadow: const [
+                border: Border.all(color: colors.border),
+                boxShadow: [
                   BoxShadow(
-                    color: Color(0x66000000),
+                    color: colors.shadow.withValues(alpha: 0.28),
                     blurRadius: 20,
                     offset: Offset(0, 10),
                   ),
@@ -55,7 +53,8 @@ class MiniPlayerBar extends ConsumerWidget {
                     child: SizedBox(
                       width: 46,
                       height: 46,
-                      child: track.coverArt != null && track.coverArt!.isNotEmpty
+                      child:
+                          track.coverArt != null && track.coverArt!.isNotEmpty
                           ? Image.network(
                               track.coverArt!,
                               fit: BoxFit.cover,
@@ -73,12 +72,12 @@ class MiniPlayerBar extends ConsumerWidget {
                         mainAxisAlignment: MainAxisAlignment.center,
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
+                          Text(
                             'MusicFlow',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              color: _accent,
+                              color: colors.primary,
                               fontSize: 11,
                               height: 1,
                               fontWeight: FontWeight.w800,
@@ -117,9 +116,9 @@ class MiniPlayerBar extends ConsumerWidget {
                   Container(
                     width: 40,
                     height: 40,
-                    decoration: const BoxDecoration(
+                    decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: _accent,
+                      color: colors.primary,
                     ),
                     child: IconButton(
                       padding: EdgeInsets.zero,
@@ -130,7 +129,7 @@ class MiniPlayerBar extends ConsumerWidget {
                         player.isPlaying
                             ? Icons.pause_rounded
                             : Icons.play_arrow_rounded,
-                        color: _dark,
+                        color: colors.background,
                       ),
                     ),
                   ),
@@ -149,11 +148,10 @@ class _MiniCoverPlaceholder extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.musicFlowColors;
     return Container(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Color(0xFF1E90FF), Color(0xFF00CFFF)],
-        ),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(colors: [colors.secondary, colors.primary]),
       ),
       child: const Icon(Icons.music_note_rounded, color: Colors.white),
     );

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:musicflow_mobile/core/config/app_config.dart';
+import 'package:musicflow_mobile/core/theme/musicflow_theme.dart';
 import 'package:musicflow_mobile/features/auth/providers/auth_controller.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -13,12 +14,6 @@ class LoginScreen extends ConsumerStatefulWidget {
 }
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
-  static const Color _accentCyan = Color(0xFF00CFFF);
-  static const Color _lightBlue = Color(0xFF4FC3F7);
-  static const Color _bgDark = Color(0xFF071A24);
-  static const Color _bgMid = Color(0xFF0A2230);
-  static const Color _bgTop = Color(0xFF0E3447);
-  static const Color _cardDark = Color(0xFF0F1E29);
   static const Color _inputFill = Color(0xFF182733);
 
   final _emailController = TextEditingController();
@@ -80,15 +75,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final colors = context.musicFlowColors;
 
     return Scaffold(
-      backgroundColor: _bgDark,
+      backgroundColor: colors.background,
       body: Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [_bgTop, _bgMid, _bgDark],
+            colors: [
+              colors.gradientStart,
+              colors.gradientEnd,
+              colors.background,
+            ],
             stops: [0.0, 0.34, 0.88],
           ),
         ),
@@ -105,17 +105,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       height: 88,
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(24),
-                        gradient: const LinearGradient(
+                        gradient: LinearGradient(
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
-                          colors: [Color(0xFF101923), Color(0xFF1A2430)],
+                          colors: [colors.surface, colors.surfaceAlt],
                         ),
                         border: Border.all(
                           color: Colors.white.withOpacity(0.05),
                         ),
-                        boxShadow: const [
+                        boxShadow: [
                           BoxShadow(
-                            color: Color(0x4400CFFF),
+                            color: colors.shadow.withValues(alpha: 0.24),
                             blurRadius: 24,
                             offset: Offset(0, 10),
                           ),
@@ -150,14 +150,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       width: double.infinity,
                       padding: const EdgeInsets.fromLTRB(20, 26, 20, 24),
                       decoration: BoxDecoration(
-                        color: _cardDark.withOpacity(0.92),
+                        color: colors.surface.withValues(alpha: 0.92),
                         borderRadius: BorderRadius.circular(30),
                         border: Border.all(
                           color: Colors.white.withOpacity(0.04),
                         ),
-                        boxShadow: const [
+                        boxShadow: [
                           BoxShadow(
-                            color: Color(0x3300CFFF),
+                            color: colors.shadow.withValues(alpha: 0.2),
                             blurRadius: 28,
                             offset: Offset(0, 14),
                           ),
@@ -174,7 +174,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           _InputContainer(
                             child: TextFormField(
                               controller: _emailController,
-                              cursorColor: _accentCyan,
+                              cursorColor: colors.primary,
                               keyboardType: TextInputType.emailAddress,
                               style: const TextStyle(color: Colors.white),
                               decoration: _inputDecoration(
@@ -203,7 +203,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           _InputContainer(
                             child: TextFormField(
                               controller: _passwordController,
-                              cursorColor: _accentCyan,
+                              cursorColor: colors.primary,
                               obscureText: _obscurePassword,
                               style: const TextStyle(color: Colors.white),
                               decoration: _inputDecoration(
@@ -239,7 +239,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               child: Text(
                                 '¿Olvidaste tu contrasena?',
                                 style: theme.textTheme.bodyMedium?.copyWith(
-                                  color: _lightBlue,
+                                  color: colors.secondary,
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
@@ -271,10 +271,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             child: ElevatedButton(
                               onPressed: _isLoading ? null : _submit,
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: _lightBlue,
-                                foregroundColor: _bgDark,
+                                backgroundColor: colors.secondary,
+                                foregroundColor: colors.background,
                                 elevation: 0,
-                                shadowColor: _accentCyan,
+                                shadowColor: colors.shadow,
                                 padding: const EdgeInsets.symmetric(
                                   vertical: 18,
                                 ),
@@ -283,19 +283,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                 ),
                               ),
                               child: _isLoading
-                                  ? const SizedBox(
+                                  ? SizedBox(
                                       width: 22,
                                       height: 22,
                                       child: CircularProgressIndicator(
                                         strokeWidth: 2.5,
-                                        color: Color(0xFF071A24),
+                                        color: colors.background,
                                       ),
                                     )
                                   : Text(
                                       'Iniciar sesion',
                                       style: theme.textTheme.titleMedium
                                           ?.copyWith(
-                                            color: _bgDark,
+                                            color: colors.background,
                                             fontWeight: FontWeight.w800,
                                           ),
                                     ),
@@ -324,7 +324,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           child: Text(
                             'Crear cuenta',
                             style: theme.textTheme.bodyLarge?.copyWith(
-                              color: _lightBlue,
+                              color: colors.secondary,
                               fontWeight: FontWeight.w800,
                             ),
                           ),

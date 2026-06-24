@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:musicflow_mobile/app/routes.dart';
 import 'package:musicflow_mobile/core/providers/providers.dart';
+import 'package:musicflow_mobile/core/theme/musicflow_theme.dart';
 import 'package:musicflow_mobile/core/widgets/app_bottom_navigation.dart';
 import 'package:musicflow_mobile/features/player/providers/player_controller.dart';
 
@@ -15,9 +16,6 @@ class EqualizerScreen extends ConsumerStatefulWidget {
 }
 
 class _EqualizerScreenState extends ConsumerState<EqualizerScreen> {
-  static const Color _bgDark = Color(0xFF071A24);
-  static const Color _bgMid = Color(0xFF0A2230);
-  static const Color _bgTop = Color(0xFF0E3447);
   static const Color _panel = Color(0xFF101820);
   static const Color _accent = Color(0xFF35D8FF);
   static const Color _accentSoft = Color(0xFF6ADCFF);
@@ -54,6 +52,7 @@ class _EqualizerScreenState extends ConsumerState<EqualizerScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final colors = context.musicFlowColors;
     final currentTrack = ref.watch(playerControllerProvider).currentTrack;
 
     if (currentTrack != null && _loadedTrackId != currentTrack.id) {
@@ -62,16 +61,20 @@ class _EqualizerScreenState extends ConsumerState<EqualizerScreen> {
     }
 
     return Scaffold(
-      backgroundColor: _bgDark,
+      backgroundColor: colors.background,
       bottomNavigationBar: const AppBottomNavigation(
         currentRoute: AppRoutes.equalizer,
       ),
       body: Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [_bgTop, _bgMid, _bgDark],
+            colors: [
+              colors.gradientStart,
+              colors.gradientEnd,
+              colors.background,
+            ],
             stops: [0.0, 0.26, 0.72],
           ),
         ),
@@ -94,12 +97,12 @@ class _EqualizerScreenState extends ConsumerState<EqualizerScreen> {
                       ),
                     ),
                     if (_loadingConfig)
-                      const SizedBox(
+                      SizedBox(
                         width: 18,
                         height: 18,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          color: _accent,
+                          color: colors.primary,
                         ),
                       ),
                   ],

@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:musicflow_mobile/app/routes.dart';
+import 'package:musicflow_mobile/core/cast/cast_service.dart';
 import 'package:musicflow_mobile/core/providers/providers.dart';
+import 'package:musicflow_mobile/core/theme/musicflow_theme.dart';
 import 'package:musicflow_mobile/features/library/providers/playlists_providers.dart';
 import 'package:musicflow_mobile/features/library/providers/tracks_providers.dart';
 import 'package:musicflow_mobile/features/player/providers/player_controller.dart';
@@ -10,15 +12,10 @@ import 'package:musicflow_mobile/features/player/providers/player_controller.dar
 class NowPlayingScreen extends ConsumerWidget {
   const NowPlayingScreen({super.key});
 
-  static const Color _accentCyan = Color(0xFF00CFFF);
-  static const Color _lightBlue = Color(0xFF4FC3F7);
-  static const Color _bgDark = Color(0xFF071A24);
-  static const Color _bgMid = Color(0xFF0A2230);
-  static const Color _bgTop = Color(0xFF0E3447);
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final colors = context.musicFlowColors;
     final player = ref.watch(playerControllerProvider);
     final controller = ref.read(playerControllerProvider.notifier);
     final track = player.currentTrack;
@@ -34,13 +31,17 @@ class NowPlayingScreen extends ConsumerWidget {
               .clamp(0.0, 1.0);
 
     return Scaffold(
-      backgroundColor: _bgDark,
+      backgroundColor: colors.background,
       body: Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [_bgTop, _bgMid, _bgDark],
+            colors: [
+              colors.gradientStart,
+              colors.gradientEnd,
+              colors.background,
+            ],
             stops: [0.0, 0.28, 0.78],
           ),
         ),
@@ -61,7 +62,7 @@ class NowPlayingScreen extends ConsumerWidget {
                     Text(
                       'MusicFlow',
                       style: theme.textTheme.titleMedium?.copyWith(
-                        color: _accentCyan,
+                        color: colors.primary,
                         fontWeight: FontWeight.w900,
                       ),
                     ),
@@ -74,7 +75,7 @@ class NowPlayingScreen extends ConsumerWidget {
                               ? null
                               : () => context.push(AppRoutes.temporalSegments),
                           icon: const Icon(Icons.timeline_rounded),
-                          color: _accentCyan,
+                          color: colors.primary,
                           disabledColor: Colors.white24,
                           iconSize: 27,
                           tooltip: 'Segmentacion temporal',
@@ -84,7 +85,7 @@ class NowPlayingScreen extends ConsumerWidget {
                               ? null
                               : () => context.push(AppRoutes.equalizer),
                           icon: const Icon(Icons.equalizer_rounded),
-                          color: _accentCyan,
+                          color: colors.primary,
                           disabledColor: Colors.white24,
                           iconSize: 28,
                           tooltip: 'Ecualizador',
@@ -132,7 +133,7 @@ class NowPlayingScreen extends ConsumerWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: theme.textTheme.titleMedium?.copyWith(
-                    color: _lightBlue,
+                    color: colors.secondary,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -151,7 +152,7 @@ class NowPlayingScreen extends ConsumerWidget {
                     const Spacer(),
                     _CircleActionButton(
                       icon: Icons.library_add_rounded,
-                      color: _accentCyan,
+                      color: colors.primary,
                       onPressed: track == null
                           ? null
                           : () => _showLibraryPicker(context, ref, track.id),
@@ -162,10 +163,10 @@ class NowPlayingScreen extends ConsumerWidget {
                 SliderTheme(
                   data: SliderTheme.of(context).copyWith(
                     trackHeight: 5,
-                    activeTrackColor: _accentCyan,
+                    activeTrackColor: colors.primary,
                     inactiveTrackColor: Colors.white.withOpacity(0.12),
                     thumbColor: Colors.white,
-                    overlayColor: _accentCyan.withOpacity(0.15),
+                    overlayColor: colors.primary.withValues(alpha: 0.15),
                   ),
                   child: Slider(
                     value: progress,
@@ -213,12 +214,12 @@ class NowPlayingScreen extends ConsumerWidget {
                     Container(
                       width: 86,
                       height: 86,
-                      decoration: const BoxDecoration(
+                      decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: _lightBlue,
+                        color: colors.secondary,
                         boxShadow: [
                           BoxShadow(
-                            color: Color(0x6600CFFF),
+                            color: colors.shadow.withValues(alpha: 0.36),
                             blurRadius: 26,
                             offset: Offset(0, 10),
                           ),
@@ -230,7 +231,7 @@ class NowPlayingScreen extends ConsumerWidget {
                           player.isPlaying
                               ? Icons.pause_rounded
                               : Icons.play_arrow_rounded,
-                          color: _bgDark,
+                          color: colors.background,
                         ),
                         iconSize: 44,
                       ),
@@ -250,17 +251,14 @@ class NowPlayingScreen extends ConsumerWidget {
                   children: [
                     _CircleActionButton(
                       icon: Icons.cast_rounded,
-                      color: _accentCyan,
+                      color: colors.primary,
                       onPressed: track == null
                           ? null
-                          : () => _showComingSoon(
-                              context,
-                              'Conexion con dispositivos proximamente.',
-                            ),
+                          : () => _openCastPicker(context),
                     ),
                     _CircleActionButton(
                       icon: Icons.mic_external_on_rounded,
-                      color: _accentCyan,
+                      color: colors.primary,
                       onPressed: track == null
                           ? null
                           : () => _showComingSoon(
@@ -288,6 +286,14 @@ class NowPlayingScreen extends ConsumerWidget {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Future<void> _openCastPicker(BuildContext context) async {
+    final result = await const CastService().openCastPicker();
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(result.message)));
   }
 
   Future<void> _toggleFavorite(
@@ -328,11 +334,12 @@ class NowPlayingScreen extends ConsumerWidget {
 
     await showModalBottomSheet<void>(
       context: context,
-      backgroundColor: _bgMid,
+      backgroundColor: context.musicFlowColors.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
       ),
       builder: (context) {
+        final colors = context.musicFlowColors;
         return SafeArea(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(20, 18, 20, 24),
@@ -363,9 +370,12 @@ class NowPlayingScreen extends ConsumerWidget {
                 ...playlists.map(
                   (playlist) => ListTile(
                     contentPadding: EdgeInsets.zero,
-                    leading: const CircleAvatar(
-                      backgroundColor: _accentCyan,
-                      child: Icon(Icons.library_music_rounded, color: _bgDark),
+                    leading: CircleAvatar(
+                      backgroundColor: colors.primary,
+                      child: Icon(
+                        Icons.library_music_rounded,
+                        color: colors.background,
+                      ),
                     ),
                     title: Text(
                       playlist.name,

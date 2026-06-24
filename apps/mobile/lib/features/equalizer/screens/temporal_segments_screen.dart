@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:musicflow_mobile/core/providers/providers.dart';
+import 'package:musicflow_mobile/core/theme/musicflow_theme.dart';
 import 'package:musicflow_mobile/features/player/providers/player_controller.dart';
 import 'package:musicflow_mobile/shared/models/eq.dart';
 
@@ -15,8 +16,6 @@ class TemporalSegmentsScreen extends ConsumerStatefulWidget {
 class _TemporalSegmentsScreenState
     extends ConsumerState<TemporalSegmentsScreen> {
   static const Color _bgDark = Color(0xFF071A24);
-  static const Color _bgMid = Color(0xFF0A2230);
-  static const Color _bgTop = Color(0xFF0E3447);
   static const Color _panel = Color(0xFF142A36);
   static const Color _accent = Color(0xFF00CFFF);
 
@@ -26,6 +25,7 @@ class _TemporalSegmentsScreenState
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final colors = context.musicFlowColors;
     final player = ref.watch(playerControllerProvider);
     final track = player.currentTrack;
 
@@ -35,13 +35,17 @@ class _TemporalSegmentsScreenState
     }
 
     return Scaffold(
-      backgroundColor: _bgDark,
+      backgroundColor: colors.background,
       body: Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [_bgTop, _bgMid, _bgDark],
+            colors: [
+              colors.gradientStart,
+              colors.gradientEnd,
+              colors.background,
+            ],
             stops: [0.0, 0.28, 0.78],
           ),
         ),
@@ -62,7 +66,7 @@ class _TemporalSegmentsScreenState
                     Text(
                       'Segmentacion temporal',
                       style: theme.textTheme.titleMedium?.copyWith(
-                        color: _accent,
+                        color: colors.primary,
                         fontWeight: FontWeight.w900,
                       ),
                     ),
@@ -70,7 +74,7 @@ class _TemporalSegmentsScreenState
                     IconButton(
                       onPressed: track == null ? null : () => _reload(track.id),
                       icon: const Icon(Icons.refresh_rounded),
-                      color: _accent,
+                      color: colors.primary,
                       disabledColor: Colors.white24,
                     ),
                   ],
