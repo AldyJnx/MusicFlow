@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:musicflow_mobile/app/routes.dart';
 import 'package:musicflow_mobile/core/providers/providers.dart';
+import 'package:musicflow_mobile/core/theme/musicflow_theme.dart';
 import 'package:musicflow_mobile/core/widgets/app_bottom_navigation.dart';
 import 'package:musicflow_mobile/features/library/providers/playlists_providers.dart';
 import 'package:musicflow_mobile/features/player/providers/player_controller.dart';
@@ -21,9 +22,6 @@ class PlaylistEqualizerScreen extends ConsumerStatefulWidget {
 
 class _PlaylistEqualizerScreenState
     extends ConsumerState<PlaylistEqualizerScreen> {
-  static const Color _bgDark = Color(0xFF071A24);
-  static const Color _bgMid = Color(0xFF0A2230);
-  static const Color _bgTop = Color(0xFF0E3447);
   static const Color _panel = Color(0xFF101820);
   static const Color _accent = Color(0xFF35D8FF);
   static const Color _accentSoft = Color(0xFF6ADCFF);
@@ -63,20 +61,25 @@ class _PlaylistEqualizerScreenState
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final colors = context.musicFlowColors;
     final playlistAsync = ref.watch(playlistDetailProvider(widget.playlistId));
     final playlistName = playlistAsync.valueOrNull?.name ?? 'Biblioteca';
 
     return Scaffold(
-      backgroundColor: _bgDark,
+      backgroundColor: colors.background,
       bottomNavigationBar: const AppBottomNavigation(
         currentRoute: AppRoutes.playlists,
       ),
       body: Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [_bgTop, _bgMid, _bgDark],
+            colors: [
+              colors.gradientStart,
+              colors.gradientEnd,
+              colors.background,
+            ],
             stops: [0.0, 0.26, 0.72],
           ),
         ),
@@ -104,12 +107,12 @@ class _PlaylistEqualizerScreenState
                       ),
                     ),
                     if (_loading || _saving)
-                      const SizedBox(
+                      SizedBox(
                         width: 18,
                         height: 18,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          color: _accent,
+                          color: colors.primary,
                         ),
                       ),
                   ],
@@ -120,7 +123,7 @@ class _PlaylistEqualizerScreenState
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: theme.textTheme.titleMedium?.copyWith(
-                    color: _accent,
+                    color: colors.primary,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
