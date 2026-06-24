@@ -1,18 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:musicflow_mobile/app/routes.dart';
+import 'package:musicflow_mobile/core/theme/musicflow_theme.dart';
 
 class AppBottomNavigation extends StatelessWidget {
-  const AppBottomNavigation({
-    super.key,
-    required this.currentRoute,
-  });
+  const AppBottomNavigation({super.key, required this.currentRoute});
 
   final String currentRoute;
-
-  static const Color _accentCyan = Color(0xFF00CFFF);
-  static const Color _background = Color(0xFF0B1F2A);
-  static const Color _borderColor = Color(0x223CCEFF);
 
   static const List<_BottomNavItem> _items = [
     _BottomNavItem(
@@ -57,20 +51,19 @@ class AppBottomNavigation extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.musicFlowColors;
     return Container(
-      decoration: const BoxDecoration(
-        color: _background,
-        border: Border(
-          top: BorderSide(color: _borderColor),
-        ),
+      decoration: BoxDecoration(
+        color: colors.surface,
+        border: Border(top: BorderSide(color: colors.border)),
       ),
       child: BottomNavigationBar(
         currentIndex: _currentIndex,
         onTap: (index) => _handleNavigation(context, index),
         backgroundColor: Colors.transparent,
         elevation: 0,
-        selectedItemColor: _accentCyan,
-        unselectedItemColor: Colors.white54,
+        selectedItemColor: colors.primary,
+        unselectedItemColor: colors.textMuted,
         type: BottomNavigationBarType.fixed,
         items: _items
             .map(
