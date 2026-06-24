@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:musicflow_mobile/app/routes.dart';
 import 'package:musicflow_mobile/core/providers/app_settings_provider.dart';
+import 'package:musicflow_mobile/core/theme/musicflow_theme.dart';
 import 'package:musicflow_mobile/features/auth/providers/auth_controller.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
@@ -13,26 +14,20 @@ class SettingsScreen extends ConsumerStatefulWidget {
 }
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
-  static const Color _bg = Color(0xFF081017);
-  static const Color _surface = Color(0xFF141C24);
-  static const Color _surfaceAlt = Color(0xFF171F27);
-  static const Color _accent = Color(0xFF2FD4FF);
-  static const Color _textMuted = Color(0xFF9AA7B7);
   static const Color _trackOff = Color(0xFF2C3440);
 
-  bool _notificationsEnabled = true;
   bool _wifiOnlyDownloads = false;
-  String _streamingQuality = 'Alta';
 
   @override
   Widget build(BuildContext context) {
     final user = ref.watch(authControllerProvider).user;
     final settings = ref.watch(appSettingsProvider);
+    final colors = context.musicFlowColors;
     final username = user?.username ?? 'MusicFlow';
     final plan = user?.isPremium == true ? 'PLAN PREMIUM' : 'PLAN GRATUITO';
 
     return Scaffold(
-      backgroundColor: _bg,
+      backgroundColor: colors.background,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(18, 12, 18, 26),
@@ -51,7 +46,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   Text(
                     'CONFIGURACIÓN',
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: _accent,
+                      color: colors.primary,
                       fontWeight: FontWeight.w900,
                       letterSpacing: 0.8,
                     ),
@@ -63,7 +58,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 width: double.infinity,
                 padding: const EdgeInsets.all(18),
                 decoration: BoxDecoration(
-                  color: _surface,
+                  color: colors.surface,
                   borderRadius: BorderRadius.circular(26),
                 ),
                 child: Row(
@@ -87,7 +82,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                             plan,
                             style: Theme.of(context).textTheme.bodyMedium
                                 ?.copyWith(
-                                  color: _textMuted,
+                                  color: colors.textMuted,
                                   letterSpacing: 0.8,
                                 ),
                           ),
@@ -112,16 +107,35 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               _SettingSwitchTile(
                 icon: Icons.notifications_none_rounded,
                 title: 'Notificaciones',
-                value: _notificationsEnabled,
-                onChanged: (value) =>
-                    setState(() => _notificationsEnabled = value),
+                value: settings.notificationsEnabled,
+                onChanged: (value) async {
+                  final enabled = await ref
+                      .read(appSettingsProvider.notifier)
+                      .setNotificationsEnabled(value);
+                  if (!context.mounted || enabled || !value) return;
+                  ScaffoldMessenger.of(context)
+                    ..hideCurrentSnackBar()
+                    ..showSnackBar(
+                      SnackBar(
+                        content: const Text(
+                          'Activa las notificaciones desde la configuracion del sistema.',
+                        ),
+                        action: SnackBarAction(
+                          label: 'Abrir',
+                          onPressed: () => ref
+                              .read(appSettingsProvider.notifier)
+                              .openNotificationSettings(),
+                        ),
+                      ),
+                    );
+                },
               ),
               const SizedBox(height: 12),
               _SettingValueTile(
-                icon: Icons.hd_rounded,
-                title: 'Calidad de Streaming',
-                value: _streamingQuality,
-                onTap: _cycleStreamingQuality,
+                icon: Icons.palette_outlined,
+                title: 'Temas',
+                value: settings.palette.name,
+                onTap: () => context.push(AppRoutes.themes),
               ),
               const SizedBox(height: 12),
               _SettingSwitchTile(
@@ -138,7 +152,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 width: double.infinity,
                 padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
                 decoration: BoxDecoration(
-                  color: _surface,
+                  color: colors.surface,
                   borderRadius: BorderRadius.circular(24),
                 ),
                 child: Column(
@@ -150,11 +164,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           height: 42,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color: _surfaceAlt,
+                            color: colors.surfaceAlt,
                           ),
-                          child: const Icon(
+                          child: Icon(
                             Icons.auto_awesome_rounded,
-                            color: _accent,
+                            color: colors.primary,
                           ),
                         ),
                         const SizedBox(width: 14),
@@ -182,7 +196,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       child: Text(
                         'Activa el chatbot inteligente para descubrimientos musicales personalizados y soporte en tiempo real.',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: _textMuted,
+                          color: colors.textMuted,
                           height: 1.45,
                         ),
                       ),
@@ -212,13 +226,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       ),
     );
   }
-
-  void _cycleStreamingQuality() {
-    const values = ['Baja', 'Media', 'Alta'];
-    final currentIndex = values.indexOf(_streamingQuality);
-    final next = values[(currentIndex + 1) % values.length];
-    setState(() => _streamingQuality = next);
-  }
 }
 
 class _SectionLabel extends StatelessWidget {
@@ -246,6 +253,7 @@ class _SettingsAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.musicFlowColors;
     final hasAvatar = avatar != null && avatar!.trim().isNotEmpty;
 
     return Container(
@@ -254,7 +262,7 @@ class _SettingsAvatar extends StatelessWidget {
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         border: Border.all(
-          color: _SettingsScreenState._accent.withOpacity(0.7),
+          color: colors.primary.withValues(alpha: 0.7),
           width: 2,
         ),
       ),
@@ -263,7 +271,8 @@ class _SettingsAvatar extends StatelessWidget {
           ? Image.network(
               avatar!,
               fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => const _SettingsAvatarFallback(),
+              errorBuilder: (context, error, stackTrace) =>
+                  const _SettingsAvatarFallback(),
             )
           : const _SettingsAvatarFallback(),
     );
@@ -275,8 +284,9 @@ class _SettingsAvatarFallback extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.musicFlowColors;
     return Container(
-      color: _SettingsScreenState._surfaceAlt,
+      color: colors.surfaceAlt,
       child: const Icon(Icons.person_rounded, color: Colors.white70, size: 36),
     );
   }
@@ -297,11 +307,12 @@ class _SettingSwitchTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.musicFlowColors;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       decoration: BoxDecoration(
-        color: _SettingsScreenState._surface,
+        color: colors.surface,
         borderRadius: BorderRadius.circular(22),
       ),
       child: Row(
@@ -339,6 +350,7 @@ class _SettingValueTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.musicFlowColors;
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -348,7 +360,7 @@ class _SettingValueTile extends StatelessWidget {
           width: double.infinity,
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
           decoration: BoxDecoration(
-            color: _SettingsScreenState._surface,
+            color: colors.surface,
             borderRadius: BorderRadius.circular(22),
           ),
           child: Row(
@@ -367,7 +379,7 @@ class _SettingValueTile extends StatelessWidget {
               Text(
                 value,
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  color: _SettingsScreenState._accent,
+                  color: colors.primary,
                   fontWeight: FontWeight.w800,
                 ),
               ),
@@ -388,12 +400,13 @@ class _LeadingIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.musicFlowColors;
     return Container(
       width: 42,
       height: 42,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: _SettingsScreenState._surfaceAlt,
+        color: colors.surfaceAlt,
       ),
       child: Icon(icon, color: Colors.white70),
     );
@@ -408,6 +421,7 @@ class _SettingsSwitch extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.musicFlowColors;
     return GestureDetector(
       onTap: () => onChanged(!value),
       child: AnimatedContainer(
@@ -416,9 +430,7 @@ class _SettingsSwitch extends StatelessWidget {
         height: 28,
         padding: const EdgeInsets.symmetric(horizontal: 3),
         decoration: BoxDecoration(
-          color: value
-              ? _SettingsScreenState._accent
-              : _SettingsScreenState._trackOff,
+          color: value ? colors.primary : _SettingsScreenState._trackOff,
           borderRadius: BorderRadius.circular(999),
         ),
         child: Align(

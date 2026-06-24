@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:musicflow_mobile/app/routes.dart';
+import 'package:musicflow_mobile/core/theme/musicflow_theme.dart';
 import 'package:musicflow_mobile/core/widgets/app_bottom_navigation.dart';
 import 'package:musicflow_mobile/features/auth/providers/auth_controller.dart';
 import 'package:musicflow_mobile/features/profile/providers/profile_stats_provider.dart';
@@ -10,19 +11,12 @@ import 'package:musicflow_mobile/shared/models/user.dart';
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
 
-  static const Color _primaryBlue = Color(0xFF1E90FF);
-  static const Color _accentCyan = Color(0xFF00CFFF);
-  static const Color _lightBlue = Color(0xFF4FC3F7);
-  static const Color _bgDark = Color(0xFF071A24);
-  static const Color _bgMid = Color(0xFF0A2230);
-  static const Color _bgTop = Color(0xFF0E3447);
-  static const Color _cardDark = Color(0xFF121A21);
-  static const Color _cardSoft = Color(0xFF161F28);
   static const Color _danger = Color(0xFFFF5A5F);
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final colors = context.musicFlowColors;
     final authState = ref.watch(authControllerProvider);
     final statsAsync = ref.watch(profileStatsProvider);
     final user = authState.user;
@@ -30,10 +24,8 @@ class ProfileScreen extends ConsumerWidget {
     // Defensive: if somehow unauthenticated here, show a placeholder.
     if (user == null) {
       return Scaffold(
-        backgroundColor: _bgDark,
-        body: const Center(
-          child: CircularProgressIndicator(color: _accentCyan),
-        ),
+        backgroundColor: colors.background,
+        body: Center(child: CircularProgressIndicator(color: colors.primary)),
       );
     }
 
@@ -48,16 +40,20 @@ class ProfileScreen extends ConsumerWidget {
         : '–';
 
     return Scaffold(
-      backgroundColor: _bgDark,
+      backgroundColor: colors.background,
       bottomNavigationBar: const AppBottomNavigation(
         currentRoute: AppRoutes.profile,
       ),
       body: Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [_bgTop, _bgMid, _bgDark],
+            colors: [
+              colors.gradientStart,
+              colors.gradientEnd,
+              colors.background,
+            ],
             stops: [0.0, 0.18, 0.55],
           ),
         ),
@@ -75,8 +71,8 @@ class ProfileScreen extends ConsumerWidget {
                       height: 34,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        gradient: const LinearGradient(
-                          colors: [_primaryBlue, _accentCyan],
+                        gradient: LinearGradient(
+                          colors: [colors.secondary, colors.primary],
                         ),
                         border: Border.all(
                           color: Colors.white.withOpacity(0.18),
@@ -106,13 +102,13 @@ class ProfileScreen extends ConsumerWidget {
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
-                            color: _accentCyan.withOpacity(0.55),
+                            color: colors.primary.withValues(alpha: 0.55),
                           ),
                           color: Colors.white.withOpacity(0.03),
                         ),
-                        child: const Icon(
+                        child: Icon(
                           Icons.settings_rounded,
-                          color: _accentCyan,
+                          color: colors.primary,
                         ),
                       ),
                     ),
@@ -175,12 +171,14 @@ class ProfileScreen extends ConsumerWidget {
                                 ),
                                 decoration: BoxDecoration(
                                   color: isPremium
-                                      ? _lightBlue
-                                      : const Color(0xFF2A3A45),
+                                      ? colors.secondary
+                                      : colors.surfaceAlt,
                                   borderRadius: BorderRadius.circular(999),
-                                  boxShadow: const [
+                                  boxShadow: [
                                     BoxShadow(
-                                      color: Color(0x5500CFFF),
+                                      color: colors.shadow.withValues(
+                                        alpha: 0.32,
+                                      ),
                                       blurRadius: 16,
                                       offset: Offset(0, 6),
                                     ),
@@ -192,7 +190,9 @@ class ProfileScreen extends ConsumerWidget {
                                       : 'PLAN\nGRATUITO',
                                   textAlign: TextAlign.center,
                                   style: theme.textTheme.labelMedium?.copyWith(
-                                    color: isPremium ? _bgDark : Colors.white70,
+                                    color: isPremium
+                                        ? colors.background
+                                        : Colors.white70,
                                     fontWeight: FontWeight.w900,
                                     letterSpacing: 0.6,
                                     height: 1.15,
@@ -243,7 +243,7 @@ class ProfileScreen extends ConsumerWidget {
                           style: theme.textTheme.labelMedium?.copyWith(
                             color: user.role == UserRole.admin
                                 ? const Color(0xFFFFB347)
-                                : _lightBlue,
+                                : colors.secondary,
                             fontWeight: FontWeight.w800,
                             letterSpacing: 0.6,
                           ),
@@ -258,7 +258,7 @@ class ProfileScreen extends ConsumerWidget {
                   width: double.infinity,
                   padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
                   decoration: BoxDecoration(
-                    color: _cardDark.withOpacity(0.95),
+                    color: colors.surface.withValues(alpha: 0.95),
                     borderRadius: BorderRadius.circular(26),
                   ),
                   child: Row(
@@ -279,7 +279,7 @@ class ProfileScreen extends ConsumerWidget {
                             Text(
                               listenedMinutes,
                               style: theme.textTheme.displaySmall?.copyWith(
-                                color: _lightBlue,
+                                color: colors.secondary,
                                 fontWeight: FontWeight.w900,
                                 height: 0.95,
                               ),
@@ -313,11 +313,11 @@ class ProfileScreen extends ConsumerWidget {
                               height: 38,
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
-                                color: _accentCyan.withOpacity(0.18),
+                                color: colors.primary.withValues(alpha: 0.18),
                               ),
-                              child: const Icon(
+                              child: Icon(
                                 Icons.timer_rounded,
-                                color: _accentCyan,
+                                color: colors.primary,
                               ),
                             ),
                           ],
@@ -329,7 +329,7 @@ class ProfileScreen extends ConsumerWidget {
                 const SizedBox(height: 14),
                 _ProfileMetricCard(
                   icon: Icons.favorite_border_rounded,
-                  iconColor: _primaryBlue,
+                  iconColor: colors.secondary,
                   title: 'ARTISTA FAVORITO',
                   value: favoriteArtist,
                 ),
@@ -346,7 +346,7 @@ class ProfileScreen extends ConsumerWidget {
                 Container(
                   width: double.infinity,
                   decoration: BoxDecoration(
-                    color: _cardDark.withOpacity(0.98),
+                    color: colors.surface.withValues(alpha: 0.98),
                     borderRadius: BorderRadius.circular(22),
                   ),
                   child: Column(
@@ -412,11 +412,12 @@ class _ProfileMetricCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final colors = context.musicFlowColors;
 
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 18),
       decoration: BoxDecoration(
-        color: ProfileScreen._cardSoft.withOpacity(0.92),
+        color: colors.surfaceAlt.withValues(alpha: 0.92),
         borderRadius: BorderRadius.circular(24),
       ),
       child: Column(
@@ -427,7 +428,7 @@ class _ProfileMetricCard extends StatelessWidget {
             height: 38,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: iconColor.withOpacity(0.12),
+              color: iconColor.withValues(alpha: 0.14),
             ),
             child: Icon(icon, color: iconColor),
           ),
