@@ -19,6 +19,7 @@ import 'package:musicflow_mobile/features/profile/screens/edit_profile.dart';
 import 'package:musicflow_mobile/features/profile/screens/payment_methods_screen.dart';
 import 'package:musicflow_mobile/features/profile/screens/profile_screen.dart';
 import 'package:musicflow_mobile/features/settings/settings_screen.dart';
+import 'package:musicflow_mobile/features/settings/theme_screen.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   final notifier = _AuthNotifier(ref);
@@ -86,6 +87,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.settings,
         builder: (_, __) => const SettingsScreen(),
       ),
+      GoRoute(path: AppRoutes.themes, builder: (_, __) => const ThemeScreen()),
       GoRoute(
         path: AppRoutes.premium,
         builder: (_, __) => const PremiumScreen(),

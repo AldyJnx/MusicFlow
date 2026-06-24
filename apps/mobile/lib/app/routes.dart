@@ -16,6 +16,7 @@ abstract final class AppRoutes {
   static const String editProfile = '/profile/edit';
   static const String paymentMethods = '/profile/payment-methods';
   static const String settings = '/settings';
+  static const String themes = '/settings/themes';
   static const String premium = '/premium';
   static const String nowPlaying = '/now-playing';
   static const String aiAgent = '/ai-agent';
