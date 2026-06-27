@@ -131,6 +131,10 @@ model Track {
   bitrate        Int?
   sampleRate     Int?     @map("sample_rate")
   coverArt       String?  @map("cover_art")
+  // Public URL of the artist's image (served from the images bucket under
+  // `artists/`). Denormalised onto the track so artist lists/pages can show a
+  // real photo without a separate Artist table.
+  artistImage    String?  @map("artist_image")
 
   // Pre-computed waveform peaks for fast client-side rendering. Shape:
   // { v: 1, n: 2000, peaks: number[] }  // normalized -1..1 max-per-bucket
@@ -158,6 +162,16 @@ model Track {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
+  // Catalog relations (admin-curated). The string `artist`/`album` columns
+  // above are kept for local files and as a display fallback; these FKs are
+  // the source of truth for the online catalog and its admin-managed ordering.
+  artistId   String?  @map("artist_id")
+  artistRef  Artist?  @relation(fields: [artistId], references: [id], onDelete: SetNull)
+  albumId    String?  @map("album_id")
+  albumRef   Album?   @relation(fields: [albumId], references: [id], onDelete: SetNull)
+  // Position of the track within its album (admin-orderable).
+  albumOrder Int?     @map("album_order")
+
   // Relations
   user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   playlistTracks PlaylistTrack[]
@@ -170,12 +184,48 @@ model Track {
   @@index([artist])
   @@index([album])
   @@index([genre])
+  @@index([artistId])
+  @@index([albumId])
   @@index([userId, fileHash])
   @@index([userId, syncStatus])
   @@index([userId, updatedAt(sort: Desc)])
   // Fast path for the catalog list endpoint — newest-first by upload time.
   @@index([isCatalog, updatedAt(sort: Desc)])
   @@map("tracks")
+}
+
+/// Admin-curated artist in the online catalog. Owns albums and tracks.
+model Artist {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  slug      String   @unique
+  imageUrl  String?  @map("image_url")
+  bio       String?  @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  albums Album[]
+  tracks Track[]
+
+  @@map("artists")
+}
+
+/// Admin-curated album. Belongs to one artist; holds an ordered set of tracks.
+model Album {
+  id        String   @id @default(uuid())
+  title     String
+  artistId  String   @map("artist_id")
+  artist    Artist   @relation(fields: [artistId], references: [id], onDelete: Cascade)
+  coverArt  String?  @map("cover_art")
+  year      Int?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  tracks Track[]
+
+  @@unique([artistId, title])
+  @@index([artistId])
+  @@map("albums")
 }
 
 model Playlist {

@@ -121,7 +121,7 @@ export class TracksService {
     const where: Prisma.TrackWhereInput =
       filters.length > 0 ? { AND: [visibility, ...filters] } : visibility;
 
-    const [tracks, total] = await Promise.all([
+    const [rows, total] = await Promise.all([
       this.prisma.track.findMany({
         where,
         skip,
@@ -130,6 +130,10 @@ export class TracksService {
       }),
       this.prisma.track.count({ where }),
     ]);
+
+    // Strip the potentially-large lyrics from list payloads — they're fetched
+    // on demand via GET /tracks/:id/lyrics. Keeps the catalog/library fast.
+    const tracks = rows.map(({ lyricsLrc, lyricsText, ...rest }) => rest);
 
     return { tracks, total, skip, take };
   }
@@ -207,14 +211,27 @@ export class TracksService {
   }
 
   async getArtists(userId: string) {
-    const tracks = await this.prisma.track.findMany({
+    // Pull artist + image and reduce to one entry per artist, keeping the
+    // first non-null image. Returns `{ name, imageUrl }` so the UI can show a
+    // real photo (falling back to a gradient when absent).
+    const rows = await this.prisma.track.findMany({
       where: { OR: [{ userId }, { isCatalog: true }] },
-      select: { artist: true },
-      distinct: ["artist"],
+      select: { artist: true, artistImage: true },
       orderBy: { artist: "asc" },
     });
 
-    return tracks.map((t) => t.artist);
+    const byArtist = new Map<string, string | null>();
+    for (const r of rows) {
+      const existing = byArtist.get(r.artist);
+      if (existing == null && r.artistImage)
+        byArtist.set(r.artist, r.artistImage);
+      else if (!byArtist.has(r.artist))
+        byArtist.set(r.artist, r.artistImage ?? null);
+    }
+
+    return [...byArtist.entries()]
+      .map(([name, imageUrl]) => ({ name, imageUrl }))
+      .sort((a, b) => a.name.localeCompare(b.name));
   }
 
   async getAlbums(userId: string, artist?: string) {

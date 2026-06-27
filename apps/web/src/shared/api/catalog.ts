@@ -1,0 +1,165 @@
+import { api } from "./client";
+
+export interface CatalogArtist {
+  id: string;
+  name: string;
+  slug: string;
+  imageUrl: string | null;
+  albumCount: number;
+  trackCount: number;
+}
+
+export interface CatalogTrackCard {
+  id: string;
+  title: string;
+  artist: string;
+  album: string;
+  durationMs: number;
+  coverArt: string | null;
+  artistImage: string | null;
+  fileUrlRemote: string | null;
+  trackNumber: number | null;
+  albumId: string | null;
+  albumOrder: number | null;
+}
+
+export interface CatalogAlbumSummary {
+  id: string;
+  title: string;
+  coverArt: string | null;
+  year: number | null;
+  trackCount: number;
+}
+
+export interface CatalogArtistDetail {
+  id: string;
+  name: string;
+  slug: string;
+  imageUrl: string | null;
+  bio: string | null;
+  albums: CatalogAlbumSummary[];
+  tracks: CatalogTrackCard[];
+}
+
+export interface CatalogAlbumDetail {
+  id: string;
+  title: string;
+  coverArt: string | null;
+  year: number | null;
+  artist: { id: string; name: string; imageUrl: string | null };
+  tracks: CatalogTrackCard[];
+}
+
+// ── Public reads ──────────────────────────────────────────────────────────────
+
+export async function listCatalogArtists(): Promise<CatalogArtist[]> {
+  const { data } = await api.get<CatalogArtist[]>("/catalog/artists");
+  return data;
+}
+
+export async function getCatalogArtist(
+  id: string,
+): Promise<CatalogArtistDetail> {
+  const { data } = await api.get<CatalogArtistDetail>(`/catalog/artists/${id}`);
+  return data;
+}
+
+export async function getCatalogAlbum(id: string): Promise<CatalogAlbumDetail> {
+  const { data } = await api.get<CatalogAlbumDetail>(`/catalog/albums/${id}`);
+  return data;
+}
+
+// ── Admin CRUD ────────────────────────────────────────────────────────────────
+
+export async function createArtist(payload: {
+  name: string;
+  imageUrl?: string;
+  bio?: string;
+}) {
+  const { data } = await api.post("/admin/catalog/artists", payload);
+  return data;
+}
+
+export async function updateArtist(
+  id: string,
+  payload: { name?: string; imageUrl?: string; bio?: string },
+) {
+  const { data } = await api.patch(`/admin/catalog/artists/${id}`, payload);
+  return data;
+}
+
+export async function deleteArtist(id: string): Promise<void> {
+  await api.delete(`/admin/catalog/artists/${id}`);
+}
+
+export async function createAlbum(payload: {
+  title: string;
+  artistId: string;
+  coverArt?: string;
+  year?: number;
+}) {
+  const { data } = await api.post("/admin/catalog/albums", payload);
+  return data;
+}
+
+export async function updateAlbum(
+  id: string,
+  payload: {
+    title?: string;
+    coverArt?: string;
+    year?: number;
+    artistId?: string;
+  },
+) {
+  const { data } = await api.patch(`/admin/catalog/albums/${id}`, payload);
+  return data;
+}
+
+export async function deleteAlbum(id: string): Promise<void> {
+  await api.delete(`/admin/catalog/albums/${id}`);
+}
+
+/** Replace an album's tracklist + order from an ordered id array. */
+export async function reorderAlbumTracks(
+  albumId: string,
+  trackIds: string[],
+): Promise<CatalogAlbumDetail> {
+  const { data } = await api.patch<CatalogAlbumDetail>(
+    `/admin/catalog/albums/${albumId}/tracks`,
+    { trackIds },
+  );
+  return data;
+}
+
+export async function assignTrack(
+  trackId: string,
+  payload: {
+    artistId?: string | null;
+    albumId?: string | null;
+    albumOrder?: number | null;
+    coverArt?: string;
+  },
+) {
+  const { data } = await api.patch(`/admin/catalog/tracks/${trackId}`, payload);
+  return data;
+}
+
+/** Save lyrics for a track (LRC and/or plain text). */
+export async function updateTrackLyrics(
+  trackId: string,
+  payload: { lyricsLrc?: string; lyricsText?: string },
+) {
+  const { data } = await api.patch(
+    `/admin/catalog/tracks/${trackId}/lyrics`,
+    payload,
+  );
+  return data;
+}
+
+/** Fetch a track's stored lyrics (for the admin editor). */
+export async function getTrackLyrics(
+  trackId: string,
+): Promise<{ lyricsLrc: string | null; lyricsText: string | null }> {
+  const { data } = await api.get(`/library/tracks/${trackId}/lyrics`);
+  return data;
+}

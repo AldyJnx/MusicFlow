@@ -18,11 +18,15 @@ export const trackKeys = {
   genres: () => [...trackKeys.all, "genres"] as const,
 };
 
-export function useTracksQuery(params?: ListTracksParams) {
+export function useTracksQuery(
+  params?: ListTracksParams,
+  options?: { enabled?: boolean },
+) {
   return useQuery({
     queryKey: trackKeys.list(params),
     queryFn: () => listTracks(params),
     staleTime: 60_000,
+    enabled: options?.enabled ?? true,
   });
 }
 

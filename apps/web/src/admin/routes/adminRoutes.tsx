@@ -6,6 +6,7 @@ import UsersPage from "../pages/UsersPage";
 import UserDetailPage from "../pages/UserDetailPage";
 import AIRequestsPage from "../pages/AIRequestsPage";
 import EqPresetsPage from "../pages/EqPresetsPage";
+import CatalogPage from "../pages/CatalogPage";
 
 export default function AdminRoutes() {
   return (
@@ -17,6 +18,7 @@ export default function AdminRoutes() {
           <Route path="/users/:id" element={<UserDetailPage />} />
           <Route path="/ai" element={<AIRequestsPage />} />
           <Route path="/eq-presets" element={<EqPresetsPage />} />
+          <Route path="/catalog" element={<CatalogPage />} />
           <Route path="*" element={<Navigate to="/admin" replace />} />
         </Route>
       </Routes>

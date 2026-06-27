@@ -25,15 +25,19 @@ export function useLatestSavedCoverQuery() {
   });
 }
 
-export function useSavedTracksQuery(params?: {
-  search?: string;
-  skip?: number;
-  take?: number;
-}) {
+export function useSavedTracksQuery(
+  params?: {
+    search?: string;
+    skip?: number;
+    take?: number;
+  },
+  options?: { enabled?: boolean },
+) {
   return useQuery({
     queryKey: savesKeys.list(params),
     queryFn: () => listSavedTracks(params),
     staleTime: 30_000,
+    enabled: options?.enabled ?? true,
   });
 }
 

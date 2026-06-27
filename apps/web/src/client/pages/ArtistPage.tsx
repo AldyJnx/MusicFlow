@@ -1,10 +1,19 @@
-import { ArrowLeft, ListMusic, Play, Sliders, Sparkles } from "lucide-react";
+import {
+  ArrowLeft,
+  Disc3,
+  ListMusic,
+  Play,
+  Sliders,
+  Sparkles,
+} from "lucide-react";
 import { useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router-dom";
 
 import ClientLayout from "../layout/ClientLayout";
 import { useTracksQuery } from "../../shared/hooks/useTracks";
+import { getCatalogArtist, listCatalogArtists } from "../../shared/api/catalog";
 import SaveButton from "../../shared/ui/SaveButton";
 import { useSavedCheckQuery } from "../../shared/hooks/useLibrarySaves";
 import { usePremiumGate } from "../../shared/hooks/usePremiumGate";
@@ -50,6 +59,25 @@ export default function ArtistPage() {
 
   const tracksQ = useTracksQuery({ artist: artistName, take: 100 });
   const tracks = tracksQ.data?.tracks ?? [];
+
+  // Resolve the catalog artist (by name) to surface admin-curated albums.
+  const catalogArtistsQ = useQuery({
+    queryKey: ["catalog", "artists"],
+    queryFn: listCatalogArtists,
+    staleTime: 60_000,
+  });
+  const catalogArtistId = useMemo(
+    () =>
+      (catalogArtistsQ.data ?? []).find((a) => a.name === artistName)?.id ??
+      null,
+    [catalogArtistsQ.data, artistName],
+  );
+  const catalogArtistQ = useQuery({
+    queryKey: ["catalog", "artist", catalogArtistId],
+    queryFn: () => getCatalogArtist(catalogArtistId as string),
+    enabled: !!catalogArtistId,
+  });
+  const albums = catalogArtistQ.data?.albums ?? [];
   const visibleIds = useMemo(() => tracks.map((tr) => tr.id), [tracks]);
   const savedCheckQ = useSavedCheckQuery(visibleIds);
   const savedSet = useMemo(
@@ -57,9 +85,11 @@ export default function ArtistPage() {
     [savedCheckQ.data],
   );
 
-  // Pick the first track's cover as the artist hero backdrop. Falls back to
-  // a generated gradient when nothing is available.
-  const heroCover = tracks.find((tr) => tr.coverArt)?.coverArt ?? null;
+  // Prefer the real artist photo; fall back to the first track's cover, then
+  // a generated gradient.
+  const artistImage = tracks.find((tr) => tr.artistImage)?.artistImage ?? null;
+  const heroCover =
+    artistImage ?? tracks.find((tr) => tr.coverArt)?.coverArt ?? null;
   const hue = useMemo(() => {
     let h = 0;
     for (let i = 0; i < artistName.length; i++) {
@@ -100,7 +130,7 @@ export default function ArtistPage() {
 
   return (
     <ClientLayout>
-      <section className="min-h-screen w-full bg-[var(--color-page)] text-[var(--color-text)]">
+      <section className="min-h-screen w-full text-[var(--color-text)]">
         {/* Hero — artist art + name + CTAs */}
         <header className="relative h-[320px] w-full overflow-hidden">
           {heroCover ? (
@@ -134,12 +164,24 @@ export default function ArtistPage() {
 
             <div className="flex items-end gap-5">
               <div
-                className="flex h-28 w-28 shrink-0 items-center justify-center rounded-full text-2xl font-bold text-white shadow-[0_14px_30px_rgba(0,0,0,0.4)]"
-                style={{
-                  background: `linear-gradient(135deg, hsl(${hue} 70% 50%) 0%, hsl(${(hue + 40) % 360} 65% 35%) 100%)`,
-                }}
+                className="flex h-28 w-28 shrink-0 items-center justify-center overflow-hidden rounded-full text-2xl font-bold text-white shadow-[0_14px_30px_rgba(0,0,0,0.4)] ring-2 ring-[var(--color-line)]"
+                style={
+                  artistImage
+                    ? undefined
+                    : {
+                        background: `linear-gradient(135deg, hsl(${hue} 70% 50%) 0%, hsl(${(hue + 40) % 360} 65% 35%) 100%)`,
+                      }
+                }
               >
-                {initials || "?"}
+                {artistImage ? (
+                  <img
+                    src={artistImage}
+                    alt={artistName}
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  initials || "?"
+                )}
               </div>
               <div className="flex min-w-0 flex-col gap-1">
                 <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--color-primary)]">
@@ -193,6 +235,51 @@ export default function ArtistPage() {
             </div>
           </div>
         </header>
+
+        {/* Albums (admin-curated) */}
+        {albums.length > 0 ? (
+          <div className="mx-auto flex max-w-7xl flex-col gap-4 px-8 pt-10">
+            <h2 className="text-sm font-bold uppercase tracking-[0.18em] text-[var(--color-muted)]">
+              {t("artist.albums", { defaultValue: "Álbumes" })}
+            </h2>
+            <div className="flex flex-wrap gap-5">
+              {albums.map((al) => (
+                <button
+                  key={al.id}
+                  type="button"
+                  onClick={() => navigate(`/album/${al.id}`)}
+                  className="group flex w-[160px] flex-none flex-col gap-2 text-left"
+                >
+                  <div className="relative aspect-square overflow-hidden rounded-xl bg-[var(--color-surface-alt)] shadow-[0_10px_30px_-12px_rgba(0,0,0,.7)]">
+                    {al.coverArt ? (
+                      <img
+                        src={al.coverArt}
+                        alt={al.title}
+                        className="h-full w-full object-cover transition group-hover:scale-105"
+                      />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center">
+                        <Disc3
+                          className="h-10 w-10 text-[var(--color-muted)]"
+                          strokeWidth={1.4}
+                        />
+                      </div>
+                    )}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-bold text-[var(--color-text)]">
+                      {al.title}
+                    </p>
+                    <p className="text-[11px] text-[var(--color-muted)]">
+                      {al.year ? `${al.year} · ` : ""}
+                      {al.trackCount} canciones
+                    </p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : null}
 
         {/* Tracks list */}
         <div className="mx-auto flex max-w-7xl flex-col gap-6 px-8 py-10">

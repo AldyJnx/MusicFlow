@@ -25,6 +25,8 @@
     "prisma:studio": "prisma studio",
     "prisma:seed": "ts-node prisma/seed.ts",
     "seed:r2": "ts-node scripts/seed-r2-tracks.ts",
+    "seed:enrich": "ts-node scripts/seed-r2-enrich.ts",
+    "backfill:catalog": "ts-node scripts/backfill-catalog.ts",
     "peaks:backfill": "ts-node scripts/compute-track-peaks.ts"
   },
   "dependencies": {
