@@ -12,9 +12,21 @@ import PWAInstallBanner from "./shared/ui/PWAInstallBanner";
 import UpsellModal from "./shared/ui/UpsellModal";
 import { useAuthStore } from "./shared/stores/authStore";
 import { usePlayerStore } from "./client/stores/playStore";
+import { initNetworkListeners } from "./shared/stores/networkStore";
+import { useDownloadsStore } from "./shared/stores/downloadsStore";
+import { useLocalLibraryStore } from "./shared/offline/localLibrary";
 
 function App() {
   const queryClient = useQueryClient();
+
+  // Boot offline support: wire connectivity events and hydrate the list of
+  // downloaded tracks from IndexedDB.
+  useEffect(() => {
+    const cleanup = initNetworkListeners();
+    void useDownloadsStore.getState().init();
+    void useLocalLibraryStore.getState().init();
+    return cleanup;
+  }, []);
 
   // Safety net for losing the session — covers manual logout AND token-expiry
   // logout (the axios interceptor clears auth on a failed refresh). On any

@@ -1,6 +1,8 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { getAudioEngine } from "../../audio/engine";
+import { resolvePlayableUrl } from "../../shared/stores/downloadsStore";
+import { resolveLocalUrl } from "../../shared/offline/localLibrary";
 
 // ─── Track shape ────────────────────────────────────────────────────────────
 
@@ -139,7 +141,13 @@ let bypassStash: ReturnType<
 async function loadAndPlay(track: PlayerTrack): Promise<void> {
   initializePlayerEngine();
   const engine = getAudioEngine();
-  await engine.load(track.url);
+  // Resolve the best source: a downloaded copy → a local file → remote stream.
+  // All three play offline except the last.
+  let url = await resolvePlayableUrl({ id: track.id, url: track.url });
+  if (url === track.url && track.id.startsWith("local:")) {
+    url = (await resolveLocalUrl(track.id)) ?? track.url;
+  }
+  await engine.load(url);
   await engine.play();
 }
 

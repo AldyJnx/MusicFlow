@@ -7,12 +7,15 @@ import SettingsPage from "../pages/SettingsPage";
 import BillingPage from "../pages/BillingPage";
 import HomePage from "../pages/HomePage";
 import ArtistPage from "../pages/ArtistPage";
+import AlbumPage from "../pages/AlbumPage";
+import DownloadsPage from "../pages/DownloadsPage";
 import StudioPage from "../pages/StudioPage";
 import Equalizer from "../features/equalizer/Equalizer";
 import Segments from "../features/segments/Segments";
 import Agent from "../features/ai-agent/Agent";
 import ProfileSettings from "../features/profile/ProfileSettings";
 import { PremiumGateProvider } from "../../shared/hooks/usePremiumGate";
+import OfflineRouteGuard from "../components/OfflineRouteGuard";
 
 export default function ClientRoutes() {
   // The Provider sits above <Routes> so every page can call usePremiumGate
@@ -20,11 +23,14 @@ export default function ClientRoutes() {
   // fallback *before* ClientLayout mounts.
   return (
     <PremiumGateProvider>
+      <OfflineRouteGuard />
       <Routes>
         <Route path="/" element={<Navigate to="/inicio" replace />} />
         <Route path="/inicio" element={<HomePage />} />
         <Route path="/library" element={<LibraryPage />} />
         <Route path="/artist/:name" element={<ArtistPage />} />
+        <Route path="/album/:id" element={<AlbumPage />} />
+        <Route path="/downloads" element={<DownloadsPage />} />
         <Route path="/playlists" element={<PlaylistsPage />} />
         <Route path="/playlists/:id" element={<PlaylistDetailPage />} />
         <Route path="/equalizer" element={<Equalizer />} />
