@@ -1,30 +1,35 @@
-import {
-  ChevronLeft,
-  ChevronRight,
-  ListPlus,
-  Music4,
-  Play,
-} from "lucide-react";
-import { useMemo, useRef } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { ChevronLeft, ChevronRight, Play } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 
 import ClientLayout from "../layout/ClientLayout";
 import { useArtistsQuery, useTracksQuery } from "../../shared/hooks/useTracks";
-import {
-  useSavedCheckQuery,
-  useLatestSavedCoverQuery,
-} from "../../shared/hooks/useLibrarySaves";
-import {
-  useMostPlayedQuery,
-  useRecentlyPlayedQuery,
-} from "../../shared/hooks/useAnalytics";
-import { listPlaylists, type Playlist } from "../../shared/api/playlists";
-import SaveButton from "../../shared/ui/SaveButton";
-import HeroFeatured from "../features/home/HeroFeatured";
+import { useScrollReveal } from "../../shared/hooks/useScrollReveal";
 import { usePlayerStore, type PlayerTrack } from "../stores/playStore";
 import type { Track } from "../../shared/api/tracks";
+
+// ─── Deterministic gradients (mirror the pretesis palette) ──────────────────
+const GRADS = [
+  "linear-gradient(135deg,#7c5ce8,#e85cc0)",
+  "linear-gradient(135deg,#4cf1a0,#3aa0ff)",
+  "linear-gradient(135deg,#e85cc0,#ff8a5c)",
+  "linear-gradient(135deg,#5c8cff,#7c5ce8)",
+  "linear-gradient(135deg,#ff5c8a,#7c5ce8)",
+  "linear-gradient(135deg,#4cf1a0,#7c5ce8)",
+  "linear-gradient(135deg,#a855f7,#ec4899)",
+  "linear-gradient(135deg,#22d3ee,#7c5ce8)",
+];
+
+function hashIndex(s: string, mod: number): number {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) % 100000;
+  return h % mod;
+}
+
+function gradOf(seed: string): string {
+  return GRADS[hashIndex(seed, GRADS.length)];
+}
 
 function toPlayerTrack(t: Track): PlayerTrack | null {
   if (!t.fileUrlRemote) return null;
@@ -38,195 +43,365 @@ function toPlayerTrack(t: Track): PlayerTrack | null {
   };
 }
 
-/**
- * Horizontally scrollable carousel with ‹ › buttons that snap to card width.
- * Children render inside a flex row; the wrapper handles overflow + scroll.
- */
-function Carousel({
+// ─── Section heading (Space Grotesk 21px + "Ver todo") ──────────────────────
+function RowHead({
   title,
-  children,
   onSeeAll,
+  children,
 }: {
   title: string;
-  children: React.ReactNode;
   onSeeAll?: () => void;
+  children?: React.ReactNode;
 }) {
-  const ref = useRef<HTMLDivElement>(null);
   const { t } = useTranslation();
-
-  function scrollBy(dir: 1 | -1) {
-    const el = ref.current;
-    if (!el) return;
-    const step = Math.max(el.clientWidth * 0.7, 320);
-    el.scrollBy({ left: step * dir, behavior: "smooth" });
-  }
-
   return (
-    <section className="flex flex-col gap-3">
-      <header className="flex items-end justify-between gap-3 px-1">
-        <div>
-          <h2 className="text-xl font-bold tracking-tight text-[var(--color-text)]">
-            {title}
-          </h2>
-          {onSeeAll ? (
-            <button
-              type="button"
-              onClick={onSeeAll}
-              className="mt-0.5 text-xs font-semibold uppercase tracking-wider text-[var(--color-muted)] transition hover:text-[var(--color-primary)]"
-            >
-              {t("home.seeAll", { defaultValue: "Ver todo" })}
-            </button>
-          ) : null}
-        </div>
-        <div className="flex items-center gap-1">
-          <button
-            type="button"
-            onClick={() => scrollBy(-1)}
-            aria-label={t("home.scrollLeft", {
-              defaultValue: "Anterior",
-            })}
-            className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-muted)] transition hover:border-[var(--color-primary)] hover:text-[var(--color-text)]"
-          >
-            <ChevronLeft className="h-4 w-4" strokeWidth={2.2} />
-          </button>
-          <button
-            type="button"
-            onClick={() => scrollBy(1)}
-            aria-label={t("home.scrollRight", {
-              defaultValue: "Siguiente",
-            })}
-            className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-muted)] transition hover:border-[var(--color-primary)] hover:text-[var(--color-text)]"
-          >
-            <ChevronRight className="h-4 w-4" strokeWidth={2.2} />
-          </button>
-        </div>
-      </header>
-      <div
-        ref={ref}
-        className="flex snap-x snap-mandatory gap-4 overflow-x-auto px-1 pb-2"
-        style={{ scrollbarWidth: "none" }}
+    <div className="mb-4 flex items-baseline justify-between gap-3">
+      <h2
+        className="text-[21px] font-bold tracking-[-0.01em] text-[var(--color-text)]"
+        style={{ fontFamily: "var(--font-display)" }}
       >
+        {title}
+      </h2>
+      <div className="flex items-center gap-3">
+        {onSeeAll ? (
+          <button
+            type="button"
+            onClick={onSeeAll}
+            className="text-xs font-bold text-[var(--color-muted)] transition hover:text-[var(--color-text)]"
+          >
+            {t("home.seeAll", { defaultValue: "Ver todo" })}
+          </button>
+        ) : null}
         {children}
       </div>
-    </section>
+    </div>
   );
 }
 
-function TrackCard({
-  track,
-  saved,
+// ─── Hero carousel (featured of the week) ───────────────────────────────────
+function Hero({
+  items,
   onPlay,
-  onAddToQueue,
+  onArtist,
 }: {
-  track: Track;
-  saved: boolean;
-  onPlay: () => void;
-  onAddToQueue?: () => void;
+  items: Track[];
+  onPlay: (t: Track) => void;
+  onArtist: (name: string) => void;
 }) {
+  const { t } = useTranslation();
+  const [idx, setIdx] = useState(0);
+  const touchedAt = useRef(0);
+  const n = items.length;
+
+  // Auto-advance, pausing for 7s after a manual interaction.
+  useEffect(() => {
+    if (n <= 1) return;
+    const id = window.setInterval(() => {
+      if (performance.now() - touchedAt.current < 7000) return;
+      setIdx((p) => (p + 1) % n);
+    }, 6000);
+    return () => window.clearInterval(id);
+  }, [n]);
+
+  if (n === 0) return null;
+  const cur = items[idx % n];
+  const go = (d: 1 | -1) => {
+    touchedAt.current = performance.now();
+    setIdx((p) => (p + d + n) % n);
+  };
+
+  const grad = gradOf(cur.id);
+  const art = cur.coverArt
+    ? `center/cover no-repeat url(${cur.coverArt})`
+    : gradOf(cur.title);
+
   return (
-    <article
-      className="group relative w-44 shrink-0 snap-start cursor-pointer rounded-xl bg-[var(--color-surface)] p-3 transition hover:bg-[var(--color-surface-alt)]"
-      onClick={onPlay}
+    <div
+      className="relative mb-9 mt-1.5"
+      style={{ animation: "fadeUp .5s ease both" }}
     >
-      <div className="relative aspect-square overflow-hidden rounded-lg bg-[var(--color-surface-alt)]">
+      <div className="relative h-[312px] overflow-hidden rounded-[26px] shadow-[0_30px_70px_-30px_rgba(0,0,0,.85)]">
+        <div
+          key={cur.id}
+          className="absolute inset-0"
+          style={{ animation: "fadeUp .5s cubic-bezier(.16,1,.3,1) both" }}
+        >
+          <div className="absolute inset-0" style={{ background: grad }} />
+          <div
+            className="absolute bottom-0 right-0 top-0 w-[46%]"
+            style={{ background: art }}
+          />
+          <div
+            className="absolute inset-0"
+            style={{
+              background:
+                "linear-gradient(90deg, rgba(8,7,16,.82) 0%, rgba(8,7,16,.55) 42%, transparent 72%)",
+            }}
+          />
+          <div
+            className="absolute right-[5%] top-1/2 max-w-[48%] -translate-y-1/2 text-right"
+            style={{
+              fontFamily: "var(--font-display)",
+              fontWeight: 700,
+              fontSize: 64,
+              letterSpacing: "-.03em",
+              lineHeight: 0.95,
+              color: "rgba(255,255,255,.9)",
+              textShadow: "0 8px 30px rgba(0,0,0,.4)",
+            }}
+          >
+            {cur.title}
+          </div>
+
+          <div className="absolute bottom-0 left-0 top-0 flex max-w-[58%] flex-col justify-between p-[30px_38px]">
+            <div className="flex flex-col gap-3.5">
+              <span
+                className="flex items-center gap-2 text-[var(--color-success)]"
+                style={{
+                  font: "700 11px var(--font-mono)",
+                  letterSpacing: ".16em",
+                }}
+              >
+                <span className="h-[7px] w-[7px] rounded-full bg-[var(--color-success)] shadow-[0_0_10px_var(--color-success)]" />
+                {t("home.featuredWeek", {
+                  defaultValue: "Destacado esta semana",
+                })}
+              </span>
+              <div className="flex items-center gap-4">
+                <span
+                  style={{
+                    fontFamily: "var(--font-display)",
+                    fontWeight: 700,
+                    fontSize: 58,
+                    lineHeight: 1,
+                    letterSpacing: "-.03em",
+                    background:
+                      "linear-gradient(135deg,#fff,var(--color-accent))",
+                    WebkitBackgroundClip: "text",
+                    backgroundClip: "text",
+                    WebkitTextFillColor: "transparent",
+                  }}
+                >
+                  #{(idx % n) + 1}
+                </span>
+                <div className="flex flex-col gap-[3px]">
+                  <span
+                    className="text-[var(--color-muted)]"
+                    style={{
+                      font: "700 10px var(--font-mono)",
+                      letterSpacing: ".14em",
+                      opacity: 0.7,
+                    }}
+                  >
+                    {t("home.trending", { defaultValue: "EN TENDENCIA" })}
+                  </span>
+                  <span className="text-[13px] font-semibold text-[var(--color-muted)]">
+                    {cur.artist}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-[34px]">
+              <div className="flex flex-col gap-[3px]">
+                <span
+                  className="text-[var(--color-muted)]"
+                  style={{
+                    font: "700 10px var(--font-mono)",
+                    letterSpacing: ".14em",
+                    opacity: 0.7,
+                  }}
+                >
+                  {t("home.track", { defaultValue: "CANCIÓN" })}
+                </span>
+                <span
+                  className="truncate"
+                  style={{
+                    fontFamily: "var(--font-display)",
+                    fontWeight: 700,
+                    fontSize: 19,
+                    letterSpacing: "-.01em",
+                  }}
+                >
+                  {cur.title}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => onArtist(cur.artist)}
+                className="flex flex-col gap-[3px] text-left transition hover:text-[var(--color-accent)]"
+              >
+                <span
+                  className="text-[var(--color-muted)]"
+                  style={{
+                    font: "700 10px var(--font-mono)",
+                    letterSpacing: ".14em",
+                    opacity: 0.7,
+                  }}
+                >
+                  {t("home.artist", { defaultValue: "ARTISTA" })}
+                </span>
+                <span
+                  style={{
+                    fontFamily: "var(--font-display)",
+                    fontWeight: 700,
+                    fontSize: 19,
+                    letterSpacing: "-.01em",
+                  }}
+                >
+                  {cur.artist}
+                </span>
+              </button>
+            </div>
+          </div>
+
+          {/* Arrows */}
+          {n > 1 ? (
+            <>
+              <button
+                type="button"
+                onClick={() => go(-1)}
+                aria-label={t("home.scrollLeft", { defaultValue: "Anterior" })}
+                className="absolute left-[18px] top-1/2 z-[2] flex h-[38px] w-[38px] -translate-y-1/2 items-center justify-center rounded-full border border-[var(--color-line)] bg-[rgba(8,8,16,.5)] text-white backdrop-blur-[14px] transition hover:bg-[rgba(8,8,16,.8)] active:scale-90"
+              >
+                <ChevronLeft className="h-[18px] w-[18px]" strokeWidth={2.4} />
+              </button>
+              <button
+                type="button"
+                onClick={() => go(1)}
+                aria-label={t("home.scrollRight", {
+                  defaultValue: "Siguiente",
+                })}
+                className="absolute right-[18px] top-[90px] z-[2] flex h-[38px] w-[38px] items-center justify-center rounded-full border border-[var(--color-line)] bg-[rgba(8,8,16,.5)] text-white backdrop-blur-[14px] transition hover:bg-[rgba(8,8,16,.8)] active:scale-90"
+              >
+                <ChevronRight className="h-[18px] w-[18px]" strokeWidth={2.4} />
+              </button>
+
+              {/* Dots */}
+              <div className="absolute bottom-6 left-[38px] z-[2] flex gap-[7px]">
+                {items.map((it, i) => (
+                  <button
+                    key={it.id}
+                    type="button"
+                    aria-label={`${i + 1}`}
+                    onClick={() => {
+                      touchedAt.current = performance.now();
+                      setIdx(i);
+                    }}
+                    className="h-[6px] rounded-full transition-all"
+                    style={{
+                      width: i === idx % n ? 22 : 6,
+                      background:
+                        i === idx % n
+                          ? "var(--color-text)"
+                          : "rgba(255,255,255,.32)",
+                    }}
+                  />
+                ))}
+              </div>
+            </>
+          ) : null}
+
+          {/* Play (bottom-right) */}
+          <div className="absolute bottom-7 right-[30px] z-[2] flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => onPlay(cur)}
+              className="flex h-[50px] items-center gap-[9px] rounded-full px-7 text-[14.5px] font-bold text-white shadow-[0_12px_30px_-8px_var(--color-primary)] transition hover:scale-105 active:scale-95"
+              style={{
+                background:
+                  "linear-gradient(135deg,var(--color-primary),var(--color-accent))",
+              }}
+            >
+              <Play className="h-[18px] w-[18px]" fill="currentColor" />
+              {t("home.play", { defaultValue: "Reproducir" })}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Album rail card (180px) ────────────────────────────────────────────────
+function AlbumCard({ track, onPlay }: { track: Track; onPlay: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onPlay}
+      className="group w-[180px] flex-none text-left"
+      style={{ animation: "fadeUp .5s ease both" }}
+    >
+      <div className="relative mb-2.5 aspect-square overflow-hidden rounded-2xl shadow-[0_10px_30px_-12px_rgba(0,0,0,.7)]">
+        <div
+          className="absolute inset-0"
+          style={{ background: gradOf(track.id) }}
+        />
         {track.coverArt ? (
           <img
             src={track.coverArt}
             alt={track.title}
-            className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]"
+            className="absolute inset-0 h-full w-full object-cover transition duration-300 group-hover:scale-[1.04]"
           />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center">
-            <Music4
-              className="h-10 w-10 text-[var(--color-muted)]"
-              strokeWidth={1.4}
-            />
-          </div>
-        )}
-        {/* Cluster of hover-revealed actions in the cover corner. */}
-        <div className="absolute bottom-2 right-2 flex items-center gap-1.5 opacity-0 transition-all duration-200 group-hover:opacity-100">
-          {onAddToQueue ? (
-            <button
-              type="button"
-              aria-label="Agregar a la cola"
-              title="Agregar a la cola"
-              onClick={(e) => {
-                e.stopPropagation();
-                onAddToQueue();
-              }}
-              className="inline-flex h-10 w-10 translate-y-2 items-center justify-center rounded-full bg-black/55 text-white shadow-[0_8px_18px_rgba(0,0,0,0.35)] backdrop-blur transition-all duration-200 hover:scale-105 hover:bg-black/75 group-hover:translate-y-0"
-            >
-              <ListPlus className="h-4 w-4" strokeWidth={2.4} />
-            </button>
-          ) : null}
-          <button
-            type="button"
-            aria-label="Reproducir"
-            onClick={(e) => {
-              e.stopPropagation();
-              onPlay();
-            }}
-            className="inline-flex h-10 w-10 translate-y-2 items-center justify-center rounded-full bg-[var(--color-primary)] text-[var(--color-primary-contrast)] shadow-[0_8px_18px_rgba(0,0,0,0.35)] transition-all duration-200 hover:scale-105 group-hover:translate-y-0"
-          >
-            <Play className="h-4 w-4" strokeWidth={2.4} fill="currentColor" />
-          </button>
+        ) : null}
+        <div className="absolute inset-0 flex items-end justify-end bg-gradient-to-t from-black/30 to-transparent p-3 opacity-0 transition group-hover:opacity-100">
+          <span className="flex h-11 w-11 translate-y-2 items-center justify-center rounded-full bg-[var(--color-success)] shadow-[0_8px_22px_-6px_var(--color-success)] transition group-hover:translate-y-0">
+            <Play className="h-5 w-5" fill="#0a0a14" stroke="none" />
+          </span>
         </div>
       </div>
-      <div className="mt-3 flex items-start justify-between gap-2">
-        <div className="min-w-0">
-          <p className="truncate text-sm font-bold text-[var(--color-text)]">
-            {track.title}
-          </p>
-          <p className="truncate text-xs text-[var(--color-muted)]">
-            {track.artist}
-          </p>
-        </div>
-        <div onClick={(e) => e.stopPropagation()}>
-          <SaveButton trackId={track.id} saved={saved} />
-        </div>
+      <div className="truncate text-[13.5px] font-bold text-[var(--color-text)]">
+        {track.title}
       </div>
-    </article>
+      <div className="truncate text-[11.5px] font-medium text-[var(--color-muted)]">
+        {track.artist}
+      </div>
+    </button>
   );
 }
 
+// ─── Artist avatar with conic-gradient ring ─────────────────────────────────
 function ArtistAvatar({
   name,
+  imageUrl,
   onClick,
 }: {
   name: string;
+  imageUrl?: string | null;
   onClick: () => void;
 }) {
-  // Deterministic gradient per artist so each avatar feels distinct without
-  // needing real photos. Hash the name → pick a hue.
-  const hue = useMemo(() => {
-    let h = 0;
-    for (let i = 0; i < name.length; i++)
-      h = (h * 31 + name.charCodeAt(i)) % 360;
-    return h;
-  }, [name]);
-  const initials = name
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((p) => p[0]?.toUpperCase() ?? "")
-    .join("");
   return (
     <button
       type="button"
       onClick={onClick}
-      className="group flex w-28 shrink-0 snap-start flex-col items-center gap-2"
+      className="group flex w-[96px] flex-none flex-col items-center gap-2.5"
+      style={{ animation: "fadeUp .5s ease both" }}
     >
       <div
-        className="flex h-24 w-24 items-center justify-center rounded-full text-lg font-bold text-white shadow-[0_8px_18px_rgba(0,0,0,0.35)] transition group-hover:scale-105"
+        className="h-[84px] w-[84px] rounded-full p-[2.5px] transition-transform group-hover:scale-[1.07]"
         style={{
-          background: `linear-gradient(135deg, hsl(${hue} 70% 50%) 0%, hsl(${(hue + 40) % 360} 65% 35%) 100%)`,
+          background:
+            "conic-gradient(from 0deg,var(--color-primary),var(--color-accent),var(--color-success),var(--color-primary))",
         }}
       >
-        {initials || "?"}
+        <div
+          className="h-full w-full overflow-hidden rounded-full border-[2.5px] border-[var(--color-page)] shadow-[inset_0_-10px_24px_rgba(0,0,0,.4)]"
+          style={imageUrl ? undefined : { background: gradOf(name) }}
+        >
+          {imageUrl ? (
+            <img
+              src={imageUrl}
+              alt={name}
+              loading="lazy"
+              decoding="async"
+              className="h-full w-full object-cover"
+            />
+          ) : null}
+        </div>
       </div>
-      <p className="w-full truncate text-center text-xs font-semibold text-[var(--color-text)] group-hover:text-[var(--color-primary)]">
+      <span className="text-center text-[12.5px] font-semibold text-[var(--color-text)]">
         {name}
-      </p>
+      </span>
     </button>
   );
 }
@@ -235,52 +410,21 @@ export default function HomePage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const playTrackList = usePlayerStore((s) => s.playTrackList);
-  const addToQueue = usePlayerStore((s) => s.addToQueue);
+  const currentTrackId = usePlayerStore((s) => s.currentTrack?.id ?? null);
 
   const tracksQ = useTracksQuery({ take: 20 });
   const artistsQ = useArtistsQuery();
-  const heroCoverQ = useLatestSavedCoverQuery();
-  const recentlyPlayedQ = useRecentlyPlayedQuery(12);
-  const mostPlayedQ = useMostPlayedQuery(12);
-  const recentlyPlayed = recentlyPlayedQ.data ?? [];
-  const mostPlayed = mostPlayedQ.data ?? [];
-  // Used by the playlist hero variant. Cheap query, dedup'd by react-query
-  // with the sidebar's listPlaylists call.
-  const playlistsQ = useQuery({
-    queryKey: ["playlists"],
-    queryFn: listPlaylists,
-    staleTime: 30_000,
-  });
-  const featuredPlaylist = useMemo<Playlist | null>(() => {
-    const list = playlistsQ.data ?? [];
-    if (list.length === 0) return null;
-    // Prefer a playlist with a cover, fall back to first.
-    return list.find((p) => p.coverArt) ?? list[0];
-  }, [playlistsQ.data]);
 
   const tracks = tracksQ.data?.tracks ?? [];
-  const artists = (artistsQ.data ?? []).slice(0, 12);
-  const visibleIds = useMemo(() => tracks.map((tr) => tr.id), [tracks]);
-  const savedCheckQ = useSavedCheckQuery(visibleIds);
-  const savedSet = useMemo(
-    () => new Set(savedCheckQ.data ?? []),
-    [savedCheckQ.data],
+  const artists = (artistsQ.data ?? []).slice(0, 8);
+
+  const heroItems = useMemo(
+    () => tracks.filter((tr) => tr.fileUrlRemote).slice(0, 5),
+    [tracks],
   );
+  const albums = tracks.slice(0, 10);
+  const recs = tracks.slice(0, 6);
 
-  // Pick a hero track: the most-recently-saved if any, else the first catalog
-  // track with a cover, else just the first one.
-  const heroTrack = useMemo<Track | null>(() => {
-    if (tracks.length === 0) return null;
-    if (heroCoverQ.data?.trackId) {
-      const found = tracks.find((tr) => tr.id === heroCoverQ.data?.trackId);
-      if (found) return found;
-    }
-    const withCover = tracks.find((tr) => tr.coverArt);
-    return withCover ?? tracks[0];
-  }, [tracks, heroCoverQ.data]);
-
-  // Play a track within the context of its list, so the queue holds the whole
-  // carousel and the prev/next arrows have somewhere to go.
   function playFromList(list: Track[], track: Track) {
     const playable = list
       .map(toPlayerTrack)
@@ -290,142 +434,85 @@ export default function HomePage() {
     void playTrackList(playable, Math.max(0, idx));
   }
 
-  function playAll() {
-    const playable = tracks
-      .map(toPlayerTrack)
-      .filter((p): p is PlayerTrack => p !== null);
-    if (playable.length > 0) void playTrackList(playable, 0);
-  }
+  const revealRef = useRef<HTMLDivElement>(null);
+  useScrollReveal(revealRef, [tracks.length, artists.length]);
 
   return (
     <ClientLayout>
-      <section className="min-h-screen w-full bg-[var(--color-page)] text-[var(--color-text)]">
-        <HeroFeatured
-          heroTrack={heroTrack}
-          featuredPlaylist={featuredPlaylist}
-          saved={heroTrack ? savedSet.has(heroTrack.id) : false}
-          toPlayerTrack={toPlayerTrack}
-        />
+      <section className="min-h-screen w-full text-[var(--color-text)]">
+        <div
+          ref={revealRef}
+          className="mx-auto max-w-[1180px] px-[26px] pb-10 pt-6"
+        >
+          <div data-reveal>
+            <Hero
+              items={heroItems}
+              onPlay={(tr) => playFromList(heroItems, tr)}
+              onArtist={(name) =>
+                navigate(`/artist/${encodeURIComponent(name)}`)
+              }
+            />
+          </div>
 
-        <div className="mx-auto flex max-w-7xl flex-col gap-10 px-8 py-10">
-          {/* Recently played — only once the user has listening history. */}
-          {recentlyPlayed.length > 0 ? (
-            <Carousel
-              title={t("home.recentlyPlayed", {
-                defaultValue: "Reproducidas recientemente",
-              })}
-            >
-              {recentlyPlayed.map((track) => (
-                <TrackCard
-                  key={track.id}
-                  track={track}
-                  saved={savedSet.has(track.id)}
-                  onPlay={() => playFromList(recentlyPlayed, track)}
-                  onAddToQueue={() => {
-                    const playable = toPlayerTrack(track);
-                    if (playable) addToQueue(playable);
-                  }}
-                />
-              ))}
-            </Carousel>
-          ) : null}
-
-          {/* Most played */}
-          {mostPlayed.length > 0 ? (
-            <Carousel
-              title={t("home.mostPlayed", {
-                defaultValue: "Más escuchadas",
-              })}
-            >
-              {mostPlayed.map((track) => (
-                <TrackCard
-                  key={track.id}
-                  track={track}
-                  saved={savedSet.has(track.id)}
-                  onPlay={() => playFromList(mostPlayed, track)}
-                  onAddToQueue={() => {
-                    const playable = toPlayerTrack(track);
-                    if (playable) addToQueue(playable);
-                  }}
-                />
-              ))}
-            </Carousel>
-          ) : null}
-
-          {/* Popular Songs carousel */}
-          <Carousel
-            title={t("home.popularSongs", {
-              defaultValue: "Top del catálogo",
-            })}
-            onSeeAll={() => navigate("/library")}
-          >
-            {tracksQ.isLoading
-              ? Array.from({ length: 6 }).map((_, i) => (
-                  <div
-                    key={i}
-                    className="w-44 shrink-0 animate-pulse rounded-xl bg-[var(--color-surface)] p-3"
-                  >
-                    <div className="aspect-square rounded-lg bg-[var(--color-surface-alt)]" />
-                    <div className="mt-3 h-3 w-3/4 rounded bg-[var(--color-surface-alt)]" />
-                    <div className="mt-2 h-3 w-1/2 rounded bg-[var(--color-surface-alt)]" />
-                  </div>
-                ))
-              : tracks.slice(0, 12).map((track) => (
-                  <TrackCard
-                    key={track.id}
-                    track={track}
-                    saved={savedSet.has(track.id)}
-                    onPlay={() => playFromList(tracks.slice(0, 12), track)}
-                    onAddToQueue={() => {
-                      const playable = toPlayerTrack(track);
-                      if (playable) addToQueue(playable);
-                    }}
-                  />
-                ))}
-            {tracksQ.isSuccess && tracks.length > 1 ? (
-              <button
-                type="button"
-                onClick={playAll}
-                className="flex h-full min-h-[200px] w-44 shrink-0 snap-start flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-[var(--color-primary)]/40 bg-transparent text-[var(--color-primary)] transition hover:border-[var(--color-primary)] hover:bg-[var(--color-primary)]/5"
-              >
-                <Play className="h-6 w-6" fill="currentColor" />
-                <span className="text-xs font-bold uppercase tracking-wider">
-                  {t("home.playAll", { defaultValue: "Reproducir todo" })}
-                </span>
-              </button>
-            ) : null}
-          </Carousel>
-
-          {/* Popular Artists carousel */}
-          <Carousel
-            title={t("home.popularArtists", {
-              defaultValue: "Artistas populares",
-            })}
-            onSeeAll={() => navigate("/library")}
-          >
-            {artistsQ.isLoading
-              ? Array.from({ length: 8 }).map((_, i) => (
-                  <div
-                    key={i}
-                    className="flex w-28 shrink-0 animate-pulse flex-col items-center gap-2"
-                  >
-                    <div className="h-24 w-24 rounded-full bg-[var(--color-surface)]" />
-                    <div className="h-3 w-16 rounded bg-[var(--color-surface)]" />
-                  </div>
-                ))
-              : artists.map((artist) => (
+          {/* ARTISTS */}
+          {artists.length > 0 ? (
+            <div className="mb-9" data-reveal data-reveal-delay="60">
+              <RowHead
+                title={t("home.popularArtists", {
+                  defaultValue: "Artistas populares",
+                })}
+                onSeeAll={() => navigate("/library")}
+              />
+              <div className="flex flex-wrap gap-[22px]">
+                {artists.map((a) => (
                   <ArtistAvatar
-                    key={artist}
-                    name={artist}
+                    key={a.name}
+                    name={a.name}
+                    imageUrl={a.imageUrl}
                     onClick={() =>
-                      navigate(`/artist/${encodeURIComponent(artist)}`)
+                      navigate(`/artist/${encodeURIComponent(a.name)}`)
                     }
                   />
                 ))}
-          </Carousel>
+              </div>
+            </div>
+          ) : null}
 
-          {artistsQ.isSuccess && artists.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-[var(--color-border)] p-8 text-center">
+          {/* ALBUMS RAIL */}
+          {albums.length > 0 ? (
+            <div className="mb-9" data-reveal data-reveal-delay="100">
+              <AlbumsRail
+                albums={albums}
+                onPlay={(tr) => playFromList(albums, tr)}
+                onSeeAll={() => navigate("/library")}
+              />
+            </div>
+          ) : null}
+
+          {/* RECOMMENDED SONGS */}
+          {recs.length > 0 ? (
+            <div data-reveal data-reveal-delay="140">
+              <RowHead
+                title={t("home.recommended", {
+                  defaultValue: "Recomendado para ti",
+                })}
+                onSeeAll={() => navigate("/library")}
+              />
+              <div className="flex flex-col gap-0.5">
+                {recs.map((tr) => (
+                  <RecRow
+                    key={tr.id}
+                    track={tr}
+                    active={currentTrackId === tr.id}
+                    onPlay={() => playFromList(recs, tr)}
+                  />
+                ))}
+              </div>
+            </div>
+          ) : null}
+
+          {tracksQ.isSuccess && tracks.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-[var(--color-line)] p-8 text-center">
               <p className="text-sm text-[var(--color-muted)]">
                 {t("home.empty", {
                   defaultValue:
@@ -437,5 +524,137 @@ export default function HomePage() {
         </div>
       </section>
     </ClientLayout>
+  );
+}
+
+// ─── Albums rail (own scroll ref + arrows) ──────────────────────────────────
+function AlbumsRail({
+  albums,
+  onPlay,
+  onSeeAll,
+}: {
+  albums: Track[];
+  onPlay: (t: Track) => void;
+  onSeeAll: () => void;
+}) {
+  const { t } = useTranslation();
+  const ref = useRef<HTMLDivElement>(null);
+  const scroll = (d: 1 | -1) => {
+    const el = ref.current;
+    if (el) el.scrollBy({ left: 360 * d, behavior: "smooth" });
+  };
+  return (
+    <>
+      <RowHead
+        title={t("home.newAlbums", { defaultValue: "Nuevos álbumes" })}
+        onSeeAll={onSeeAll}
+      >
+        <div className="flex gap-1.5">
+          <button
+            type="button"
+            onClick={() => scroll(-1)}
+            aria-label={t("home.scrollLeft", { defaultValue: "Anterior" })}
+            className="flex h-8 w-8 items-center justify-center rounded-full border border-[var(--color-line)] bg-white/[0.04] text-[var(--color-muted)] transition hover:bg-white/[0.08] hover:text-[var(--color-text)] active:scale-90"
+          >
+            <ChevronLeft className="h-4 w-4" strokeWidth={2.4} />
+          </button>
+          <button
+            type="button"
+            onClick={() => scroll(1)}
+            aria-label={t("home.scrollRight", { defaultValue: "Siguiente" })}
+            className="flex h-8 w-8 items-center justify-center rounded-full border border-[var(--color-line)] bg-white/[0.04] text-[var(--color-muted)] transition hover:bg-white/[0.08] hover:text-[var(--color-text)] active:scale-90"
+          >
+            <ChevronRight className="h-4 w-4" strokeWidth={2.4} />
+          </button>
+        </div>
+      </RowHead>
+      <div
+        ref={ref}
+        className="-mx-[26px] flex gap-[18px] overflow-x-auto px-[26px] pb-1.5 pt-1"
+        style={{ scrollbarWidth: "none" }}
+      >
+        {albums.map((tr) => (
+          <AlbumCard key={tr.id} track={tr} onPlay={() => onPlay(tr)} />
+        ))}
+      </div>
+    </>
+  );
+}
+
+// ─── Recommended song row (46px thumb + EQ bars when active) ────────────────
+function RecRow({
+  track,
+  active,
+  onPlay,
+}: {
+  track: Track;
+  active: boolean;
+  onPlay: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onPlay}
+      className="group flex items-center gap-3.5 rounded-xl px-3 py-2 text-left transition hover:bg-[var(--color-glass)]"
+    >
+      <div
+        className="relative h-[46px] w-[46px] flex-none overflow-hidden rounded-[11px] shadow-[0_4px_12px_-4px_rgba(0,0,0,.6)]"
+        style={{ background: gradOf(track.id) }}
+      >
+        {track.coverArt ? (
+          <img
+            src={track.coverArt}
+            alt=""
+            className="absolute inset-0 h-full w-full object-cover"
+          />
+        ) : null}
+        <div
+          className={`absolute inset-0 flex items-center justify-center bg-black/35 transition ${
+            active ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+          }`}
+        >
+          {active ? (
+            <div className="flex h-3.5 items-end gap-[2px]">
+              <span
+                className="w-[2.5px] rounded-[2px] bg-white"
+                style={{
+                  height: "100%",
+                  transformOrigin: "bottom",
+                  animation: "eqbar .7s ease-in-out infinite",
+                }}
+              />
+              <span
+                className="w-[2.5px] rounded-[2px] bg-white"
+                style={{
+                  height: "100%",
+                  transformOrigin: "bottom",
+                  animation: "eqbar .9s ease-in-out infinite .2s",
+                }}
+              />
+              <span
+                className="w-[2.5px] rounded-[2px] bg-white"
+                style={{
+                  height: "100%",
+                  transformOrigin: "bottom",
+                  animation: "eqbar 1.1s ease-in-out infinite .1s",
+                }}
+              />
+            </div>
+          ) : (
+            <Play className="h-[18px] w-[18px]" fill="#fff" stroke="none" />
+          )}
+        </div>
+      </div>
+      <div className="min-w-0 flex-1">
+        <div
+          className={`truncate text-sm font-bold ${active ? "text-[var(--color-accent)]" : "text-[var(--color-text)]"}`}
+        >
+          {track.title}
+        </div>
+        <div className="truncate text-xs text-[var(--color-muted)]">
+          {track.artist}
+        </div>
+      </div>
+    </button>
   );
 }

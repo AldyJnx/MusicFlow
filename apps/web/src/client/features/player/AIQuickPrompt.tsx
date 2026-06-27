@@ -44,7 +44,9 @@ function EQBars({ bands }: { bands: number[] }) {
             className="flex-1 rounded-t-sm"
             style={{
               height: `${heightPct}%`,
-              backgroundColor: isPositive ? "#14e3f7" : "#f59e0b",
+              backgroundColor: isPositive
+                ? "var(--color-primary)"
+                : "var(--color-accent)",
               opacity: gain === 0 ? 0.25 : 1,
             }}
           />
@@ -75,8 +77,6 @@ export default function AIQuickPrompt() {
   const [requestId, setRequestId] = useState<string | null>(null);
   const [suggestion, setSuggestion] = useState<EQSuggestion | null>(null);
 
-  // Reset modal state every time it opens. Keeps things stateless across
-  // re-opens so the user never sees a stale suggestion for a different track.
   useEffect(() => {
     if (isOpen) {
       setInput("");
@@ -85,7 +85,6 @@ export default function AIQuickPrompt() {
     }
   }, [isOpen]);
 
-  // ESC closes the modal.
   useEffect(() => {
     if (!isOpen) return;
     function onKey(e: KeyboardEvent) {
@@ -97,10 +96,7 @@ export default function AIQuickPrompt() {
 
   const suggestMutation = useMutation({
     mutationFn: (prompt: string) =>
-      suggestEQ({
-        prompt,
-        trackId: currentTrack?.id,
-      }),
+      suggestEQ({ prompt, trackId: currentTrack?.id }),
     onSuccess: (data: AISuggestResponse) => {
       setRequestId(data.requestId);
       setSuggestion(data.suggestion);
@@ -117,7 +113,6 @@ export default function AIQuickPrompt() {
     },
     onSuccess: () => {
       if (!suggestion) return;
-      // Apply live to the audio chain so the change is audible immediately.
       setBands(suggestion.bands, 250);
       setEffects({
         bassBoost: suggestion.bassBoost,
@@ -161,47 +156,61 @@ export default function AIQuickPrompt() {
 
   return (
     <>
-      {/* Backdrop */}
       <div
         aria-hidden="true"
         onClick={close}
-        className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm"
+        className="fixed inset-0 z-[60] bg-[rgba(4,4,10,.55)] backdrop-blur-[14px]"
       />
 
-      {/* Modal */}
       <div
         role="dialog"
         aria-modal="true"
         aria-label="Sugerencia rápida del agente IA"
         className="fixed inset-0 z-[61] flex items-center justify-center p-4"
         onClick={close}
+        style={{ animation: "fadeUp .25s ease both" }}
       >
         <div
           onClick={(e) => e.stopPropagation()}
-          className="w-full max-w-lg overflow-hidden rounded-2xl border border-white/10 bg-[#0a1626] text-white shadow-[0_30px_80px_rgba(0,0,0,0.5)]"
+          className="w-full max-w-lg overflow-hidden rounded-[24px] border border-[var(--color-line)] bg-[color-mix(in_srgb,var(--color-surface)_92%,transparent)] text-[var(--color-text)] shadow-[0_30px_80px_rgba(0,0,0,0.5)] backdrop-blur-[var(--glass-blur)]"
         >
           {/* Header */}
-          <div className="flex items-start justify-between gap-3 border-b border-white/10 px-6 py-5">
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 text-[#14e3f7]">
-                <Sparkles className="h-4 w-4" strokeWidth={2.2} />
-                <h2 className="text-sm font-semibold uppercase tracking-[0.14em]">
-                  Ajusta con IA
+          <div className="flex items-start justify-between gap-3 border-b border-[var(--color-line)] px-6 py-5">
+            <div className="min-w-0 flex items-center gap-3">
+              <span
+                className="flex h-9 w-9 flex-none items-center justify-center rounded-[11px] text-white shadow-[0_6px_16px_-4px_var(--color-primary)]"
+                style={{
+                  background:
+                    "linear-gradient(145deg,var(--color-primary),var(--color-accent))",
+                }}
+              >
+                <Sparkles
+                  className="h-[18px] w-[18px]"
+                  fill="currentColor"
+                  stroke="none"
+                />
+              </span>
+              <div className="min-w-0">
+                <h2
+                  className="text-sm font-bold"
+                  style={{ fontFamily: "var(--font-display)" }}
+                >
+                  Asistente de sonido
                 </h2>
+                <p className="mt-0.5 truncate text-xs text-[var(--color-muted)]">
+                  Ajusta el EQ de{" "}
+                  <span className="text-[var(--color-accent)]">
+                    {currentTrack.title}
+                  </span>
+                </p>
               </div>
-              <p className="mt-1 truncate text-base font-medium text-white">
-                {currentTrack.title}
-              </p>
-              <p className="mt-0.5 text-xs text-[#9fb6df]">
-                Describe cómo quieres que suene. La IA propone, tú decides.
-              </p>
             </div>
 
             <button
               type="button"
               onClick={close}
               aria-label="Cerrar"
-              className="rounded-lg p-2 text-[#9fb6df] transition hover:bg-white/5 hover:text-white focus:outline-none focus:ring-2 focus:ring-[#14e3f7]/60"
+              className="flex-none rounded-lg p-2 text-[var(--color-muted)] transition hover:bg-white/5 hover:text-[var(--color-text)]"
             >
               <X className="h-5 w-5" strokeWidth={2.2} />
             </button>
@@ -209,20 +218,22 @@ export default function AIQuickPrompt() {
 
           {/* Body */}
           <div className="flex flex-col gap-4 px-6 py-5">
-            {/* Suggestion preview (when ready) */}
             {suggestion ? (
-              <article className="rounded-xl border border-[#14e3f7]/40 bg-white/[0.02] p-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-[#14e3f7]">
+              <article className="rounded-xl border border-[color-mix(in_srgb,var(--color-accent)_40%,transparent)] bg-white/[0.02] p-4">
+                <p
+                  className="text-xs font-bold uppercase tracking-wide text-[var(--color-accent)]"
+                  style={{ fontFamily: "var(--font-mono)" }}
+                >
                   Curva propuesta
                 </p>
-                <div className="mt-3 rounded-lg bg-[#07111c] px-3 py-2">
+                <div className="mt-3 rounded-lg bg-[var(--color-surface-alt)] px-3 py-2">
                   <EQBars bands={suggestion.bands} />
                 </div>
-                <p className="mt-3 text-sm leading-6 text-[#cfdcef]">
+                <p className="mt-3 text-sm leading-6 text-[var(--color-text)]">
                   {suggestion.explanation}
                 </p>
                 {suggestion.segments && suggestion.segments.length > 0 ? (
-                  <p className="mt-2 text-xs text-[#9fb6df]">
+                  <p className="mt-2 text-xs text-[var(--color-muted)]">
                     Incluye {suggestion.segments.length} sugerencia
                     {suggestion.segments.length === 1 ? "" : "s"} por segmento.
                   </p>
@@ -230,13 +241,12 @@ export default function AIQuickPrompt() {
               </article>
             ) : null}
 
-            {/* Prompt input */}
             <form
               onSubmit={(e) => {
                 e.preventDefault();
                 handleSend();
               }}
-              className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2"
+              className="flex items-center gap-2 rounded-xl border border-[var(--color-line)] bg-white/[0.04] px-3 py-2"
             >
               <input
                 type="text"
@@ -245,13 +255,17 @@ export default function AIQuickPrompt() {
                 disabled={isWaitingForSuggestion || isApplying}
                 placeholder="Ej: Hazlo más cálido para escuchar de noche"
                 aria-label="Prompt para el agente IA"
-                className="flex-1 bg-transparent py-2 text-sm text-white outline-none placeholder:text-[#6b83a9] disabled:opacity-60"
+                className="flex-1 bg-transparent py-2 text-sm text-[var(--color-text)] outline-none placeholder:text-[var(--color-muted)] disabled:opacity-60"
               />
               <button
                 type="submit"
                 disabled={!input.trim() || isWaitingForSuggestion || isApplying}
                 aria-label="Enviar prompt"
-                className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[linear-gradient(180deg,#386cf9_0%,#18c4e6_100%)] text-white shadow-[0_8px_18px_rgba(37,99,235,0.28)] transition hover:brightness-110 disabled:opacity-50"
+                className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-white shadow-[0_8px_18px_-6px_var(--color-primary)] transition hover:brightness-110 disabled:opacity-50"
+                style={{
+                  background:
+                    "linear-gradient(145deg,var(--color-primary),var(--color-accent))",
+                }}
               >
                 {isWaitingForSuggestion ? (
                   <Loader2 className="h-4 w-4 animate-spin" strokeWidth={2.2} />
@@ -261,7 +275,6 @@ export default function AIQuickPrompt() {
               </button>
             </form>
 
-            {/* Shortcut chips */}
             {!suggestion ? (
               <div className="flex flex-wrap gap-2">
                 {SHORTCUT_CHIPS.map((chip) => (
@@ -270,7 +283,7 @@ export default function AIQuickPrompt() {
                     type="button"
                     onClick={() => setInput(chip.prompt)}
                     disabled={isWaitingForSuggestion}
-                    className="rounded-full border border-white/10 bg-white/[0.02] px-3 py-1.5 text-xs font-medium text-[#cfdcef] transition hover:border-[#14e3f7]/40 hover:text-white focus:outline-none focus:ring-2 focus:ring-[#14e3f7]/40 disabled:opacity-60"
+                    className="rounded-full border border-[var(--color-line)] bg-white/[0.04] px-3 py-1.5 text-xs font-medium text-[var(--color-muted)] transition hover:border-[color-mix(in_srgb,var(--color-accent)_45%,transparent)] hover:text-[var(--color-accent)] disabled:opacity-60"
                   >
                     {chip.label}
                   </button>
@@ -278,7 +291,6 @@ export default function AIQuickPrompt() {
               </div>
             ) : null}
 
-            {/* Error state */}
             {suggestMutation.isError ? (
               <p
                 role="alert"
@@ -291,11 +303,11 @@ export default function AIQuickPrompt() {
           </div>
 
           {/* Footer */}
-          <div className="flex items-center justify-between gap-3 border-t border-white/10 px-6 py-4">
+          <div className="flex items-center justify-between gap-3 border-t border-[var(--color-line)] px-6 py-4">
             <button
               type="button"
               onClick={openFullAgent}
-              className="text-xs font-medium text-[#9fb6df] underline-offset-4 transition hover:text-white hover:underline focus:outline-none focus:ring-2 focus:ring-[#14e3f7]/40"
+              className="text-xs font-medium text-[var(--color-muted)] underline-offset-4 transition hover:text-[var(--color-text)] hover:underline"
             >
               Conversación completa →
             </button>
@@ -306,7 +318,7 @@ export default function AIQuickPrompt() {
                   type="button"
                   onClick={() => rejectMutation.mutate()}
                   disabled={isApplying || rejectMutation.isPending}
-                  className="rounded-xl border border-white/10 bg-white/[0.02] px-4 py-2 text-sm font-medium text-[#cfdcef] transition hover:border-rose-400/40 hover:text-white disabled:opacity-60"
+                  className="rounded-xl border border-[var(--color-line)] bg-white/[0.04] px-4 py-2 text-sm font-medium text-[var(--color-muted)] transition hover:border-rose-400/40 hover:text-[var(--color-text)] disabled:opacity-60"
                 >
                   Descartar
                 </button>
@@ -314,7 +326,11 @@ export default function AIQuickPrompt() {
                   type="button"
                   onClick={() => acceptMutation.mutate()}
                   disabled={isApplying}
-                  className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-[linear-gradient(90deg,#386cf9_0%,#18c4e6_100%)] px-5 text-sm font-semibold text-white shadow-[0_10px_22px_rgba(37,99,235,0.2)] transition hover:brightness-110 disabled:opacity-60"
+                  className="inline-flex h-10 items-center justify-center gap-2 rounded-xl px-5 text-sm font-semibold text-white shadow-[0_10px_22px_-6px_var(--color-primary)] transition hover:brightness-110 disabled:opacity-60"
+                  style={{
+                    background:
+                      "linear-gradient(135deg,var(--color-primary),var(--color-accent))",
+                  }}
                 >
                   {isApplying ? (
                     <Loader2

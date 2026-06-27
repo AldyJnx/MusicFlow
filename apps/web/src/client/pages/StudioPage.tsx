@@ -55,7 +55,8 @@ function StudioCard({
     <button
       type="button"
       onClick={handleClick}
-      className="group relative flex flex-col gap-4 rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-surface)] p-6 text-left transition hover:-translate-y-1 hover:border-[var(--color-primary)] hover:shadow-[0_18px_40px_rgba(0,0,0,0.32)]"
+      style={{ backdropFilter: "blur(var(--glass-blur))" }}
+      className="group relative flex flex-col gap-4 rounded-[var(--radius-card)] border border-[var(--color-line)] bg-[var(--color-glass)] p-6 text-left transition hover:-translate-y-1 hover:border-[var(--color-primary)] hover:bg-[color-mix(in_srgb,var(--color-surface)_70%,transparent)] hover:shadow-[0_22px_48px_-12px_rgba(0,0,0,0.55)]"
     >
       {showPremiumBadge ? (
         <span className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-full border border-amber-400/40 bg-amber-400/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-amber-300">
@@ -74,8 +75,8 @@ function StudioCard({
       </div>
       <div className="flex flex-col gap-1">
         <p
-          className="text-[10px] font-bold uppercase tracking-[0.22em]"
-          style={{ color: accentVar }}
+          className="text-[10px] font-bold uppercase tracking-[0.18em]"
+          style={{ color: accentVar, fontFamily: "var(--font-mono)" }}
         >
           {eyebrow}
         </p>
@@ -106,7 +107,7 @@ export default function StudioPage() {
 
   return (
     <ClientLayout>
-      <section className="min-h-screen w-full bg-[var(--color-page)] text-[var(--color-text)]">
+      <section className="min-h-screen w-full text-[var(--color-text)]">
         {/* Hero strip */}
         <header className="relative overflow-hidden px-8 pb-10 pt-12">
           <div
@@ -118,7 +119,10 @@ export default function StudioPage() {
             style={{ backgroundColor: "var(--color-accent)" }}
           />
           <div className="relative flex max-w-3xl flex-col gap-3">
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--color-primary)]">
+            <p
+              className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--color-primary)]"
+              style={{ fontFamily: "var(--font-mono)" }}
+            >
               {t("studio.eyebrow", { defaultValue: "Estudio" })}
             </p>
             <h1 className="text-4xl font-extrabold leading-tight tracking-tight sm:text-5xl">

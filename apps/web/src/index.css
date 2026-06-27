@@ -3,21 +3,37 @@
 @tailwind utilities;
 
 :root {
-  --color-page: #16161d;
-  --color-sidebar: #090c12;
-  --color-navbar: #15161d;
-  --color-surface: #1c1d24;
-  --color-surface-alt: #10182d;
-  --color-text: #f8fafc;
-  --color-muted: #7e8aa3;
-  --color-border: #232836;
-  --color-primary: #3b82f6;
-  --color-secondary: #1a2230;
-  --color-cta-start: #5f87ff;
-  --color-cta-end: #3b82f6;
+  /* Static fallback before applyTheme() runs (avoids FOUC). Mirrors the
+     `nebula-pulse` theme in shared/utils/theme.ts — keep both in sync. */
+  --color-page: #06060e;
+  --color-sidebar: #04040c;
+  --color-navbar: #06060e;
+  --color-surface: #0c0c18;
+  --color-surface-alt: #12121f;
+  --color-text: #f3f4fb;
+  --color-muted: #9a9fc2;
+  --color-border: #20202e;
+  --color-primary: #7c5ce8;
+  --color-primary-contrast: #0a0a14;
+  --color-secondary: #14142a;
+  --color-cta-start: #7c5ce8;
+  --color-cta-end: #e85cc0;
+  --color-accent: #e85cc0;
+  /* Success / "active" green — the cascade's ACTIVO badge (design `gn`). */
+  --color-success: #4cf1a0;
   /* Card / hero radius. New surfaces in the cyan fusion adopt this; legacy
      callsites can migrate progressively. */
   --radius-card: 24px;
+  /* Glassmorphism — surfaces that float over the animated background.
+     Mirrors the pretesis design's --glass / --line / --gblur. */
+  --color-glass: rgba(255, 255, 255, 0.04);
+  --color-line: rgba(255, 255, 255, 0.08);
+  --glass-blur: 30px;
+  /* Type system — mirrors the pretesis design language. Display for titles,
+     sans for body/UI, mono for eyebrow labels. */
+  --font-display: "Space Grotesk", "Plus Jakarta Sans", sans-serif;
+  --font-sans: "Plus Jakarta Sans", system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
 }
 
 html,
@@ -30,8 +46,40 @@ body {
   margin: 0;
   background: var(--color-page);
   color: var(--color-text);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
 * {
   box-sizing: border-box;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+  letter-spacing: -0.02em;
+}
+
+/* Motion primitives ported from the pretesis prototype. */
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes eqbar {
+  0%,
+  100% {
+    transform: scaleY(0.32);
+  }
+  50% {
+    transform: scaleY(1);
+  }
 }

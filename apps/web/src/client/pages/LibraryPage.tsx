@@ -46,7 +46,15 @@ function formatMs(ms: number): string {
  * HomePage's ArtistAvatar so the same artist looks identical across
  * surfaces. Navigates to /artist/:name on click.
  */
-function ArtistTile({ name, onClick }: { name: string; onClick: () => void }) {
+function ArtistTile({
+  name,
+  imageUrl,
+  onClick,
+}: {
+  name: string;
+  imageUrl?: string | null;
+  onClick: () => void;
+}) {
   let hue = 0;
   for (let i = 0; i < name.length; i++) {
     hue = (hue * 31 + name.charCodeAt(i)) % 360;
@@ -64,12 +72,26 @@ function ArtistTile({ name, onClick }: { name: string; onClick: () => void }) {
       className="group flex cursor-pointer flex-col items-center gap-3 rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-surface-alt)] p-4 text-center transition hover:-translate-y-1 hover:border-[var(--color-primary)] hover:shadow-[0_18px_40px_rgba(0,0,0,0.32)]"
     >
       <div
-        className="flex h-20 w-20 items-center justify-center rounded-full text-lg font-bold text-white shadow-[0_10px_24px_rgba(0,0,0,0.32)] transition group-hover:scale-105"
-        style={{
-          background: `linear-gradient(135deg, hsl(${hue} 70% 50%) 0%, hsl(${(hue + 40) % 360} 65% 35%) 100%)`,
-        }}
+        className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-full text-lg font-bold text-white shadow-[0_10px_24px_rgba(0,0,0,0.32)] transition group-hover:scale-105"
+        style={
+          imageUrl
+            ? undefined
+            : {
+                background: `linear-gradient(135deg, hsl(${hue} 70% 50%) 0%, hsl(${(hue + 40) % 360} 65% 35%) 100%)`,
+              }
+        }
       >
-        {initials || "?"}
+        {imageUrl ? (
+          <img
+            src={imageUrl}
+            alt={name}
+            loading="lazy"
+            decoding="async"
+            className="h-full w-full object-cover"
+          />
+        ) : (
+          initials || "?"
+        )}
       </div>
       <p className="w-full truncate text-sm font-semibold text-[var(--color-text)] group-hover:text-[var(--color-primary)]">
         {name}
@@ -143,15 +165,21 @@ export default function LibraryPage() {
     };
   }, [searchInput]);
 
-  const catalogQuery = useTracksQuery({
-    search: debouncedSearch || undefined,
-    genre: activeGenre ?? undefined,
-    take: 100,
-  });
-  const savedQuery = useSavedTracksQuery({
-    search: debouncedSearch || undefined,
-    take: 100,
-  });
+  const catalogQuery = useTracksQuery(
+    {
+      search: debouncedSearch || undefined,
+      genre: activeGenre ?? undefined,
+      take: 100,
+    },
+    { enabled: scope === "catalog" },
+  );
+  const savedQuery = useSavedTracksQuery(
+    {
+      search: debouncedSearch || undefined,
+      take: 100,
+    },
+    { enabled: scope === "mylibrary" },
+  );
   const tracksQuery = scope === "catalog" ? catalogQuery : savedQuery;
 
   const albumsQuery = useAlbumsQuery();
@@ -209,7 +237,7 @@ export default function LibraryPage() {
 
   return (
     <ClientLayout>
-      <section className="min-h-screen w-full bg-[var(--color-page)] px-6 py-6 text-[var(--color-text)]">
+      <section className="min-h-screen w-full px-6 py-6 text-[var(--color-text)]">
         <div className="mx-auto flex max-w-7xl flex-col gap-6">
           {/* --- Top row: scope switcher + import CTA --- */}
           <div className="flex items-center justify-between gap-3">
@@ -449,6 +477,8 @@ export default function LibraryPage() {
                             <img
                               src={track.coverArt}
                               alt={track.title}
+                              loading="lazy"
+                              decoding="async"
                               className="h-14 w-14 rounded-md object-cover"
                             />
                           ) : (
@@ -583,6 +613,8 @@ export default function LibraryPage() {
                         {album.coverArt ? (
                           <img
                             src={album.coverArt}
+                            loading="lazy"
+                            decoding="async"
                             alt={album.album}
                             className="mb-3 h-36 w-full rounded-lg object-cover"
                           />
@@ -656,10 +688,11 @@ export default function LibraryPage() {
                   <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
                     {artists.map((artist) => (
                       <ArtistTile
-                        key={artist}
-                        name={artist}
+                        key={artist.name}
+                        name={artist.name}
+                        imageUrl={artist.imageUrl}
                         onClick={() =>
-                          navigate(`/artist/${encodeURIComponent(artist)}`)
+                          navigate(`/artist/${encodeURIComponent(artist.name)}`)
                         }
                       />
                     ))}

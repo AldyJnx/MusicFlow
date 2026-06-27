@@ -83,8 +83,26 @@ export default function SettingsPage() {
 
   return (
     <ClientLayout>
-      <section className="min-h-screen w-full bg-[var(--color-page)] px-4 py-6 text-[var(--color-text)] sm:px-6 xl:px-8">
-        <div className="mx-auto flex max-w-7xl flex-col gap-8 rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] p-6 shadow-[0_24px_80px_rgba(0,0,0,0.35)] sm:p-8">
+      <section className="min-h-screen w-full px-4 py-6 text-[var(--color-text)] sm:px-6 xl:px-8">
+        <div className="mx-auto flex max-w-7xl flex-col gap-8 rounded-[28px] border border-[var(--color-line)] bg-[color-mix(in_srgb,var(--color-surface)_82%,transparent)] p-6 shadow-[0_24px_80px_rgba(0,0,0,0.35)] backdrop-blur-[var(--glass-blur)] sm:p-8">
+          {/* Header */}
+          <div className="flex flex-col gap-1">
+            <p
+              className="text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--color-primary)]"
+              style={{ fontFamily: "var(--font-mono)" }}
+            >
+              {t("settings.eyebrow", { defaultValue: "Ajustes" })}
+            </p>
+            <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl">
+              {t("settings.title", { defaultValue: "Configuración" })}
+            </h1>
+            <p className="text-sm text-[var(--color-muted)]">
+              {t("settings.subtitle", {
+                defaultValue: "Ajusta tu cuenta, reproducción y ecualización",
+              })}
+            </p>
+          </div>
+
           {/* Language */}
           <div className="flex flex-col gap-5">
             <SectionTitle

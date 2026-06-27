@@ -96,6 +96,10 @@
     }
   },
   "themes": {
+    "nebula-pulse": {
+      "name": "Nebula Pulse",
+      "description": "Negro profundo con violeta y magenta reactivos"
+    },
     "midnight-neon": {
       "name": "Midnight Neon",
       "description": "Negro profundo con acento verde neón"
@@ -366,9 +370,21 @@
     "back": "Volver"
   },
   "eq": {
-    "title": "Ecualizador",
-    "subtitle": "Ajusta el sonido en cuatro niveles: global, lista, pista o segmento.",
+    "title": "Ecualización granular",
+    "subtitle": "La curva se adapta a cada sección de la canción.",
     "reset": "Restablecer",
+    "save": "Guardar",
+    "saving": "Guardando…",
+    "saved": "Guardado",
+    "saveSegmentHint": "Los segmentos se editan en el Estudio",
+    "saveNoContext": "Reproduce una canción o lista para guardar en este nivel",
+    "cascade": {
+      "title": "Cascada de EQ · lo más específico gana",
+      "live": "En vivo",
+      "active": "Activo",
+      "empty": "Sin curva",
+      "noContext": "Sin contexto"
+    },
     "scope": {
       "global": "Global",
       "playlist": "Lista",
