@@ -42,7 +42,7 @@ export default function DownloadButton({
         downloaded
           ? "Descargado · quitar"
           : downloading
-            ? "Descargando…"
+            ? `Descargando… ${progress ?? 0}%`
             : "Descargar para sin conexión"
       }
       aria-label={downloaded ? "Quitar descarga" : "Descargar"}

@@ -47,13 +47,32 @@ export const useDownloadsStore = create<DownloadsState>((set, get) => ({
 
   download: async (track) => {
     if (get().items[track.id] || get().progress[track.id] != null) return;
-    set((s) => ({ progress: { ...s.progress, [track.id]: 5 } }));
+    set((s) => ({ progress: { ...s.progress, [track.id]: 0 } }));
     try {
-      // Audio (the heavy part).
+      // Audio (the heavy part) — streamed so progress reflects real bytes.
       const audioRes = await fetch(track.url);
-      if (!audioRes.ok) throw new Error("audio fetch failed");
-      const audio = await audioRes.blob();
-      set((s) => ({ progress: { ...s.progress, [track.id]: 70 } }));
+      if (!audioRes.ok || !audioRes.body) throw new Error("audio fetch failed");
+      const total = Number(audioRes.headers.get("content-length")) || 0;
+      const reader = audioRes.body.getReader();
+      const chunks: Uint8Array[] = [];
+      let received = 0;
+      // Audio occupies the 0..90 band; cover + lyrics fill the rest.
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        chunks.push(value);
+        received += value.length;
+        const pct =
+          total > 0
+            ? Math.min(90, Math.round((received / total) * 90))
+            : // No Content-Length: ramp gently so the user sees motion.
+              Math.min(90, (get().progress[track.id] ?? 0) + 5);
+        set((s) => ({ progress: { ...s.progress, [track.id]: pct } }));
+      }
+      const audio = new Blob(chunks as BlobPart[], {
+        type: audioRes.headers.get("content-type") || "audio/mpeg",
+      });
+      set((s) => ({ progress: { ...s.progress, [track.id]: 92 } }));
 
       // Cover (best-effort).
       let cover: Blob | null = null;
@@ -65,6 +84,7 @@ export const useDownloadsStore = create<DownloadsState>((set, get) => ({
           /* ignore cover failures */
         }
       }
+      set((s) => ({ progress: { ...s.progress, [track.id]: 96 } }));
 
       // Lyrics (best-effort).
       let lyricsLrc: string | null = null;
