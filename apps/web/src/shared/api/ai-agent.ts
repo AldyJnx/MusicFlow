@@ -41,6 +41,28 @@ export interface AISuggestResponse {
   requestId: string;
 }
 
+export type AssistantIntent = "eq" | "recommend" | "reply";
+
+export interface RecommendedTrack {
+  id: string;
+  title: string;
+  artist: string;
+  album: string;
+  genre: string | null;
+  coverArt: string | null;
+  durationMs: number;
+  fileUrlRemote: string | null;
+}
+
+export interface AssistantResponse {
+  requestId: string;
+  intent: AssistantIntent;
+  message: string;
+  eq?: EQSuggestion;
+  tracks?: RecommendedTrack[];
+  genres?: string[];
+}
+
 export interface AIRequest {
   id: string;
   prompt: string;
@@ -68,6 +90,19 @@ export async function suggestEQ(payload: {
   context?: object;
 }): Promise<AISuggestResponse> {
   const { data } = await api.post<AISuggestResponse>("/ai/suggest", payload);
+  return data;
+}
+
+/**
+ * The flexible assistant: interprets a free-form request and returns either an
+ * EQ tweak, music recommendations from the user's catalog (personalized to
+ * their taste), or a plain reply. Stays scoped to music + the app.
+ */
+export async function assist(payload: {
+  prompt: string;
+  trackId?: string;
+}): Promise<AssistantResponse> {
+  const { data } = await api.post<AssistantResponse>("/ai/assistant", payload);
   return data;
 }
 
