@@ -151,6 +151,72 @@ export class CatalogService {
     });
   }
 
+  /** Upload an artist photo; also stamps it on the artist's catalog tracks. */
+  async uploadArtistImage(artistId: string, file: Express.Multer.File) {
+    const artist = await this.prisma.artist.findUnique({
+      where: { id: artistId },
+      select: { id: true },
+    });
+    if (!artist) throw new NotFoundException("Artist not found");
+    const { url } = await this.storage.uploadImage(file, "artists");
+    await this.prisma.$transaction([
+      this.prisma.artist.update({
+        where: { id: artistId },
+        data: { imageUrl: url },
+      }),
+      this.prisma.track.updateMany({
+        where: { artistId },
+        data: { artistImage: url },
+      }),
+    ]);
+    return { imageUrl: url };
+  }
+
+  /**
+   * Upload an album cover; propagates it to the album's tracks that don't have
+   * their own custom cover (null, or still showing the previous album cover).
+   */
+  async uploadAlbumCover(albumId: string, file: Express.Multer.File) {
+    const album = await this.prisma.album.findUnique({
+      where: { id: albumId },
+      select: { id: true, coverArt: true },
+    });
+    if (!album) throw new NotFoundException("Album not found");
+    const { url } = await this.storage.uploadImage(file, "albums");
+    await this.prisma.$transaction([
+      this.prisma.album.update({
+        where: { id: albumId },
+        data: { coverArt: url },
+      }),
+      this.prisma.track.updateMany({
+        where: {
+          albumId,
+          OR: [
+            { coverArt: null },
+            ...(album.coverArt ? [{ coverArt: album.coverArt }] : []),
+          ],
+        },
+        data: { coverArt: url },
+      }),
+    ]);
+    return { coverArt: url };
+  }
+
+  /** Upload a per-song cover (portada). Only touches that track. */
+  async uploadTrackCover(trackId: string, file: Express.Multer.File) {
+    const track = await this.prisma.track.findUnique({
+      where: { id: trackId },
+      select: { id: true },
+    });
+    if (!track) throw new NotFoundException("Track not found");
+    const { url } = await this.storage.uploadImage(file, "covers");
+    await this.prisma.track.update({
+      where: { id: trackId },
+      data: { coverArt: url },
+    });
+    return { coverArt: url };
+  }
+
   // ── Public reads ──────────────────────────────────────────────────────────
 
   async listArtists() {

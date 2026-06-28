@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import {
   Disc3,
+  ImagePlus,
   Loader2,
   Music4,
   Plus,
@@ -24,7 +25,10 @@ import {
   listCatalogArtists,
   updateArtist,
   updateTrackLyrics,
+  uploadAlbumCover,
+  uploadArtistImage,
   uploadCatalogTrack,
+  uploadTrackCover,
   type CatalogArtist,
 } from "../../shared/api/catalog";
 
@@ -40,6 +44,44 @@ function Field({
       <input
         {...props}
         className="rounded-lg border border-[var(--color-line)] bg-white/[0.04] px-3 py-2 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-primary)]"
+      />
+    </label>
+  );
+}
+
+// A compact image picker that uploads on selection and refreshes on success.
+function ImageUploadButton({
+  onUpload,
+  title,
+  className = "",
+}: {
+  onUpload: (file: File) => Promise<unknown>;
+  title: string;
+  className?: string;
+}) {
+  const m = useMutation({ mutationFn: onUpload });
+  return (
+    <label
+      title={title}
+      className={`inline-flex cursor-pointer items-center justify-center rounded-lg border border-[var(--color-line)] bg-[var(--color-glass)] text-[var(--color-muted)] transition hover:text-[var(--color-text)] ${
+        m.isPending ? "opacity-60" : ""
+      } ${className}`}
+    >
+      {m.isPending ? (
+        <Loader2 className="h-4 w-4 animate-spin" />
+      ) : (
+        <ImagePlus className="h-4 w-4" />
+      )}
+      <input
+        type="file"
+        accept="image/*,.jpg,.jpeg,.png,.webp,.gif"
+        className="hidden"
+        disabled={m.isPending}
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (f) m.mutate(f);
+          e.target.value = "";
+        }}
       />
     </label>
   );
@@ -256,10 +298,23 @@ function ArtistEditor({ artistId }: { artistId: string }) {
     <div className="flex flex-col gap-6">
       {/* Artist header / edit */}
       <div className="flex gap-4 rounded-2xl border border-[var(--color-line)] bg-[var(--color-glass)] p-4">
-        <div className="h-24 w-24 flex-none overflow-hidden rounded-full bg-[var(--color-surface-alt)]">
-          {imageUrl ? (
-            <img src={imageUrl} alt="" className="h-full w-full object-cover" />
-          ) : null}
+        <div className="relative h-24 w-24 flex-none">
+          <div className="h-full w-full overflow-hidden rounded-full bg-[var(--color-surface-alt)]">
+            {imageUrl ? (
+              <img
+                src={imageUrl}
+                alt=""
+                className="h-full w-full object-cover"
+              />
+            ) : null}
+          </div>
+          <ImageUploadButton
+            title={t("catalog.uploadArtistImage", {
+              defaultValue: "Subir foto del artista",
+            })}
+            onUpload={(f) => uploadArtistImage(artistId, f).then(invalidate)}
+            className="absolute -bottom-1 -right-1 h-8 w-8 rounded-full bg-[var(--color-surface)]"
+          />
         </div>
         <div className="grid flex-1 grid-cols-2 gap-3">
           <Field
@@ -342,6 +397,24 @@ function ArtistEditor({ artistId }: { artistId: string }) {
               key={al.id}
               className="flex items-center gap-2 rounded-lg border border-[var(--color-line)] bg-[var(--color-surface-alt)] px-3 py-2"
             >
+              <span className="h-9 w-9 flex-none overflow-hidden rounded-md bg-[var(--color-glass)]">
+                {al.coverArt ? (
+                  <img
+                    src={al.coverArt}
+                    alt=""
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <Disc3 className="m-auto mt-2 h-4 w-4 text-[var(--color-muted)]" />
+                )}
+              </span>
+              <ImageUploadButton
+                title={t("catalog.uploadAlbumCover", {
+                  defaultValue: "Subir portada del álbum",
+                })}
+                onUpload={(f) => uploadAlbumCover(al.id, f).then(invalidate)}
+                className="h-8 w-8"
+              />
               <span className="text-sm font-semibold text-[var(--color-text)]">
                 {al.title}
               </span>
@@ -426,7 +499,7 @@ function ArtistEditor({ artistId }: { artistId: string }) {
           <span className="text-[11px] text-[var(--color-muted)]">
             {t("catalog.uploadHint", {
               defaultValue:
-                "El audio se sube al catálogo y se asigna al artista.",
+                "Alta calidad sin recompresión (WAV/FLAC/MP3, hasta 100 MB). Se asigna al artista y, si eliges álbum, hereda su portada.",
             })}
           </span>
           {uploadError ? (
@@ -471,6 +544,13 @@ function ArtistEditor({ artistId }: { artistId: string }) {
                   </option>
                 ))}
               </select>
+              <ImageUploadButton
+                title={t("catalog.uploadTrackCover", {
+                  defaultValue: "Subir portada de la canción",
+                })}
+                onUpload={(f) => uploadTrackCover(tr.id, f).then(invalidate)}
+                className="h-8 w-8"
+              />
               <button
                 type="button"
                 onClick={() => setLyricsTrack({ id: tr.id, title: tr.title })}

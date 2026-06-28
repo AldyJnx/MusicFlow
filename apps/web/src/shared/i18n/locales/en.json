@@ -555,6 +555,11 @@
     "lyricsHintBefore": "Paste the lyrics. If it uses timestamps",
     "lyricsHintAfter": "it syncs with playback; otherwise it's saved as plain text.",
     "cancel": "Cancel",
-    "saveLyrics": "Save lyrics"
+    "saveLyrics": "Save lyrics",
+    "uploadSong": "Upload song",
+    "uploadHint": "High quality, no re-compression (WAV/FLAC/MP3, up to 100 MB). Linked to the artist and, if you pick an album, it inherits its cover.",
+    "uploadArtistImage": "Upload artist photo",
+    "uploadAlbumCover": "Upload album cover",
+    "uploadTrackCover": "Upload song cover"
   }
 }

@@ -555,6 +555,11 @@
     "lyricsHintBefore": "Pega la letra. Si usa marcas de tiempo",
     "lyricsHintAfter": "se sincroniza con la reproducción; si no, se guarda como texto plano.",
     "cancel": "Cancelar",
-    "saveLyrics": "Guardar letra"
+    "saveLyrics": "Guardar letra",
+    "uploadSong": "Subir canción",
+    "uploadHint": "Alta calidad sin recompresión (WAV/FLAC/MP3, hasta 100 MB). Se asigna al artista y, si eliges álbum, hereda su portada.",
+    "uploadArtistImage": "Subir foto del artista",
+    "uploadAlbumCover": "Subir portada del álbum",
+    "uploadTrackCover": "Subir portada de la canción"
   }
 }

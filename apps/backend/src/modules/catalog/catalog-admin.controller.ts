@@ -19,6 +19,7 @@ import { JwtAuthGuard } from "@/common/guards/jwt-auth.guard";
 import { RolesGuard } from "@/common/guards/roles.guard";
 import { Roles } from "@/common/decorators/roles.decorator";
 import { audioFileFilter } from "@/common/upload/audio-file-filter";
+import { imageFileFilter } from "@/common/upload/image-file-filter";
 import {
   CurrentUser,
   AuthUser,
@@ -78,11 +79,61 @@ export class CatalogAdminController {
     return this.catalog.reorderAlbum(id, dto);
   }
 
+  // Artwork uploads (album cover, artist photo, per-song cover)
+  @Post("artists/:id/image")
+  @UseInterceptors(
+    FileInterceptor("file", {
+      limits: { fileSize: 5 * 1024 * 1024 },
+      fileFilter: imageFileFilter,
+    }),
+  )
+  @ApiConsumes("multipart/form-data")
+  uploadArtistImage(
+    @Param("id") id: string,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    if (!file) throw new BadRequestException("Missing file");
+    return this.catalog.uploadArtistImage(id, file);
+  }
+
+  @Post("albums/:id/cover")
+  @UseInterceptors(
+    FileInterceptor("file", {
+      limits: { fileSize: 5 * 1024 * 1024 },
+      fileFilter: imageFileFilter,
+    }),
+  )
+  @ApiConsumes("multipart/form-data")
+  uploadAlbumCover(
+    @Param("id") id: string,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    if (!file) throw new BadRequestException("Missing file");
+    return this.catalog.uploadAlbumCover(id, file);
+  }
+
+  @Post("tracks/:id/cover")
+  @UseInterceptors(
+    FileInterceptor("file", {
+      limits: { fileSize: 5 * 1024 * 1024 },
+      fileFilter: imageFileFilter,
+    }),
+  )
+  @ApiConsumes("multipart/form-data")
+  uploadTrackCover(
+    @Param("id") id: string,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    if (!file) throw new BadRequestException("Missing file");
+    return this.catalog.uploadTrackCover(id, file);
+  }
+
   // Tracks
   @Post("tracks/upload")
   @UseInterceptors(
     FileInterceptor("file", {
-      limits: { fileSize: 50 * 1024 * 1024 },
+      // High-quality formats (WAV/FLAC) are large; allow up to the storage cap.
+      limits: { fileSize: 100 * 1024 * 1024 },
       fileFilter: audioFileFilter,
     }),
   )

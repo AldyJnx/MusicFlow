@@ -165,6 +165,33 @@ export async function uploadCatalogTrack(
   return data;
 }
 
+async function uploadImage(
+  url: string,
+  file: File,
+): Promise<Record<string, string>> {
+  const form = new FormData();
+  form.append("file", file);
+  const { data } = await api.post(url, form, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+  return data;
+}
+
+/** Upload an artist photo (also stamps it on the artist's tracks). */
+export function uploadArtistImage(artistId: string, file: File) {
+  return uploadImage(`/admin/catalog/artists/${artistId}/image`, file);
+}
+
+/** Upload an album cover (propagates to the album's uncovered tracks). */
+export function uploadAlbumCover(albumId: string, file: File) {
+  return uploadImage(`/admin/catalog/albums/${albumId}/cover`, file);
+}
+
+/** Upload a per-song cover (portada). */
+export function uploadTrackCover(trackId: string, file: File) {
+  return uploadImage(`/admin/catalog/tracks/${trackId}/cover`, file);
+}
+
 /** Save lyrics for a track (LRC and/or plain text). */
 export async function updateTrackLyrics(
   trackId: string,
