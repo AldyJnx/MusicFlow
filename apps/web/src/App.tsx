@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import ChangePassword from "./auth/pages/ChangePassword";
@@ -6,8 +6,7 @@ import ForgotPassword from "./auth/pages/ForgotPassword";
 import Login from "./auth/pages/Login";
 import Register from "./auth/pages/Register";
 import VerifyCode from "./auth/pages/VerifyCode";
-import ClientRoutes from "./client/routes/clientRoutes";
-import AdminRoutes from "./admin/routes/adminRoutes";
+import RouteFallback from "./shared/ui/RouteFallback";
 import PWAInstallBanner from "./shared/ui/PWAInstallBanner";
 import UpsellModal from "./shared/ui/UpsellModal";
 import { useAuthStore } from "./shared/stores/authStore";
@@ -15,6 +14,11 @@ import { usePlayerStore } from "./client/stores/playStore";
 import { initNetworkListeners } from "./shared/stores/networkStore";
 import { useDownloadsStore } from "./shared/stores/downloadsStore";
 import { useLocalLibraryStore } from "./shared/offline/localLibrary";
+
+// Split the two app shells: a client user never downloads the admin bundle and
+// vice-versa. Auth pages stay eager — they're the entry point.
+const ClientRoutes = lazy(() => import("./client/routes/clientRoutes"));
+const AdminRoutes = lazy(() => import("./admin/routes/adminRoutes"));
 
 function App() {
   const queryClient = useQueryClient();
@@ -48,15 +52,17 @@ function App() {
 
   return (
     <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<Login />} />
-        <Route path="/register" element={<Register />} />
-        <Route path="/forgot-password" element={<ForgotPassword />} />
-        <Route path="/verify-code" element={<VerifyCode />} />
-        <Route path="/change-password" element={<ChangePassword />} />
-        <Route path="/admin/*" element={<AdminRoutes />} />
-        <Route path="/*" element={<ClientRoutes />} />
-      </Routes>
+      <Suspense fallback={<RouteFallback />}>
+        <Routes>
+          <Route path="/" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/verify-code" element={<VerifyCode />} />
+          <Route path="/change-password" element={<ChangePassword />} />
+          <Route path="/admin/*" element={<AdminRoutes />} />
+          <Route path="/*" element={<ClientRoutes />} />
+        </Routes>
+      </Suspense>
       <PWAInstallBanner />
       <UpsellModal />
     </BrowserRouter>

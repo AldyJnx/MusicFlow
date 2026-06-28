@@ -1,5 +1,4 @@
 import { create } from "zustand";
-import { parseBlob } from "music-metadata";
 import {
   getElectronAPI,
   isElectron,
@@ -52,6 +51,9 @@ async function metaFromFile(
   let durationMs = 0;
   let cover: Blob | null = null;
   try {
+    // Loaded on demand (only when scanning local files) so the ~200 KB parser
+    // never lands in the initial bundle.
+    const { parseBlob } = await import("music-metadata");
     const md = await parseBlob(file, { duration: true });
     if (md.common.title) title = md.common.title;
     if (md.common.artist) artist = md.common.artist;
