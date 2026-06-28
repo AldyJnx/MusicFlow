@@ -5,6 +5,7 @@ import 'package:musicflow_mobile/core/widgets/mini_player_bar.dart';
 import 'package:musicflow_mobile/features/catalog/catalog_mappers.dart';
 import 'package:musicflow_mobile/features/catalog/providers/catalog_providers.dart';
 import 'package:musicflow_mobile/features/catalog/widgets/catalog_widgets.dart';
+import 'package:musicflow_mobile/features/downloads/widgets/download_button.dart';
 import 'package:musicflow_mobile/features/player/providers/player_controller.dart';
 import 'package:musicflow_mobile/shared/models/catalog.dart';
 
@@ -138,7 +139,10 @@ class _AlbumBody extends ConsumerWidget {
                   fontWeight: FontWeight.w600,
                 ),
               ),
-              trailing: Icon(Icons.play_arrow_rounded, color: colors.textMuted),
+              trailing: switch (e.value.toDownloadable()) {
+                final d? => DownloadButton(track: d),
+                _ => null,
+              },
             ),
           ),
         ],

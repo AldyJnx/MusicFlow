@@ -7,6 +7,7 @@ import 'package:musicflow_mobile/core/widgets/mini_player_bar.dart';
 import 'package:musicflow_mobile/features/catalog/catalog_mappers.dart';
 import 'package:musicflow_mobile/features/catalog/providers/catalog_providers.dart';
 import 'package:musicflow_mobile/features/catalog/widgets/catalog_widgets.dart';
+import 'package:musicflow_mobile/features/downloads/widgets/download_button.dart';
 import 'package:musicflow_mobile/features/player/providers/player_controller.dart';
 import 'package:musicflow_mobile/shared/models/catalog.dart';
 
@@ -278,7 +279,13 @@ class _TrackRow extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
               style: TextStyle(color: colors.textMuted, fontSize: 12),
             ),
-      trailing: Icon(Icons.play_arrow_rounded, color: colors.textMuted),
+      trailing: _trailing(),
     );
+  }
+
+  Widget? _trailing() {
+    final downloadable = track.toDownloadable();
+    if (downloadable == null) return null;
+    return DownloadButton(track: downloadable);
   }
 }

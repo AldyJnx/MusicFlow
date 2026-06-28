@@ -51,15 +51,29 @@ class CatalogScreen extends ConsumerWidget {
               return CustomScrollView(
                 slivers: [
                   SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+                    padding: const EdgeInsets.fromLTRB(20, 16, 8, 8),
                     sliver: SliverToBoxAdapter(
-                      child: Text(
-                        'Catálogo',
-                        style: Theme.of(context).textTheme.headlineSmall
-                            ?.copyWith(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w900,
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              'Catálogo',
+                              style: Theme.of(context).textTheme.headlineSmall
+                                  ?.copyWith(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w900,
+                                  ),
                             ),
+                          ),
+                          IconButton(
+                            tooltip: 'Descargas',
+                            icon: Icon(
+                              Icons.download_for_offline_outlined,
+                              color: colors.primary,
+                            ),
+                            onPressed: () => context.push(AppRoutes.downloads),
+                          ),
+                        ],
                       ),
                     ),
                   ),

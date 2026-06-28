@@ -9,6 +9,7 @@ import 'package:musicflow_mobile/features/auth/register_screen.dart';
 import 'package:musicflow_mobile/features/catalog/screens/catalog_album_screen.dart';
 import 'package:musicflow_mobile/features/catalog/screens/catalog_artist_screen.dart';
 import 'package:musicflow_mobile/features/catalog/screens/catalog_screen.dart';
+import 'package:musicflow_mobile/features/downloads/screens/downloads_screen.dart';
 import 'package:musicflow_mobile/features/equalizer/screens/equalizer_screen.dart';
 import 'package:musicflow_mobile/features/equalizer/screens/playlist_equalizer_screen.dart';
 import 'package:musicflow_mobile/features/equalizer/screens/temporal_segments_screen.dart';
@@ -72,6 +73,10 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (_, state) {
           return CatalogAlbumScreen(albumId: state.pathParameters['id'] ?? '');
         },
+      ),
+      GoRoute(
+        path: AppRoutes.downloads,
+        builder: (_, __) => const DownloadsScreen(),
       ),
       GoRoute(
         path: '${AppRoutes.playlist}/:id',

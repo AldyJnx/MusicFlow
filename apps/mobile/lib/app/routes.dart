@@ -18,6 +18,9 @@ abstract final class AppRoutes {
   static const String catalogArtist = '/catalog/artist';
   static const String catalogAlbum = '/catalog/album';
 
+  // Offline
+  static const String downloads = '/downloads';
+
   static const String profile = '/profile';
   static const String editProfile = '/profile/edit';
   static const String paymentMethods = '/profile/payment-methods';

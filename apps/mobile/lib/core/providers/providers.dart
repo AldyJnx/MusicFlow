@@ -6,6 +6,7 @@ import 'package:musicflow_mobile/core/api/catalog_repository.dart';
 import 'package:musicflow_mobile/core/api/dio_client.dart';
 import 'package:musicflow_mobile/core/api/equalizer_repository.dart';
 import 'package:musicflow_mobile/core/api/playlists_repository.dart';
+import 'package:musicflow_mobile/features/downloads/downloads_repository.dart';
 import 'package:musicflow_mobile/core/api/tracks_repository.dart';
 import 'package:musicflow_mobile/core/storage/token_storage.dart';
 
@@ -44,4 +45,8 @@ final equalizerRepositoryProvider = Provider<EqualizerRepository>((ref) {
 
 final catalogRepositoryProvider = Provider<CatalogRepository>((ref) {
   return CatalogRepository(ref.watch(dioClientProvider));
+});
+
+final downloadsRepositoryProvider = Provider<DownloadsRepository>((ref) {
+  return DownloadsRepository();
 });
