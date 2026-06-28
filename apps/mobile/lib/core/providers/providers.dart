@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:musicflow_mobile/core/api/ai_agent_repository.dart';
 import 'package:musicflow_mobile/core/api/analytics_repository.dart';
 import 'package:musicflow_mobile/core/api/auth_repository.dart';
+import 'package:musicflow_mobile/core/api/catalog_repository.dart';
 import 'package:musicflow_mobile/core/api/dio_client.dart';
 import 'package:musicflow_mobile/core/api/equalizer_repository.dart';
 import 'package:musicflow_mobile/core/api/playlists_repository.dart';
@@ -39,4 +40,8 @@ final analyticsRepositoryProvider = Provider<AnalyticsRepository>((ref) {
 
 final equalizerRepositoryProvider = Provider<EqualizerRepository>((ref) {
   return EqualizerRepository(ref.watch(dioClientProvider));
+});
+
+final catalogRepositoryProvider = Provider<CatalogRepository>((ref) {
+  return CatalogRepository(ref.watch(dioClientProvider));
 });

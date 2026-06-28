@@ -12,6 +12,12 @@ abstract final class AppRoutes {
   static const String playlistEqualizer = '/equalizer/playlist';
   static const String temporalSegments = '/equalizer/segments';
   static const String artist = '/artist';
+
+  // Catalog (Spotify-like shared browse)
+  static const String catalog = '/catalog';
+  static const String catalogArtist = '/catalog/artist';
+  static const String catalogAlbum = '/catalog/album';
+
   static const String profile = '/profile';
   static const String editProfile = '/profile/edit';
   static const String paymentMethods = '/profile/payment-methods';
