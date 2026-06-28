@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import {
   Disc3,
   Loader2,
@@ -52,6 +53,7 @@ function LyricsModal({
   title: string;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const [lrc, setLrc] = useState("");
   const [loaded, setLoaded] = useState(false);
 
@@ -89,7 +91,7 @@ function LyricsModal({
         <div className="flex items-center justify-between border-b border-[var(--color-line)] px-5 py-4">
           <div>
             <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-accent)]">
-              Letra
+              {t("catalog.lyrics", { defaultValue: "Letra" })}
             </p>
             <h3 className="text-sm font-bold text-[var(--color-text)]">
               {title}
@@ -105,8 +107,14 @@ function LyricsModal({
         </div>
         <div className="flex-1 overflow-y-auto p-5">
           <p className="mb-2 text-xs text-[var(--color-muted)]">
-            Pega la letra. Si usa marcas de tiempo <code>[mm:ss.xx]</code> se
-            sincroniza con la reproducción; si no, se guarda como texto plano.
+            {t("catalog.lyricsHintBefore", {
+              defaultValue: "Pega la letra. Si usa marcas de tiempo",
+            })}{" "}
+            <code>[mm:ss.xx]</code>{" "}
+            {t("catalog.lyricsHintAfter", {
+              defaultValue:
+                "se sincroniza con la reproducción; si no, se guarda como texto plano.",
+            })}
           </p>
           {lyricsQ.isLoading ? (
             <div className="flex h-40 items-center justify-center">
@@ -128,7 +136,7 @@ function LyricsModal({
             onClick={onClose}
             className="rounded-xl border border-[var(--color-line)] bg-white/[0.04] px-4 py-2 text-sm font-medium text-[var(--color-muted)] hover:text-[var(--color-text)]"
           >
-            Cancelar
+            {t("catalog.cancel", { defaultValue: "Cancelar" })}
           </button>
           <button
             type="button"
@@ -141,7 +149,7 @@ function LyricsModal({
             ) : (
               <Save className="h-4 w-4" />
             )}
-            Guardar letra
+            {t("catalog.saveLyrics", { defaultValue: "Guardar letra" })}
           </button>
         </div>
       </div>
@@ -151,6 +159,7 @@ function LyricsModal({
 
 // ── Artist detail panel ────────────────────────────────────────────────────────
 function ArtistEditor({ artistId }: { artistId: string }) {
+  const { t } = useTranslation();
   const qc = useQueryClient();
   const artistQ = useQuery({
     queryKey: ["catalog", "artist", artistId],
@@ -232,18 +241,18 @@ function ArtistEditor({ artistId }: { artistId: string }) {
         </div>
         <div className="grid flex-1 grid-cols-2 gap-3">
           <Field
-            label="Nombre"
+            label={t("catalog.name", { defaultValue: "Nombre" })}
             value={name}
             onChange={(e) => setName(e.target.value)}
           />
           <Field
-            label="Imagen (URL)"
+            label={t("catalog.imageUrl", { defaultValue: "Imagen (URL)" })}
             value={imageUrl}
             onChange={(e) => setImageUrl(e.target.value)}
           />
           <label className="col-span-2 flex flex-col gap-1">
             <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-muted)]">
-              Bio
+              {t("catalog.bio", { defaultValue: "Bio" })}
             </span>
             <textarea
               value={bio}
@@ -264,7 +273,7 @@ function ArtistEditor({ artistId }: { artistId: string }) {
               ) : (
                 <Save className="h-4 w-4" />
               )}
-              Guardar artista
+              {t("catalog.saveArtist", { defaultValue: "Guardar artista" })}
             </button>
           </div>
         </div>
@@ -275,17 +284,22 @@ function ArtistEditor({ artistId }: { artistId: string }) {
         <div className="mb-3 flex items-center gap-2">
           <Disc3 className="h-4 w-4 text-[var(--color-accent)]" />
           <h3 className="text-sm font-bold uppercase tracking-wider text-[var(--color-text)]">
-            Álbumes ({artist.albums.length})
+            {t("catalog.albums", {
+              defaultValue: "Álbumes ({{count}})",
+              count: artist.albums.length,
+            })}
           </h3>
         </div>
         <div className="mb-3 flex flex-wrap items-end gap-2 rounded-xl border border-[var(--color-line)] bg-[var(--color-glass)] p-3">
           <Field
-            label="Título del álbum"
+            label={t("catalog.albumTitle", {
+              defaultValue: "Título del álbum",
+            })}
             value={albumTitle}
             onChange={(e) => setAlbumTitle(e.target.value)}
           />
           <Field
-            label="Año"
+            label={t("catalog.year", { defaultValue: "Año" })}
             type="number"
             value={albumYear}
             onChange={(e) => setAlbumYear(e.target.value)}
@@ -296,7 +310,8 @@ function ArtistEditor({ artistId }: { artistId: string }) {
             disabled={!albumTitle || addAlbum.isPending}
             className="inline-flex items-center gap-2 rounded-xl border border-[var(--color-line)] bg-white/[0.04] px-4 py-2 text-sm font-semibold text-[var(--color-text)] hover:border-[var(--color-primary)] disabled:opacity-50"
           >
-            <Plus className="h-4 w-4" /> Crear álbum
+            <Plus className="h-4 w-4" />{" "}
+            {t("catalog.createAlbum", { defaultValue: "Crear álbum" })}
           </button>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -310,7 +325,10 @@ function ArtistEditor({ artistId }: { artistId: string }) {
               </span>
               <span className="text-xs text-[var(--color-muted)]">
                 {al.year ? `${al.year} · ` : ""}
-                {al.trackCount} canc.
+                {t("catalog.trackCountShort", {
+                  defaultValue: "{{count}} canc.",
+                  count: al.trackCount,
+                })}
               </span>
               <button
                 type="button"
@@ -323,7 +341,10 @@ function ArtistEditor({ artistId }: { artistId: string }) {
           ))}
           {artist.albums.length === 0 ? (
             <p className="text-xs text-[var(--color-muted)]">
-              Aún no hay álbumes. Crea uno y asigna canciones abajo.
+              {t("catalog.noAlbums", {
+                defaultValue:
+                  "Aún no hay álbumes. Crea uno y asigna canciones abajo.",
+              })}
             </p>
           ) : null}
         </div>
@@ -334,7 +355,10 @@ function ArtistEditor({ artistId }: { artistId: string }) {
         <div className="mb-3 flex items-center gap-2">
           <Music4 className="h-4 w-4 text-[var(--color-primary)]" />
           <h3 className="text-sm font-bold uppercase tracking-wider text-[var(--color-text)]">
-            Canciones ({artist.tracks.length})
+            {t("catalog.tracks", {
+              defaultValue: "Canciones ({{count}})",
+              count: artist.tracks.length,
+            })}
           </h3>
         </div>
         <div className="flex flex-col divide-y divide-[var(--color-line)] overflow-hidden rounded-xl border border-[var(--color-line)]">
@@ -365,7 +389,9 @@ function ArtistEditor({ artistId }: { artistId: string }) {
                 }
                 className="rounded-lg border border-[var(--color-line)] bg-[var(--color-surface)] px-2 py-1.5 text-xs text-[var(--color-text)] outline-none"
               >
-                <option value="">— Sin álbum —</option>
+                <option value="">
+                  {t("catalog.noAlbum", { defaultValue: "— Sin álbum —" })}
+                </option>
                 {artist.albums.map((al) => (
                   <option key={al.id} value={al.id}>
                     {al.title}
@@ -377,7 +403,7 @@ function ArtistEditor({ artistId }: { artistId: string }) {
                 onClick={() => setLyricsTrack({ id: tr.id, title: tr.title })}
                 className="rounded-lg border border-[var(--color-line)] bg-white/[0.04] px-3 py-1.5 text-xs font-semibold text-[var(--color-muted)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]"
               >
-                Letra
+                {t("catalog.lyrics", { defaultValue: "Letra" })}
               </button>
             </div>
           ))}
@@ -397,6 +423,7 @@ function ArtistEditor({ artistId }: { artistId: string }) {
 
 // ── Page ───────────────────────────────────────────────────────────────────────
 export default function CatalogPage() {
+  const { t } = useTranslation();
   const qc = useQueryClient();
   const artistsQ = useQuery({
     queryKey: ["catalog", "artists"],
@@ -438,10 +465,13 @@ export default function CatalogPage() {
     <div className="flex h-full flex-col gap-4 p-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-[var(--color-text)]">
-          Catálogo
+          {t("catalog.title", { defaultValue: "Catálogo" })}
         </h1>
         <p className="text-sm text-[var(--color-muted)]">
-          Define las relaciones: artistas, sus álbumes, canciones y letras.
+          {t("catalog.subtitle", {
+            defaultValue:
+              "Define las relaciones: artistas, sus álbumes, canciones y letras.",
+          })}
         </p>
       </div>
 
@@ -451,14 +481,18 @@ export default function CatalogPage() {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar artista…"
+            placeholder={t("catalog.searchArtist", {
+              defaultValue: "Buscar artista…",
+            })}
             className="rounded-lg border border-[var(--color-line)] bg-white/[0.04] px-3 py-2 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-primary)]"
           />
           <div className="flex gap-2">
             <input
               value={newArtist}
               onChange={(e) => setNewArtist(e.target.value)}
-              placeholder="Nuevo artista…"
+              placeholder={t("catalog.newArtist", {
+                defaultValue: "Nuevo artista…",
+              })}
               className="min-w-0 flex-1 rounded-lg border border-[var(--color-line)] bg-white/[0.04] px-3 py-2 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-primary)]"
             />
             <button
@@ -496,7 +530,11 @@ export default function CatalogPage() {
                     {a.name}
                   </span>
                   <span className="block text-[11px] text-[var(--color-muted)]">
-                    {a.albumCount} álb · {a.trackCount} canc
+                    {t("catalog.artistMeta", {
+                      defaultValue: "{{albums}} álb · {{tracks}} canc",
+                      albums: a.albumCount,
+                      tracks: a.trackCount,
+                    })}
                   </span>
                 </span>
               </button>
@@ -514,7 +552,10 @@ export default function CatalogPage() {
                   onClick={() => {
                     if (
                       confirm(
-                        "¿Eliminar este artista? Sus canciones quedan sin artista.",
+                        t("catalog.deleteArtistConfirm", {
+                          defaultValue:
+                            "¿Eliminar este artista? Sus canciones quedan sin artista.",
+                        }),
                       )
                     ) {
                       removeArtist.mutate(selected);
@@ -522,14 +563,19 @@ export default function CatalogPage() {
                   }}
                   className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--color-line)] px-3 py-1.5 text-xs font-semibold text-[var(--color-muted)] hover:border-rose-400/50 hover:text-rose-400"
                 >
-                  <Trash2 className="h-3.5 w-3.5" /> Eliminar artista
+                  <Trash2 className="h-3.5 w-3.5" />{" "}
+                  {t("catalog.deleteArtist", {
+                    defaultValue: "Eliminar artista",
+                  })}
                 </button>
               </div>
               <ArtistEditor artistId={selected} />
             </>
           ) : (
             <p className="text-sm text-[var(--color-muted)]">
-              Selecciona o crea un artista.
+              {t("catalog.selectArtist", {
+                defaultValue: "Selecciona o crea un artista.",
+              })}
             </p>
           )}
         </div>

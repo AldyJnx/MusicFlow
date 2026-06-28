@@ -500,5 +500,61 @@
         "detectSegments": "Detect segments"
       }
     }
+  },
+  "album": {
+    "back": "Back",
+    "eyebrow": "Album",
+    "songsCount": "{{count}} songs",
+    "play": "Play",
+    "loading": "Loading…",
+    "empty": "This album has no tracks assigned yet."
+  },
+  "downloads": {
+    "eyebrow": "Offline",
+    "title": "Downloads",
+    "available": "{{count}} songs available without internet.",
+    "offlineMode": "Offline mode",
+    "online": "Online",
+    "banner": "You're in offline mode: only your downloads play. When the internet returns, the catalog comes back automatically.",
+    "empty": "You haven't downloaded anything yet. Tap the download icon on any song to listen offline.",
+    "removeDownload": "Remove download",
+    "localTitle": "My local files",
+    "localFolder": "Folder: {{name}} · {{count}} tracks",
+    "localHint": "Play music from your device, without uploading it.",
+    "rescan": "Rescan",
+    "pickFolderTitle": "Choose a music folder",
+    "pickFolderUnsupportedTitle": "Your browser doesn't support folder access (use the desktop app)",
+    "changeFolder": "Change folder",
+    "addFolder": "Add folder",
+    "localUnsupported": "This browser can't read local folders. In the desktop app (Electron) they're recognized automatically.",
+    "localEmpty": "You haven't added a folder yet. \"Add folder\" recognizes your audio files and plays them offline.",
+    "localBadge": "Local"
+  },
+  "catalog": {
+    "title": "Catalog",
+    "subtitle": "Define the relationships: artists, their albums, tracks and lyrics.",
+    "searchArtist": "Search artist…",
+    "newArtist": "New artist…",
+    "artistMeta": "{{albums}} alb · {{tracks}} tr",
+    "selectArtist": "Select or create an artist.",
+    "deleteArtist": "Delete artist",
+    "deleteArtistConfirm": "Delete this artist? Their tracks will be left without an artist.",
+    "name": "Name",
+    "imageUrl": "Image (URL)",
+    "bio": "Bio",
+    "saveArtist": "Save artist",
+    "albums": "Albums ({{count}})",
+    "albumTitle": "Album title",
+    "year": "Year",
+    "createAlbum": "Create album",
+    "trackCountShort": "{{count}} tr.",
+    "noAlbums": "No albums yet. Create one and assign tracks below.",
+    "tracks": "Tracks ({{count}})",
+    "noAlbum": "— No album —",
+    "lyrics": "Lyrics",
+    "lyricsHintBefore": "Paste the lyrics. If it uses timestamps",
+    "lyricsHintAfter": "it syncs with playback; otherwise it's saved as plain text.",
+    "cancel": "Cancel",
+    "saveLyrics": "Save lyrics"
   }
 }

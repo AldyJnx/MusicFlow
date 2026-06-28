@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import {
   CloudOff,
   Download,
@@ -27,6 +28,7 @@ function fmt(ms: number): string {
 }
 
 export default function DownloadsPage() {
+  const { t } = useTranslation();
   const items = useDownloadsStore((s) => s.items);
   const remove = useDownloadsStore((s) => s.remove);
   const effectiveOffline = useNetworkStore((s) => s.effectiveOffline);
@@ -87,16 +89,19 @@ export default function DownloadsPage() {
                 className="text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--color-accent)]"
                 style={{ fontFamily: "var(--font-mono)" }}
               >
-                Sin conexión
+                {t("downloads.eyebrow", { defaultValue: "Sin conexión" })}
               </p>
               <h1
                 className="text-3xl font-extrabold tracking-tight sm:text-4xl"
                 style={{ fontFamily: "var(--font-display)" }}
               >
-                Descargas
+                {t("downloads.title", { defaultValue: "Descargas" })}
               </h1>
               <p className="mt-1 text-sm text-[var(--color-muted)]">
-                {list.length} canciones disponibles sin internet.
+                {t("downloads.available", {
+                  defaultValue: "{{count}} canciones disponibles sin internet.",
+                  count: list.length,
+                })}
               </p>
             </div>
 
@@ -115,15 +120,21 @@ export default function DownloadsPage() {
               ) : (
                 <Wifi className="h-4 w-4" strokeWidth={2.2} />
               )}
-              {effectiveOffline ? "Modo sin conexión" : "En línea"}
+              {effectiveOffline
+                ? t("downloads.offlineMode", {
+                    defaultValue: "Modo sin conexión",
+                  })
+                : t("downloads.online", { defaultValue: "En línea" })}
             </button>
           </div>
 
           {effectiveOffline ? (
             <div className="mb-5 flex items-center gap-2 rounded-xl border border-[color-mix(in_srgb,var(--color-accent)_40%,transparent)] bg-[color-mix(in_srgb,var(--color-accent)_10%,transparent)] px-4 py-3 text-sm text-[var(--color-text)]">
               <CloudOff className="h-4 w-4 flex-none text-[var(--color-accent)]" />
-              Estás en modo sin conexión: solo se reproducen tus descargas. Al
-              volver el internet, el catálogo regresa automáticamente.
+              {t("downloads.banner", {
+                defaultValue:
+                  "Estás en modo sin conexión: solo se reproducen tus descargas. Al volver el internet, el catálogo regresa automáticamente.",
+              })}
             </div>
           ) : null}
 
@@ -134,8 +145,10 @@ export default function DownloadsPage() {
                 strokeWidth={1.6}
               />
               <p className="text-sm text-[var(--color-muted)]">
-                Aún no descargas nada. Toca el ícono de descarga en cualquier
-                canción para escucharla sin conexión.
+                {t("downloads.empty", {
+                  defaultValue:
+                    "Aún no descargas nada. Toca el ícono de descarga en cualquier canción para escucharla sin conexión.",
+                })}
               </p>
             </div>
           ) : (
@@ -188,7 +201,9 @@ export default function DownloadsPage() {
                     <button
                       type="button"
                       onClick={() => void remove(m.id)}
-                      title="Quitar descarga"
+                      title={t("downloads.removeDownload", {
+                        defaultValue: "Quitar descarga",
+                      })}
                       className="text-[var(--color-muted)] transition hover:text-rose-400"
                     >
                       <Trash2 className="h-4 w-4" />
@@ -209,13 +224,22 @@ export default function DownloadsPage() {
                     className="text-lg font-bold tracking-tight"
                     style={{ fontFamily: "var(--font-display)" }}
                   >
-                    Mis archivos locales
+                    {t("downloads.localTitle", {
+                      defaultValue: "Mis archivos locales",
+                    })}
                   </h2>
                 </div>
                 <p className="text-xs text-[var(--color-muted)]">
                   {localFolder
-                    ? `Carpeta: ${localFolder} · ${locals.length} pistas`
-                    : "Reproduce música de tu dispositivo, sin subirla."}
+                    ? t("downloads.localFolder", {
+                        defaultValue: "Carpeta: {{name}} · {{count}} pistas",
+                        name: localFolder,
+                        count: locals.length,
+                      })
+                    : t("downloads.localHint", {
+                        defaultValue:
+                          "Reproduce música de tu dispositivo, sin subirla.",
+                      })}
                 </p>
               </div>
               <div className="flex items-center gap-2">
@@ -229,7 +253,7 @@ export default function DownloadsPage() {
                     {scanning ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
                     ) : null}
-                    Reescanear
+                    {t("downloads.rescan", { defaultValue: "Reescanear" })}
                   </button>
                 ) : null}
                 <button
@@ -238,26 +262,41 @@ export default function DownloadsPage() {
                   disabled={!localSupported() || scanning}
                   title={
                     localSupported()
-                      ? "Elegir una carpeta de música"
-                      : "Tu navegador no soporta acceso a carpetas (usa la app de escritorio)"
+                      ? t("downloads.pickFolderTitle", {
+                          defaultValue: "Elegir una carpeta de música",
+                        })
+                      : t("downloads.pickFolderUnsupportedTitle", {
+                          defaultValue:
+                            "Tu navegador no soporta acceso a carpetas (usa la app de escritorio)",
+                        })
                   }
                   className="inline-flex items-center gap-2 rounded-full bg-[var(--color-primary)] px-4 py-2 text-xs font-bold text-[var(--color-primary-contrast)] transition hover:opacity-90 disabled:opacity-40"
                 >
                   <FolderPlus className="h-4 w-4" />
-                  {localFolder ? "Cambiar carpeta" : "Agregar carpeta"}
+                  {localFolder
+                    ? t("downloads.changeFolder", {
+                        defaultValue: "Cambiar carpeta",
+                      })
+                    : t("downloads.addFolder", {
+                        defaultValue: "Agregar carpeta",
+                      })}
                 </button>
               </div>
             </div>
 
             {!localSupported() ? (
               <p className="rounded-xl border border-dashed border-[var(--color-line)] p-4 text-xs text-[var(--color-muted)]">
-                Este navegador no permite leer carpetas locales. En la app de
-                escritorio (Electron) se reconocen automáticamente.
+                {t("downloads.localUnsupported", {
+                  defaultValue:
+                    "Este navegador no permite leer carpetas locales. En la app de escritorio (Electron) se reconocen automáticamente.",
+                })}
               </p>
             ) : locals.length === 0 ? (
               <p className="rounded-xl border border-dashed border-[var(--color-line)] p-4 text-xs text-[var(--color-muted)]">
-                Aún no agregas una carpeta. "Agregar carpeta" reconoce tus
-                archivos de audio y los reproduce sin conexión.
+                {t("downloads.localEmpty", {
+                  defaultValue:
+                    'Aún no agregas una carpeta. "Agregar carpeta" reconoce tus archivos de audio y los reproduce sin conexión.',
+                })}
               </p>
             ) : (
               <div className="flex flex-col overflow-hidden rounded-2xl border border-[var(--color-line)]">
@@ -306,7 +345,7 @@ export default function DownloadsPage() {
                         {m.durationMs ? fmt(m.durationMs) : "—"}
                       </span>
                       <span className="text-right text-[10px] font-semibold uppercase tracking-wider text-[var(--color-primary)]">
-                        Local
+                        {t("downloads.localBadge", { defaultValue: "Local" })}
                       </span>
                     </button>
                   );

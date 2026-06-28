@@ -1,5 +1,6 @@
 import { ArrowLeft, Disc3, Play } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router-dom";
 
 import ClientLayout from "../layout/ClientLayout";
@@ -27,6 +28,7 @@ function toPlayerTrack(t: CatalogTrackCard): PlayerTrack | null {
 }
 
 export default function AlbumPage() {
+  const { t } = useTranslation();
   const { id = "" } = useParams();
   const navigate = useNavigate();
   const playTrackList = usePlayerStore((s) => s.playTrackList);
@@ -71,7 +73,7 @@ export default function AlbumPage() {
               className="inline-flex w-fit items-center gap-1.5 rounded-full bg-[var(--color-surface)]/70 px-3 py-1.5 text-xs font-semibold text-[var(--color-muted)] backdrop-blur transition hover:text-[var(--color-text)]"
             >
               <ArrowLeft className="h-3 w-3" strokeWidth={2.4} />
-              Volver
+              {t("album.back", { defaultValue: "Volver" })}
             </button>
 
             <div className="flex items-end gap-6">
@@ -96,7 +98,7 @@ export default function AlbumPage() {
                   className="text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--color-accent)]"
                   style={{ fontFamily: "var(--font-mono)" }}
                 >
-                  Álbum
+                  {t("album.eyebrow", { defaultValue: "Álbum" })}
                 </p>
                 <h1
                   className="truncate text-4xl font-extrabold tracking-tight sm:text-5xl"
@@ -114,7 +116,9 @@ export default function AlbumPage() {
                 >
                   {album?.artist.name}
                   {album?.year ? ` · ${album.year}` : ""}
-                  {album ? ` · ${album.tracks.length} canciones` : ""}
+                  {album
+                    ? ` · ${t("album.songsCount", { defaultValue: "{{count}} canciones", count: album.tracks.length })}`
+                    : ""}
                 </button>
               </div>
             </div>
@@ -131,7 +135,7 @@ export default function AlbumPage() {
                 }}
               >
                 <Play className="h-4 w-4" fill="currentColor" />
-                Reproducir
+                {t("album.play", { defaultValue: "Reproducir" })}
               </button>
             </div>
           </div>
@@ -140,7 +144,9 @@ export default function AlbumPage() {
         {/* Tracklist */}
         <div className="mx-auto max-w-4xl px-8 pb-12">
           {albumQ.isLoading ? (
-            <p className="text-sm text-[var(--color-muted)]">Cargando…</p>
+            <p className="text-sm text-[var(--color-muted)]">
+              {t("album.loading", { defaultValue: "Cargando…" })}
+            </p>
           ) : album && album.tracks.length ? (
             <div className="flex flex-col">
               {album.tracks.map((tr, i) => {
@@ -175,7 +181,9 @@ export default function AlbumPage() {
             </div>
           ) : (
             <p className="text-sm text-[var(--color-muted)]">
-              Este álbum aún no tiene canciones asignadas.
+              {t("album.empty", {
+                defaultValue: "Este álbum aún no tiene canciones asignadas.",
+              })}
             </p>
           )}
         </div>
