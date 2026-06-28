@@ -116,14 +116,13 @@ export class CatalogService {
   private async uniqueSlug(name: string, excludeId?: string): Promise<string> {
     const base = slugify(name);
     let slug = base;
-    let n = 1;
-    while (true) {
+    for (let n = 1; ; n++) {
       const clash = await this.prisma.artist.findFirst({
         where: { slug, ...(excludeId ? { id: { not: excludeId } } : {}) },
         select: { id: true },
       });
       if (!clash) return slug;
-      slug = `${base}-${++n}`;
+      slug = `${base}-${n + 1}`;
     }
   }
 

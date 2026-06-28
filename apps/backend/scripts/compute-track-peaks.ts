@@ -11,7 +11,6 @@
  */
 import { readFileSync } from "fs";
 import { join } from "path";
-import { GetObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { PrismaClient } from "@prisma/client";
 
 // ── env ──────────────────────────────────────────────────────────────────────
@@ -25,15 +24,6 @@ function loadEnv() {
 loadEnv();
 
 const PEAKS_N = Number(process.env.PEAKS_N ?? 2000);
-
-const s3 = new S3Client({
-  endpoint: process.env.R2_ENDPOINT,
-  region: process.env.R2_REGION || "auto",
-  credentials: {
-    accessKeyId: process.env.R2_ACCESS_KEY!,
-    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
-  },
-});
 
 const prisma = new PrismaClient();
 
@@ -148,13 +138,13 @@ async function extractPeaksFromUrl(
   let totalBytesRead = 0;
 
   const N = PEAKS_N;
-  let peaks: number[] = new Array(N).fill(0);
+  const peaks: number[] = new Array(N).fill(0);
   let framesPerBucket = 1;
   let frameIdx = 0;
   let pcmStart = 0;
 
   // Read until done.
-  while (true) {
+  for (;;) {
     const { value, done } = await reader.read();
     if (done) break;
     const chunk = Buffer.from(value);
@@ -282,7 +272,7 @@ async function main() {
 
   let cursor = 0;
   async function worker(workerId: number) {
-    while (true) {
+    for (;;) {
       const idx = cursor++;
       if (idx >= jobs.length) return;
       const t = jobs[idx];

@@ -255,7 +255,6 @@ function PlaylistCard({ playlist }: { playlist: Playlist }) {
       >
         <div className="relative flex aspect-square w-full items-center justify-center overflow-hidden rounded-2xl bg-[var(--color-surface-alt)]">
           {playlist.coverArt ? (
-            // eslint-disable-next-line @next/next/no-img-element
             <img
               src={playlist.coverArt}
               alt={playlist.name}

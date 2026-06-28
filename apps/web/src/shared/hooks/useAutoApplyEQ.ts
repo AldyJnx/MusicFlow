@@ -51,7 +51,7 @@ export function useAutoApplyEQ(): void {
 
     let cancelled = false;
     void (async () => {
-      let cfg: EQConfig | null = null;
+      let cfg: EQConfig | null;
       try {
         cfg = await resolveConfig(
           currentTrackId,

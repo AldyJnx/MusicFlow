@@ -133,7 +133,10 @@ export class TracksService {
 
     // Strip the potentially-large lyrics from list payloads — they're fetched
     // on demand via GET /tracks/:id/lyrics. Keeps the catalog/library fast.
-    const tracks = rows.map(({ lyricsLrc, lyricsText, ...rest }) => rest);
+    const tracks = rows.map(
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      ({ lyricsLrc, lyricsText, ...rest }) => rest,
+    );
 
     return { tracks, total, skip, take };
   }
