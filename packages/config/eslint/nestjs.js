@@ -20,5 +20,12 @@ module.exports = {
         '@typescript-eslint/no-require-imports': 'off',
       },
     },
+    {
+      // One-off CLI scripts (seeds, backfills) — console IS their output.
+      files: ['scripts/**', 'prisma/seed.ts'],
+      rules: {
+        'no-console': 'off',
+      },
+    },
   ],
 };
