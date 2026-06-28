@@ -144,6 +144,27 @@ export async function assignTrack(
   return data;
 }
 
+/**
+ * Upload a brand-new catalog song (admin). Sends the audio as multipart and,
+ * when an artist/album is given, links the new track to them.
+ */
+export async function uploadCatalogTrack(
+  file: File,
+  opts: { artistId?: string; albumId?: string; title?: string },
+): Promise<CatalogTrackCard> {
+  const form = new FormData();
+  form.append("file", file);
+  if (opts.artistId) form.append("artistId", opts.artistId);
+  if (opts.albumId) form.append("albumId", opts.albumId);
+  if (opts.title) form.append("title", opts.title);
+  const { data } = await api.post<CatalogTrackCard>(
+    "/admin/catalog/tracks/upload",
+    form,
+    { headers: { "Content-Type": "multipart/form-data" } },
+  );
+  return data;
+}
+
 /** Save lyrics for a track (LRC and/or plain text). */
 export async function updateTrackLyrics(
   trackId: string,

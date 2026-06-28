@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -7,13 +8,21 @@ import {
   Patch,
   Post,
   Query,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from "@nestjs/common";
-import { ApiTags } from "@nestjs/swagger";
+import { FileInterceptor } from "@nestjs/platform-express";
+import { ApiConsumes, ApiTags } from "@nestjs/swagger";
 
 import { JwtAuthGuard } from "@/common/guards/jwt-auth.guard";
 import { RolesGuard } from "@/common/guards/roles.guard";
 import { Roles } from "@/common/decorators/roles.decorator";
+import { audioFileFilter } from "@/common/upload/audio-file-filter";
+import {
+  CurrentUser,
+  AuthUser,
+} from "@/common/decorators/current-user.decorator";
 import { CatalogService } from "./catalog.service";
 import {
   AssignTrackDto,
@@ -70,6 +79,29 @@ export class CatalogAdminController {
   }
 
   // Tracks
+  @Post("tracks/upload")
+  @UseInterceptors(
+    FileInterceptor("file", {
+      limits: { fileSize: 50 * 1024 * 1024 },
+      fileFilter: audioFileFilter,
+    }),
+  )
+  @ApiConsumes("multipart/form-data")
+  uploadTrack(
+    @CurrentUser() user: AuthUser,
+    @UploadedFile() file: Express.Multer.File,
+    @Body("artistId") artistId?: string,
+    @Body("albumId") albumId?: string,
+    @Body("title") title?: string,
+  ) {
+    if (!file) throw new BadRequestException("Missing file");
+    return this.catalog.uploadCatalogTrack(user.id, file, {
+      artistId,
+      albumId,
+      title,
+    });
+  }
+
   @Get("tracks/unassigned")
   unassigned(@Query("artistId") artistId?: string) {
     return this.catalog.unassignedTracks(artistId);

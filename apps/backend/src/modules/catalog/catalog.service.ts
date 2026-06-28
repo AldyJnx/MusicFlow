@@ -1,10 +1,14 @@
+import { createHash } from "crypto";
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
+import { TrackSource, SyncStatus } from "@prisma/client";
 
 import { PrismaService } from "@/prisma/prisma.service";
+import { StorageService } from "@/modules/storage/storage.service";
 import type {
   AssignTrackDto,
   CreateAlbumDto,
@@ -43,7 +47,109 @@ const trackCard = {
 
 @Injectable()
 export class CatalogService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly storage: StorageService,
+  ) {}
+
+  /**
+   * Admin upload of a brand-new catalog song: stores the audio in R2, extracts
+   * tags, and creates an `isCatalog` Track owned by the admin. When an artist
+   * and/or album id is given, the new track is linked and inherits the album's
+   * cover and the artist's name/image so it shows up correctly in the catalog.
+   */
+  async uploadCatalogTrack(
+    adminUserId: string,
+    file: Express.Multer.File,
+    opts: { artistId?: string; albumId?: string; title?: string },
+  ) {
+    const fileHash = createHash("sha256").update(file.buffer).digest("hex");
+    const existing = await this.prisma.track.findUnique({
+      where: { userId_fileHash: { userId: adminUserId, fileHash } },
+      select: { id: true },
+    });
+    if (existing) {
+      throw new ConflictException({
+        message: "Esta canción ya está en el catálogo",
+        trackId: existing.id,
+      });
+    }
+
+    // Resolve artist/album context up front so the row is consistent.
+    const artist = opts.artistId
+      ? await this.prisma.artist.findUnique({
+          where: { id: opts.artistId },
+          select: { id: true, name: true, imageUrl: true },
+        })
+      : null;
+    if (opts.artistId && !artist) {
+      throw new BadRequestException("artistId does not exist");
+    }
+    const album = opts.albumId
+      ? await this.prisma.album.findUnique({
+          where: { id: opts.albumId },
+          select: { id: true, title: true, coverArt: true, artistId: true },
+        })
+      : null;
+    if (opts.albumId && !album) {
+      throw new BadRequestException("albumId does not exist");
+    }
+    if (album && artist && album.artistId !== artist.id) {
+      throw new BadRequestException("El álbum no pertenece a ese artista");
+    }
+
+    const mm = await import("music-metadata");
+    const meta = await mm
+      .parseBuffer(file.buffer, file.mimetype)
+      .catch(() => null);
+
+    const upload = await this.storage.uploadAudio(file, "catalog");
+
+    // Next track number within the album, so order is sensible by default.
+    const albumOrder = album
+      ? (await this.prisma.track.count({ where: { albumId: album.id } })) + 1
+      : null;
+
+    return this.prisma.track.create({
+      data: {
+        userId: adminUserId,
+        title:
+          opts.title?.trim() ||
+          meta?.common.title ||
+          file.originalname.replace(/\.[^.]+$/, ""),
+        artist: artist?.name ?? meta?.common.artist ?? "Unknown Artist",
+        album: album?.title ?? meta?.common.album ?? "",
+        genre: meta?.common.genre?.[0],
+        year: meta?.common.year ?? undefined,
+        durationMs: Math.round((meta?.format.duration ?? 0) * 1000),
+        fileUrlRemote: upload.url,
+        fileHash,
+        fileSizeBytes: BigInt(file.size),
+        codec: meta?.format.codec,
+        bitrate: meta?.format.bitrate
+          ? Math.round(meta.format.bitrate / 1000)
+          : undefined,
+        sampleRate: meta?.format.sampleRate,
+        coverArt: album?.coverArt ?? null,
+        artistImage: artist?.imageUrl ?? null,
+        ...(artist ? { artistId: artist.id } : {}),
+        ...(album ? { albumId: album.id, albumOrder } : {}),
+        isCatalog: true,
+        source: TrackSource.SYNCED,
+        syncStatus: SyncStatus.SYNCED,
+      },
+      select: {
+        id: true,
+        title: true,
+        artist: true,
+        album: true,
+        coverArt: true,
+        durationMs: true,
+        albumId: true,
+        albumOrder: true,
+      },
+    });
+  }
 
   // ── Public reads ──────────────────────────────────────────────────────────
 

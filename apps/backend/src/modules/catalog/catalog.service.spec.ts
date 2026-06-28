@@ -52,7 +52,10 @@ describe("CatalogService", () => {
       },
       $transaction: jest.fn(),
     };
-    service = new CatalogService(prisma as unknown as PrismaService);
+    const storage = {
+      uploadAudio: jest.fn(),
+    } as unknown as import("@/modules/storage/storage.service").StorageService;
+    service = new CatalogService(prisma as unknown as PrismaService, storage);
   });
 
   describe("listArtists", () => {

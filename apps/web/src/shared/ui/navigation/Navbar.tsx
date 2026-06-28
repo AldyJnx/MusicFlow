@@ -19,6 +19,7 @@ import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import QuotaBadge from "../QuotaBadge";
 import OfflineIndicator from "../OfflineIndicator";
+import TierBadge from "../TierBadge";
 import { useAuthStore } from "../../stores/authStore";
 import { useGlobalSearch } from "../../hooks/useGlobalSearch";
 import {
@@ -188,6 +189,9 @@ const Navbar = forwardRef<NavbarRef, NavbarProps>(function Navbar(
 
       <div className="flex shrink-0 items-center gap-2">
         <OfflineIndicator />
+        {isAuthenticated ? (
+          <TierBadge className="hidden sm:inline-flex" />
+        ) : null}
         {isAuthenticated ? <QuotaBadge /> : null}
         <button
           type="button"

@@ -8,6 +8,7 @@ import {
   Plus,
   Save,
   Trash2,
+  UploadCloud,
   UserPlus,
   X,
 } from "lucide-react";
@@ -23,6 +24,7 @@ import {
   listCatalogArtists,
   updateArtist,
   updateTrackLyrics,
+  uploadCatalogTrack,
   type CatalogArtist,
 } from "../../shared/api/catalog";
 
@@ -176,6 +178,8 @@ function ArtistEditor({ artistId }: { artistId: string }) {
     id: string;
     title: string;
   } | null>(null);
+  const [uploadAlbumId, setUploadAlbumId] = useState("");
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
   useEffect(() => {
     if (artist) {
@@ -184,6 +188,24 @@ function ArtistEditor({ artistId }: { artistId: string }) {
       setBio(artist.bio ?? "");
     }
   }, [artist]);
+
+  const uploadSong = useMutation({
+    mutationFn: (file: File) =>
+      uploadCatalogTrack(file, {
+        artistId,
+        albumId: uploadAlbumId || undefined,
+      }),
+    onSuccess: () => {
+      setUploadError(null);
+      invalidate();
+    },
+    onError: (e: unknown) => {
+      const msg =
+        (e as { response?: { data?: { message?: string } } })?.response?.data
+          ?.message ?? "No se pudo subir la canción.";
+      setUploadError(msg);
+    },
+  });
 
   const invalidate = () => {
     void qc.invalidateQueries({ queryKey: ["catalog", "artist", artistId] });
@@ -361,6 +383,57 @@ function ArtistEditor({ artistId }: { artistId: string }) {
             })}
           </h3>
         </div>
+
+        {/* Upload a new catalog song for this artist (optionally into an album). */}
+        <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-dashed border-[var(--color-line)] bg-[var(--color-glass)] p-3">
+          <select
+            value={uploadAlbumId}
+            onChange={(e) => setUploadAlbumId(e.target.value)}
+            className="rounded-lg border border-[var(--color-line)] bg-[var(--color-surface)] px-2 py-1.5 text-xs text-[var(--color-text)] outline-none"
+          >
+            <option value="">
+              {t("catalog.noAlbum", { defaultValue: "— Sin álbum —" })}
+            </option>
+            {artist.albums.map((al) => (
+              <option key={al.id} value={al.id}>
+                {al.title}
+              </option>
+            ))}
+          </select>
+          <label
+            className={`inline-flex cursor-pointer items-center gap-2 rounded-xl bg-[var(--color-primary)] px-4 py-2 text-sm font-semibold text-[var(--color-primary-contrast)] ${
+              uploadSong.isPending ? "opacity-60" : "hover:opacity-90"
+            }`}
+          >
+            {uploadSong.isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <UploadCloud className="h-4 w-4" />
+            )}
+            {t("catalog.uploadSong", { defaultValue: "Subir canción" })}
+            <input
+              type="file"
+              accept="audio/*,.mp3,.flac,.wav,.m4a,.ogg,.aac,.opus"
+              className="hidden"
+              disabled={uploadSong.isPending}
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) uploadSong.mutate(file);
+                e.target.value = "";
+              }}
+            />
+          </label>
+          <span className="text-[11px] text-[var(--color-muted)]">
+            {t("catalog.uploadHint", {
+              defaultValue:
+                "El audio se sube al catálogo y se asigna al artista.",
+            })}
+          </span>
+          {uploadError ? (
+            <span className="w-full text-xs text-rose-400">{uploadError}</span>
+          ) : null}
+        </div>
+
         <div className="flex flex-col divide-y divide-[var(--color-line)] overflow-hidden rounded-xl border border-[var(--color-line)]">
           {artist.tracks.map((tr) => (
             <div
