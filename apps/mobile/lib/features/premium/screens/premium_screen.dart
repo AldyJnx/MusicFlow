@@ -1,22 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:musicflow_mobile/app/routes.dart';
+import 'package:musicflow_mobile/core/theme/musicflow_theme.dart';
 
 class PremiumScreen extends StatelessWidget {
   const PremiumScreen({super.key});
 
   static const Color _primaryBlue = Color(0xFF1E90FF);
   static const Color _accentCyan = Color(0xFF00CFFF);
-  static const Color _lightBlue = Color(0xFF4FC3F7);
-  static const Color _bgDark = Color(0xFF071A24);
-  static const Color _bgMid = Color(0xFF0A2230);
-  static const Color _bgTop = Color(0xFF0E3447);
   static const Color _cardDark = Color(0xFF121A21);
   static const Color _cardSoft = Color(0xFF18232D);
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final colors = context.musicFlowColors;
 
     const benefits = [
       (
@@ -44,13 +42,17 @@ class PremiumScreen extends StatelessWidget {
     ];
 
     return Scaffold(
-      backgroundColor: _bgDark,
+      backgroundColor: colors.background,
       body: Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [_bgTop, _bgMid, _bgDark],
+            colors: [
+              colors.gradientStart,
+              colors.gradientEnd,
+              colors.background,
+            ],
             stops: [0.0, 0.18, 0.62],
           ),
         ),
@@ -93,7 +95,7 @@ class PremiumScreen extends StatelessWidget {
                         TextSpan(
                           text: 'Experiencia Auditiva',
                           style: theme.textTheme.titleMedium?.copyWith(
-                            color: _accentCyan,
+                            color: colors.primary,
                             fontWeight: FontWeight.w900,
                           ),
                         ),
@@ -121,9 +123,9 @@ class PremiumScreen extends StatelessWidget {
                   child: Container(
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(999),
-                      boxShadow: const [
+                      boxShadow: [
                         BoxShadow(
-                          color: Color(0x5500CFFF),
+                          color: colors.shadow.withValues(alpha: 0.32),
                           blurRadius: 24,
                           offset: Offset(0, 8),
                         ),
@@ -132,8 +134,8 @@ class PremiumScreen extends StatelessWidget {
                     child: ElevatedButton(
                       onPressed: () {},
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: _lightBlue,
-                        foregroundColor: _bgDark,
+                        backgroundColor: colors.secondary,
+                        foregroundColor: colors.background,
                         elevation: 0,
                         padding: const EdgeInsets.symmetric(
                           horizontal: 34,
@@ -147,7 +149,7 @@ class PremiumScreen extends StatelessWidget {
                         'Actualizar a Premium',
                         style: theme.textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.w800,
-                          color: _bgDark,
+                          color: colors.background,
                         ),
                       ),
                     ),
@@ -275,7 +277,9 @@ class PremiumScreen extends StatelessWidget {
                             children: List.generate(
                               3,
                               (index) => Container(
-                                margin: EdgeInsets.only(right: index == 2 ? 0 : 8),
+                                margin: EdgeInsets.only(
+                                  right: index == 2 ? 0 : 8,
+                                ),
                                 width: 26,
                                 height: 26,
                                 decoration: BoxDecoration(
@@ -313,7 +317,12 @@ class PremiumScreen extends StatelessWidget {
                             Expanded(
                               flex: 3,
                               child: Padding(
-                                padding: const EdgeInsets.fromLTRB(18, 20, 18, 20),
+                                padding: const EdgeInsets.fromLTRB(
+                                  18,
+                                  20,
+                                  18,
+                                  20,
+                                ),
                                 child: Text(
                                   'Caracteristicas',
                                   style: theme.textTheme.titleLarge?.copyWith(
@@ -331,7 +340,9 @@ class PremiumScreen extends StatelessWidget {
                             Expanded(
                               flex: 2,
                               child: Padding(
-                                padding: const EdgeInsets.symmetric(vertical: 20),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 20,
+                                ),
                                 child: Center(
                                   child: Text(
                                     'Gratis',
@@ -352,18 +363,21 @@ class PremiumScreen extends StatelessWidget {
                           children: comparisonRows
                               .map(
                                 (row) => Padding(
-                                  padding: const EdgeInsets.symmetric(vertical: 18),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 18,
+                                  ),
                                   child: Row(
                                     children: [
                                       Expanded(
                                         flex: 3,
                                         child: Text(
                                           row.$1,
-                                          style: theme.textTheme.titleMedium?.copyWith(
-                                            color: Colors.white,
-                                            fontWeight: FontWeight.w600,
-                                            height: 1.35,
-                                          ),
+                                          style: theme.textTheme.titleMedium
+                                              ?.copyWith(
+                                                color: Colors.white,
+                                                fontWeight: FontWeight.w600,
+                                                height: 1.35,
+                                              ),
                                         ),
                                       ),
                                       Expanded(
@@ -371,9 +385,10 @@ class PremiumScreen extends StatelessWidget {
                                         child: Text(
                                           row.$2,
                                           textAlign: TextAlign.center,
-                                          style: theme.textTheme.titleMedium?.copyWith(
-                                            color: const Color(0xFFB4C7D8),
-                                          ),
+                                          style: theme.textTheme.titleMedium
+                                              ?.copyWith(
+                                                color: const Color(0xFFB4C7D8),
+                                              ),
                                         ),
                                       ),
                                     ],

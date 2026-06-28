@@ -7,6 +7,8 @@ import 'package:musicflow_mobile/features/auth/login_screen.dart';
 import 'package:musicflow_mobile/features/auth/providers/auth_controller.dart';
 import 'package:musicflow_mobile/features/auth/register_screen.dart';
 import 'package:musicflow_mobile/features/equalizer/screens/equalizer_screen.dart';
+import 'package:musicflow_mobile/features/equalizer/screens/playlist_equalizer_screen.dart';
+import 'package:musicflow_mobile/features/equalizer/screens/temporal_segments_screen.dart';
 import 'package:musicflow_mobile/features/library/screens/artist_detail_screen.dart';
 import 'package:musicflow_mobile/features/library/screens/home_screen.dart';
 import 'package:musicflow_mobile/features/player/screens/now_playing_screen.dart';
@@ -17,6 +19,7 @@ import 'package:musicflow_mobile/features/profile/screens/edit_profile.dart';
 import 'package:musicflow_mobile/features/profile/screens/payment_methods_screen.dart';
 import 'package:musicflow_mobile/features/profile/screens/profile_screen.dart';
 import 'package:musicflow_mobile/features/settings/settings_screen.dart';
+import 'package:musicflow_mobile/features/settings/theme_screen.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   final notifier = _AuthNotifier(ref);
@@ -84,6 +87,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.settings,
         builder: (_, __) => const SettingsScreen(),
       ),
+      GoRoute(path: AppRoutes.themes, builder: (_, __) => const ThemeScreen()),
       GoRoute(
         path: AppRoutes.premium,
         builder: (_, __) => const PremiumScreen(),
@@ -95,6 +99,18 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.equalizer,
         builder: (_, __) => const EqualizerScreen(),
+      ),
+      GoRoute(
+        path: '${AppRoutes.playlistEqualizer}/:id',
+        builder: (_, state) {
+          return PlaylistEqualizerScreen(
+            playlistId: state.pathParameters['id'] ?? '',
+          );
+        },
+      ),
+      GoRoute(
+        path: AppRoutes.temporalSegments,
+        builder: (_, __) => const TemporalSegmentsScreen(),
       ),
       GoRoute(
         path: AppRoutes.aiAgent,

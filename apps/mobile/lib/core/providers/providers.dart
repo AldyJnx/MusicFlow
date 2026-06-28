@@ -3,6 +3,7 @@ import 'package:musicflow_mobile/core/api/ai_agent_repository.dart';
 import 'package:musicflow_mobile/core/api/analytics_repository.dart';
 import 'package:musicflow_mobile/core/api/auth_repository.dart';
 import 'package:musicflow_mobile/core/api/dio_client.dart';
+import 'package:musicflow_mobile/core/api/equalizer_repository.dart';
 import 'package:musicflow_mobile/core/api/playlists_repository.dart';
 import 'package:musicflow_mobile/core/api/tracks_repository.dart';
 import 'package:musicflow_mobile/core/storage/token_storage.dart';
@@ -34,4 +35,8 @@ final aiAgentRepositoryProvider = Provider<AiAgentRepository>((ref) {
 
 final analyticsRepositoryProvider = Provider<AnalyticsRepository>((ref) {
   return AnalyticsRepository(ref.watch(dioClientProvider));
+});
+
+final equalizerRepositoryProvider = Provider<EqualizerRepository>((ref) {
+  return EqualizerRepository(ref.watch(dioClientProvider));
 });

@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:dio/dio.dart';
 import 'package:go_router/go_router.dart';
 import 'package:musicflow_mobile/app/routes.dart';
 import 'package:musicflow_mobile/core/providers/providers.dart';
+import 'package:musicflow_mobile/core/theme/musicflow_theme.dart';
+import 'package:musicflow_mobile/features/player/providers/player_controller.dart';
 
 class AiChatScreen extends ConsumerStatefulWidget {
   const AiChatScreen({super.key});
@@ -15,8 +18,6 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
   static const Color _accentCyan = Color(0xFF00CFFF);
   static const Color _lightBlue = Color(0xFF4FC3F7);
   static const Color _bgDark = Color(0xFF071A24);
-  static const Color _bgMid = Color(0xFF0A2230);
-  static const Color _bgTop = Color(0xFF0E3447);
   static const Color _cardSoft = Color(0xFF142631);
 
   final TextEditingController _controller = TextEditingController();
@@ -50,9 +51,23 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
     _controller.clear();
 
     try {
+      final player = ref.read(playerControllerProvider);
       final response = await ref
           .read(aiAgentRepositoryProvider)
-          .suggest(prompt: text);
+          .suggest(
+            prompt: text,
+            trackId: player.currentTrack?.id,
+            playlistId: player.currentPlaylistId,
+            context: {
+              if (player.currentTrack case final track?)
+                'currentTrack': {
+                  'title': track.title,
+                  'artist': track.artist,
+                  'album': track.album,
+                  'durationMs': track.durationMs,
+                },
+            },
+          );
       final suggestion = response.suggestion;
       final bands = suggestion.bands.join(', ');
       if (!mounted) return;
@@ -67,16 +82,17 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
               'Loudness ${suggestion.loudness}',
               suggestion.reverbPreset,
             ],
+            requestId: response.requestId,
+            bands: suggestion.bands,
           ),
         );
       });
-    } catch (_) {
+    } catch (error) {
       if (!mounted) return;
       setState(() {
         _messages.add(
           _ChatMessage(
-            text:
-                'No pude generar una sugerencia ahora. Revisa tu conexion o intenta con otra descripcion de sonido.',
+            text: _errorMessage(error),
             isUser: false,
             time: _currentTime(),
           ),
@@ -96,6 +112,67 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
     return '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
   }
 
+  String _errorMessage(Object error) {
+    if (error is DioException) {
+      final data = error.response?.data;
+      if (data is Map) {
+        final message = data['message'];
+        if (message is String && message.isNotEmpty) return message;
+        if (message is List && message.isNotEmpty) {
+          return message.whereType<String>().join('\n');
+        }
+      }
+      if (error.response?.statusCode == 429) {
+        return 'Estas enviando solicitudes muy rapido. Intenta de nuevo en un momento.';
+      }
+      if (error.response?.statusCode == 403) {
+        return 'Tu cuota de IA se agoto o esta funcion requiere un plan activo.';
+      }
+    }
+    return 'No pude generar una sugerencia ahora. Revisa tu conexion o intenta con otra descripcion de sonido.';
+  }
+
+  Future<void> _applySuggestion(_ChatMessage message) async {
+    final bands = message.bands;
+    if (bands == null || bands.length != 10) return;
+
+    final player = ref.read(playerControllerProvider);
+    final controller = ref.read(playerControllerProvider.notifier);
+    final doubleBands = bands.map((value) => value.toDouble()).toList();
+
+    await controller.setEqualizerBands(doubleBands);
+    try {
+      if (player.currentTrack case final track?) {
+        await ref
+            .read(equalizerRepositoryProvider)
+            .upsertTrackConfig(trackId: track.id, bands: bands);
+        if (message.requestId != null) {
+          await ref
+              .read(aiAgentRepositoryProvider)
+              .accept(message.requestId!, 'TRACK', appliedId: track.id);
+        }
+      } else if (message.requestId != null) {
+        await ref
+            .read(aiAgentRepositoryProvider)
+            .accept(message.requestId!, 'GLOBAL');
+      }
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(const SnackBar(content: Text('EQ aplicado.')));
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(
+            content: Text('EQ aplicado, pero no se pudo guardar.'),
+          ),
+        );
+    }
+  }
+
   void _handleNavigation(int index) {
     final route = switch (index) {
       0 => AppRoutes.home,
@@ -113,17 +190,18 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final colors = context.musicFlowColors;
 
     return Scaffold(
-      backgroundColor: _bgDark,
+      backgroundColor: colors.background,
       bottomNavigationBar: Container(
         margin: const EdgeInsets.fromLTRB(10, 0, 10, 12),
         decoration: BoxDecoration(
-          color: const Color(0xFF111A22).withOpacity(0.96),
+          color: colors.surface.withValues(alpha: 0.96),
           borderRadius: BorderRadius.circular(28),
-          boxShadow: const [
+          boxShadow: [
             BoxShadow(
-              color: Color(0x33000000),
+              color: colors.shadow.withValues(alpha: 0.18),
               blurRadius: 18,
               offset: Offset(0, 8),
             ),
@@ -134,8 +212,8 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
           onTap: _handleNavigation,
           backgroundColor: Colors.transparent,
           elevation: 0,
-          selectedItemColor: _accentCyan,
-          unselectedItemColor: Colors.white38,
+          selectedItemColor: colors.primary,
+          unselectedItemColor: colors.textMuted,
           type: BottomNavigationBarType.fixed,
           items: const [
             BottomNavigationBarItem(
@@ -166,11 +244,15 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
         ),
       ),
       body: Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [_bgTop, _bgMid, _bgDark],
+            colors: [
+              colors.gradientStart,
+              colors.gradientEnd,
+              colors.background,
+            ],
             stops: [0.0, 0.12, 0.42],
           ),
         ),
@@ -222,7 +304,12 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
                   itemCount: _messages.length,
                   itemBuilder: (context, index) {
                     final message = _messages[index];
-                    return _MessageBubble(message: message);
+                    return _MessageBubble(
+                      message: message,
+                      onApply: message.bands == null
+                          ? null
+                          : () => _applySuggestion(message),
+                    );
                   },
                 ),
               ),
@@ -299,9 +386,10 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
 }
 
 class _MessageBubble extends StatelessWidget {
-  const _MessageBubble({required this.message});
+  const _MessageBubble({required this.message, required this.onApply});
 
   final _ChatMessage message;
+  final VoidCallback? onApply;
 
   @override
   Widget build(BuildContext context) {
@@ -422,6 +510,21 @@ class _MessageBubble extends StatelessWidget {
                         .toList(),
                   ),
                 ],
+                if (onApply != null) ...[
+                  const SizedBox(height: 14),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.icon(
+                      onPressed: onApply,
+                      icon: const Icon(Icons.equalizer_rounded),
+                      label: const Text('Aplicar EQ'),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: _AiChatScreenState._accentCyan,
+                        foregroundColor: _AiChatScreenState._bgDark,
+                      ),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -449,6 +552,8 @@ class _ChatMessage {
     required this.time,
     this.isHero = false,
     this.suggestions = const [],
+    this.requestId,
+    this.bands,
   });
 
   final String text;
@@ -456,4 +561,6 @@ class _ChatMessage {
   final String time;
   final bool isHero;
   final List<String> suggestions;
+  final String? requestId;
+  final List<int>? bands;
 }

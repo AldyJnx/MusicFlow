@@ -7,6 +7,7 @@ import 'package:musicflow_mobile/core/providers/providers.dart';
 import 'package:musicflow_mobile/core/widgets/app_bottom_navigation.dart';
 import 'package:musicflow_mobile/core/widgets/floating_ai_bubble.dart';
 import 'package:musicflow_mobile/core/widgets/mini_player_bar.dart';
+import 'package:musicflow_mobile/core/theme/musicflow_theme.dart';
 import 'package:musicflow_mobile/features/library/providers/playlists_providers.dart';
 import 'package:musicflow_mobile/features/library/providers/tracks_providers.dart';
 import 'package:musicflow_mobile/features/player/providers/player_controller.dart';
@@ -18,19 +19,18 @@ class PlaylistScreen extends ConsumerWidget {
   static const Color _accentCyan = Color(0xFF00CFFF);
   static const Color _lightBlue = Color(0xFF4FC3F7);
   static const Color _bgDark = Color(0xFF08131C);
-  static const Color _bgMid = Color(0xFF0B1F2A);
-  static const Color _bgTop = Color(0xFF103244);
   static const Color _card = Color(0xFF132632);
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final colors = context.musicFlowColors;
     const tracksQuery = TracksQuery(take: 5);
     final tracksAsync = ref.watch(savedTracksListProvider(tracksQuery));
     final playlistsAsync = ref.watch(playlistsProvider);
 
     return Scaffold(
-      backgroundColor: _bgDark,
+      backgroundColor: colors.background,
       bottomNavigationBar: const AppBottomNavigation(
         currentRoute: AppRoutes.playlists,
       ),
@@ -39,11 +39,15 @@ class PlaylistScreen extends ConsumerWidget {
         context,
         ref,
         Container(
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
-              colors: [_bgTop, _bgMid, _bgDark],
+              colors: [
+                colors.gradientStart,
+                colors.gradientEnd,
+                colors.background,
+              ],
               stops: [0.0, 0.25, 0.72],
             ),
           ),
@@ -64,7 +68,7 @@ class PlaylistScreen extends ConsumerWidget {
                           child: Text(
                             'MusicFlow',
                             style: theme.textTheme.titleLarge?.copyWith(
-                              color: _lightBlue,
+                              color: colors.secondary,
                               fontWeight: FontWeight.w800,
                             ),
                           ),
@@ -115,8 +119,8 @@ class PlaylistScreen extends ConsumerWidget {
                       IconButton.filled(
                         onPressed: () => _createLibrary(context, ref),
                         style: IconButton.styleFrom(
-                          backgroundColor: _accentCyan,
-                          foregroundColor: _bgDark,
+                          backgroundColor: colors.primary,
+                          foregroundColor: colors.background,
                         ),
                         icon: const Icon(Icons.add_rounded),
                       ),
@@ -124,10 +128,10 @@ class PlaylistScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: 12),
                   playlistsAsync.when(
-                    loading: () => const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 18),
+                    loading: () => Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 18),
                       child: Center(
-                        child: CircularProgressIndicator(color: _accentCyan),
+                        child: CircularProgressIndicator(color: colors.primary),
                       ),
                     ),
                     error: (_, __) => _LibraryMessage(

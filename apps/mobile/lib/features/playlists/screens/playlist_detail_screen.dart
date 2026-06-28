@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
 import 'package:musicflow_mobile/app/routes.dart';
 import 'package:musicflow_mobile/core/providers/providers.dart';
+import 'package:musicflow_mobile/core/theme/musicflow_theme.dart';
 import 'package:musicflow_mobile/core/widgets/app_bottom_navigation.dart';
 import 'package:musicflow_mobile/core/widgets/mini_player_bar.dart';
 import 'package:musicflow_mobile/features/library/providers/playlists_providers.dart';
@@ -17,35 +19,37 @@ class PlaylistDetailScreen extends ConsumerWidget {
   static const Color _accentCyan = Color(0xFF00CFFF);
   static const Color _lightBlue = Color(0xFF4FC3F7);
   static const Color _bgDark = Color(0xFF071A24);
-  static const Color _bgMid = Color(0xFF0A2230);
-  static const Color _bgTop = Color(0xFF103244);
   static const Color _card = Color(0xFF102734);
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final colors = context.musicFlowColors;
     final playlistAsync = ref.watch(playlistDetailProvider(playlistId));
 
     return Scaffold(
-      backgroundColor: _bgDark,
+      backgroundColor: colors.background,
       bottomNavigationBar: const AppBottomNavigation(
         currentRoute: AppRoutes.playlists,
       ),
       bottomSheet: const MiniPlayerBar(),
       body: Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [_bgTop, _bgMid, _bgDark],
+            colors: [
+              colors.gradientStart,
+              colors.gradientEnd,
+              colors.background,
+            ],
             stops: [0.0, 0.28, 0.78],
           ),
         ),
         child: SafeArea(
           child: playlistAsync.when(
-            loading: () => const Center(
-              child: CircularProgressIndicator(color: _accentCyan),
-            ),
+            loading: () =>
+                Center(child: CircularProgressIndicator(color: colors.primary)),
             error: (_, __) => _PlaylistDetailMessage(
               message: 'No se pudo cargar esta biblioteca.',
               onRetry: () => ref.invalidate(playlistDetailProvider(playlistId)),
@@ -129,6 +133,14 @@ class PlaylistDetailScreen extends ConsumerWidget {
                           color: _accentCyan,
                           tooltip: 'Compartir biblioteca',
                         ),
+                        IconButton(
+                          onPressed: () => context.push(
+                            '${AppRoutes.playlistEqualizer}/${playlist.id}',
+                          ),
+                          icon: const Icon(Icons.equalizer_rounded),
+                          color: _accentCyan,
+                          tooltip: 'Ecualizar biblioteca',
+                        ),
                       ],
                     ),
                     if (playlist.description.isNotEmpty) ...[
@@ -157,7 +169,11 @@ class PlaylistDetailScreen extends ConsumerWidget {
                             ? null
                             : () => ref
                                   .read(playerControllerProvider.notifier)
-                                  .playTrackList(tracks, startIndex: 0),
+                                  .playTrackList(
+                                    tracks,
+                                    startIndex: 0,
+                                    playlistId: playlist.id,
+                                  ),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: _accentCyan,
                           foregroundColor: _bgDark,
@@ -190,7 +206,11 @@ class PlaylistDetailScreen extends ConsumerWidget {
                             track: tracks[index],
                             onPlay: () => ref
                                 .read(playerControllerProvider.notifier)
-                                .playTrackList(tracks, startIndex: index),
+                                .playTrackList(
+                                  tracks,
+                                  startIndex: index,
+                                  playlistId: playlist.id,
+                                ),
                           );
                         },
                       ),

@@ -1,4 +1,5 @@
 import 'package:audio_service/audio_service.dart';
+import 'package:flutter/services.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:rxdart/rxdart.dart';
 
@@ -13,8 +14,16 @@ import 'package:rxdart/rxdart.dart';
 /// - Forwards the current index to [mediaItem] so consumers always know which
 ///   track is active.
 class MusicFlowAudioHandler extends BaseAudioHandler with SeekHandler {
+  static const MethodChannel _equalizerChannel = MethodChannel(
+    'musicflow/equalizer',
+  );
+
   final AudioPlayer _player = AudioPlayer();
-  ConcatenatingAudioSource _audioSource = ConcatenatingAudioSource(children: []);
+  ConcatenatingAudioSource _audioSource = ConcatenatingAudioSource(
+    children: [],
+  );
+  List<double> _equalizerBands = List<double>.filled(10, 0);
+  bool _equalizerEnabled = false;
 
   MusicFlowAudioHandler() {
     _init();
@@ -33,6 +42,8 @@ class MusicFlowAudioHandler extends BaseAudioHandler with SeekHandler {
     _player.positionStream
         .throttleTime(const Duration(milliseconds: 200))
         .listen(_onPositionChanged);
+
+    _player.androidAudioSessionIdStream.listen(_onAudioSessionChanged);
   }
 
   // ── Queue management ────────────────────────────────────────────────────────
@@ -89,6 +100,25 @@ class MusicFlowAudioHandler extends BaseAudioHandler with SeekHandler {
     await _player.play();
   }
 
+  Future<void> setPlayerVolume(double volume) {
+    return _player.setVolume(volume.clamp(0.0, 1.0));
+  }
+
+  Future<void> setEqualizerBands(List<double> bands) async {
+    if (bands.length != 10) return;
+    _equalizerBands = bands;
+    _equalizerEnabled = true;
+    await _invokeEqualizer('setEnabled', true);
+    await _invokeEqualizer('setBands', bands);
+  }
+
+  Future<void> resetEqualizer() async {
+    _equalizerBands = List<double>.filled(10, 0);
+    _equalizerEnabled = false;
+    await _invokeEqualizer('setBands', _equalizerBands);
+    await _invokeEqualizer('setEnabled', false);
+  }
+
   // ── Stream forwarding ───────────────────────────────────────────────────────
 
   void _onPlayerStateChanged(PlayerState state) {
@@ -124,9 +154,16 @@ class MusicFlowAudioHandler extends BaseAudioHandler with SeekHandler {
   }
 
   void _onPositionChanged(Duration position) {
-    playbackState.add(
-      playbackState.value.copyWith(updatePosition: position),
-    );
+    playbackState.add(playbackState.value.copyWith(updatePosition: position));
+  }
+
+  Future<void> _onAudioSessionChanged(int? audioSessionId) async {
+    if (audioSessionId == null || audioSessionId <= 0) return;
+    await _invokeEqualizer('setup', audioSessionId);
+    await _invokeEqualizer('setEnabled', _equalizerEnabled);
+    if (_equalizerEnabled) {
+      await _invokeEqualizer('setBands', _equalizerBands);
+    }
   }
 
   // ── Helpers ─────────────────────────────────────────────────────────────────
@@ -146,11 +183,22 @@ class MusicFlowAudioHandler extends BaseAudioHandler with SeekHandler {
     }
   }
 
+  Future<void> _invokeEqualizer(String method, Object? arguments) async {
+    try {
+      await _equalizerChannel.invokeMethod<void>(method, arguments);
+    } on MissingPluginException {
+      // Non-Android platforms do not expose the native EQ channel.
+    } on PlatformException {
+      // Playback should keep working even if the platform effect is unavailable.
+    }
+  }
+
   // ── Disposal ─────────────────────────────────────────────────────────────────
 
   /// Not an `@override` on `BaseAudioHandler`. Call manually when the handler
   /// should be torn down (e.g., on app shutdown).
   Future<void> dispose() async {
+    await _invokeEqualizer('release', null);
     await _player.dispose();
     await super.stop();
   }
