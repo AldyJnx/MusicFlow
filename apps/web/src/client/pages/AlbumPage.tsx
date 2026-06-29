@@ -1,5 +1,13 @@
-import { ArrowLeft, Clock3, Disc3, Music4, Play } from "lucide-react";
-import { useMemo } from "react";
+import {
+  ArrowLeft,
+  Clock3,
+  Disc3,
+  LayoutGrid,
+  List,
+  Music4,
+  Play,
+} from "lucide-react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router-dom";
@@ -37,12 +45,73 @@ function toPlayerTrack(t: CatalogTrackCard): PlayerTrack | null {
   };
 }
 
+// Album cover presented as a vinyl: the disc slides out from behind the sleeve
+// and spins while the album is playing.
+function Vinyl({
+  cover,
+  playing,
+}: {
+  cover?: string | null;
+  playing: boolean;
+}) {
+  return (
+    <div className="relative h-40 w-[224px] flex-none">
+      {/* Disc */}
+      <div
+        className="absolute top-1/2 h-40 w-40 -translate-y-1/2 rounded-full shadow-[0_18px_44px_-10px_rgba(0,0,0,.85)]"
+        style={{
+          left: 0,
+          background:
+            "repeating-radial-gradient(circle at center, #0c0c0f 0 1px, #1b1b20 1px 3px), radial-gradient(circle at 38% 32%, rgba(255,255,255,.10), transparent 45%), #0a0a0d",
+          transform: playing
+            ? "translateX(82px) rotate(0deg)"
+            : "translateX(40px)",
+          transition: "transform .6s cubic-bezier(.2,1,.3,1)",
+          animation: "spin 9s linear infinite",
+          animationPlayState: playing ? "running" : "paused",
+        }}
+      >
+        {/* Center label (uses the cover) */}
+        <div
+          className="absolute left-1/2 top-1/2 h-[52px] w-[52px] -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-full ring-1 ring-black/40"
+          style={
+            cover
+              ? { background: `center/cover no-repeat url(${cover})` }
+              : {
+                  background:
+                    "linear-gradient(135deg,var(--color-primary),var(--color-accent))",
+                }
+          }
+        />
+        {/* Spindle hole */}
+        <div className="absolute left-1/2 top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[var(--color-page)] ring-1 ring-white/20" />
+      </div>
+
+      {/* Sleeve (square cover) on top */}
+      <div className="absolute left-0 top-1/2 z-10 h-40 w-40 -translate-y-1/2 overflow-hidden rounded-2xl bg-[var(--color-surface-alt)] shadow-[0_18px_40px_-12px_rgba(0,0,0,.7)]">
+        {cover ? (
+          <img src={cover} alt="" className="h-full w-full object-cover" />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center">
+            <Disc3
+              className="h-12 w-12 text-[var(--color-muted)]"
+              strokeWidth={1.4}
+            />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function AlbumPage() {
   const { t } = useTranslation();
   const { id = "" } = useParams();
   const navigate = useNavigate();
   const playTrackList = usePlayerStore((s) => s.playTrackList);
   const currentTrackId = usePlayerStore((s) => s.currentTrack?.id ?? null);
+  const isPlaying = usePlayerStore((s) => s.isPlaying);
+  const [view, setView] = useState<"list" | "cards">("list");
 
   const albumQ = useQuery({
     queryKey: ["catalog", "album", id],
@@ -64,6 +133,8 @@ export default function AlbumPage() {
     () => (album?.tracks ?? []).reduce((s, tr) => s + tr.durationMs, 0),
     [album],
   );
+  const albumIsPlaying =
+    isPlaying && (album?.tracks ?? []).some((tr) => tr.id === currentTrackId);
 
   function playFrom(index = 0) {
     if (!album) return;
@@ -101,22 +172,7 @@ export default function AlbumPage() {
             </button>
 
             <div className="flex items-end gap-6">
-              <div className="h-40 w-40 flex-none overflow-hidden rounded-2xl bg-[var(--color-surface-alt)] shadow-[0_18px_40px_-12px_rgba(0,0,0,.7)]">
-                {album?.coverArt ? (
-                  <img
-                    src={album.coverArt}
-                    alt=""
-                    className="h-full w-full object-cover"
-                  />
-                ) : (
-                  <div className="flex h-full w-full items-center justify-center">
-                    <Disc3
-                      className="h-12 w-12 text-[var(--color-muted)]"
-                      strokeWidth={1.4}
-                    />
-                  </div>
-                )}
-              </div>
+              <Vinyl cover={album?.coverArt} playing={albumIsPlaying} />
               <div className="min-w-0">
                 <p
                   className="text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--color-accent)]"
@@ -148,7 +204,7 @@ export default function AlbumPage() {
               </div>
             </div>
 
-            <div className="mt-2">
+            <div className="mt-2 flex flex-wrap items-center gap-3">
               <button
                 type="button"
                 onClick={() => playFrom(0)}
@@ -162,16 +218,171 @@ export default function AlbumPage() {
                 <Play className="h-4 w-4" fill="currentColor" />
                 {t("album.play", { defaultValue: "Reproducir" })}
               </button>
+
+              {/* List / cards toggle */}
+              <div className="inline-flex items-center gap-1 rounded-full border border-[var(--color-line)] bg-[var(--color-surface)]/60 p-1 backdrop-blur">
+                <button
+                  type="button"
+                  onClick={() => setView("list")}
+                  aria-pressed={view === "list"}
+                  title={t("album.viewList", { defaultValue: "Lista" })}
+                  className={`inline-flex h-8 w-8 items-center justify-center rounded-full transition ${
+                    view === "list"
+                      ? "bg-[var(--color-primary)] text-[var(--color-primary-contrast)]"
+                      : "text-[var(--color-muted)] hover:text-[var(--color-text)]"
+                  }`}
+                >
+                  <List className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setView("cards")}
+                  aria-pressed={view === "cards"}
+                  title={t("album.viewCards", { defaultValue: "Cards" })}
+                  className={`inline-flex h-8 w-8 items-center justify-center rounded-full transition ${
+                    view === "cards"
+                      ? "bg-[var(--color-primary)] text-[var(--color-primary-contrast)]"
+                      : "text-[var(--color-muted)] hover:text-[var(--color-text)]"
+                  }`}
+                >
+                  <LayoutGrid className="h-4 w-4" />
+                </button>
+              </div>
             </div>
           </div>
         </header>
 
         {/* Tracklist */}
-        <div className="mx-auto max-w-4xl px-8 pb-12">
+        <div className="mx-auto max-w-6xl px-8 pb-12">
           {albumQ.isLoading ? (
             <p className="text-sm text-[var(--color-muted)]">
               {t("album.loading", { defaultValue: "Cargando…" })}
             </p>
+          ) : album && album.tracks.length && view === "cards" ? (
+            /* ── Cards view ───────────────────────────────────────────── */
+            <div className="grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(170px,1fr))]">
+              {album.tracks.map((tr, i) => {
+                const active = currentTrackId === tr.id;
+                const cover = tr.coverArt ?? album.coverArt;
+                const playingThis = active && isPlaying;
+                return (
+                  <div
+                    key={tr.id}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => playFrom(i)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        playFrom(i);
+                      }
+                    }}
+                    className={`group relative cursor-pointer rounded-2xl border p-3 text-left transition hover:-translate-y-0.5 ${
+                      active
+                        ? "border-[var(--color-primary)] bg-[var(--color-glass)]"
+                        : "border-[var(--color-line)] bg-[var(--color-surface)]/50 hover:border-[var(--color-primary)]/50"
+                    }`}
+                  >
+                    <div className="relative aspect-square overflow-hidden rounded-xl bg-[var(--color-surface-alt)]">
+                      {cover ? (
+                        <img
+                          src={cover}
+                          alt=""
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <Music4 className="absolute inset-0 m-auto h-8 w-8 text-[var(--color-muted)]" />
+                      )}
+
+                      {/* Play overlay */}
+                      <span
+                        className={`absolute inset-0 flex items-center justify-center bg-black/40 transition ${
+                          active
+                            ? "opacity-100"
+                            : "opacity-0 group-hover:opacity-100"
+                        }`}
+                      >
+                        <span
+                          className="flex h-11 w-11 items-center justify-center rounded-full text-white shadow-lg"
+                          style={{
+                            background:
+                              "linear-gradient(135deg,var(--color-primary),var(--color-accent))",
+                          }}
+                        >
+                          {playingThis ? (
+                            <span className="flex h-4 items-end gap-[2px]">
+                              <span
+                                className="w-[3px] rounded-[2px] bg-white"
+                                style={{
+                                  height: "100%",
+                                  transformOrigin: "bottom",
+                                  animation: "eqbar .7s ease-in-out infinite",
+                                }}
+                              />
+                              <span
+                                className="w-[3px] rounded-[2px] bg-white"
+                                style={{
+                                  height: "100%",
+                                  transformOrigin: "bottom",
+                                  animation:
+                                    "eqbar .9s ease-in-out infinite .2s",
+                                }}
+                              />
+                              <span
+                                className="w-[3px] rounded-[2px] bg-white"
+                                style={{
+                                  height: "100%",
+                                  transformOrigin: "bottom",
+                                  animation:
+                                    "eqbar 1.1s ease-in-out infinite .1s",
+                                }}
+                              />
+                            </span>
+                          ) : (
+                            <Play className="h-5 w-5" fill="currentColor" />
+                          )}
+                        </span>
+                      </span>
+
+                      {/* Track number badge */}
+                      <span
+                        className="absolute left-2 top-2 flex h-6 min-w-6 items-center justify-center rounded-full bg-black/55 px-1.5 text-[11px] font-bold text-white tabular-nums"
+                        style={{ fontFamily: "var(--font-mono)" }}
+                      >
+                        {tr.albumOrder ?? i + 1}
+                      </span>
+
+                      {/* Save */}
+                      <span
+                        className="absolute right-2 top-2 opacity-0 transition group-hover:opacity-100 focus-within:opacity-100 data-[saved=true]:opacity-100"
+                        data-saved={savedSet.has(tr.id)}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <SaveButton
+                          trackId={tr.id}
+                          saved={savedSet.has(tr.id)}
+                        />
+                      </span>
+                    </div>
+
+                    <div className="mt-2 flex items-start justify-between gap-2">
+                      <p
+                        className={`min-w-0 flex-1 truncate text-sm font-semibold ${active ? "text-[var(--color-accent)]" : "text-[var(--color-text)]"}`}
+                        title={tr.title}
+                      >
+                        {tr.title}
+                      </p>
+                      <span
+                        className="flex-none text-[11px] text-[var(--color-muted)]"
+                        style={{ fontFamily: "var(--font-mono)" }}
+                      >
+                        {fmt(tr.durationMs)}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           ) : album && album.tracks.length ? (
             <>
               {/* Column header */}
