@@ -6,6 +6,7 @@ import {
   Music4,
   Search,
   Settings as SettingsIcon,
+  ShieldCheck,
   User as UserIcon,
 } from "lucide-react";
 import {
@@ -243,14 +244,34 @@ const Navbar = forwardRef<NavbarRef, NavbarProps>(function Navbar(
                   </p>
                   <p
                     className={`mt-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] ${
-                      user.isPremium
-                        ? "text-emerald-400"
-                        : "text-[var(--color-muted)]"
+                      user.role === "ADMIN"
+                        ? "text-[var(--color-primary)]"
+                        : user.isPremium
+                          ? "text-emerald-400"
+                          : "text-[var(--color-muted)]"
                     }`}
                   >
-                    {user.isPremium ? "Premium" : "Free"}
+                    {user.role === "ADMIN"
+                      ? "Admin"
+                      : user.isPremium
+                        ? "Premium"
+                        : "Free"}
                   </p>
                 </div>
+                {user.role === "ADMIN" ? (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      navigate("/admin");
+                    }}
+                    className="flex w-full items-center gap-3 border-b border-[var(--color-border)] px-4 py-2.5 text-left text-sm font-semibold text-[var(--color-primary)] transition hover:bg-white/[0.04]"
+                  >
+                    <ShieldCheck className="h-4 w-4" strokeWidth={2.1} />
+                    {t("navbar.menu.admin", { defaultValue: "Panel de admin" })}
+                  </button>
+                ) : null}
                 <button
                   type="button"
                   role="menuitem"

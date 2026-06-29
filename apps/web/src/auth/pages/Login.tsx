@@ -22,7 +22,8 @@ export default function Login() {
     mutationFn: loginRequest,
     onSuccess: (data) => {
       setSession(data);
-      navigate("/library");
+      // Admins land on their panel; everyone else on the client library.
+      navigate(data.user.role === "ADMIN" ? "/admin" : "/library");
     },
   });
 
