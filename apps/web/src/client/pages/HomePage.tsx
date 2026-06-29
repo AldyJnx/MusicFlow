@@ -329,7 +329,7 @@ function AlbumCard({ track, onPlay }: { track: Track; onPlay: () => void }) {
     <button
       type="button"
       onClick={onPlay}
-      className="group w-[180px] flex-none text-left"
+      className="group w-full text-left"
       style={{ animation: "fadeUp .5s ease both" }}
     >
       <div className="relative mb-2.5 aspect-square overflow-hidden rounded-2xl shadow-[0_10px_30px_-12px_rgba(0,0,0,.7)]">
@@ -374,11 +374,11 @@ function ArtistAvatar({
     <button
       type="button"
       onClick={onClick}
-      className="group flex w-[96px] flex-none flex-col items-center gap-2.5"
+      className="group flex w-full flex-col items-center gap-2.5"
       style={{ animation: "fadeUp .5s ease both" }}
     >
       <div
-        className="h-[84px] w-[84px] rounded-full p-[2.5px] transition-transform group-hover:scale-[1.07]"
+        className="aspect-square w-full max-w-[132px] rounded-full p-[2.5px] transition-transform group-hover:scale-[1.07]"
         style={{
           background:
             "conic-gradient(from 0deg,var(--color-primary),var(--color-accent),var(--color-success),var(--color-primary))",
@@ -442,7 +442,7 @@ export default function HomePage() {
       <section className="min-h-screen w-full text-[var(--color-text)]">
         <div
           ref={revealRef}
-          className="mx-auto max-w-[1180px] px-[26px] pb-10 pt-6"
+          className="mx-auto w-full max-w-[1560px] px-4 pb-10 pt-6 sm:px-6 xl:px-8"
         >
           <div data-reveal>
             <Hero
@@ -463,7 +463,7 @@ export default function HomePage() {
                 })}
                 onSeeAll={() => navigate("/library")}
               />
-              <div className="flex flex-wrap gap-[22px]">
+              <div className="grid gap-x-5 gap-y-6 [grid-template-columns:repeat(auto-fit,minmax(110px,1fr))]">
                 {artists.map((a) => (
                   <ArtistAvatar
                     key={a.name}
@@ -538,41 +538,13 @@ function AlbumsRail({
   onSeeAll: () => void;
 }) {
   const { t } = useTranslation();
-  const ref = useRef<HTMLDivElement>(null);
-  const scroll = (d: 1 | -1) => {
-    const el = ref.current;
-    if (el) el.scrollBy({ left: 360 * d, behavior: "smooth" });
-  };
   return (
     <>
       <RowHead
         title={t("home.newAlbums", { defaultValue: "Nuevos álbumes" })}
         onSeeAll={onSeeAll}
-      >
-        <div className="flex gap-1.5">
-          <button
-            type="button"
-            onClick={() => scroll(-1)}
-            aria-label={t("home.scrollLeft", { defaultValue: "Anterior" })}
-            className="flex h-8 w-8 items-center justify-center rounded-full border border-[var(--color-line)] bg-white/[0.04] text-[var(--color-muted)] transition hover:bg-white/[0.08] hover:text-[var(--color-text)] active:scale-90"
-          >
-            <ChevronLeft className="h-4 w-4" strokeWidth={2.4} />
-          </button>
-          <button
-            type="button"
-            onClick={() => scroll(1)}
-            aria-label={t("home.scrollRight", { defaultValue: "Siguiente" })}
-            className="flex h-8 w-8 items-center justify-center rounded-full border border-[var(--color-line)] bg-white/[0.04] text-[var(--color-muted)] transition hover:bg-white/[0.08] hover:text-[var(--color-text)] active:scale-90"
-          >
-            <ChevronRight className="h-4 w-4" strokeWidth={2.4} />
-          </button>
-        </div>
-      </RowHead>
-      <div
-        ref={ref}
-        className="-mx-[26px] flex gap-[18px] overflow-x-auto px-[26px] pb-1.5 pt-1"
-        style={{ scrollbarWidth: "none" }}
-      >
+      />
+      <div className="grid gap-x-[18px] gap-y-6 [grid-template-columns:repeat(auto-fill,minmax(160px,1fr))]">
         {albums.map((tr) => (
           <AlbumCard key={tr.id} track={tr} onPlay={() => onPlay(tr)} />
         ))}
