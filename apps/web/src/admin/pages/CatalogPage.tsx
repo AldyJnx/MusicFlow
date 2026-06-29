@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import {
   ChevronLeft,
   ChevronRight,
+  Crop,
   Disc3,
   ImagePlus,
   Loader2,
@@ -69,29 +70,32 @@ const CROP_VIEW = 320;
 const CROP_OUT = 640;
 
 function ImageCropModal({
-  file,
+  src,
+  fileName = "cover.jpg",
+  crossOrigin = false,
   round = false,
   onCancel,
   onConfirm,
 }: {
-  file: File;
+  src: string;
+  fileName?: string;
+  crossOrigin?: boolean;
   round?: boolean;
   onCancel: () => void;
   onConfirm: (cropped: File) => void;
 }) {
   const { t } = useTranslation();
-  const url = useMemo(() => URL.createObjectURL(file), [file]);
+  const url = src;
   const imgRef = useRef<HTMLImageElement | null>(null);
   const [nat, setNat] = useState<{ w: number; h: number } | null>(null);
   const [zoom, setZoom] = useState(1);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
+  const [exporting, setExporting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const drag = useRef<{ x: number; y: number; ox: number; oy: number } | null>(
     null,
   );
 
-  useEffect(() => () => URL.revokeObjectURL(url), [url]);
-
-  const baseScale = nat ? Math.max(CROP_VIEW / nat.w, CROP_VIEW / nat.h) : 1;
   const drawScale = baseScale * zoom;
   const dw = nat ? nat.w * drawScale : 0;
   const dh = nat ? nat.h * drawScale : 0;
@@ -133,28 +137,44 @@ function ImageCropModal({
     });
   }
 
-  function exportCrop() {
-    const im = imgRef.current;
-    if (!im || !nat) return;
-    const canvas = document.createElement("canvas");
-    canvas.width = CROP_OUT;
-    canvas.height = CROP_OUT;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    const f = CROP_OUT / CROP_VIEW;
-    ctx.fillStyle = "#000";
-    ctx.fillRect(0, 0, CROP_OUT, CROP_OUT);
-    ctx.drawImage(im, offset.x * f, offset.y * f, dw * f, dh * f);
-    canvas.toBlob(
-      (blob) => {
-        if (!blob) return;
-        const ext = file.name.replace(/.*\./, "").toLowerCase();
-        const name = `cover.${ext === "png" ? "png" : "jpg"}`;
-        onConfirm(new File([blob], name, { type: blob.type }));
-      },
-      "image/jpeg",
-      0.92,
-    );
+  async function exportCrop() {
+    if (!nat) return;
+    setExporting(true);
+    setError(null);
+    try {
+      // Draw from a freshly-decoded image (not the DOM node) so the canvas is
+      // never blank because the element wasn't ready.
+      const im = new Image();
+      if (crossOrigin) im.crossOrigin = "anonymous";
+      im.src = url;
+      await im.decode();
+
+      const canvas = document.createElement("canvas");
+      canvas.width = CROP_OUT;
+      canvas.height = CROP_OUT;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) throw new Error("no-canvas");
+      const f = CROP_OUT / CROP_VIEW;
+      ctx.fillStyle = "#000";
+      ctx.fillRect(0, 0, CROP_OUT, CROP_OUT);
+      ctx.drawImage(im, offset.x * f, offset.y * f, dw * f, dh * f);
+
+      const blob = await new Promise<Blob | null>((resolve) =>
+        canvas.toBlob(resolve, "image/jpeg", 0.92),
+      );
+      if (!blob) throw new Error("export-failed");
+      const safe = fileName.toLowerCase().endsWith(".png")
+        ? "cover.png"
+        : "cover.jpg";
+      onConfirm(new File([blob], safe, { type: blob.type }));
+    } catch {
+      setError(
+        t("catalog.cropError", {
+          defaultValue: "No se pudo procesar la imagen. Intenta con otra.",
+        }),
+      );
+      setExporting(false);
+    }
   }
 
   return (
@@ -214,6 +234,7 @@ function ImageCropModal({
             ref={imgRef}
             src={url}
             alt=""
+            crossOrigin={crossOrigin ? "anonymous" : undefined}
             onLoad={onImgLoad}
             draggable={false}
             style={{
@@ -246,6 +267,9 @@ function ImageCropModal({
             defaultValue: "Arrastra para mover · desliza para acercar",
           })}
         </p>
+        {error ? (
+          <p className="text-center text-xs text-rose-400">{error}</p>
+        ) : null}
 
         <div className="flex justify-end gap-2">
           <button
@@ -258,9 +282,10 @@ function ImageCropModal({
           <button
             type="button"
             onClick={exportCrop}
-            disabled={!nat}
-            className="rounded-xl bg-[var(--color-primary)] px-4 py-2 text-sm font-semibold text-[var(--color-primary-contrast)] disabled:opacity-50"
+            disabled={!nat || exporting}
+            className="inline-flex items-center gap-2 rounded-xl bg-[var(--color-primary)] px-4 py-2 text-sm font-semibold text-[var(--color-primary-contrast)] disabled:opacity-50"
           >
+            {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
             {t("catalog.useImage", { defaultValue: "Usar imagen" })}
           </button>
         </div>
@@ -270,51 +295,97 @@ function ImageCropModal({
 }
 
 // A compact image picker that lets the admin center the image, then uploads it.
+// When `currentSrc` is set it also offers a "reframe" action on the existing
+// image (re-center the one already saved, no re-pick needed).
 function ImageUploadButton({
   onUpload,
   title,
   round = false,
   className = "",
+  currentSrc,
 }: {
   onUpload: (file: File) => Promise<unknown>;
   title: string;
   round?: boolean;
   className?: string;
+  currentSrc?: string | null;
 }) {
+  const { t } = useTranslation();
   const m = useMutation({ mutationFn: onUpload });
-  const [pending, setPending] = useState<File | null>(null);
+  // crop source: a remote URL (reframe) or an object URL we own (new file).
+  const [crop, setCrop] = useState<{
+    src: string;
+    fileName: string;
+    crossOrigin: boolean;
+    owned: boolean;
+  } | null>(null);
+
+  function close() {
+    setCrop((c) => {
+      if (c?.owned) URL.revokeObjectURL(c.src);
+      return null;
+    });
+  }
+
   return (
     <>
-      <label
-        title={title}
-        className={`inline-flex cursor-pointer items-center justify-center rounded-lg border border-[var(--color-line)] bg-[var(--color-glass)] text-[var(--color-muted)] transition hover:text-[var(--color-text)] ${
-          m.isPending ? "opacity-60" : ""
-        } ${className}`}
-      >
-        {m.isPending ? (
-          <Loader2 className="h-4 w-4 animate-spin" />
-        ) : (
-          <ImagePlus className="h-4 w-4" />
-        )}
-        <input
-          type="file"
-          accept="image/*,.jpg,.jpeg,.png,.webp,.gif"
-          className="hidden"
-          disabled={m.isPending}
-          onChange={(e) => {
-            const f = e.target.files?.[0];
-            if (f) setPending(f);
-            e.target.value = "";
-          }}
-        />
-      </label>
-      {pending ? (
+      <div className="inline-flex items-center gap-1">
+        {currentSrc ? (
+          <button
+            type="button"
+            title={t("catalog.reframe", { defaultValue: "Recentrar" })}
+            onClick={() =>
+              setCrop({
+                src: currentSrc,
+                fileName: "cover.jpg",
+                crossOrigin: true,
+                owned: false,
+              })
+            }
+            className={`inline-flex items-center justify-center rounded-lg border border-[var(--color-line)] bg-[var(--color-glass)] text-[var(--color-muted)] transition hover:text-[var(--color-text)] ${className}`}
+          >
+            <Crop className="h-4 w-4" />
+          </button>
+        ) : null}
+        <label
+          title={title}
+          className={`inline-flex cursor-pointer items-center justify-center rounded-lg border border-[var(--color-line)] bg-[var(--color-glass)] text-[var(--color-muted)] transition hover:text-[var(--color-text)] ${
+            m.isPending ? "opacity-60" : ""
+          } ${className}`}
+        >
+          {m.isPending ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <ImagePlus className="h-4 w-4" />
+          )}
+          <input
+            type="file"
+            accept="image/*,.jpg,.jpeg,.png,.webp,.gif"
+            className="hidden"
+            disabled={m.isPending}
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f)
+                setCrop({
+                  src: URL.createObjectURL(f),
+                  fileName: f.name,
+                  crossOrigin: false,
+                  owned: true,
+                });
+              e.target.value = "";
+            }}
+          />
+        </label>
+      </div>
+      {crop ? (
         <ImageCropModal
-          file={pending}
+          src={crop.src}
+          fileName={crop.fileName}
+          crossOrigin={crop.crossOrigin}
           round={round}
-          onCancel={() => setPending(null)}
+          onCancel={close}
           onConfirm={(cropped) => {
-            setPending(null);
+            close();
             m.mutate(cropped);
           }}
         />
@@ -409,6 +480,7 @@ function AlbumModal({
                 title={t("catalog.uploadAlbumCover", {
                   defaultValue: "Subir portada del álbum",
                 })}
+                currentSrc={album.coverArt}
                 onUpload={(f) => uploadAlbumCover(album.id, f).then(onChange)}
                 className="absolute -bottom-1 -right-1 h-9 w-9 rounded-full bg-[var(--color-surface)]"
               />
@@ -790,6 +862,7 @@ function ArtistEditor({ artistId }: { artistId: string }) {
               defaultValue: "Subir foto del artista",
             })}
             round
+            currentSrc={imageUrl || artist.imageUrl}
             onUpload={(f) => uploadArtistImage(artistId, f).then(invalidate)}
             className="absolute -bottom-1 -right-1 h-8 w-8 rounded-full bg-[var(--color-surface)]"
           />
@@ -976,6 +1049,7 @@ function ArtistEditor({ artistId }: { artistId: string }) {
                     title={t("catalog.uploadAlbumCover", {
                       defaultValue: "Subir portada del álbum",
                     })}
+                    currentSrc={al.coverArt}
                     onUpload={(f) =>
                       uploadAlbumCover(al.id, f).then(invalidate)
                     }
@@ -1118,6 +1192,7 @@ function ArtistEditor({ artistId }: { artistId: string }) {
                 title={t("catalog.uploadTrackCover", {
                   defaultValue: "Subir portada de la canción",
                 })}
+                currentSrc={tr.coverArt}
                 onUpload={(f) => uploadTrackCover(tr.id, f).then(invalidate)}
                 className="h-8 w-8"
               />
@@ -1174,7 +1249,10 @@ function CreateArtistModal({
   const [genres, setGenres] = useState<string[]>([]);
   const [genreInput, setGenreInput] = useState("");
   const [file, setFile] = useState<File | null>(null);
-  const [pendingPhoto, setPendingPhoto] = useState<File | null>(null);
+  const [pendingPhoto, setPendingPhoto] = useState<{
+    src: string;
+    fileName: string;
+  } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const genreSuggestionsQ = useQuery({
@@ -1303,7 +1381,11 @@ function CreateArtistModal({
                     className="hidden"
                     onChange={(e) => {
                       const f = e.target.files?.[0];
-                      if (f) setPendingPhoto(f);
+                      if (f)
+                        setPendingPhoto({
+                          src: URL.createObjectURL(f),
+                          fileName: f.name,
+                        });
                       e.target.value = "";
                     }}
                   />
@@ -1467,10 +1549,15 @@ function CreateArtistModal({
       </div>
       {pendingPhoto ? (
         <ImageCropModal
-          file={pendingPhoto}
+          src={pendingPhoto.src}
+          fileName={pendingPhoto.fileName}
           round
-          onCancel={() => setPendingPhoto(null)}
+          onCancel={() => {
+            URL.revokeObjectURL(pendingPhoto.src);
+            setPendingPhoto(null);
+          }}
           onConfirm={(cropped) => {
+            URL.revokeObjectURL(pendingPhoto.src);
             setFile(cropped);
             setImageUrl("");
             setPendingPhoto(null);
