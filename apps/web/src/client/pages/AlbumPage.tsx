@@ -261,14 +261,16 @@ export default function AlbumPage() {
         </header>
 
         {/* Tracklist */}
-        <div className="max-w-4xl px-8 pb-12 pt-2">
+        <div
+          className={`px-8 pb-12 pt-2 ${view === "cards" ? "max-w-[1560px]" : "max-w-4xl"}`}
+        >
           {albumQ.isLoading ? (
             <p className="text-sm text-[var(--color-muted)]">
               {t("album.loading", { defaultValue: "Cargando…" })}
             </p>
           ) : album && album.tracks.length && view === "cards" ? (
-            /* ── Cards view (track-centric: cover as texture, number + title up front) ── */
-            <div className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(150px,1fr))]">
+            /* ── Cards view ─────────────────────────────────────────────── */
+            <div className="grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(190px,1fr))]">
               {album.tracks.map((tr, i) => {
                 const active = currentTrackId === tr.id;
                 const cover = tr.coverArt ?? album.coverArt;
@@ -302,15 +304,7 @@ export default function AlbumPage() {
                       <div className="absolute inset-0 bg-[var(--color-surface-alt)]" />
                     )}
                     {/* Legibility gradient — darkest at the bottom for the title */}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/45 to-black/20" />
-
-                    {/* Big track number — the per-card differentiator */}
-                    <span
-                      className="absolute left-3 top-1.5 text-[2.75rem] font-black leading-none text-white/90 [text-shadow:0_2px_12px_rgba(0,0,0,.65)]"
-                      style={{ fontFamily: "var(--font-mono)" }}
-                    >
-                      {tr.albumOrder ?? i + 1}
-                    </span>
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/35 to-black/10" />
 
                     {/* Save — top-right */}
                     <span
