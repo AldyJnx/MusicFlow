@@ -8,6 +8,7 @@ import {
   ImagePlus,
   Loader2,
   Music4,
+  Pencil,
   Plus,
   Save,
   Trash2,
@@ -30,10 +31,19 @@ import {
   updateTrackLyrics,
   uploadAlbumCover,
   uploadArtistImage,
+  updateAlbum,
   uploadCatalogTrack,
   uploadTrackCover,
+  type CatalogAlbumSummary,
   type CatalogArtist,
+  type CatalogTrackCard,
 } from "../../shared/api/catalog";
+
+/** mm:ss from milliseconds. */
+function fmtDur(ms: number): string {
+  const s = Math.round(ms / 1000);
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+}
 
 function Field({
   label,
@@ -87,6 +97,225 @@ function ImageUploadButton({
         }}
       />
     </label>
+  );
+}
+
+// ── Album editor modal ──────────────────────────────────────────────────────────
+function AlbumModal({
+  album,
+  artistTracks,
+  onClose,
+  onChange,
+}: {
+  album: CatalogAlbumSummary;
+  artistTracks: CatalogTrackCard[];
+  onClose: () => void;
+  onChange: () => void;
+}) {
+  const { t } = useTranslation();
+  const [title, setTitle] = useState(album.title);
+  const [year, setYear] = useState(album.year ? String(album.year) : "");
+
+  const inAlbum = artistTracks
+    .filter((tr) => tr.albumId === album.id)
+    .sort((a, b) => (a.albumOrder ?? 0) - (b.albumOrder ?? 0));
+  const available = artistTracks.filter((tr) => tr.albumId !== album.id);
+
+  const save = useMutation({
+    mutationFn: () =>
+      updateAlbum(album.id, {
+        title: title.trim() || album.title,
+        year: year ? Number(year) : undefined,
+      }),
+    onSuccess: onChange,
+  });
+  const add = useMutation({
+    mutationFn: (trackId: string) =>
+      assignTrack(trackId, {
+        albumId: album.id,
+        albumOrder: inAlbum.length + 1,
+      }),
+    onSuccess: onChange,
+  });
+  const remove = useMutation({
+    mutationFn: (trackId: string) => assignTrack(trackId, { albumId: null }),
+    onSuccess: onChange,
+  });
+
+  return (
+    <div
+      className="fixed inset-0 z-[80] flex items-center justify-center bg-black/55 p-4 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="flex max-h-[88vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-[var(--color-line)] bg-[var(--color-surface)] shadow-[0_30px_80px_rgba(0,0,0,0.5)]"
+      >
+        <div className="flex items-center justify-between border-b border-[var(--color-line)] px-5 py-4">
+          <div className="flex items-center gap-2">
+            <Disc3 className="h-4 w-4 text-[var(--color-accent)]" />
+            <h3 className="text-sm font-bold text-[var(--color-text)]">
+              {t("catalog.editAlbum", { defaultValue: "Editar álbum" })}
+            </h3>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-[var(--color-muted)] hover:text-[var(--color-text)]"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-5">
+          {/* Header: cover + fields */}
+          <div className="flex flex-col gap-4 sm:flex-row">
+            <div className="relative h-32 w-32 flex-none">
+              <div className="h-full w-full overflow-hidden rounded-xl bg-[var(--color-surface-alt)]">
+                {album.coverArt ? (
+                  <img
+                    src={album.coverArt}
+                    alt=""
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <Disc3 className="absolute inset-0 m-auto h-10 w-10 text-[var(--color-muted)]" />
+                )}
+              </div>
+              <ImageUploadButton
+                title={t("catalog.uploadAlbumCover", {
+                  defaultValue: "Subir portada del álbum",
+                })}
+                onUpload={(f) => uploadAlbumCover(album.id, f).then(onChange)}
+                className="absolute -bottom-1 -right-1 h-9 w-9 rounded-full bg-[var(--color-surface)]"
+              />
+            </div>
+            <div className="flex flex-1 flex-col gap-3">
+              <label className="flex flex-col gap-1">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-muted)]">
+                  {t("catalog.albumTitle", {
+                    defaultValue: "Título del álbum",
+                  })}
+                </span>
+                <input
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  className="rounded-lg border border-[var(--color-line)] bg-white/[0.04] px-3 py-2 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-primary)]"
+                />
+              </label>
+              <div className="flex items-end gap-3">
+                <label className="flex w-28 flex-col gap-1">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-muted)]">
+                    {t("catalog.year", { defaultValue: "Año" })}
+                  </span>
+                  <input
+                    type="number"
+                    value={year}
+                    onChange={(e) => setYear(e.target.value)}
+                    className="rounded-lg border border-[var(--color-line)] bg-white/[0.04] px-3 py-2 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-primary)]"
+                  />
+                </label>
+                <button
+                  type="button"
+                  onClick={() => save.mutate()}
+                  disabled={save.isPending}
+                  className="inline-flex items-center gap-2 rounded-xl bg-[var(--color-primary)] px-4 py-2 text-sm font-semibold text-[var(--color-primary-contrast)] disabled:opacity-50"
+                >
+                  {save.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Save className="h-4 w-4" />
+                  )}
+                  {t("catalog.saveAlbum", { defaultValue: "Guardar" })}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Tracklist */}
+          <h4 className="mb-2 mt-5 text-[10px] font-bold uppercase tracking-widest text-[var(--color-muted)]">
+            {t("catalog.albumTracks", {
+              defaultValue: "Canciones del álbum ({{count}})",
+              count: inAlbum.length,
+            })}
+          </h4>
+          <div className="flex flex-col divide-y divide-[var(--color-line)] overflow-hidden rounded-xl border border-[var(--color-line)]">
+            {inAlbum.length === 0 ? (
+              <p className="px-3 py-5 text-center text-xs text-[var(--color-muted)]">
+                {t("catalog.albumEmpty", {
+                  defaultValue: "Aún sin canciones. Agrégalas abajo.",
+                })}
+              </p>
+            ) : (
+              inAlbum.map((tr, i) => (
+                <div
+                  key={tr.id}
+                  className="flex items-center gap-3 bg-[var(--color-glass)] px-3 py-2"
+                >
+                  <span className="w-5 text-right text-xs tabular-nums text-[var(--color-muted)]">
+                    {i + 1}
+                  </span>
+                  <span className="min-w-0 flex-1 truncate text-sm text-[var(--color-text)]">
+                    {tr.title}
+                  </span>
+                  <span className="text-xs tabular-nums text-[var(--color-muted)]">
+                    {fmtDur(tr.durationMs)}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => remove.mutate(tr.id)}
+                    disabled={remove.isPending}
+                    title={t("catalog.removeFromAlbum", {
+                      defaultValue: "Quitar del álbum",
+                    })}
+                    className="text-[var(--color-muted)] transition hover:text-rose-400"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+
+          {/* Add songs */}
+          {available.length > 0 ? (
+            <>
+              <h4 className="mb-2 mt-5 text-[10px] font-bold uppercase tracking-widest text-[var(--color-muted)]">
+                {t("catalog.addFromArtist", {
+                  defaultValue: "Agregar canciones del artista",
+                })}
+              </h4>
+              <div className="flex max-h-48 flex-col divide-y divide-[var(--color-line)] overflow-y-auto rounded-xl border border-[var(--color-line)]">
+                {available.map((tr) => (
+                  <div
+                    key={tr.id}
+                    className="flex items-center gap-3 bg-[var(--color-glass)] px-3 py-2"
+                  >
+                    <span className="min-w-0 flex-1 truncate text-sm text-[var(--color-text)]">
+                      {tr.title}
+                    </span>
+                    {tr.albumId ? (
+                      <span className="truncate text-[10px] text-[var(--color-muted)]">
+                        {tr.album}
+                      </span>
+                    ) : null}
+                    <button
+                      type="button"
+                      onClick={() => add.mutate(tr.id)}
+                      disabled={add.isPending}
+                      className="inline-flex items-center gap-1 rounded-lg border border-[var(--color-line)] bg-white/[0.04] px-2.5 py-1 text-xs font-semibold text-[var(--color-text)] hover:border-[var(--color-primary)] disabled:opacity-50"
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                      {t("catalog.add", { defaultValue: "Agregar" })}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : null}
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -225,6 +454,7 @@ function ArtistEditor({ artistId }: { artistId: string }) {
     id: string;
     title: string;
   } | null>(null);
+  const [editAlbumId, setEditAlbumId] = useState<string | null>(null);
   const [uploadAlbumId, setUploadAlbumId] = useState("");
   const [uploadError, setUploadError] = useState<string | null>(null);
 
@@ -476,58 +706,89 @@ function ArtistEditor({ artistId }: { artistId: string }) {
             {t("catalog.createAlbum", { defaultValue: "Crear álbum" })}
           </button>
         </div>
-        <div className="flex flex-wrap gap-2">
-          {artist.albums.map((al) => (
-            <div
-              key={al.id}
-              className="flex items-center gap-2 rounded-lg border border-[var(--color-line)] bg-[var(--color-surface-alt)] px-3 py-2"
-            >
-              <span className="h-9 w-9 flex-none overflow-hidden rounded-md bg-[var(--color-glass)]">
-                {al.coverArt ? (
-                  <img
-                    src={al.coverArt}
-                    alt=""
-                    className="h-full w-full object-cover"
-                  />
-                ) : (
-                  <Disc3 className="m-auto mt-2 h-4 w-4 text-[var(--color-muted)]" />
-                )}
-              </span>
-              <ImageUploadButton
-                title={t("catalog.uploadAlbumCover", {
-                  defaultValue: "Subir portada del álbum",
-                })}
-                onUpload={(f) => uploadAlbumCover(al.id, f).then(invalidate)}
-                className="h-8 w-8"
-              />
-              <span className="text-sm font-semibold text-[var(--color-text)]">
-                {al.title}
-              </span>
-              <span className="text-xs text-[var(--color-muted)]">
-                {al.year ? `${al.year} · ` : ""}
-                {t("catalog.trackCountShort", {
-                  defaultValue: "{{count}} canc.",
-                  count: al.trackCount,
-                })}
-              </span>
-              <button
-                type="button"
-                onClick={() => removeAlbum.mutate(al.id)}
-                className="text-[var(--color-muted)] hover:text-rose-400"
+        {artist.albums.length === 0 ? (
+          <p className="text-xs text-[var(--color-muted)]">
+            {t("catalog.noAlbums", {
+              defaultValue:
+                "Aún no hay álbumes. Crea uno y asigna canciones abajo.",
+            })}
+          </p>
+        ) : (
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+            {artist.albums.map((al) => (
+              <div
+                key={al.id}
+                className="group relative overflow-hidden rounded-2xl border border-[var(--color-line)] bg-[var(--color-surface-alt)] transition hover:-translate-y-0.5 hover:border-[var(--color-primary)] hover:shadow-[0_16px_36px_rgba(0,0,0,0.3)]"
               >
-                <Trash2 className="h-3.5 w-3.5" />
-              </button>
-            </div>
-          ))}
-          {artist.albums.length === 0 ? (
-            <p className="text-xs text-[var(--color-muted)]">
-              {t("catalog.noAlbums", {
-                defaultValue:
-                  "Aún no hay álbumes. Crea uno y asigna canciones abajo.",
-              })}
-            </p>
-          ) : null}
-        </div>
+                {/* Cover (click to edit) */}
+                <button
+                  type="button"
+                  onClick={() => setEditAlbumId(al.id)}
+                  className="relative block aspect-square w-full overflow-hidden bg-[var(--color-glass)]"
+                  title={t("catalog.editAlbum", {
+                    defaultValue: "Editar álbum",
+                  })}
+                >
+                  {al.coverArt ? (
+                    <img
+                      src={al.coverArt}
+                      alt=""
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <Disc3 className="absolute inset-0 m-auto h-10 w-10 text-[var(--color-muted)]" />
+                  )}
+                  <span className="absolute inset-0 flex items-center justify-center bg-black/45 opacity-0 transition group-hover:opacity-100">
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--color-primary)] px-3 py-1.5 text-xs font-bold text-[var(--color-primary-contrast)]">
+                      <Pencil className="h-3.5 w-3.5" />
+                      {t("catalog.edit", { defaultValue: "Editar" })}
+                    </span>
+                  </span>
+                </button>
+
+                {/* Quick cover-upload + delete, top-right */}
+                <div className="absolute right-1.5 top-1.5 flex gap-1 opacity-0 transition group-hover:opacity-100">
+                  <ImageUploadButton
+                    title={t("catalog.uploadAlbumCover", {
+                      defaultValue: "Subir portada del álbum",
+                    })}
+                    onUpload={(f) =>
+                      uploadAlbumCover(al.id, f).then(invalidate)
+                    }
+                    className="h-7 w-7 rounded-full bg-[var(--color-surface)]/90"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeAlbum.mutate(al.id)}
+                    title={t("catalog.deleteAlbum", {
+                      defaultValue: "Eliminar álbum",
+                    })}
+                    className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-[var(--color-surface)]/90 text-[var(--color-muted)] hover:text-rose-400"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+
+                {/* Meta */}
+                <div className="p-2.5">
+                  <p
+                    className="truncate text-sm font-bold text-[var(--color-text)]"
+                    title={al.title}
+                  >
+                    {al.title}
+                  </p>
+                  <p className="text-[11px] text-[var(--color-muted)]">
+                    {al.year ? `${al.year} · ` : ""}
+                    {t("catalog.trackCountShort", {
+                      defaultValue: "{{count}} canc.",
+                      count: al.trackCount,
+                    })}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Tracks */}
@@ -655,6 +916,21 @@ function ArtistEditor({ artistId }: { artistId: string }) {
           onClose={() => setLyricsTrack(null)}
         />
       ) : null}
+
+      {editAlbumId
+        ? (() => {
+            const al = artist.albums.find((a) => a.id === editAlbumId);
+            if (!al) return null;
+            return (
+              <AlbumModal
+                album={al}
+                artistTracks={artist.tracks}
+                onClose={() => setEditAlbumId(null)}
+                onChange={invalidate}
+              />
+            );
+          })()
+        : null}
     </div>
   );
 }
