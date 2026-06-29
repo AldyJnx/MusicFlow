@@ -83,8 +83,12 @@ export async function createArtist(payload: {
   name: string;
   imageUrl?: string;
   bio?: string;
-}) {
-  const { data } = await api.post("/admin/catalog/artists", payload);
+  genres?: string[];
+}): Promise<{ id: string }> {
+  const { data } = await api.post<{ id: string }>(
+    "/admin/catalog/artists",
+    payload,
+  );
   return data;
 }
 
