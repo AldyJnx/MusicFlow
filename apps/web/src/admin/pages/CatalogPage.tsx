@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import {
@@ -62,41 +62,264 @@ function Field({
   );
 }
 
-// A compact image picker that uploads on selection and refreshes on success.
+// ── Image crop/center modal ──────────────────────────────────────────────────────
+// Lets the admin pan + zoom a chosen image inside a square frame and exports the
+// visible region as a centered cover — no cropping library, just canvas.
+const CROP_VIEW = 320;
+const CROP_OUT = 640;
+
+function ImageCropModal({
+  file,
+  round = false,
+  onCancel,
+  onConfirm,
+}: {
+  file: File;
+  round?: boolean;
+  onCancel: () => void;
+  onConfirm: (cropped: File) => void;
+}) {
+  const { t } = useTranslation();
+  const url = useMemo(() => URL.createObjectURL(file), [file]);
+  const imgRef = useRef<HTMLImageElement | null>(null);
+  const [nat, setNat] = useState<{ w: number; h: number } | null>(null);
+  const [zoom, setZoom] = useState(1);
+  const [offset, setOffset] = useState({ x: 0, y: 0 });
+  const drag = useRef<{ x: number; y: number; ox: number; oy: number } | null>(
+    null,
+  );
+
+  useEffect(() => () => URL.revokeObjectURL(url), [url]);
+
+  const baseScale = nat ? Math.max(CROP_VIEW / nat.w, CROP_VIEW / nat.h) : 1;
+  const drawScale = baseScale * zoom;
+  const dw = nat ? nat.w * drawScale : 0;
+  const dh = nat ? nat.h * drawScale : 0;
+
+  const clamp = useCallback(
+    (o: { x: number; y: number }) => ({
+      x: Math.min(0, Math.max(CROP_VIEW - dw, o.x)),
+      y: Math.min(0, Math.max(CROP_VIEW - dh, o.y)),
+    }),
+    [dw, dh],
+  );
+
+  // Re-center on load and whenever zoom changes the bounds.
+  useEffect(() => {
+    if (!nat) return;
+    setOffset((o) => clamp({ x: o.x, y: o.y }));
+  }, [nat, zoom, clamp]);
+
+  function onImgLoad(e: React.SyntheticEvent<HTMLImageElement>) {
+    const im = e.currentTarget;
+    setNat({ w: im.naturalWidth, h: im.naturalHeight });
+    setOffset({
+      x:
+        (CROP_VIEW -
+          im.naturalWidth *
+            Math.max(
+              CROP_VIEW / im.naturalWidth,
+              CROP_VIEW / im.naturalHeight,
+            )) /
+        2,
+      y:
+        (CROP_VIEW -
+          im.naturalHeight *
+            Math.max(
+              CROP_VIEW / im.naturalWidth,
+              CROP_VIEW / im.naturalHeight,
+            )) /
+        2,
+    });
+  }
+
+  function exportCrop() {
+    const im = imgRef.current;
+    if (!im || !nat) return;
+    const canvas = document.createElement("canvas");
+    canvas.width = CROP_OUT;
+    canvas.height = CROP_OUT;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    const f = CROP_OUT / CROP_VIEW;
+    ctx.fillStyle = "#000";
+    ctx.fillRect(0, 0, CROP_OUT, CROP_OUT);
+    ctx.drawImage(im, offset.x * f, offset.y * f, dw * f, dh * f);
+    canvas.toBlob(
+      (blob) => {
+        if (!blob) return;
+        const ext = file.name.replace(/.*\./, "").toLowerCase();
+        const name = `cover.${ext === "png" ? "png" : "jpg"}`;
+        onConfirm(new File([blob], name, { type: blob.type }));
+      },
+      "image/jpeg",
+      0.92,
+    );
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-[90] flex items-center justify-center bg-black/65 p-4 backdrop-blur-sm"
+      onClick={onCancel}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="flex w-full max-w-sm flex-col gap-4 rounded-2xl border border-[var(--color-line)] bg-[var(--color-surface)] p-5 shadow-[0_30px_80px_rgba(0,0,0,0.5)]"
+      >
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-bold text-[var(--color-text)]">
+            {t("catalog.centerImage", { defaultValue: "Centrar imagen" })}
+          </h3>
+          <button
+            type="button"
+            onClick={onCancel}
+            className="text-[var(--color-muted)] hover:text-[var(--color-text)]"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <div
+          className="relative mx-auto select-none overflow-hidden bg-black"
+          style={{
+            width: CROP_VIEW,
+            height: CROP_VIEW,
+            borderRadius: round ? "9999px" : "16px",
+            cursor: drag.current ? "grabbing" : "grab",
+            touchAction: "none",
+          }}
+          onPointerDown={(e) => {
+            (e.target as HTMLElement).setPointerCapture(e.pointerId);
+            drag.current = {
+              x: e.clientX,
+              y: e.clientY,
+              ox: offset.x,
+              oy: offset.y,
+            };
+          }}
+          onPointerMove={(e) => {
+            if (!drag.current) return;
+            setOffset(
+              clamp({
+                x: drag.current.ox + (e.clientX - drag.current.x),
+                y: drag.current.oy + (e.clientY - drag.current.y),
+              }),
+            );
+          }}
+          onPointerUp={() => {
+            drag.current = null;
+          }}
+        >
+          <img
+            ref={imgRef}
+            src={url}
+            alt=""
+            onLoad={onImgLoad}
+            draggable={false}
+            style={{
+              position: "absolute",
+              left: offset.x,
+              top: offset.y,
+              width: dw,
+              height: dh,
+              maxWidth: "none",
+            }}
+          />
+          {/* subtle framing grid */}
+          <div className="pointer-events-none absolute inset-0 ring-1 ring-inset ring-white/20" />
+        </div>
+
+        <div className="flex items-center gap-3">
+          <ImagePlus className="h-4 w-4 text-[var(--color-muted)]" />
+          <input
+            type="range"
+            min={1}
+            max={3}
+            step={0.01}
+            value={zoom}
+            onChange={(e) => setZoom(Number(e.target.value))}
+            className="flex-1 accent-[var(--color-primary)]"
+          />
+        </div>
+        <p className="text-center text-[11px] text-[var(--color-muted)]">
+          {t("catalog.cropHint", {
+            defaultValue: "Arrastra para mover · desliza para acercar",
+          })}
+        </p>
+
+        <div className="flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="rounded-xl border border-[var(--color-line)] bg-white/[0.04] px-4 py-2 text-sm font-medium text-[var(--color-muted)] hover:text-[var(--color-text)]"
+          >
+            {t("catalog.cancel", { defaultValue: "Cancelar" })}
+          </button>
+          <button
+            type="button"
+            onClick={exportCrop}
+            disabled={!nat}
+            className="rounded-xl bg-[var(--color-primary)] px-4 py-2 text-sm font-semibold text-[var(--color-primary-contrast)] disabled:opacity-50"
+          >
+            {t("catalog.useImage", { defaultValue: "Usar imagen" })}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// A compact image picker that lets the admin center the image, then uploads it.
 function ImageUploadButton({
   onUpload,
   title,
+  round = false,
   className = "",
 }: {
   onUpload: (file: File) => Promise<unknown>;
   title: string;
+  round?: boolean;
   className?: string;
 }) {
   const m = useMutation({ mutationFn: onUpload });
+  const [pending, setPending] = useState<File | null>(null);
   return (
-    <label
-      title={title}
-      className={`inline-flex cursor-pointer items-center justify-center rounded-lg border border-[var(--color-line)] bg-[var(--color-glass)] text-[var(--color-muted)] transition hover:text-[var(--color-text)] ${
-        m.isPending ? "opacity-60" : ""
-      } ${className}`}
-    >
-      {m.isPending ? (
-        <Loader2 className="h-4 w-4 animate-spin" />
-      ) : (
-        <ImagePlus className="h-4 w-4" />
-      )}
-      <input
-        type="file"
-        accept="image/*,.jpg,.jpeg,.png,.webp,.gif"
-        className="hidden"
-        disabled={m.isPending}
-        onChange={(e) => {
-          const f = e.target.files?.[0];
-          if (f) m.mutate(f);
-          e.target.value = "";
-        }}
-      />
-    </label>
+    <>
+      <label
+        title={title}
+        className={`inline-flex cursor-pointer items-center justify-center rounded-lg border border-[var(--color-line)] bg-[var(--color-glass)] text-[var(--color-muted)] transition hover:text-[var(--color-text)] ${
+          m.isPending ? "opacity-60" : ""
+        } ${className}`}
+      >
+        {m.isPending ? (
+          <Loader2 className="h-4 w-4 animate-spin" />
+        ) : (
+          <ImagePlus className="h-4 w-4" />
+        )}
+        <input
+          type="file"
+          accept="image/*,.jpg,.jpeg,.png,.webp,.gif"
+          className="hidden"
+          disabled={m.isPending}
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f) setPending(f);
+            e.target.value = "";
+          }}
+        />
+      </label>
+      {pending ? (
+        <ImageCropModal
+          file={pending}
+          round={round}
+          onCancel={() => setPending(null)}
+          onConfirm={(cropped) => {
+            setPending(null);
+            m.mutate(cropped);
+          }}
+        />
+      ) : null}
+    </>
   );
 }
 
@@ -566,6 +789,7 @@ function ArtistEditor({ artistId }: { artistId: string }) {
             title={t("catalog.uploadArtistImage", {
               defaultValue: "Subir foto del artista",
             })}
+            round
             onUpload={(f) => uploadArtistImage(artistId, f).then(invalidate)}
             className="absolute -bottom-1 -right-1 h-8 w-8 rounded-full bg-[var(--color-surface)]"
           />
@@ -950,6 +1174,7 @@ function CreateArtistModal({
   const [genres, setGenres] = useState<string[]>([]);
   const [genreInput, setGenreInput] = useState("");
   const [file, setFile] = useState<File | null>(null);
+  const [pendingPhoto, setPendingPhoto] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const genreSuggestionsQ = useQuery({
@@ -1010,232 +1235,249 @@ function CreateArtistModal({
   const canSubmit = name.trim().length > 0 && !create.isPending;
 
   return (
-    <div
-      className="fixed inset-0 z-[80] flex items-center justify-center bg-black/55 p-4 backdrop-blur-sm"
-      onClick={onClose}
-    >
+    <>
       <div
-        onClick={(e) => e.stopPropagation()}
-        className="flex max-h-[88vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-[var(--color-line)] bg-[var(--color-surface)] shadow-[0_30px_80px_rgba(0,0,0,0.5)]"
+        className="fixed inset-0 z-[80] flex items-center justify-center bg-black/55 p-4 backdrop-blur-sm"
+        onClick={onClose}
       >
-        <div className="flex items-center justify-between border-b border-[var(--color-line)] px-5 py-4">
-          <div className="flex items-center gap-2">
-            <UserPlus className="h-4 w-4 text-[var(--color-primary)]" />
-            <h3 className="text-sm font-bold text-[var(--color-text)]">
-              {t("catalog.newArtistTitle", { defaultValue: "Nuevo artista" })}
-            </h3>
+        <div
+          onClick={(e) => e.stopPropagation()}
+          className="flex max-h-[88vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-[var(--color-line)] bg-[var(--color-surface)] shadow-[0_30px_80px_rgba(0,0,0,0.5)]"
+        >
+          <div className="flex items-center justify-between border-b border-[var(--color-line)] px-5 py-4">
+            <div className="flex items-center gap-2">
+              <UserPlus className="h-4 w-4 text-[var(--color-primary)]" />
+              <h3 className="text-sm font-bold text-[var(--color-text)]">
+                {t("catalog.newArtistTitle", { defaultValue: "Nuevo artista" })}
+              </h3>
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              className="text-[var(--color-muted)] hover:text-[var(--color-text)]"
+            >
+              <X className="h-5 w-5" />
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="text-[var(--color-muted)] hover:text-[var(--color-text)]"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
 
-        <div className="flex-1 overflow-y-auto p-5">
-          <div className="flex gap-4">
-            {/* Photo — the whole circle is a click-to-upload dropzone. */}
-            <div className="flex flex-col items-center gap-2">
-              <label
-                title={t("catalog.uploadArtistImage", {
-                  defaultValue: "Subir foto del artista",
-                })}
-                className="group relative h-28 w-28 flex-none cursor-pointer overflow-hidden rounded-full border-2 border-dashed border-[var(--color-line)] bg-[var(--color-surface-alt)] transition hover:border-[var(--color-primary)]"
-              >
-                {previewUrl || imageUrl ? (
-                  <img
-                    src={previewUrl || imageUrl}
-                    alt=""
-                    className="h-full w-full object-cover"
-                    onError={(e) => {
-                      e.currentTarget.style.visibility = "hidden";
+          <div className="flex-1 overflow-y-auto p-5">
+            <div className="flex gap-4">
+              {/* Photo — the whole circle is a click-to-upload dropzone. */}
+              <div className="flex flex-col items-center gap-2">
+                <label
+                  title={t("catalog.uploadArtistImage", {
+                    defaultValue: "Subir foto del artista",
+                  })}
+                  className="group relative h-28 w-28 flex-none cursor-pointer overflow-hidden rounded-full border-2 border-dashed border-[var(--color-line)] bg-[var(--color-surface-alt)] transition hover:border-[var(--color-primary)]"
+                >
+                  {previewUrl || imageUrl ? (
+                    <img
+                      src={previewUrl || imageUrl}
+                      alt=""
+                      className="h-full w-full object-cover"
+                      onError={(e) => {
+                        e.currentTarget.style.visibility = "hidden";
+                      }}
+                    />
+                  ) : null}
+                  {/* Overlay: prompt when empty, "change" hint on hover when set */}
+                  <span
+                    className={`absolute inset-0 flex flex-col items-center justify-center gap-1 text-[var(--color-muted)] transition ${
+                      previewUrl || imageUrl
+                        ? "bg-black/45 text-white opacity-0 group-hover:opacity-100"
+                        : "group-hover:text-[var(--color-primary)]"
+                    }`}
+                  >
+                    <ImagePlus className="h-6 w-6" />
+                    <span className="text-[10px] font-semibold">
+                      {previewUrl || imageUrl
+                        ? t("catalog.changePhoto", { defaultValue: "Cambiar" })
+                        : t("catalog.uploadPhoto", {
+                            defaultValue: "Subir foto",
+                          })}
+                    </span>
+                  </span>
+                  <input
+                    type="file"
+                    accept="image/*,.jpg,.jpeg,.png,.webp,.gif"
+                    className="hidden"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (f) setPendingPhoto(f);
+                      e.target.value = "";
                     }}
                   />
-                ) : null}
-                {/* Overlay: prompt when empty, "change" hint on hover when set */}
-                <span
-                  className={`absolute inset-0 flex flex-col items-center justify-center gap-1 text-[var(--color-muted)] transition ${
-                    previewUrl || imageUrl
-                      ? "bg-black/45 text-white opacity-0 group-hover:opacity-100"
-                      : "group-hover:text-[var(--color-primary)]"
-                  }`}
-                >
-                  <ImagePlus className="h-6 w-6" />
-                  <span className="text-[10px] font-semibold">
-                    {previewUrl || imageUrl
-                      ? t("catalog.changePhoto", { defaultValue: "Cambiar" })
-                      : t("catalog.uploadPhoto", {
-                          defaultValue: "Subir foto",
-                        })}
+                </label>
+                {file ? (
+                  <button
+                    type="button"
+                    onClick={() => setFile(null)}
+                    className="text-[10px] font-semibold text-rose-400 hover:underline"
+                  >
+                    {t("catalog.removePhoto", { defaultValue: "Quitar foto" })}
+                  </button>
+                ) : (
+                  <span className="text-[10px] text-[var(--color-muted)]">
+                    {t("catalog.photoHint", {
+                      defaultValue: "Foto (opcional)",
+                    })}
                   </span>
-                </span>
+                )}
+              </div>
+
+              {/* Name + image URL */}
+              <div className="flex flex-1 flex-col gap-3">
+                <label className="flex flex-col gap-1">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-muted)]">
+                    {t("catalog.name", { defaultValue: "Nombre" })} *
+                  </span>
+                  <input
+                    autoFocus
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && canSubmit) create.mutate();
+                    }}
+                    placeholder={t("catalog.namePlaceholder", {
+                      defaultValue: "Nombre del artista",
+                    })}
+                    className="rounded-lg border border-[var(--color-line)] bg-white/[0.04] px-3 py-2 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-primary)]"
+                  />
+                </label>
+                <label className="flex flex-col gap-1">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-muted)]">
+                    {t("catalog.orImageUrl", {
+                      defaultValue: "…o pega una URL",
+                    })}
+                  </span>
+                  <input
+                    value={imageUrl}
+                    onChange={(e) => setImageUrl(e.target.value)}
+                    placeholder="https://…"
+                    disabled={!!file}
+                    className="rounded-lg border border-[var(--color-line)] bg-white/[0.04] px-3 py-2 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-primary)] disabled:opacity-50"
+                  />
+                </label>
+              </div>
+            </div>
+
+            {/* Genres */}
+            <div className="mt-4 flex flex-col gap-1.5">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-muted)]">
+                {t("catalog.genres", { defaultValue: "Géneros" })}
+              </span>
+              {genres.length > 0 ? (
+                <div className="flex flex-wrap gap-1.5">
+                  {genres.map((g) => (
+                    <span
+                      key={g}
+                      className="inline-flex items-center gap-1 rounded-full bg-[color-mix(in_srgb,var(--color-accent)_16%,transparent)] px-2 py-0.5 text-xs font-semibold text-[var(--color-accent)]"
+                    >
+                      {g}
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setGenres((prev) => prev.filter((x) => x !== g))
+                        }
+                        className="opacity-70 hover:opacity-100"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              ) : null}
+              <div className="flex gap-2">
                 <input
-                  type="file"
-                  accept="image/*,.jpg,.jpeg,.png,.webp,.gif"
-                  className="hidden"
-                  onChange={(e) => {
-                    const f = e.target.files?.[0];
-                    if (f) {
-                      setFile(f);
-                      setImageUrl("");
+                  list="create-artist-genres"
+                  value={genreInput}
+                  onChange={(e) => setGenreInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      addGenre(genreInput);
                     }
-                    e.target.value = "";
                   }}
+                  placeholder={t("catalog.addGenrePlaceholder", {
+                    defaultValue: "Agregar género (Enter)…",
+                  })}
+                  className="min-w-0 flex-1 rounded-lg border border-[var(--color-line)] bg-white/[0.04] px-3 py-2 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-primary)]"
                 />
-              </label>
-              {file ? (
+                <datalist id="create-artist-genres">
+                  {(genreSuggestionsQ.data ?? []).map((g) => (
+                    <option key={g} value={g} />
+                  ))}
+                </datalist>
                 <button
                   type="button"
-                  onClick={() => setFile(null)}
-                  className="text-[10px] font-semibold text-rose-400 hover:underline"
+                  onClick={() => addGenre(genreInput)}
+                  disabled={!genreInput.trim()}
+                  className="inline-flex items-center gap-1 rounded-lg border border-[var(--color-line)] bg-white/[0.04] px-3 py-2 text-xs font-semibold text-[var(--color-text)] hover:border-[var(--color-primary)] disabled:opacity-50"
                 >
-                  {t("catalog.removePhoto", { defaultValue: "Quitar foto" })}
+                  <Plus className="h-3.5 w-3.5" />
+                  {t("catalog.add", { defaultValue: "Agregar" })}
                 </button>
-              ) : (
-                <span className="text-[10px] text-[var(--color-muted)]">
-                  {t("catalog.photoHint", { defaultValue: "Foto (opcional)" })}
-                </span>
-              )}
-            </div>
-
-            {/* Name + image URL */}
-            <div className="flex flex-1 flex-col gap-3">
-              <label className="flex flex-col gap-1">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-muted)]">
-                  {t("catalog.name", { defaultValue: "Nombre" })} *
-                </span>
-                <input
-                  autoFocus
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && canSubmit) create.mutate();
-                  }}
-                  placeholder={t("catalog.namePlaceholder", {
-                    defaultValue: "Nombre del artista",
-                  })}
-                  className="rounded-lg border border-[var(--color-line)] bg-white/[0.04] px-3 py-2 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-primary)]"
-                />
-              </label>
-              <label className="flex flex-col gap-1">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-muted)]">
-                  {t("catalog.orImageUrl", { defaultValue: "…o pega una URL" })}
-                </span>
-                <input
-                  value={imageUrl}
-                  onChange={(e) => setImageUrl(e.target.value)}
-                  placeholder="https://…"
-                  disabled={!!file}
-                  className="rounded-lg border border-[var(--color-line)] bg-white/[0.04] px-3 py-2 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-primary)] disabled:opacity-50"
-                />
-              </label>
-            </div>
-          </div>
-
-          {/* Genres */}
-          <div className="mt-4 flex flex-col gap-1.5">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-muted)]">
-              {t("catalog.genres", { defaultValue: "Géneros" })}
-            </span>
-            {genres.length > 0 ? (
-              <div className="flex flex-wrap gap-1.5">
-                {genres.map((g) => (
-                  <span
-                    key={g}
-                    className="inline-flex items-center gap-1 rounded-full bg-[color-mix(in_srgb,var(--color-accent)_16%,transparent)] px-2 py-0.5 text-xs font-semibold text-[var(--color-accent)]"
-                  >
-                    {g}
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setGenres((prev) => prev.filter((x) => x !== g))
-                      }
-                      className="opacity-70 hover:opacity-100"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </span>
-                ))}
               </div>
-            ) : null}
-            <div className="flex gap-2">
-              <input
-                list="create-artist-genres"
-                value={genreInput}
-                onChange={(e) => setGenreInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    addGenre(genreInput);
-                  }
-                }}
-                placeholder={t("catalog.addGenrePlaceholder", {
-                  defaultValue: "Agregar género (Enter)…",
-                })}
-                className="min-w-0 flex-1 rounded-lg border border-[var(--color-line)] bg-white/[0.04] px-3 py-2 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-primary)]"
-              />
-              <datalist id="create-artist-genres">
-                {(genreSuggestionsQ.data ?? []).map((g) => (
-                  <option key={g} value={g} />
-                ))}
-              </datalist>
-              <button
-                type="button"
-                onClick={() => addGenre(genreInput)}
-                disabled={!genreInput.trim()}
-                className="inline-flex items-center gap-1 rounded-lg border border-[var(--color-line)] bg-white/[0.04] px-3 py-2 text-xs font-semibold text-[var(--color-text)] hover:border-[var(--color-primary)] disabled:opacity-50"
-              >
-                <Plus className="h-3.5 w-3.5" />
-                {t("catalog.add", { defaultValue: "Agregar" })}
-              </button>
             </div>
+
+            {/* Bio */}
+            <label className="mt-4 flex flex-col gap-1">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-muted)]">
+                {t("catalog.bio", { defaultValue: "Bio" })}
+              </span>
+              <textarea
+                value={bio}
+                onChange={(e) => setBio(e.target.value)}
+                rows={3}
+                placeholder={t("catalog.bioPlaceholder", {
+                  defaultValue: "Breve descripción del artista…",
+                })}
+                className="resize-y rounded-lg border border-[var(--color-line)] bg-white/[0.04] px-3 py-2 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-primary)]"
+              />
+            </label>
+
+            {error ? (
+              <p className="mt-3 text-xs text-rose-400">{error}</p>
+            ) : null}
           </div>
 
-          {/* Bio */}
-          <label className="mt-4 flex flex-col gap-1">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-muted)]">
-              {t("catalog.bio", { defaultValue: "Bio" })}
-            </span>
-            <textarea
-              value={bio}
-              onChange={(e) => setBio(e.target.value)}
-              rows={3}
-              placeholder={t("catalog.bioPlaceholder", {
-                defaultValue: "Breve descripción del artista…",
-              })}
-              className="resize-y rounded-lg border border-[var(--color-line)] bg-white/[0.04] px-3 py-2 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-primary)]"
-            />
-          </label>
-
-          {error ? <p className="mt-3 text-xs text-rose-400">{error}</p> : null}
-        </div>
-
-        <div className="flex justify-end gap-2 border-t border-[var(--color-line)] px-5 py-4">
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-xl border border-[var(--color-line)] bg-white/[0.04] px-4 py-2 text-sm font-medium text-[var(--color-muted)] hover:text-[var(--color-text)]"
-          >
-            {t("catalog.cancel", { defaultValue: "Cancelar" })}
-          </button>
-          <button
-            type="button"
-            onClick={() => create.mutate()}
-            disabled={!canSubmit}
-            className="inline-flex items-center gap-2 rounded-xl bg-[var(--color-primary)] px-4 py-2 text-sm font-semibold text-[var(--color-primary-contrast)] disabled:opacity-50"
-          >
-            {create.isPending ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <UserPlus className="h-4 w-4" />
-            )}
-            {t("catalog.createArtist", { defaultValue: "Crear artista" })}
-          </button>
+          <div className="flex justify-end gap-2 border-t border-[var(--color-line)] px-5 py-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-xl border border-[var(--color-line)] bg-white/[0.04] px-4 py-2 text-sm font-medium text-[var(--color-muted)] hover:text-[var(--color-text)]"
+            >
+              {t("catalog.cancel", { defaultValue: "Cancelar" })}
+            </button>
+            <button
+              type="button"
+              onClick={() => create.mutate()}
+              disabled={!canSubmit}
+              className="inline-flex items-center gap-2 rounded-xl bg-[var(--color-primary)] px-4 py-2 text-sm font-semibold text-[var(--color-primary-contrast)] disabled:opacity-50"
+            >
+              {create.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <UserPlus className="h-4 w-4" />
+              )}
+              {t("catalog.createArtist", { defaultValue: "Crear artista" })}
+            </button>
+          </div>
         </div>
       </div>
-    </div>
+      {pendingPhoto ? (
+        <ImageCropModal
+          file={pendingPhoto}
+          round
+          onCancel={() => setPendingPhoto(null)}
+          onConfirm={(cropped) => {
+            setFile(cropped);
+            setImageUrl("");
+            setPendingPhoto(null);
+          }}
+        />
+      ) : null}
+    </>
   );
 }
 
