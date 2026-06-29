@@ -13,7 +13,11 @@ import { useNavigate, useParams } from "react-router-dom";
 
 import ClientLayout from "../layout/ClientLayout";
 import { useTracksQuery } from "../../shared/hooks/useTracks";
-import { getCatalogArtist, listCatalogArtists } from "../../shared/api/catalog";
+import {
+  getCatalogArtist,
+  listCatalogArtists,
+  type CatalogTrackCard,
+} from "../../shared/api/catalog";
 import SaveButton from "../../shared/ui/SaveButton";
 import { useSavedCheckQuery } from "../../shared/hooks/useLibrarySaves";
 import { usePremiumGate } from "../../shared/hooks/usePremiumGate";
@@ -37,6 +41,13 @@ function formatDuration(ms: number): string {
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
   return `${minutes}:${String(seconds).padStart(2, "0")}`;
+}
+
+/** Total album length as "1 h 12 min" / "38 min". */
+function formatTotal(ms: number): string {
+  const min = Math.round(ms / 60000);
+  if (min < 60) return `${min} min`;
+  return `${Math.floor(min / 60)} h ${min % 60} min`;
 }
 
 /**
@@ -78,6 +89,40 @@ export default function ArtistPage() {
     enabled: !!catalogArtistId,
   });
   const albums = catalogArtistQ.data?.albums ?? [];
+
+  // Group the artist's catalog tracks by album so each card can show the real
+  // total duration and play the whole album.
+  const albumTracks = useMemo(() => {
+    const m = new Map<string, CatalogTrackCard[]>();
+    for (const tr of catalogArtistQ.data?.tracks ?? []) {
+      if (!tr.albumId) continue;
+      const list = m.get(tr.albumId) ?? [];
+      list.push(tr);
+      m.set(tr.albumId, list);
+    }
+    for (const list of m.values())
+      list.sort((a, b) => (a.albumOrder ?? 0) - (b.albumOrder ?? 0));
+    return m;
+  }, [catalogArtistQ.data]);
+
+  function playAlbum(albumId: string) {
+    const list = (albumTracks.get(albumId) ?? [])
+      .map((c): PlayerTrack | null =>
+        c.fileUrlRemote
+          ? {
+              id: c.id,
+              title: c.title,
+              artist: c.artist,
+              cover: c.coverArt,
+              url: c.fileUrlRemote,
+              durationMs: c.durationMs,
+            }
+          : null,
+      )
+      .filter((p): p is PlayerTrack => p !== null);
+    if (list.length > 0) void playTrackList(list, 0);
+  }
+
   const visibleIds = useMemo(() => tracks.map((tr) => tr.id), [tracks]);
   const savedCheckQ = useSavedCheckQuery(visibleIds);
   const savedSet = useMemo(
@@ -242,41 +287,74 @@ export default function ArtistPage() {
             <h2 className="text-sm font-bold uppercase tracking-[0.18em] text-[var(--color-muted)]">
               {t("artist.albums", { defaultValue: "Álbumes" })}
             </h2>
-            <div className="flex flex-wrap gap-5">
-              {albums.map((al) => (
-                <button
-                  key={al.id}
-                  type="button"
-                  onClick={() => navigate(`/album/${al.id}`)}
-                  className="group flex w-[160px] flex-none flex-col gap-2 text-left"
-                >
-                  <div className="relative aspect-square overflow-hidden rounded-xl bg-[var(--color-surface-alt)] shadow-[0_10px_30px_-12px_rgba(0,0,0,.7)]">
-                    {al.coverArt ? (
-                      <img
-                        src={al.coverArt}
-                        alt={al.title}
-                        className="h-full w-full object-cover transition group-hover:scale-105"
-                      />
-                    ) : (
-                      <div className="flex h-full w-full items-center justify-center">
-                        <Disc3
-                          className="h-10 w-10 text-[var(--color-muted)]"
-                          strokeWidth={1.4}
+            <div className="grid gap-5 [grid-template-columns:repeat(auto-fill,minmax(190px,1fr))]">
+              {albums.map((al) => {
+                const dur = (albumTracks.get(al.id) ?? []).reduce(
+                  (s, c) => s + c.durationMs,
+                  0,
+                );
+                const playable = (albumTracks.get(al.id) ?? []).some(
+                  (c) => c.fileUrlRemote,
+                );
+                return (
+                  <div
+                    key={al.id}
+                    onClick={() => navigate(`/album/${al.id}`)}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") navigate(`/album/${al.id}`);
+                    }}
+                    className="group flex cursor-pointer flex-col gap-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3 text-left transition hover:-translate-y-1 hover:border-[var(--color-primary)] hover:bg-[var(--color-surface-alt)] hover:shadow-[0_18px_40px_-16px_rgba(0,0,0,.7)]"
+                  >
+                    <div className="relative aspect-square overflow-hidden rounded-xl bg-[var(--color-surface-alt)] shadow-[0_10px_30px_-12px_rgba(0,0,0,.7)]">
+                      {al.coverArt ? (
+                        <img
+                          src={al.coverArt}
+                          alt={al.title}
+                          className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
                         />
-                      </div>
-                    )}
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center">
+                          <Disc3
+                            className="h-12 w-12 text-[var(--color-muted)]"
+                            strokeWidth={1.3}
+                          />
+                        </div>
+                      )}
+                      {/* Play overlay */}
+                      {playable ? (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            playAlbum(al.id);
+                          }}
+                          aria-label={t("artist.playAlbum", {
+                            defaultValue: "Reproducir álbum",
+                          })}
+                          className="absolute bottom-2 right-2 flex h-11 w-11 translate-y-2 items-center justify-center rounded-full bg-[var(--color-primary)] text-[var(--color-primary-contrast)] opacity-0 shadow-[0_10px_24px_-6px_var(--color-primary)] transition group-hover:translate-y-0 group-hover:opacity-100 hover:scale-110"
+                        >
+                          <Play className="h-5 w-5" fill="currentColor" />
+                        </button>
+                      ) : null}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-bold text-[var(--color-text)]">
+                        {al.title}
+                      </p>
+                      <p className="truncate text-[11px] text-[var(--color-muted)]">
+                        {al.year ? `${al.year} · ` : ""}
+                        {t("artist.albumMeta", {
+                          defaultValue: "{{count}} canciones",
+                          count: al.trackCount,
+                        })}
+                        {dur > 0 ? ` · ${formatTotal(dur)}` : ""}
+                      </p>
+                    </div>
                   </div>
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-bold text-[var(--color-text)]">
-                      {al.title}
-                    </p>
-                    <p className="text-[11px] text-[var(--color-muted)]">
-                      {al.year ? `${al.year} · ` : ""}
-                      {al.trackCount} canciones
-                    </p>
-                  </div>
-                </button>
-              ))}
+                );
+              })}
             </div>
           </div>
         ) : null}
