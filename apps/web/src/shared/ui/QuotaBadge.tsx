@@ -1,12 +1,13 @@
-import { Crown, Sparkles } from "lucide-react";
+import { Sparkles } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { useQuotaQuery } from "../hooks/useQuota";
 
 /**
- * Compact pill in the navbar. Shows the AI-request usage for free users
- * (the most actively consumed quota) and a "Premium" badge otherwise.
- * Clicking navigates to the billing settings page.
+ * Compact pill in the navbar showing the AI-request usage for free users
+ * (the most actively consumed quota). Premium users have unlimited AI and
+ * already carry the "Premium" TierBadge, so we render nothing for them to
+ * avoid a duplicate tier indicator. Clicking navigates to billing settings.
  */
 export default function QuotaBadge() {
   const { data, isLoading } = useQuotaQuery();
@@ -15,19 +16,8 @@ export default function QuotaBadge() {
 
   if (isLoading || !data) return null;
 
-  if (data.isPremium) {
-    return (
-      <button
-        type="button"
-        onClick={() => navigate("/settings/billing")}
-        className="inline-flex items-center gap-1.5 rounded-full border border-[var(--color-primary)]/40 bg-[var(--color-primary)]/10 px-3 py-1.5 text-xs font-semibold text-[var(--color-primary)] transition hover:bg-[var(--color-primary)]/20"
-        aria-label={t("billing.premiumBadge", { defaultValue: "Premium" })}
-      >
-        <Crown className="h-3.5 w-3.5" strokeWidth={2.3} />
-        <span>{t("billing.premium", { defaultValue: "Premium" })}</span>
-      </button>
-    );
-  }
+  // Premium/admin: tier is already shown by TierBadge — no quota meter needed.
+  if (data.isPremium) return null;
 
   const { used, limit } = data.aiRequests;
   if (limit == null) return null;
