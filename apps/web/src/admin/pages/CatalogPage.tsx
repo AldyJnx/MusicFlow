@@ -670,18 +670,43 @@ function LyricsModal({
               {title}
             </h3>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="text-[var(--color-muted)] hover:text-[var(--color-text)]"
-          >
-            <X className="h-5 w-5" />
-          </button>
+          <div className="flex items-center gap-2">
+            <label
+              title={t("catalog.uploadLrcTitle", {
+                defaultValue: "Subir archivo .lrc o .txt",
+              })}
+              className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-[var(--color-line)] bg-white/[0.04] px-3 py-1.5 text-xs font-semibold text-[var(--color-text)] transition hover:border-[var(--color-primary)]"
+            >
+              <UploadCloud className="h-3.5 w-3.5" />
+              {t("catalog.uploadLrc", { defaultValue: "Subir .lrc" })}
+              <input
+                type="file"
+                accept=".lrc,.txt,text/plain"
+                className="hidden"
+                onChange={async (e) => {
+                  const f = e.target.files?.[0];
+                  e.target.value = "";
+                  if (!f) return;
+                  const text = await f.text();
+                  setLrc(text);
+                  setLoaded(true);
+                }}
+              />
+            </label>
+            <button
+              type="button"
+              onClick={onClose}
+              className="text-[var(--color-muted)] hover:text-[var(--color-text)]"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
         </div>
         <div className="flex-1 overflow-y-auto p-5">
           <p className="mb-2 text-xs text-[var(--color-muted)]">
             {t("catalog.lyricsHintBefore", {
-              defaultValue: "Pega la letra. Si usa marcas de tiempo",
+              defaultValue:
+                "Sube un .lrc o pega la letra. Si usa marcas de tiempo",
             })}{" "}
             <code>[mm:ss.xx]</code>{" "}
             {t("catalog.lyricsHintAfter", {
