@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import {
+  ChevronLeft,
+  ChevronRight,
   Disc3,
   ImagePlus,
   Loader2,
@@ -669,6 +671,7 @@ export default function CatalogPage() {
   const [search, setSearch] = useState("");
   const [genreFilter, setGenreFilter] = useState("");
   const [newArtist, setNewArtist] = useState("");
+  const [page, setPage] = useState(0);
 
   const artists = artistsQ.data ?? [];
 
@@ -688,6 +691,20 @@ export default function CatalogPage() {
       return true;
     });
   }, [artists, search, genreFilter]);
+
+  // Page the (filtered) list so the column never turns into an endless scroll.
+  const ARTISTS_PER_PAGE = 10;
+  const totalPages = Math.max(1, Math.ceil(filtered.length / ARTISTS_PER_PAGE));
+  const safePage = Math.min(page, totalPages - 1);
+  const pageItems = filtered.slice(
+    safePage * ARTISTS_PER_PAGE,
+    safePage * ARTISTS_PER_PAGE + ARTISTS_PER_PAGE,
+  );
+
+  // Reset to the first page whenever the filters change the result set.
+  useEffect(() => {
+    setPage(0);
+  }, [search, genreFilter]);
 
   useEffect(() => {
     if (!selected && filtered.length) setSelected(filtered[0].id);
@@ -790,7 +807,7 @@ export default function CatalogPage() {
             </button>
           </div>
           <div className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto">
-            {(artistsQ.isLoading ? [] : filtered).map((a: CatalogArtist) => (
+            {(artistsQ.isLoading ? [] : pageItems).map((a: CatalogArtist) => (
               <button
                 key={a.id}
                 type="button"
@@ -841,7 +858,45 @@ export default function CatalogPage() {
                 </span>
               </button>
             ))}
+            {!artistsQ.isLoading && pageItems.length === 0 ? (
+              <p className="px-2 py-6 text-center text-xs text-[var(--color-muted)]">
+                {t("catalog.noArtistsMatch", {
+                  defaultValue: "Ningún artista coincide.",
+                })}
+              </p>
+            ) : null}
           </div>
+
+          {/* Pagination */}
+          {totalPages > 1 ? (
+            <div className="flex shrink-0 items-center justify-between gap-2 border-t border-[var(--color-line)] pt-2">
+              <button
+                type="button"
+                onClick={() => setPage((p) => Math.max(0, p - 1))}
+                disabled={safePage === 0}
+                className="inline-flex items-center gap-1 rounded-lg border border-[var(--color-line)] bg-white/[0.04] px-2.5 py-1.5 text-xs font-semibold text-[var(--color-text)] transition hover:border-[var(--color-primary)] disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                <ChevronLeft className="h-3.5 w-3.5" />
+                {t("catalog.prev", { defaultValue: "Anterior" })}
+              </button>
+              <span className="text-[11px] tabular-nums text-[var(--color-muted)]">
+                {t("catalog.pageOf", {
+                  defaultValue: "{{page}} / {{total}}",
+                  page: safePage + 1,
+                  total: totalPages,
+                })}
+              </span>
+              <button
+                type="button"
+                onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+                disabled={safePage >= totalPages - 1}
+                className="inline-flex items-center gap-1 rounded-lg border border-[var(--color-line)] bg-white/[0.04] px-2.5 py-1.5 text-xs font-semibold text-[var(--color-text)] transition hover:border-[var(--color-primary)] disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {t("catalog.next", { defaultValue: "Siguiente" })}
+                <ChevronRight className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          ) : null}
         </div>
 
         {/* Detail */}
