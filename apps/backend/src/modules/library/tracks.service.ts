@@ -6,6 +6,10 @@ import {
 } from "@nestjs/common";
 import { PrismaService } from "@/prisma/prisma.service";
 import { StorageService } from "@/modules/storage/storage.service";
+import {
+  extractEmbeddedCover,
+  extractEmbeddedLyrics,
+} from "@/common/audio/track-metadata";
 import { Prisma, TrackSource, SyncStatus } from "@prisma/client";
 
 @Injectable()
@@ -44,6 +48,14 @@ export class TracksService {
 
     const upload = await this.storage.uploadAudio(file, `tracks/${userId}`);
 
+    // Embedded artwork (ID3 APIC etc.) → R2, and embedded USLT/SYLT lyrics.
+    const coverArt = await extractEmbeddedCover(
+      meta,
+      this.storage,
+      `tracks/${userId}/covers`,
+    );
+    const lyrics = extractEmbeddedLyrics(meta);
+
     return this.prisma.track.create({
       data: {
         user: { connect: { id: userId } },
@@ -68,6 +80,8 @@ export class TracksService {
           ? Math.round(meta.format.bitrate / 1000)
           : undefined,
         sampleRate: meta?.format.sampleRate,
+        coverArt: coverArt ?? undefined,
+        ...lyrics,
         source: TrackSource.SYNCED,
         syncStatus: SyncStatus.SYNCED,
       },

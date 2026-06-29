@@ -9,6 +9,10 @@ import { TrackSource, SyncStatus } from "@prisma/client";
 
 import { PrismaService } from "@/prisma/prisma.service";
 import { StorageService } from "@/modules/storage/storage.service";
+import {
+  extractEmbeddedCover,
+  extractEmbeddedLyrics,
+} from "@/common/audio/track-metadata";
 import type {
   AssignTrackDto,
   CreateAlbumDto,
@@ -18,67 +22,6 @@ import type {
   UpdateArtistDto,
   UpdateLyricsDto,
 } from "./catalog.dto";
-
-/** Pull a lyric string out of one value (string, {text}, or {syncText[]}). */
-function lyricTextOf(v: unknown): string {
-  if (typeof v === "string") return v;
-  if (v && typeof v === "object") {
-    const o = v as { text?: unknown; syncText?: unknown };
-    if (typeof o.text === "string" && o.text.trim()) return o.text;
-    if (Array.isArray(o.syncText)) {
-      return (o.syncText as Array<{ text?: unknown }>)
-        .map((s) => (typeof s.text === "string" ? s.text : ""))
-        .filter(Boolean)
-        .join("\n");
-    }
-  }
-  return "";
-}
-
-/**
- * Pull unsynced/synced lyrics out of parsed metadata. Some formats expose them
- * on `common.lyrics`; ID3 (MP3) keeps them as native USLT/SYLT frames, so we
- * scan both. Stored as LRC when the text carries [mm:ss] timestamps.
- */
-function extractEmbeddedLyrics(
-  meta: {
-    common?: { lyrics?: unknown };
-    native?: Record<string, Array<{ id?: unknown; value?: unknown }>>;
-  } | null,
-): { lyricsLrc?: string; lyricsText?: string } {
-  const texts: string[] = [];
-
-  const common = meta?.common?.lyrics;
-  if (Array.isArray(common)) {
-    for (const item of common) {
-      const t = lyricTextOf(item);
-      if (t.trim()) texts.push(t);
-    }
-  }
-
-  const native = meta?.native;
-  if (native) {
-    for (const frames of Object.values(native)) {
-      for (const frame of frames) {
-        const id = String(frame.id ?? "").toUpperCase();
-        if (id === "USLT" || id === "SYLT" || id === "LYRICS") {
-          const t = lyricTextOf(frame.value);
-          if (t.trim()) texts.push(t);
-        }
-      }
-    }
-  }
-
-  // De-dupe (common + native often carry the same text) and join.
-  const joined = [...new Set(texts.map((t) => t.trim()))]
-    .filter(Boolean)
-    .join("\n")
-    .trim();
-  if (!joined) return {};
-  return /\[\d{1,2}:\d{2}/.test(joined)
-    ? { lyricsLrc: joined }
-    : { lyricsText: joined };
-}
 
 /** Trim, drop empties, de-dupe (case-insensitive), cap to 12 genre tags. */
 function normalizeGenres(genres: string[] | undefined): string[] {
@@ -184,27 +127,9 @@ export class CatalogService {
 
     // Embedded cover art (ID3 APIC etc.) — stored to R2 and used when there's
     // no album cover to inherit.
-    let embeddedCover: string | null = null;
-    const pic = meta?.common.picture?.[0];
-    if (!album?.coverArt && pic) {
-      const buf = Buffer.from(pic.data);
-      const mime = pic.format || "image/jpeg";
-      const ext = mime.split("/")[1]?.split("+")[0] || "jpg";
-      try {
-        const up = await this.storage.uploadImage(
-          {
-            buffer: buf,
-            mimetype: mime,
-            size: buf.length,
-            originalname: `cover.${ext}`,
-          } as Express.Multer.File,
-          "covers",
-        );
-        embeddedCover = up.url;
-      } catch {
-        // Unsupported/oversized embedded image — skip, keep the track.
-      }
-    }
+    const embeddedCover = album?.coverArt
+      ? null
+      : await extractEmbeddedCover(meta, this.storage, "covers");
 
     // Embedded lyrics (USLT/SYLT) — synced when they carry [mm:ss] marks.
     const lyrics = extractEmbeddedLyrics(meta);
