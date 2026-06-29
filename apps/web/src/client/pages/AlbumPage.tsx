@@ -16,6 +16,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import ClientLayout from "../layout/ClientLayout";
 import {
   getCatalogAlbum,
+  getCatalogArtist,
   type CatalogTrackCard,
 } from "../../shared/api/catalog";
 import SaveButton from "../../shared/ui/SaveButton";
@@ -182,10 +183,10 @@ function TrackRow({
       onMouseLeave={hide}
       onFocus={reveal}
       onBlur={hide}
-      className={`group grid cursor-pointer grid-cols-[28px_1fr_auto_56px] items-center gap-4 rounded-xl px-3 py-2.5 text-left transition ${
+      className={`group grid cursor-pointer grid-cols-[28px_1fr_auto_56px] items-center gap-4 rounded-xl border border-[var(--color-line)]/60 px-3 py-2.5 text-left transition ${
         active
-          ? "bg-[var(--color-glass)] ring-1 ring-[var(--color-primary)]/40"
-          : "bg-[var(--color-surface)]/40 hover:bg-[var(--color-glass)]"
+          ? "border-[var(--color-primary)]/50 bg-[var(--color-glass)] ring-1 ring-[var(--color-primary)]/40"
+          : "bg-[var(--color-surface)]/80 hover:border-[var(--color-primary)]/40 hover:bg-[var(--color-glass)]"
       }`}
     >
       {/* Index → play on hover */}
@@ -314,6 +315,19 @@ export default function AlbumPage() {
     enabled: !!id,
   });
   const album = albumQ.data;
+
+  // The artist's other albums, to fill the page with real related content.
+  const artistId = album?.artist.id;
+  const artistQ = useQuery({
+    queryKey: ["catalog", "artist", artistId],
+    queryFn: () => getCatalogArtist(artistId as string),
+    enabled: !!artistId,
+    staleTime: 60_000,
+  });
+  const moreAlbums = useMemo(
+    () => (artistQ.data?.albums ?? []).filter((a) => a.id !== id),
+    [artistQ.data, id],
+  );
 
   const trackIds = useMemo(
     () => (album?.tracks ?? []).map((tr) => tr.id),
@@ -467,7 +481,7 @@ export default function AlbumPage() {
         {/* Tracklist */}
         <div
           ref={tlRef}
-          className={`px-8 pb-12 pt-2 ${view === "cards" ? "max-w-[1560px]" : "max-w-4xl"}`}
+          className={`px-8 pt-2 ${view === "cards" ? "max-w-[1560px] pb-12" : "max-w-5xl pb-10"}`}
         >
           {albumQ.isLoading ? (
             <p className="text-sm text-[var(--color-muted)]">
@@ -623,6 +637,57 @@ export default function AlbumPage() {
             </p>
           )}
         </div>
+
+        {/* More from this artist — fills the page with real related content */}
+        {moreAlbums.length > 0 ? (
+          <div className="max-w-5xl px-8 pb-16">
+            <h2 className="mb-4 text-sm font-bold uppercase tracking-[0.18em] text-[var(--color-muted)]">
+              {t("album.moreFrom", {
+                defaultValue: "Más de {{name}}",
+                name: album?.artist.name,
+              })}
+            </h2>
+            <div className="grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(160px,1fr))]">
+              {moreAlbums.map((al) => (
+                <button
+                  key={al.id}
+                  type="button"
+                  onClick={() => navigate(`/album/${al.id}`)}
+                  className="group flex flex-col gap-2.5 rounded-2xl border border-[var(--color-line)] bg-[var(--color-surface)]/60 p-3 text-left transition hover:-translate-y-1 hover:border-[var(--color-primary)]/60 hover:bg-[var(--color-surface-alt)]"
+                >
+                  <div className="relative aspect-square overflow-hidden rounded-xl bg-[var(--color-surface-alt)] shadow-[0_10px_30px_-12px_rgba(0,0,0,.7)]">
+                    {al.coverArt ? (
+                      <img
+                        src={al.coverArt}
+                        alt={al.title}
+                        className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+                      />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center">
+                        <Disc3
+                          className="h-10 w-10 text-[var(--color-muted)]"
+                          strokeWidth={1.3}
+                        />
+                      </div>
+                    )}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-bold text-[var(--color-text)]">
+                      {al.title}
+                    </p>
+                    <p className="truncate text-[11px] text-[var(--color-muted)]">
+                      {al.year ? `${al.year} · ` : ""}
+                      {t("album.songsCount", {
+                        defaultValue: "{{count}} canciones",
+                        count: al.trackCount,
+                      })}
+                    </p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : null}
       </section>
     </ClientLayout>
   );
