@@ -267,8 +267,8 @@ export default function AlbumPage() {
               {t("album.loading", { defaultValue: "Cargando…" })}
             </p>
           ) : album && album.tracks.length && view === "cards" ? (
-            /* ── Cards view ───────────────────────────────────────────── */
-            <div className="grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(170px,1fr))]">
+            /* ── Cards view (track-centric: cover as texture, number + title up front) ── */
+            <div className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(150px,1fr))]">
               {album.tracks.map((tr, i) => {
                 const active = currentTrackId === tr.id;
                 const cover = tr.coverArt ?? album.coverArt;
@@ -285,107 +285,105 @@ export default function AlbumPage() {
                         playFrom(i);
                       }
                     }}
-                    className={`group relative cursor-pointer rounded-2xl border p-3 text-left transition hover:-translate-y-0.5 ${
+                    className={`group relative aspect-[4/5] cursor-pointer overflow-hidden rounded-2xl border text-left transition hover:-translate-y-1 ${
                       active
-                        ? "border-[var(--color-primary)] bg-[var(--color-glass)]"
-                        : "border-[var(--color-line)] bg-[var(--color-surface)]/50 hover:border-[var(--color-primary)]/50"
+                        ? "border-[var(--color-primary)] ring-1 ring-[var(--color-primary)]/50"
+                        : "border-[var(--color-line)] hover:border-[var(--color-primary)]/60"
                     }`}
                   >
-                    <div className="relative aspect-square overflow-hidden rounded-xl bg-[var(--color-surface-alt)]">
-                      {cover ? (
-                        <img
-                          src={cover}
-                          alt=""
-                          className="h-full w-full object-cover"
-                        />
-                      ) : (
-                        <Music4 className="absolute inset-0 m-auto h-8 w-8 text-[var(--color-muted)]" />
-                      )}
+                    {/* Cover as a dimmed background texture */}
+                    {cover ? (
+                      <img
+                        src={cover}
+                        alt=""
+                        className="absolute inset-0 h-full w-full object-cover transition duration-500 group-hover:scale-105"
+                      />
+                    ) : (
+                      <div className="absolute inset-0 bg-[var(--color-surface-alt)]" />
+                    )}
+                    {/* Legibility gradient — darkest at the bottom for the title */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/45 to-black/20" />
 
-                      {/* Play overlay */}
+                    {/* Big track number — the per-card differentiator */}
+                    <span
+                      className="absolute left-3 top-1.5 text-[2.75rem] font-black leading-none text-white/90 [text-shadow:0_2px_12px_rgba(0,0,0,.65)]"
+                      style={{ fontFamily: "var(--font-mono)" }}
+                    >
+                      {tr.albumOrder ?? i + 1}
+                    </span>
+
+                    {/* Save — top-right */}
+                    <span
+                      className="absolute right-2 top-2 opacity-0 transition group-hover:opacity-100 focus-within:opacity-100 data-[saved=true]:opacity-100"
+                      data-saved={savedSet.has(tr.id)}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <SaveButton trackId={tr.id} saved={savedSet.has(tr.id)} />
+                    </span>
+
+                    {/* Play / EQ overlay — center on hover, persistent when active */}
+                    <span
+                      className={`absolute inset-0 flex items-center justify-center transition ${
+                        active
+                          ? "opacity-100"
+                          : "opacity-0 group-hover:opacity-100"
+                      }`}
+                    >
                       <span
-                        className={`absolute inset-0 flex items-center justify-center bg-black/40 transition ${
-                          active
-                            ? "opacity-100"
-                            : "opacity-0 group-hover:opacity-100"
-                        }`}
+                        className="flex h-12 w-12 items-center justify-center rounded-full text-white shadow-[0_8px_22px_-6px_rgba(0,0,0,.8)]"
+                        style={{
+                          background:
+                            "linear-gradient(135deg,var(--color-primary),var(--color-accent))",
+                        }}
                       >
-                        <span
-                          className="flex h-11 w-11 items-center justify-center rounded-full text-white shadow-lg"
-                          style={{
-                            background:
-                              "linear-gradient(135deg,var(--color-primary),var(--color-accent))",
-                          }}
-                        >
-                          {playingThis ? (
-                            <span className="flex h-4 items-end gap-[2px]">
-                              <span
-                                className="w-[3px] rounded-[2px] bg-white"
-                                style={{
-                                  height: "100%",
-                                  transformOrigin: "bottom",
-                                  animation: "eqbar .7s ease-in-out infinite",
-                                }}
-                              />
-                              <span
-                                className="w-[3px] rounded-[2px] bg-white"
-                                style={{
-                                  height: "100%",
-                                  transformOrigin: "bottom",
-                                  animation:
-                                    "eqbar .9s ease-in-out infinite .2s",
-                                }}
-                              />
-                              <span
-                                className="w-[3px] rounded-[2px] bg-white"
-                                style={{
-                                  height: "100%",
-                                  transformOrigin: "bottom",
-                                  animation:
-                                    "eqbar 1.1s ease-in-out infinite .1s",
-                                }}
-                              />
-                            </span>
-                          ) : (
-                            <Play className="h-5 w-5" fill="currentColor" />
-                          )}
-                        </span>
+                        {playingThis ? (
+                          <span className="flex h-4 items-end gap-[2px]">
+                            <span
+                              className="w-[3px] rounded-[2px] bg-white"
+                              style={{
+                                height: "100%",
+                                transformOrigin: "bottom",
+                                animation: "eqbar .7s ease-in-out infinite",
+                              }}
+                            />
+                            <span
+                              className="w-[3px] rounded-[2px] bg-white"
+                              style={{
+                                height: "100%",
+                                transformOrigin: "bottom",
+                                animation: "eqbar .9s ease-in-out infinite .2s",
+                              }}
+                            />
+                            <span
+                              className="w-[3px] rounded-[2px] bg-white"
+                              style={{
+                                height: "100%",
+                                transformOrigin: "bottom",
+                                animation:
+                                  "eqbar 1.1s ease-in-out infinite .1s",
+                              }}
+                            />
+                          </span>
+                        ) : (
+                          <Play className="h-5 w-5" fill="currentColor" />
+                        )}
                       </span>
+                    </span>
 
-                      {/* Track number badge */}
-                      <span
-                        className="absolute left-2 top-2 flex h-6 min-w-6 items-center justify-center rounded-full bg-black/55 px-1.5 text-[11px] font-bold text-white tabular-nums"
-                        style={{ fontFamily: "var(--font-mono)" }}
-                      >
-                        {tr.albumOrder ?? i + 1}
-                      </span>
-
-                      {/* Save */}
-                      <span
-                        className="absolute right-2 top-2 opacity-0 transition group-hover:opacity-100 focus-within:opacity-100 data-[saved=true]:opacity-100"
-                        data-saved={savedSet.has(tr.id)}
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <SaveButton
-                          trackId={tr.id}
-                          saved={savedSet.has(tr.id)}
-                        />
-                      </span>
-                    </div>
-
-                    <div className="mt-2 flex items-start justify-between gap-2">
+                    {/* Title + duration — anchored at the bottom */}
+                    <div className="absolute inset-x-0 bottom-0 p-3">
                       <p
-                        className={`min-w-0 flex-1 truncate text-sm font-semibold ${active ? "text-[var(--color-accent)]" : "text-[var(--color-text)]"}`}
+                        className={`truncate text-sm font-bold [text-shadow:0_1px_6px_rgba(0,0,0,.7)] ${active ? "text-[var(--color-accent)]" : "text-white"}`}
                         title={tr.title}
                       >
                         {tr.title}
                       </p>
-                      <span
-                        className="flex-none text-[11px] text-[var(--color-muted)]"
+                      <p
+                        className="text-[11px] text-white/70"
                         style={{ fontFamily: "var(--font-mono)" }}
                       >
                         {fmt(tr.durationMs)}
-                      </span>
+                      </p>
                     </div>
                   </div>
                 );
