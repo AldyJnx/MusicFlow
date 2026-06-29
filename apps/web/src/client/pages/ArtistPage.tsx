@@ -1,21 +1,26 @@
 import {
   ArrowLeft,
   Disc3,
+  Eye,
   ListMusic,
+  ListPlus,
+  MoreHorizontal,
   Play,
   Sliders,
   Sparkles,
 } from "lucide-react";
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router-dom";
+import type { TFunction } from "i18next";
 
 import ClientLayout from "../layout/ClientLayout";
 import { useTracksQuery } from "../../shared/hooks/useTracks";
 import {
   getCatalogArtist,
   listCatalogArtists,
+  type CatalogAlbumSummary,
   type CatalogTrackCard,
 } from "../../shared/api/catalog";
 import SaveButton from "../../shared/ui/SaveButton";
@@ -64,6 +69,7 @@ export default function ArtistPage() {
   const artistName = decodeURIComponent(params.name ?? "");
   const playTrack = usePlayerStore((s) => s.playTrack);
   const playTrackList = usePlayerStore((s) => s.playTrackList);
+  const addToQueue = usePlayerStore((s) => s.addToQueue);
   const openEqDrawer = usePlayerStore((s) => s.openEqDrawer);
   const openAiPrompt = usePlayerStore((s) => s.openAiPrompt);
   const { guard } = usePremiumGate();
@@ -105,8 +111,8 @@ export default function ArtistPage() {
     return m;
   }, [catalogArtistQ.data]);
 
-  function playAlbum(albumId: string) {
-    const list = (albumTracks.get(albumId) ?? [])
+  function albumPlayable(albumId: string): PlayerTrack[] {
+    return (albumTracks.get(albumId) ?? [])
       .map((c): PlayerTrack | null =>
         c.fileUrlRemote
           ? {
@@ -120,7 +126,15 @@ export default function ArtistPage() {
           : null,
       )
       .filter((p): p is PlayerTrack => p !== null);
+  }
+
+  function playAlbum(albumId: string) {
+    const list = albumPlayable(albumId);
     if (list.length > 0) void playTrackList(list, 0);
+  }
+
+  function queueAlbum(albumId: string) {
+    for (const track of albumPlayable(albumId)) addToQueue(track);
   }
 
   const visibleIds = useMemo(() => tracks.map((tr) => tr.id), [tracks]);
@@ -289,70 +303,20 @@ export default function ArtistPage() {
             </h2>
             <div className="grid gap-5 [grid-template-columns:repeat(auto-fill,minmax(190px,1fr))]">
               {albums.map((al) => {
-                const dur = (albumTracks.get(al.id) ?? []).reduce(
-                  (s, c) => s + c.durationMs,
-                  0,
-                );
-                const playable = (albumTracks.get(al.id) ?? []).some(
-                  (c) => c.fileUrlRemote,
-                );
+                const list = albumTracks.get(al.id) ?? [];
+                const dur = list.reduce((s, c) => s + c.durationMs, 0);
+                const playable = list.some((c) => c.fileUrlRemote);
                 return (
-                  <div
+                  <AlbumCard
                     key={al.id}
-                    onClick={() => navigate(`/album/${al.id}`)}
-                    role="button"
-                    tabIndex={0}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") navigate(`/album/${al.id}`);
-                    }}
-                    className="group flex cursor-pointer flex-col gap-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3 text-left transition hover:-translate-y-1 hover:border-[var(--color-primary)] hover:bg-[var(--color-surface-alt)] hover:shadow-[0_18px_40px_-16px_rgba(0,0,0,.7)]"
-                  >
-                    <div className="relative aspect-square overflow-hidden rounded-xl bg-[var(--color-surface-alt)] shadow-[0_10px_30px_-12px_rgba(0,0,0,.7)]">
-                      {al.coverArt ? (
-                        <img
-                          src={al.coverArt}
-                          alt={al.title}
-                          className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
-                        />
-                      ) : (
-                        <div className="flex h-full w-full items-center justify-center">
-                          <Disc3
-                            className="h-12 w-12 text-[var(--color-muted)]"
-                            strokeWidth={1.3}
-                          />
-                        </div>
-                      )}
-                      {/* Play overlay */}
-                      {playable ? (
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            playAlbum(al.id);
-                          }}
-                          aria-label={t("artist.playAlbum", {
-                            defaultValue: "Reproducir álbum",
-                          })}
-                          className="absolute bottom-2 right-2 flex h-11 w-11 translate-y-2 items-center justify-center rounded-full bg-[var(--color-primary)] text-[var(--color-primary-contrast)] opacity-0 shadow-[0_10px_24px_-6px_var(--color-primary)] transition group-hover:translate-y-0 group-hover:opacity-100 hover:scale-110"
-                        >
-                          <Play className="h-5 w-5" fill="currentColor" />
-                        </button>
-                      ) : null}
-                    </div>
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-bold text-[var(--color-text)]">
-                        {al.title}
-                      </p>
-                      <p className="truncate text-[11px] text-[var(--color-muted)]">
-                        {al.year ? `${al.year} · ` : ""}
-                        {t("artist.albumMeta", {
-                          defaultValue: "{{count}} canciones",
-                          count: al.trackCount,
-                        })}
-                        {dur > 0 ? ` · ${formatTotal(dur)}` : ""}
-                      </p>
-                    </div>
-                  </div>
+                    album={al}
+                    durationMs={dur}
+                    playable={playable}
+                    t={t}
+                    onOpen={() => navigate(`/album/${al.id}`)}
+                    onPlay={() => playAlbum(al.id)}
+                    onQueue={() => queueAlbum(al.id)}
+                  />
                 );
               })}
             </div>
@@ -451,5 +415,178 @@ export default function ArtistPage() {
         </div>
       </section>
     </ClientLayout>
+  );
+}
+
+/**
+ * Rich album card with a hover play button and a "⋯" options menu
+ * (reproducir / añadir a la cola / ver álbum). The menu closes on outside
+ * click or Escape.
+ */
+function AlbumCard({
+  album,
+  durationMs,
+  playable,
+  t,
+  onOpen,
+  onPlay,
+  onQueue,
+}: {
+  album: CatalogAlbumSummary;
+  durationMs: number;
+  playable: boolean;
+  t: TFunction;
+  onOpen: () => void;
+  onPlay: () => void;
+  onQueue: () => void;
+}) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    function onDocClick(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setMenuOpen(false);
+    }
+    document.addEventListener("mousedown", onDocClick);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDocClick);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [menuOpen]);
+
+  return (
+    <div
+      onClick={onOpen}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") onOpen();
+      }}
+      className="group relative flex cursor-pointer flex-col gap-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3 text-left transition hover:-translate-y-1 hover:border-[var(--color-primary)] hover:bg-[var(--color-surface-alt)] hover:shadow-[0_18px_40px_-16px_rgba(0,0,0,.7)]"
+    >
+      <div className="relative aspect-square overflow-hidden rounded-xl bg-[var(--color-surface-alt)] shadow-[0_10px_30px_-12px_rgba(0,0,0,.7)]">
+        {album.coverArt ? (
+          <img
+            src={album.coverArt}
+            alt={album.title}
+            className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+          />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center">
+            <Disc3
+              className="h-12 w-12 text-[var(--color-muted)]"
+              strokeWidth={1.3}
+            />
+          </div>
+        )}
+
+        {/* Options "⋯" — top-right */}
+        <div
+          ref={menuRef}
+          className="absolute right-2 top-2"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button
+            type="button"
+            onClick={() => setMenuOpen((v) => !v)}
+            aria-haspopup="menu"
+            aria-expanded={menuOpen}
+            aria-label={t("artist.albumOptions", {
+              defaultValue: "Opciones del álbum",
+            })}
+            className={`flex h-8 w-8 items-center justify-center rounded-full bg-black/55 text-white backdrop-blur transition hover:bg-black/75 ${
+              menuOpen
+                ? "opacity-100"
+                : "opacity-0 group-hover:opacity-100 focus:opacity-100"
+            }`}
+          >
+            <MoreHorizontal className="h-4 w-4" strokeWidth={2.4} />
+          </button>
+
+          {menuOpen ? (
+            <div
+              role="menu"
+              className="absolute right-0 top-9 z-20 w-48 overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-1 shadow-[0_18px_40px_-12px_rgba(0,0,0,.7)]"
+            >
+              <button
+                type="button"
+                role="menuitem"
+                disabled={!playable}
+                onClick={() => {
+                  setMenuOpen(false);
+                  onPlay();
+                }}
+                className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm text-[var(--color-text)] transition hover:bg-[var(--color-surface-alt)] disabled:opacity-40"
+              >
+                <Play className="h-4 w-4" fill="currentColor" />
+                {t("artist.playAlbum", { defaultValue: "Reproducir álbum" })}
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                disabled={!playable}
+                onClick={() => {
+                  setMenuOpen(false);
+                  onQueue();
+                }}
+                className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm text-[var(--color-text)] transition hover:bg-[var(--color-surface-alt)] disabled:opacity-40"
+              >
+                <ListPlus className="h-4 w-4" strokeWidth={2.2} />
+                {t("artist.queueAlbum", { defaultValue: "Añadir a la cola" })}
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  setMenuOpen(false);
+                  onOpen();
+                }}
+                className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm text-[var(--color-text)] transition hover:bg-[var(--color-surface-alt)]"
+              >
+                <Eye className="h-4 w-4" strokeWidth={2.2} />
+                {t("artist.viewAlbum", { defaultValue: "Ver álbum" })}
+              </button>
+            </div>
+          ) : null}
+        </div>
+
+        {/* Play overlay */}
+        {playable ? (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onPlay();
+            }}
+            aria-label={t("artist.playAlbum", {
+              defaultValue: "Reproducir álbum",
+            })}
+            className="absolute bottom-2 right-2 flex h-11 w-11 translate-y-2 items-center justify-center rounded-full bg-[var(--color-primary)] text-[var(--color-primary-contrast)] opacity-0 shadow-[0_10px_24px_-6px_var(--color-primary)] transition group-hover:translate-y-0 group-hover:opacity-100 hover:scale-110"
+          >
+            <Play className="h-5 w-5" fill="currentColor" />
+          </button>
+        ) : null}
+      </div>
+      <div className="min-w-0">
+        <p className="truncate text-sm font-bold text-[var(--color-text)]">
+          {album.title}
+        </p>
+        <p className="truncate text-[11px] text-[var(--color-muted)]">
+          {album.year ? `${album.year} · ` : ""}
+          {t("artist.albumMeta", {
+            defaultValue: "{{count}} canciones",
+            count: album.trackCount,
+          })}
+          {durationMs > 0 ? ` · ${formatTotal(durationMs)}` : ""}
+        </p>
+      </div>
+    </div>
   );
 }
