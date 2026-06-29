@@ -760,43 +760,68 @@ function CreateArtistModal({
 
         <div className="flex-1 overflow-y-auto p-5">
           <div className="flex gap-4">
-            {/* Photo */}
+            {/* Photo — the whole circle is a click-to-upload dropzone. */}
             <div className="flex flex-col items-center gap-2">
-              <div className="relative h-24 w-24 flex-none">
-                <div className="h-full w-full overflow-hidden rounded-full bg-[var(--color-surface-alt)]">
-                  {previewUrl || imageUrl ? (
-                    <img
-                      src={previewUrl || imageUrl}
-                      alt=""
-                      className="h-full w-full object-cover"
-                      onError={(e) => {
-                        e.currentTarget.style.visibility = "hidden";
-                      }}
-                    />
-                  ) : null}
-                </div>
-                <label
-                  title={t("catalog.uploadArtistImage", {
-                    defaultValue: "Subir foto del artista",
-                  })}
-                  className="absolute -bottom-1 -right-1 inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-full border border-[var(--color-line)] bg-[var(--color-surface)] text-[var(--color-muted)] hover:text-[var(--color-text)]"
-                >
-                  <ImagePlus className="h-4 w-4" />
-                  <input
-                    type="file"
-                    accept="image/*,.jpg,.jpeg,.png,.webp,.gif"
-                    className="hidden"
-                    onChange={(e) => {
-                      const f = e.target.files?.[0];
-                      if (f) setFile(f);
-                      e.target.value = "";
+              <label
+                title={t("catalog.uploadArtistImage", {
+                  defaultValue: "Subir foto del artista",
+                })}
+                className="group relative h-28 w-28 flex-none cursor-pointer overflow-hidden rounded-full border-2 border-dashed border-[var(--color-line)] bg-[var(--color-surface-alt)] transition hover:border-[var(--color-primary)]"
+              >
+                {previewUrl || imageUrl ? (
+                  <img
+                    src={previewUrl || imageUrl}
+                    alt=""
+                    className="h-full w-full object-cover"
+                    onError={(e) => {
+                      e.currentTarget.style.visibility = "hidden";
                     }}
                   />
-                </label>
-              </div>
-              <span className="text-[10px] text-[var(--color-muted)]">
-                {t("catalog.photoHint", { defaultValue: "Foto (opcional)" })}
-              </span>
+                ) : null}
+                {/* Overlay: prompt when empty, "change" hint on hover when set */}
+                <span
+                  className={`absolute inset-0 flex flex-col items-center justify-center gap-1 text-[var(--color-muted)] transition ${
+                    previewUrl || imageUrl
+                      ? "bg-black/45 text-white opacity-0 group-hover:opacity-100"
+                      : "group-hover:text-[var(--color-primary)]"
+                  }`}
+                >
+                  <ImagePlus className="h-6 w-6" />
+                  <span className="text-[10px] font-semibold">
+                    {previewUrl || imageUrl
+                      ? t("catalog.changePhoto", { defaultValue: "Cambiar" })
+                      : t("catalog.uploadPhoto", {
+                          defaultValue: "Subir foto",
+                        })}
+                  </span>
+                </span>
+                <input
+                  type="file"
+                  accept="image/*,.jpg,.jpeg,.png,.webp,.gif"
+                  className="hidden"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) {
+                      setFile(f);
+                      setImageUrl("");
+                    }
+                    e.target.value = "";
+                  }}
+                />
+              </label>
+              {file ? (
+                <button
+                  type="button"
+                  onClick={() => setFile(null)}
+                  className="text-[10px] font-semibold text-rose-400 hover:underline"
+                >
+                  {t("catalog.removePhoto", { defaultValue: "Quitar foto" })}
+                </button>
+              ) : (
+                <span className="text-[10px] text-[var(--color-muted)]">
+                  {t("catalog.photoHint", { defaultValue: "Foto (opcional)" })}
+                </span>
+              )}
             </div>
 
             {/* Name + image URL */}
@@ -820,7 +845,7 @@ function CreateArtistModal({
               </label>
               <label className="flex flex-col gap-1">
                 <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-muted)]">
-                  {t("catalog.imageUrl", { defaultValue: "Imagen (URL)" })}
+                  {t("catalog.orImageUrl", { defaultValue: "…o pega una URL" })}
                 </span>
                 <input
                   value={imageUrl}
