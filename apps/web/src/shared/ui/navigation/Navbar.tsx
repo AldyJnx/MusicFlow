@@ -190,7 +190,22 @@ const Navbar = forwardRef<NavbarRef, NavbarProps>(function Navbar(
 
       <div className="flex shrink-0 items-center gap-2">
         <OfflineIndicator />
-        {isAuthenticated ? (
+        {isAuthenticated && user?.role === "ADMIN" ? (
+          <button
+            type="button"
+            onClick={() => navigate("/admin")}
+            className="inline-flex items-center gap-1.5 rounded-full border border-[var(--color-primary)] bg-[color-mix(in_srgb,var(--color-primary)_14%,transparent)] px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-[var(--color-primary)] transition hover:bg-[color-mix(in_srgb,var(--color-primary)_22%,transparent)]"
+            title={t("navbar.backToAdmin", {
+              defaultValue: "Volver al modo admin",
+            })}
+          >
+            <ShieldCheck className="h-3.5 w-3.5" strokeWidth={2.4} />
+            <span className="hidden sm:inline">
+              {t("navbar.adminMode", { defaultValue: "Modo admin" })}
+            </span>
+          </button>
+        ) : null}
+        {isAuthenticated && user?.role !== "ADMIN" ? (
           <TierBadge className="hidden sm:inline-flex" />
         ) : null}
         {isAuthenticated ? <QuotaBadge /> : null}
