@@ -22,6 +22,12 @@ export class CreateArtistDto {
   @IsString()
   @MaxLength(4000)
   bio?: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  @MaxLength(40, { each: true })
+  genres?: string[];
 }
 
 export class UpdateArtistDto {
@@ -39,6 +45,12 @@ export class UpdateArtistDto {
   @IsString()
   @MaxLength(4000)
   bio?: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  @MaxLength(40, { each: true })
+  genres?: string[];
 }
 
 export class CreateAlbumDto {

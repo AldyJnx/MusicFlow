@@ -5,6 +5,7 @@ export interface CatalogArtist {
   name: string;
   slug: string;
   imageUrl: string | null;
+  genres: string[];
   albumCount: number;
   trackCount: number;
 }
@@ -37,6 +38,7 @@ export interface CatalogArtistDetail {
   slug: string;
   imageUrl: string | null;
   bio: string | null;
+  genres: string[];
   albums: CatalogAlbumSummary[];
   tracks: CatalogTrackCard[];
 }
@@ -69,6 +71,12 @@ export async function getCatalogAlbum(id: string): Promise<CatalogAlbumDetail> {
   return data;
 }
 
+/** Distinct genres present in the catalog — used as picker suggestions. */
+export async function listCatalogGenres(): Promise<string[]> {
+  const { data } = await api.get<string[]>("/catalog/genres");
+  return data;
+}
+
 // ── Admin CRUD ────────────────────────────────────────────────────────────────
 
 export async function createArtist(payload: {
@@ -82,7 +90,12 @@ export async function createArtist(payload: {
 
 export async function updateArtist(
   id: string,
-  payload: { name?: string; imageUrl?: string; bio?: string },
+  payload: {
+    name?: string;
+    imageUrl?: string;
+    bio?: string;
+    genres?: string[];
+  },
 ) {
   const { data } = await api.patch(`/admin/catalog/artists/${id}`, payload);
   return data;

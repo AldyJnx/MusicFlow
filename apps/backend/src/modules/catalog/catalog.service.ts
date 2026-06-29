@@ -19,6 +19,22 @@ import type {
   UpdateLyricsDto,
 } from "./catalog.dto";
 
+/** Trim, drop empties, de-dupe (case-insensitive), cap to 12 genre tags. */
+function normalizeGenres(genres: string[] | undefined): string[] {
+  if (!genres) return [];
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const g of genres) {
+    const v = g.trim();
+    const key = v.toLowerCase();
+    if (v && !seen.has(key)) {
+      seen.add(key);
+      out.push(v);
+    }
+  }
+  return out.slice(0, 12);
+}
+
 function slugify(s: string): string {
   return (
     s
@@ -231,9 +247,27 @@ export class CatalogService {
       name: a.name,
       slug: a.slug,
       imageUrl: a.imageUrl,
+      genres: a.genres,
       albumCount: a._count.albums,
       trackCount: a._count.tracks,
     }));
+  }
+
+  /** Distinct genres present on catalog tracks — used as picker suggestions. */
+  async getGenres(): Promise<string[]> {
+    const rows = await this.prisma.track.findMany({
+      where: { isCatalog: true, genre: { not: "" } },
+      select: { genre: true },
+      distinct: ["genre"],
+      orderBy: { genre: "asc" },
+    });
+    const fromArtists = await this.prisma.artist.findMany({
+      select: { genres: true },
+    });
+    const set = new Set<string>();
+    for (const r of rows) if (r.genre) set.add(r.genre);
+    for (const a of fromArtists) for (const g of a.genres) set.add(g);
+    return [...set].sort((x, y) => x.localeCompare(y));
   }
 
   async getArtist(id: string) {
@@ -257,6 +291,7 @@ export class CatalogService {
       slug: artist.slug,
       imageUrl: artist.imageUrl,
       bio: artist.bio,
+      genres: artist.genres,
       albums: artist.albums.map((al) => ({
         id: al.id,
         title: al.title,
@@ -306,6 +341,7 @@ export class CatalogService {
         slug,
         imageUrl: dto.imageUrl ?? null,
         bio: dto.bio ?? null,
+        genres: normalizeGenres(dto.genres),
       },
     });
   }
@@ -324,6 +360,7 @@ export class CatalogService {
         slug,
         imageUrl: dto.imageUrl,
         bio: dto.bio,
+        genres: dto.genres ? normalizeGenres(dto.genres) : undefined,
       },
     });
   }

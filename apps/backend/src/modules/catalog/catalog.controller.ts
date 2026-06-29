@@ -15,6 +15,11 @@ export class CatalogController {
     return this.catalog.listArtists();
   }
 
+  @Get("genres")
+  listGenres() {
+    return this.catalog.getGenres();
+  }
+
   @Get("artists/:id")
   getArtist(@Param("id") id: string) {
     return this.catalog.getArtist(id);

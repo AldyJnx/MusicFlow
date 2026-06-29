@@ -23,6 +23,7 @@ import {
   getCatalogArtist,
   getTrackLyrics,
   listCatalogArtists,
+  listCatalogGenres,
   updateArtist,
   updateTrackLyrics,
   uploadAlbumCover,
@@ -214,6 +215,8 @@ function ArtistEditor({ artistId }: { artistId: string }) {
   const [name, setName] = useState("");
   const [imageUrl, setImageUrl] = useState("");
   const [bio, setBio] = useState("");
+  const [genres, setGenres] = useState<string[]>([]);
+  const [genreInput, setGenreInput] = useState("");
   const [albumTitle, setAlbumTitle] = useState("");
   const [albumYear, setAlbumYear] = useState("");
   const [lyricsTrack, setLyricsTrack] = useState<{
@@ -223,13 +226,31 @@ function ArtistEditor({ artistId }: { artistId: string }) {
   const [uploadAlbumId, setUploadAlbumId] = useState("");
   const [uploadError, setUploadError] = useState<string | null>(null);
 
+  const genreSuggestionsQ = useQuery({
+    queryKey: ["catalog", "genres"],
+    queryFn: listCatalogGenres,
+    staleTime: 60_000,
+  });
+
   useEffect(() => {
     if (artist) {
       setName(artist.name);
       setImageUrl(artist.imageUrl ?? "");
       setBio(artist.bio ?? "");
+      setGenres(artist.genres ?? []);
     }
   }, [artist]);
+
+  function addGenre(raw: string) {
+    const v = raw.trim();
+    if (!v) return;
+    setGenres((prev) =>
+      prev.some((g) => g.toLowerCase() === v.toLowerCase())
+        ? prev
+        : [...prev, v].slice(0, 12),
+    );
+    setGenreInput("");
+  }
 
   const uploadSong = useMutation({
     mutationFn: (file: File) =>
@@ -260,6 +281,7 @@ function ArtistEditor({ artistId }: { artistId: string }) {
         name,
         imageUrl: imageUrl || undefined,
         bio: bio || undefined,
+        genres,
       }),
     onSuccess: invalidate,
   });
@@ -338,6 +360,67 @@ function ArtistEditor({ artistId }: { artistId: string }) {
               className="resize-y rounded-lg border border-[var(--color-line)] bg-white/[0.04] px-3 py-2 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-primary)]"
             />
           </label>
+
+          {/* Genres — an artist may belong to several. */}
+          <div className="col-span-2 flex flex-col gap-1.5">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-muted)]">
+              {t("catalog.genres", { defaultValue: "Géneros" })}
+            </span>
+            {genres.length > 0 ? (
+              <div className="flex flex-wrap gap-1.5">
+                {genres.map((g) => (
+                  <span
+                    key={g}
+                    className="inline-flex items-center gap-1 rounded-full bg-[color-mix(in_srgb,var(--color-accent)_16%,transparent)] px-2 py-0.5 text-xs font-semibold text-[var(--color-accent)]"
+                  >
+                    {g}
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setGenres((prev) => prev.filter((x) => x !== g))
+                      }
+                      className="opacity-70 hover:opacity-100"
+                      aria-label={`Quitar ${g}`}
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            ) : null}
+            <div className="flex gap-2">
+              <input
+                list="catalog-genre-suggestions"
+                value={genreInput}
+                onChange={(e) => setGenreInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    addGenre(genreInput);
+                  }
+                }}
+                placeholder={t("catalog.addGenrePlaceholder", {
+                  defaultValue: "Agregar género (Enter)…",
+                })}
+                className="min-w-0 flex-1 rounded-lg border border-[var(--color-line)] bg-white/[0.04] px-3 py-2 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-primary)]"
+              />
+              <datalist id="catalog-genre-suggestions">
+                {(genreSuggestionsQ.data ?? []).map((g) => (
+                  <option key={g} value={g} />
+                ))}
+              </datalist>
+              <button
+                type="button"
+                onClick={() => addGenre(genreInput)}
+                disabled={!genreInput.trim()}
+                className="inline-flex items-center gap-1 rounded-lg border border-[var(--color-line)] bg-white/[0.04] px-3 py-2 text-xs font-semibold text-[var(--color-text)] hover:border-[var(--color-primary)] disabled:opacity-50"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                {t("catalog.add", { defaultValue: "Agregar" })}
+              </button>
+            </div>
+          </div>
+
           <div className="col-span-2">
             <button
               type="button"
@@ -584,15 +667,27 @@ export default function CatalogPage() {
   });
   const [selected, setSelected] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [genreFilter, setGenreFilter] = useState("");
   const [newArtist, setNewArtist] = useState("");
 
   const artists = artistsQ.data ?? [];
+
+  // Union of every genre assigned to an artist — the options shown in the
+  // filter (only genres that actually narrow the list).
+  const allGenres = useMemo(() => {
+    const set = new Set<string>();
+    for (const a of artists) for (const g of a.genres ?? []) set.add(g);
+    return [...set].sort((x, y) => x.localeCompare(y));
+  }, [artists]);
+
   const filtered = useMemo(() => {
-    const t = search.trim().toLowerCase();
-    return t
-      ? artists.filter((a) => a.name.toLowerCase().includes(t))
-      : artists;
-  }, [artists, search]);
+    const q = search.trim().toLowerCase();
+    return artists.filter((a) => {
+      if (q && !a.name.toLowerCase().includes(q)) return false;
+      if (genreFilter && !(a.genres ?? []).includes(genreFilter)) return false;
+      return true;
+    });
+  }, [artists, search, genreFilter]);
 
   useEffect(() => {
     if (!selected && filtered.length) setSelected(filtered[0].id);
@@ -639,6 +734,43 @@ export default function CatalogPage() {
             })}
             className="rounded-lg border border-[var(--color-line)] bg-white/[0.04] px-3 py-2 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-primary)]"
           />
+          {allGenres.length > 0 ? (
+            <select
+              value={genreFilter}
+              onChange={(e) => setGenreFilter(e.target.value)}
+              className="rounded-lg border border-[var(--color-line)] bg-white/[0.04] px-3 py-2 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-primary)]"
+            >
+              <option value="">
+                {t("catalog.allGenres", { defaultValue: "Todos los géneros" })}
+              </option>
+              {allGenres.map((g) => (
+                <option key={g} value={g}>
+                  {g}
+                </option>
+              ))}
+            </select>
+          ) : null}
+          {search || genreFilter ? (
+            <div className="flex items-center justify-between px-1 text-[11px] text-[var(--color-muted)]">
+              <span>
+                {t("catalog.filteredCount", {
+                  defaultValue: "{{n}} de {{total}}",
+                  n: filtered.length,
+                  total: artists.length,
+                })}
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  setSearch("");
+                  setGenreFilter("");
+                }}
+                className="font-semibold text-[var(--color-primary)] hover:underline"
+              >
+                {t("catalog.clearFilters", { defaultValue: "Limpiar" })}
+              </button>
+            </div>
+          ) : null}
           <div className="flex gap-2">
             <input
               value={newArtist}
@@ -689,6 +821,23 @@ export default function CatalogPage() {
                       tracks: a.trackCount,
                     })}
                   </span>
+                  {a.genres && a.genres.length > 0 ? (
+                    <span className="mt-1 flex flex-wrap gap-1">
+                      {a.genres.slice(0, 3).map((g) => (
+                        <span
+                          key={g}
+                          className="rounded-full bg-[color-mix(in_srgb,var(--color-accent)_16%,transparent)] px-1.5 py-0.5 text-[9px] font-semibold text-[var(--color-accent)]"
+                        >
+                          {g}
+                        </span>
+                      ))}
+                      {a.genres.length > 3 ? (
+                        <span className="text-[9px] text-[var(--color-muted)]">
+                          +{a.genres.length - 3}
+                        </span>
+                      ) : null}
+                    </span>
+                  ) : null}
                 </span>
               </button>
             ))}

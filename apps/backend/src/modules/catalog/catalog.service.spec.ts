@@ -142,7 +142,13 @@ describe("CatalogService", () => {
       }));
       await service.createArtist({ name: "Maná Pop" });
       expect(prisma.artist.create).toHaveBeenCalledWith({
-        data: { name: "Maná Pop", slug: "mana-pop", imageUrl: null, bio: null },
+        data: {
+          name: "Maná Pop",
+          slug: "mana-pop",
+          imageUrl: null,
+          bio: null,
+          genres: [],
+        },
       });
     });
 
@@ -156,6 +162,41 @@ describe("CatalogService", () => {
       expect(prisma.artist.create).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({ slug: "queen-2" }),
+        }),
+      );
+    });
+
+    it("normalizes genres: trims, drops empties, de-dupes (case-insensitive)", async () => {
+      prisma.artist.findFirst.mockResolvedValue(null);
+      prisma.artist.create.mockImplementation(({ data }) => data);
+      await service.createArtist({
+        name: "X",
+        genres: [" Rock ", "rock", "", "Pop", "POP"],
+      });
+      expect(prisma.artist.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ genres: ["Rock", "Pop"] }),
+        }),
+      );
+    });
+  });
+
+  describe("updateArtist genres", () => {
+    it("only re-writes genres when the payload includes them", async () => {
+      prisma.artist.findUnique.mockResolvedValue({ id: "a1", name: "X" });
+      prisma.artist.update.mockResolvedValue({});
+      // No genres key → must stay undefined (Prisma leaves the column alone).
+      await service.updateArtist("a1", { bio: "hi" });
+      expect(prisma.artist.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ genres: undefined }),
+        }),
+      );
+      prisma.artist.update.mockClear();
+      await service.updateArtist("a1", { genres: ["Jazz", "jazz"] });
+      expect(prisma.artist.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ genres: ["Jazz"] }),
         }),
       );
     });
