@@ -6,6 +6,7 @@ import {
   ChevronRight,
   Crop,
   Disc3,
+  FileText,
   ImagePlus,
   Loader2,
   Music4,
@@ -616,6 +617,55 @@ function AlbumModal({
   );
 }
 
+// Quick .lrc upload straight from a track row (no modal). Stores as synced LRC
+// when the file carries [mm:ss] marks, otherwise as plain text.
+function QuickLrcButton({
+  trackId,
+  onDone,
+}: {
+  trackId: string;
+  onDone: () => void;
+}) {
+  const { t } = useTranslation();
+  const m = useMutation({
+    mutationFn: (text: string) => {
+      const isLrc = /\[\d{1,2}:\d{2}/.test(text);
+      return updateTrackLyrics(
+        trackId,
+        isLrc ? { lyricsLrc: text } : { lyricsText: text },
+      );
+    },
+    onSuccess: onDone,
+  });
+  return (
+    <label
+      title={t("catalog.uploadLrcTitle", {
+        defaultValue: "Subir archivo .lrc o .txt",
+      })}
+      className={`inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border border-[var(--color-line)] bg-[var(--color-glass)] text-[var(--color-muted)] transition hover:text-[var(--color-text)] ${
+        m.isPending ? "opacity-60" : ""
+      }`}
+    >
+      {m.isPending ? (
+        <Loader2 className="h-4 w-4 animate-spin" />
+      ) : (
+        <FileText className="h-4 w-4" />
+      )}
+      <input
+        type="file"
+        accept=".lrc,.txt,text/plain"
+        className="hidden"
+        disabled={m.isPending}
+        onChange={async (e) => {
+          const f = e.target.files?.[0];
+          e.target.value = "";
+          if (f) m.mutate(await f.text());
+        }}
+      />
+    </label>
+  );
+}
+
 // ── Lyrics editor modal ────────────────────────────────────────────────────────
 function LyricsModal({
   trackId,
@@ -1223,6 +1273,7 @@ function ArtistEditor({ artistId }: { artistId: string }) {
                 onUpload={(f) => uploadTrackCover(tr.id, f).then(invalidate)}
                 className="h-8 w-8"
               />
+              <QuickLrcButton trackId={tr.id} onDone={invalidate} />
               <button
                 type="button"
                 onClick={() => setLyricsTrack({ id: tr.id, title: tr.title })}
