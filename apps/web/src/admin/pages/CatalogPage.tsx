@@ -96,6 +96,8 @@ function ImageCropModal({
     null,
   );
 
+  // Scale that makes the image cover the square frame at zoom 1.
+  const baseScale = nat ? Math.max(CROP_VIEW / nat.w, CROP_VIEW / nat.h) : 1;
   const drawScale = baseScale * zoom;
   const dw = nat ? nat.w * drawScale : 0;
   const dh = nat ? nat.h * drawScale : 0;
