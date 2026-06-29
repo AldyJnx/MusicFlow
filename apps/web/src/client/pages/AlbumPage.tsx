@@ -148,7 +148,7 @@ export default function AlbumPage() {
     <ClientLayout>
       <section className="min-h-screen w-full text-[var(--color-text)]">
         {/* Hero */}
-        <header className="relative overflow-hidden px-8 pb-8 pt-16">
+        <header className="relative overflow-hidden pb-8 pt-16">
           {album?.coverArt ? (
             <>
               <img
@@ -157,11 +157,11 @@ export default function AlbumPage() {
                 aria-hidden="true"
                 className="absolute inset-0 h-full w-full scale-110 object-cover blur-2xl"
               />
-              <div className="absolute inset-0 bg-gradient-to-b from-[var(--color-page)]/50 via-[var(--color-page)]/75 to-[var(--color-page)]" />
+              <div className="absolute inset-0 bg-gradient-to-b from-[var(--color-page)]/65 via-[var(--color-page)]/85 to-[var(--color-page)]" />
             </>
           ) : null}
 
-          <div className="relative flex flex-col gap-4">
+          <div className="relative mx-auto flex max-w-5xl flex-col gap-6 px-8">
             <button
               type="button"
               onClick={() => navigate(-1)}
@@ -171,17 +171,17 @@ export default function AlbumPage() {
               {t("album.back", { defaultValue: "Volver" })}
             </button>
 
-            <div className="flex items-end gap-6">
+            <div className="flex flex-col gap-6 sm:flex-row sm:items-end">
               <Vinyl cover={album?.coverArt} playing={albumIsPlaying} />
-              <div className="min-w-0">
+              <div className="min-w-0 flex-1 [text-shadow:0_2px_12px_rgba(0,0,0,.55)]">
                 <p
-                  className="text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--color-accent)]"
+                  className="text-[11px] font-bold uppercase tracking-[0.22em] text-white/85"
                   style={{ fontFamily: "var(--font-mono)" }}
                 >
                   {t("album.eyebrow", { defaultValue: "Álbum" })}
                 </p>
                 <h1
-                  className="truncate text-4xl font-extrabold tracking-tight sm:text-5xl"
+                  className="mt-1 truncate text-4xl font-extrabold tracking-tight text-white sm:text-5xl"
                   style={{ fontFamily: "var(--font-display)" }}
                 >
                   {album?.title ?? "…"}
@@ -192,7 +192,7 @@ export default function AlbumPage() {
                     album &&
                     navigate(`/artist/${encodeURIComponent(album.artist.name)}`)
                   }
-                  className="mt-1 text-sm font-semibold text-[var(--color-muted)] transition hover:text-[var(--color-accent)]"
+                  className="mt-2 text-sm font-semibold text-white/75 transition hover:text-white"
                 >
                   {album?.artist.name}
                   {album?.year ? ` · ${album.year}` : ""}
@@ -204,7 +204,7 @@ export default function AlbumPage() {
               </div>
             </div>
 
-            <div className="mt-2 flex flex-wrap items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3">
               <button
                 type="button"
                 onClick={() => playFrom(0)}
@@ -253,7 +253,7 @@ export default function AlbumPage() {
         </header>
 
         {/* Tracklist */}
-        <div className="mx-auto max-w-6xl px-8 pb-12">
+        <div className="mx-auto max-w-5xl px-8 pb-12 pt-2">
           {albumQ.isLoading ? (
             <p className="text-sm text-[var(--color-muted)]">
               {t("album.loading", { defaultValue: "Cargando…" })}
