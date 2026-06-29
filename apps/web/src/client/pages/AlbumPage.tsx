@@ -56,35 +56,43 @@ function Vinyl({
 }) {
   return (
     <div className="relative h-40 w-[224px] flex-none">
-      {/* Disc */}
+      {/* Disc positioner — only translates (vertical centering + slide-out).
+          Kept separate from the spinning child so the spin animation can own
+          `transform: rotate` without fighting the position transform. */}
       <div
-        className="absolute top-1/2 h-40 w-40 -translate-y-1/2 rounded-full shadow-[0_18px_44px_-10px_rgba(0,0,0,.85)]"
+        className="absolute left-0 top-1/2 h-40 w-40"
         style={{
-          left: 0,
-          background:
-            "repeating-radial-gradient(circle at center, #0c0c0f 0 1px, #1b1b20 1px 3px), radial-gradient(circle at 38% 32%, rgba(255,255,255,.10), transparent 45%), #0a0a0d",
           transform: playing
-            ? "translateX(82px) rotate(0deg)"
-            : "translateX(40px)",
+            ? "translateY(-50%) translateX(82px)"
+            : "translateY(-50%) translateX(40px)",
           transition: "transform .6s cubic-bezier(.2,1,.3,1)",
-          animation: "spin 9s linear infinite",
-          animationPlayState: playing ? "running" : "paused",
         }}
       >
-        {/* Center label (uses the cover) */}
+        {/* Disc — owns the spin (rotation) only */}
         <div
-          className="absolute left-1/2 top-1/2 h-[52px] w-[52px] -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-full ring-1 ring-black/40"
-          style={
-            cover
-              ? { background: `center/cover no-repeat url(${cover})` }
-              : {
-                  background:
-                    "linear-gradient(135deg,var(--color-primary),var(--color-accent))",
-                }
-          }
-        />
-        {/* Spindle hole */}
-        <div className="absolute left-1/2 top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[var(--color-page)] ring-1 ring-white/20" />
+          className="h-full w-full rounded-full shadow-[0_18px_44px_-10px_rgba(0,0,0,.85)]"
+          style={{
+            background:
+              "repeating-radial-gradient(circle at center, #0c0c0f 0 1px, #1b1b20 1px 3px), radial-gradient(circle at 38% 32%, rgba(255,255,255,.10), transparent 45%), #0a0a0d",
+            animation: "spin 9s linear infinite",
+            animationPlayState: playing ? "running" : "paused",
+          }}
+        >
+          {/* Center label (uses the cover) */}
+          <div
+            className="absolute left-1/2 top-1/2 h-[52px] w-[52px] -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-full ring-1 ring-black/40"
+            style={
+              cover
+                ? { background: `center/cover no-repeat url(${cover})` }
+                : {
+                    background:
+                      "linear-gradient(135deg,var(--color-primary),var(--color-accent))",
+                  }
+            }
+          />
+          {/* Spindle hole */}
+          <div className="absolute left-1/2 top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[var(--color-page)] ring-1 ring-white/20" />
+        </div>
       </div>
 
       {/* Sleeve (square cover) on top */}
@@ -161,7 +169,7 @@ export default function AlbumPage() {
             </>
           ) : null}
 
-          <div className="relative mx-auto flex max-w-5xl flex-col gap-6 px-8">
+          <div className="relative flex max-w-6xl flex-col gap-6 px-8">
             <button
               type="button"
               onClick={() => navigate(-1)}
@@ -253,7 +261,7 @@ export default function AlbumPage() {
         </header>
 
         {/* Tracklist */}
-        <div className="mx-auto max-w-5xl px-8 pb-12 pt-2">
+        <div className="max-w-5xl px-8 pb-12 pt-2">
           {albumQ.isLoading ? (
             <p className="text-sm text-[var(--color-muted)]">
               {t("album.loading", { defaultValue: "Cargando…" })}
