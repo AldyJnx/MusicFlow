@@ -261,7 +261,7 @@ export default function AlbumPage() {
         </header>
 
         {/* Tracklist */}
-        <div className="max-w-5xl px-8 pb-12 pt-2">
+        <div className="max-w-4xl px-8 pb-12 pt-2">
           {albumQ.isLoading ? (
             <p className="text-sm text-[var(--color-muted)]">
               {t("album.loading", { defaultValue: "Cargando…" })}
@@ -403,7 +403,7 @@ export default function AlbumPage() {
                 </span>
               </div>
 
-              <div className="mt-1 flex flex-col">
+              <div className="mt-2 flex flex-col gap-1.5">
                 {album.tracks.map((tr, i) => {
                   const active = currentTrackId === tr.id;
                   const cover = tr.coverArt ?? album.coverArt;
@@ -419,10 +419,10 @@ export default function AlbumPage() {
                           playFrom(i);
                         }
                       }}
-                      className={`group grid cursor-pointer grid-cols-[28px_1fr_auto_56px] items-center gap-4 rounded-lg px-3 py-2 text-left transition ${
+                      className={`group grid cursor-pointer grid-cols-[28px_1fr_auto_56px] items-center gap-4 rounded-xl px-3 py-2.5 text-left transition ${
                         active
-                          ? "bg-[var(--color-glass)]"
-                          : "hover:bg-[var(--color-glass)]"
+                          ? "bg-[var(--color-glass)] ring-1 ring-[var(--color-primary)]/40"
+                          : "bg-[var(--color-surface)]/40 hover:bg-[var(--color-glass)]"
                       }`}
                     >
                       {/* Index → play on hover */}
