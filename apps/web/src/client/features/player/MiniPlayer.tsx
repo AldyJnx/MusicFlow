@@ -1,5 +1,3 @@
-import type { MouseEvent } from "react";
-import { useRef } from "react";
 import {
   Maximize2,
   Pause,
@@ -20,6 +18,7 @@ import { usePlayerStore } from "../../stores/playStore";
 import { useTrackSegments } from "../../../shared/hooks/useTrackSegments";
 import { usePremiumGate } from "../../../shared/hooks/usePremiumGate";
 import DownloadButton from "../../../shared/ui/DownloadButton";
+import ElasticSlider from "../../../shared/ui/reactbits/ElasticSlider";
 import TimelineWithSegments from "./TimelineWithSegments";
 
 type MiniPlayerProps = {
@@ -69,17 +68,9 @@ export default function MiniPlayer(_: MiniPlayerProps) {
 
   const { segments } = useTrackSegments(currentTrack?.id ?? null);
   const { guard } = usePremiumGate();
-  const volRef = useRef<HTMLDivElement>(null);
-
   if (!currentTrack || isExpanded) return null;
 
   const vol = muted ? 0 : volume;
-  const setVolFromEvent = (e: MouseEvent<HTMLDivElement>) => {
-    const el = volRef.current;
-    if (!el) return;
-    const r = el.getBoundingClientRect();
-    setVolume(Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)));
-  };
 
   return (
     <div className="sticky bottom-0 z-40 flex h-[78px] flex-none items-center gap-[18px] border-t border-[var(--color-line)] bg-[rgba(8,8,16,.62)] px-[22px] shadow-[0_-10px_40px_-20px_rgba(0,0,0,.8)] backdrop-blur-[34px]">
@@ -236,41 +227,24 @@ export default function MiniPlayer(_: MiniPlayerProps) {
           <Sliders className="h-4 w-4" strokeWidth={2.2} />
         </button>
 
-        <div className="flex w-[130px] items-center gap-2.5">
-          <button
-            type="button"
-            onClick={toggleMute}
-            className="flex-none text-[var(--color-muted)] transition hover:text-[var(--color-text)]"
-            aria-label={
-              muted || vol === 0
-                ? t("player.unmute", { defaultValue: "Activar sonido" })
-                : t("player.mute", { defaultValue: "Silenciar" })
-            }
-          >
-            {muted || vol === 0 ? (
+        <ElasticSlider
+          className="w-[130px]"
+          value={vol}
+          onChange={setVolume}
+          onLeftIconClick={toggleMute}
+          leftIconLabel={
+            muted || vol === 0
+              ? t("player.unmute", { defaultValue: "Activar sonido" })
+              : t("player.mute", { defaultValue: "Silenciar" })
+          }
+          leftIcon={
+            muted || vol === 0 ? (
               <VolumeX className="h-[17px] w-[17px]" strokeWidth={2} />
             ) : (
               <Volume2 className="h-[17px] w-[17px]" strokeWidth={2} />
-            )}
-          </button>
-          <div
-            ref={volRef}
-            onClick={setVolFromEvent}
-            className="relative h-[5px] flex-1 cursor-pointer rounded-full bg-white/[0.12]"
-            role="slider"
-            aria-valuenow={Math.round(vol * 100)}
-            aria-label={t("player.volume", { defaultValue: "Volumen" })}
-          >
-            <div
-              className="absolute bottom-0 left-0 top-0 rounded-full"
-              style={{
-                width: `${vol * 100}%`,
-                background:
-                  "linear-gradient(90deg,var(--color-primary),var(--color-accent))",
-              }}
-            />
-          </div>
-        </div>
+            )
+          }
+        />
 
         <button
           type="button"

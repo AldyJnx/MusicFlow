@@ -106,10 +106,14 @@ export default function AIQuickPrompt() {
 
   const acceptMutation = useMutation({
     mutationFn: () => {
-      if (!requestId || !currentTrack) {
-        return Promise.reject(new Error("missing requestId or track"));
+      if (!requestId) {
+        return Promise.reject(new Error("missing requestId"));
       }
-      return acceptSuggestion(requestId, "TRACK", currentTrack.id);
+      // With a track, apply to that song's scope; with nothing playing, apply
+      // the suggestion to the global EQ so the panel still works anywhere.
+      return currentTrack
+        ? acceptSuggestion(requestId, "TRACK", currentTrack.id)
+        : acceptSuggestion(requestId, "GLOBAL");
     },
     onSuccess: () => {
       if (!suggestion) return;
@@ -149,7 +153,7 @@ export default function AIQuickPrompt() {
     navigate(id ? `/ai-mixer?trackId=${id}` : "/ai-mixer");
   }
 
-  if (!isOpen || !currentTrack) return null;
+  if (!isOpen) return null;
 
   const isWaitingForSuggestion = suggestMutation.isPending;
   const isApplying = acceptMutation.isPending;
@@ -198,10 +202,16 @@ export default function AIQuickPrompt() {
                   Asistente de sonido
                 </h2>
                 <p className="mt-0.5 truncate text-xs text-[var(--color-muted)]">
-                  Ajusta el EQ de{" "}
-                  <span className="text-[var(--color-accent)]">
-                    {currentTrack.title}
-                  </span>
+                  {currentTrack ? (
+                    <>
+                      Ajusta el EQ de{" "}
+                      <span className="text-[var(--color-accent)]">
+                        {currentTrack.title}
+                      </span>
+                    </>
+                  ) : (
+                    "Ajusta el sonido global de tu música"
+                  )}
                 </p>
               </div>
             </div>

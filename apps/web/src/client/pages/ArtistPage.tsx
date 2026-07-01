@@ -23,7 +23,9 @@ import {
   type CatalogAlbumSummary,
   type CatalogTrackCard,
 } from "../../shared/api/catalog";
-import SaveButton from "../../shared/ui/SaveButton";
+import TrackRow from "../../shared/ui/TrackRow";
+import AnimatedList from "../../shared/ui/reactbits/AnimatedList";
+import SplitText from "../../shared/ui/reactbits/SplitText";
 import { useSavedCheckQuery } from "../../shared/hooks/useLibrarySaves";
 import { usePremiumGate } from "../../shared/hooks/usePremiumGate";
 import { usePlayerStore, type PlayerTrack } from "../stores/playStore";
@@ -39,13 +41,6 @@ function toPlayerTrack(t: Track): PlayerTrack | null {
     url: t.fileUrlRemote,
     durationMs: t.durationMs,
   };
-}
-
-function formatDuration(ms: number): string {
-  const totalSeconds = Math.floor(ms / 1000);
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  return `${minutes}:${String(seconds).padStart(2, "0")}`;
 }
 
 /** Total album length as "1 h 12 min" / "38 min". */
@@ -72,6 +67,8 @@ export default function ArtistPage() {
   const addToQueue = usePlayerStore((s) => s.addToQueue);
   const openEqDrawer = usePlayerStore((s) => s.openEqDrawer);
   const openAiPrompt = usePlayerStore((s) => s.openAiPrompt);
+  const currentTrackId = usePlayerStore((s) => s.currentTrack?.id ?? null);
+  const isPlaying = usePlayerStore((s) => s.isPlaying);
   const { guard } = usePremiumGate();
 
   const tracksQ = useTracksQuery({ artist: artistName, take: 100 });
@@ -95,6 +92,14 @@ export default function ArtistPage() {
     enabled: !!catalogArtistId,
   });
   const albums = catalogArtistQ.data?.albums ?? [];
+
+  // Map album title → id so a track's album label can link to its album page
+  // (the Track shape only carries the album name, not its id).
+  const albumIdByTitle = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const al of albums) if (al.title) m.set(al.title, al.id);
+    return m;
+  }, [albums]);
 
   // Group the artist's catalog tracks by album so each card can show the real
   // total duration and play the whole album.
@@ -246,8 +251,8 @@ export default function ArtistPage() {
                 <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--color-primary)]">
                   {t("artist.eyebrow", { defaultValue: "Artista" })}
                 </p>
-                <h1 className="truncate text-5xl font-extrabold leading-tight tracking-tight text-[var(--color-text)] sm:text-6xl">
-                  {artistName}
+                <h1 className="text-5xl font-extrabold leading-tight tracking-tight text-[var(--color-text)] sm:text-6xl">
+                  <SplitText text={artistName} />
                 </h1>
                 <p className="text-sm text-[var(--color-muted)]">
                   {t("artist.trackCount", {
@@ -356,61 +361,35 @@ export default function ArtistPage() {
               </p>
             </div>
           ) : (
-            <ul className="flex flex-col gap-1">
-              {tracks.map((track, idx) => (
-                <li
-                  key={track.id}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => playOne(track)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      playOne(track);
+            <AnimatedList className="flex flex-col gap-1.5">
+              {tracks.map((track, idx) => {
+                const albumId = track.album
+                  ? albumIdByTitle.get(track.album)
+                  : undefined;
+                return (
+                  <TrackRow
+                    key={track.id}
+                    number={String(idx + 1).padStart(2, "0")}
+                    title={track.title}
+                    subtitle={
+                      track.album ||
+                      t("artist.singleSentinel", { defaultValue: "Single" })
                     }
-                  }}
-                  className="group flex w-full cursor-pointer items-center gap-4 rounded-lg p-3 text-left transition hover:bg-[var(--color-surface)]"
-                >
-                  <span className="w-6 shrink-0 text-center text-xs font-bold text-[var(--color-muted)] group-hover:text-[var(--color-primary)]">
-                    {String(idx + 1).padStart(2, "0")}
-                  </span>
-                  <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded bg-[var(--color-surface-alt)]">
-                    {track.coverArt ? (
-                      <img
-                        src={track.coverArt}
-                        alt=""
-                        className="h-full w-full object-cover"
-                      />
-                    ) : (
-                      <ListMusic
-                        className="absolute inset-0 m-auto h-4 w-4 text-[var(--color-muted)]"
-                        strokeWidth={1.6}
-                      />
-                    )}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold text-[var(--color-text)]">
-                      {track.title}
-                    </p>
-                    <p className="truncate text-xs text-[var(--color-muted)]">
-                      {track.album ??
-                        t("artist.singleSentinel", {
-                          defaultValue: "Single",
-                        })}
-                    </p>
-                  </div>
-                  <span className="hidden text-xs tabular-nums text-[var(--color-muted)] sm:inline">
-                    {formatDuration(track.durationMs)}
-                  </span>
-                  <div onClick={(e) => e.stopPropagation()}>
-                    <SaveButton
-                      trackId={track.id}
-                      saved={savedSet.has(track.id)}
-                    />
-                  </div>
-                </li>
-              ))}
-            </ul>
+                    cover={track.coverArt}
+                    durationMs={track.durationMs}
+                    active={currentTrackId === track.id}
+                    playing={currentTrackId === track.id && isPlaying}
+                    saved={savedSet.has(track.id)}
+                    trackId={track.id}
+                    vinyl
+                    onPlay={() => playOne(track)}
+                    onSubtitleClick={
+                      albumId ? () => navigate(`/album/${albumId}`) : undefined
+                    }
+                  />
+                );
+              })}
+            </AnimatedList>
           )}
         </div>
       </section>

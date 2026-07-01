@@ -102,8 +102,25 @@ export function initializePlayerEngine(): void {
 
   const engine = getAudioEngine();
 
-  // Sync engine status → store
+  // Sync engine status → store. The engine emits on every animation frame
+  // (~60fps); committing position that often re-renders every position-bound
+  // component 60×/s for no visible gain. Throttle position to ~5fps, but flush
+  // immediately whenever a discrete field (play/pause, volume, mute, duration)
+  // changes or playback jumps (seek), so those stay instant.
+  let lastCommittedPos = 0;
   engine.onStatus((status) => {
+    const prev = usePlayerStore.getState();
+    const discreteChanged =
+      prev.isPlaying !== status.isPlaying ||
+      prev.volume !== status.volume ||
+      prev.muted !== status.muted ||
+      prev.durationMs !== status.durationMs;
+    if (
+      !discreteChanged &&
+      Math.abs(status.positionMs - lastCommittedPos) < 200
+    )
+      return;
+    lastCommittedPos = status.positionMs;
     usePlayerStore.setState({
       isPlaying: status.isPlaying,
       positionMs: status.positionMs,
@@ -324,7 +341,9 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
       },
       closeEqDrawer: () => set({ eqDrawerOpen: false }),
       openAiPrompt: () => {
-        if (!get().currentTrack) return;
+        // No track guard here: the assistant works globally too (it can tune
+        // the global EQ or just chat), so it must open from anywhere — e.g. the
+        // floating assistant button with nothing playing.
         set({ aiPromptOpen: true, eqDrawerOpen: false });
       },
       closeAiPrompt: () => set({ aiPromptOpen: false }),

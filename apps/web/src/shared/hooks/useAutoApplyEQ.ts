@@ -84,6 +84,19 @@ export function useAutoApplyEQ(): void {
           reverbPreset: cfg.reverbPreset,
           reverbAmount: cfg.reverbAmount,
         });
+        // Register this as the segment scheduler's fallback so that, on a track
+        // WITH segments, leaving a segment restores this cascade EQ (bands +
+        // effects) instead of collapsing to flat.
+        engine.setFallbackEQ({
+          bands: cfg.bands,
+          effects: {
+            bassBoost: cfg.bassBoost,
+            virtualizer: cfg.virtualizer,
+            loudness: cfg.loudness,
+            reverbPreset: cfg.reverbPreset,
+            reverbAmount: cfg.reverbAmount,
+          },
+        });
         // Mirror into the shared EQ UI so every surface shows this curve.
         syncEqUiFromConfig(cfg);
       } else {
@@ -95,6 +108,16 @@ export function useAutoApplyEQ(): void {
           loudness: 0,
           reverbPreset: "NONE",
           reverbAmount: 0,
+        });
+        engine.setFallbackEQ({
+          bands: FLAT_CONFIG.bands,
+          effects: {
+            bassBoost: 0,
+            virtualizer: 0,
+            loudness: 0,
+            reverbPreset: "NONE",
+            reverbAmount: 0,
+          },
         });
         syncEqUiFromConfig(FLAT_CONFIG);
       }

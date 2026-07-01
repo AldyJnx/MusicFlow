@@ -1,4 +1,13 @@
-import type { Equalizer } from "./equalizer";
+import type { ReverbPresetName } from "./effects";
+
+/** The non-band part of an EQ state — applied alongside the 10 bands. */
+export interface SegmentEffects {
+  bassBoost: number;
+  virtualizer: number;
+  loudness: number;
+  reverbPreset: ReverbPresetName;
+  reverbAmount: number;
+}
 
 export interface EQSegment {
   id: string;
@@ -7,25 +16,36 @@ export interface EQSegment {
   endMs: number;
   transitionMs?: number;
   bands: number[];
+  /** Optional per-segment effects (bass boost, reverb, …). */
+  effects?: SegmentEffects;
 }
 
 export interface FallbackEQ {
   bands: number[];
+  /** The cascade's effects, restored when playback leaves a segment. */
+  effects?: SegmentEffects;
+}
+
+/** What the scheduler needs to push a full EQ state into the audio graph. */
+export interface EQTarget {
+  setBands(bands: number[], transitionMs?: number): void;
+  setEffects(effects: SegmentEffects): void;
 }
 
 /**
  * Watches playback position and applies the EQ segment that covers the current time.
- * Outside of any segment, falls back to a baseline (track / playlist / global EQ).
+ * Outside of any segment, falls back to a baseline (track / playlist / global EQ),
+ * restoring both its bands AND its effects so the cascade is never silently flattened.
  */
 export class SegmentScheduler {
   private segments: EQSegment[] = [];
   private fallback: FallbackEQ = { bands: new Array(10).fill(0) };
   private activeId: string | null = null;
   private listeners = new Set<(segment: EQSegment | null) => void>();
-  private readonly equalizer: Equalizer;
+  private readonly target: EQTarget;
 
-  constructor(equalizer: Equalizer) {
-    this.equalizer = equalizer;
+  constructor(target: EQTarget) {
+    this.target = target;
   }
 
   setSegments(segments: EQSegment[]): void {
@@ -37,7 +57,7 @@ export class SegmentScheduler {
     this.fallback = fallback;
     // If currently outside any segment, re-apply the new fallback immediately.
     if (this.activeId === null) {
-      this.equalizer.setBands(fallback.bands);
+      this.applyFallback();
     }
   }
 
@@ -60,14 +80,24 @@ export class SegmentScheduler {
 
     this.activeId = nextId;
     if (current) {
-      this.equalizer.setBands(current.bands, current.transitionMs ?? 500);
+      this.target.setBands(current.bands, current.transitionMs ?? 500);
+      // A segment may carry its own effects; if it doesn't, restore the
+      // cascade's effects so it never inherits a previous segment's reverb.
+      const fx = current.effects ?? this.fallback.effects;
+      if (fx) this.target.setEffects(fx);
     } else {
-      this.equalizer.setBands(this.fallback.bands, 500);
+      this.applyFallback();
     }
 
     for (const listener of this.listeners) {
       listener(current);
     }
+  }
+
+  /** Restore the cascade baseline (track / playlist / global): bands + effects. */
+  private applyFallback(): void {
+    this.target.setBands(this.fallback.bands, 500);
+    if (this.fallback.effects) this.target.setEffects(this.fallback.effects);
   }
 
   /** Force re-evaluation (e.g., after seek or segment edit). */

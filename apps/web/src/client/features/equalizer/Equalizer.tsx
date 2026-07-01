@@ -1,10 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { animate, stagger } from "animejs";
 import { RotateCcw, Save, Sparkles } from "lucide-react";
+import { motion, useReducedMotion } from "motion/react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 
 import ClientLayout from "../../layout/ClientLayout";
 import EqCascade from "./EqCascade";
+import GradientText from "../../../shared/ui/reactbits/GradientText";
+import Aurora from "../../../shared/ui/reactbits/Aurora";
 import { useEqualizer } from "../../../shared/hooks/useEqualizer";
 import { useEqCascade } from "../../../shared/hooks/useEqCascade";
 import { usePlayerStore } from "../../stores/playStore";
@@ -175,6 +179,25 @@ export default function Equalizer() {
   const queryClient = useQueryClient();
 
   const [scope, setScope] = useState<ScopeId>("global");
+  const reduce = useReducedMotion();
+
+  // anime.js: stagger the 10 band columns up when the panel mounts and each
+  // time the scope changes (so switching Global → Pista feels alive).
+  const bandsRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (reduce) return;
+    const root = bandsRef.current;
+    if (!root) return;
+    const cols = root.querySelectorAll<HTMLElement>("[data-band]");
+    if (!cols.length) return;
+    animate(cols, {
+      translateY: [16, 0],
+      opacity: [0, 1],
+      duration: 420,
+      delay: stagger(35),
+      ease: "outCubic",
+    });
+  }, [scope, reduce]);
 
   const safeBands = useMemo(
     () => Array.from({ length: 10 }, (_, i) => Math.round(bands[i] ?? 0)),
@@ -270,12 +293,18 @@ export default function Equalizer() {
       <section className="min-h-screen w-full px-4 py-6 text-[var(--color-text)] sm:px-6 xl:px-8">
         <div className="mx-auto flex max-w-4xl flex-col gap-4">
           {/* MAIN COLUMN */}
-          <div className="flex flex-col gap-6 rounded-[var(--radius-card)] border border-[var(--color-line)] bg-[color-mix(in_srgb,var(--color-surface)_86%,transparent)] p-6 shadow-[0_24px_80px_rgba(0,0,0,0.35)] backdrop-blur-[var(--glass-blur)] sm:p-8">
+          <motion.div
+            initial={reduce ? false : { opacity: 0, y: 18 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.45, ease: "easeOut" }}
+            className="relative flex flex-col gap-6 overflow-hidden rounded-[var(--radius-card)] border border-[var(--color-line)] bg-[color-mix(in_srgb,var(--color-surface)_86%,transparent)] p-6 shadow-[0_24px_80px_rgba(0,0,0,0.35)] backdrop-blur-[var(--glass-blur)] sm:p-8"
+          >
+            <Aurora intensity={0.18} />
             {/* Header */}
-            <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="relative flex flex-wrap items-start justify-between gap-4">
               <div>
                 <h1 className="text-2xl font-semibold tracking-tight text-[var(--color-text)] sm:text-3xl">
-                  {t("eq.title")}
+                  <GradientText>{t("eq.title")}</GradientText>
                 </h1>
                 <p className="mt-2 max-w-xl text-sm text-[var(--color-muted)]">
                   {t("eq.subtitle")}
@@ -395,7 +424,7 @@ export default function Equalizer() {
               <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-muted)]">
                 {t("eq.presets")}
               </h2>
-              <div className="flex gap-2 overflow-x-auto pb-1">
+              <div className="flex flex-wrap gap-2">
                 {presetsLoading ? (
                   Array.from({ length: 6 }).map((_, i) => (
                     <div
@@ -434,12 +463,16 @@ export default function Equalizer() {
               <h2 className="mb-5 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-muted)]">
                 {t("eq.bands")}
               </h2>
-              <div className="flex items-end justify-around gap-1">
+              <div
+                ref={bandsRef}
+                className="flex items-end justify-around gap-1"
+              >
                 {FREQUENCIES.map((hz, i) => {
                   const db = safeBands[i];
                   return (
                     <div
                       key={hz}
+                      data-band
                       className="flex flex-1 flex-col items-center gap-2"
                     >
                       <span
@@ -556,7 +589,7 @@ export default function Equalizer() {
                 </div>
               </div>
             </div>
-          </div>
+          </motion.div>
 
           {/* AI quick row (pretesis) */}
           <div className="flex flex-col gap-3 rounded-2xl border border-[color-mix(in_srgb,var(--color-primary)_30%,transparent)] bg-[linear-gradient(180deg,color-mix(in_srgb,var(--color-primary)_6%,transparent),color-mix(in_srgb,var(--color-accent)_2%,transparent))] p-4">

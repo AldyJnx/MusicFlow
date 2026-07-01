@@ -1,12 +1,4 @@
-import {
-  ArrowLeft,
-  Clock3,
-  Disc3,
-  LayoutGrid,
-  List,
-  Music4,
-  Play,
-} from "lucide-react";
+import { ArrowLeft, Clock3, Disc3, LayoutGrid, List, Play } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { animate, stagger } from "animejs";
 import { useQuery } from "@tanstack/react-query";
@@ -20,6 +12,9 @@ import {
   type CatalogTrackCard,
 } from "../../shared/api/catalog";
 import SaveButton from "../../shared/ui/SaveButton";
+import TrackRow from "../../shared/ui/TrackRow";
+import AnimatedList from "../../shared/ui/reactbits/AnimatedList";
+import SplitText from "../../shared/ui/reactbits/SplitText";
 import { useSavedCheckQuery } from "../../shared/hooks/useLibrarySaves";
 import { usePlayerStore, type PlayerTrack } from "../stores/playStore";
 
@@ -114,189 +109,10 @@ function Vinyl({
   );
 }
 
-const MINI_VINYL_BG =
-  "repeating-radial-gradient(circle at center, #0c0c0f 0 1px, #1b1b20 1px 2.5px), #0a0a0d";
-
 function prefersReducedMotion() {
   return (
     typeof window !== "undefined" &&
     window.matchMedia("(prefers-reduced-motion: reduce)").matches
-  );
-}
-
-/**
- * One song row. On hover/focus a small vinyl record slides out from behind the
- * cover and spins (anime.js drives the slide; CSS owns the rotation so the two
- * transforms don't fight), and the title nudges over to make room.
- */
-function TrackRow({
-  track,
-  index,
-  active,
-  cover,
-  saved,
-  onPlay,
-}: {
-  track: CatalogTrackCard;
-  index: number;
-  active: boolean;
-  cover: string | null;
-  saved: boolean;
-  onPlay: () => void;
-}) {
-  const discRef = useRef<HTMLDivElement>(null);
-
-  function reveal() {
-    const el = discRef.current;
-    if (!el || prefersReducedMotion()) return;
-    animate(el, {
-      translateX: [0, 18],
-      opacity: [0, 1],
-      duration: 520,
-      ease: "outBack",
-    });
-  }
-  function hide() {
-    const el = discRef.current;
-    if (!el || prefersReducedMotion()) return;
-    animate(el, {
-      translateX: 0,
-      opacity: 0,
-      duration: 240,
-      ease: "outQuad",
-    });
-  }
-
-  return (
-    <div
-      data-anim-item
-      role="button"
-      tabIndex={0}
-      onClick={onPlay}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          onPlay();
-        }
-      }}
-      onMouseEnter={reveal}
-      onMouseLeave={hide}
-      onFocus={reveal}
-      onBlur={hide}
-      className={`group grid cursor-pointer grid-cols-[28px_1fr_auto_56px] items-center gap-4 rounded-xl border border-[var(--color-line)]/60 px-3 py-2.5 text-left transition ${
-        active
-          ? "border-[var(--color-primary)]/50 bg-[var(--color-glass)] ring-1 ring-[var(--color-primary)]/40"
-          : "bg-[var(--color-surface)]/80 hover:border-[var(--color-primary)]/40 hover:bg-[var(--color-glass)]"
-      }`}
-    >
-      {/* Index → play on hover */}
-      <span className="relative flex h-4 items-center justify-center">
-        <span
-          className={`text-sm tabular-nums transition group-hover:opacity-0 ${active ? "text-[var(--color-accent)]" : "text-[var(--color-muted)]"}`}
-          style={{ fontFamily: "var(--font-mono)" }}
-        >
-          {track.albumOrder ?? index + 1}
-        </span>
-        <Play
-          className="absolute h-3.5 w-3.5 opacity-0 transition group-hover:opacity-100"
-          fill="currentColor"
-        />
-      </span>
-
-      {/* Cover thumb (vinyl slides out behind it) + title */}
-      <span className="flex min-w-0 items-center gap-3">
-        <span className="relative h-10 w-10 flex-none">
-          {/* Mini vinyl — anime.js slides this out, CSS spins the inner disc */}
-          <div
-            ref={discRef}
-            aria-hidden="true"
-            className="pointer-events-none absolute left-0 top-0 h-10 w-10 opacity-0"
-            style={{ willChange: "transform, opacity" }}
-          >
-            <div
-              className="h-full w-full rounded-full shadow-[0_4px_14px_-3px_rgba(0,0,0,.9)] ring-1 ring-black/50"
-              style={{
-                background: MINI_VINYL_BG,
-                animation: "spin 2.5s linear infinite",
-              }}
-            >
-              <span
-                className="absolute left-1/2 top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-full ring-1 ring-black/40"
-                style={
-                  cover
-                    ? { background: `center/cover no-repeat url(${cover})` }
-                    : {
-                        background:
-                          "linear-gradient(135deg,var(--color-primary),var(--color-accent))",
-                      }
-                }
-              />
-            </div>
-          </div>
-
-          {/* Cover on top */}
-          <span className="relative z-10 block h-10 w-10 overflow-hidden rounded-md bg-[var(--color-surface-alt)]">
-            {cover ? (
-              <img src={cover} alt="" className="h-full w-full object-cover" />
-            ) : (
-              <Music4 className="absolute inset-0 m-auto h-4 w-4 text-[var(--color-muted)]" />
-            )}
-            {active ? (
-              <span className="absolute inset-0 flex items-center justify-center bg-black/40">
-                <span className="flex h-3.5 items-end gap-[2px]">
-                  <span
-                    className="w-[2.5px] rounded-[2px] bg-white"
-                    style={{
-                      height: "100%",
-                      transformOrigin: "bottom",
-                      animation: "eqbar .7s ease-in-out infinite",
-                    }}
-                  />
-                  <span
-                    className="w-[2.5px] rounded-[2px] bg-white"
-                    style={{
-                      height: "100%",
-                      transformOrigin: "bottom",
-                      animation: "eqbar .9s ease-in-out infinite .2s",
-                    }}
-                  />
-                  <span
-                    className="w-[2.5px] rounded-[2px] bg-white"
-                    style={{
-                      height: "100%",
-                      transformOrigin: "bottom",
-                      animation: "eqbar 1.1s ease-in-out infinite .1s",
-                    }}
-                  />
-                </span>
-              </span>
-            ) : null}
-          </span>
-        </span>
-        <span
-          className={`min-w-0 truncate text-sm font-semibold transition-transform duration-500 ease-out group-hover:translate-x-2.5 ${active ? "text-[var(--color-accent)]" : "text-[var(--color-text)]"}`}
-        >
-          {track.title}
-        </span>
-      </span>
-
-      {/* Save */}
-      <span
-        className="opacity-0 transition group-hover:opacity-100 focus-within:opacity-100 data-[saved=true]:opacity-100"
-        data-saved={saved}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <SaveButton trackId={track.id} saved={saved} />
-      </span>
-
-      {/* Duration */}
-      <span
-        className="text-right text-xs text-[var(--color-muted)]"
-        style={{ fontFamily: "var(--font-mono)" }}
-      >
-        {fmt(track.durationMs)}
-      </span>
-    </div>
   );
 }
 
@@ -307,7 +123,7 @@ export default function AlbumPage() {
   const playTrackList = usePlayerStore((s) => s.playTrackList);
   const currentTrackId = usePlayerStore((s) => s.currentTrack?.id ?? null);
   const isPlaying = usePlayerStore((s) => s.isPlaying);
-  const [view, setView] = useState<"list" | "cards">("list");
+  const [view, setView] = useState<"list" | "cards">("cards");
 
   const albumQ = useQuery({
     queryKey: ["catalog", "album", id],
@@ -407,10 +223,10 @@ export default function AlbumPage() {
                   {t("album.eyebrow", { defaultValue: "Álbum" })}
                 </p>
                 <h1
-                  className="mt-1 truncate text-4xl font-extrabold tracking-tight text-white sm:text-5xl"
+                  className="mt-1 text-4xl font-extrabold tracking-tight text-white sm:text-5xl"
                   style={{ fontFamily: "var(--font-display)" }}
                 >
-                  {album?.title ?? "…"}
+                  <SplitText text={album?.title ?? "…"} />
                 </h1>
                 <button
                   type="button"
@@ -615,19 +431,23 @@ export default function AlbumPage() {
                 </span>
               </div>
 
-              <div className="mt-2 flex flex-col gap-1.5">
+              <AnimatedList className="mt-2 flex flex-col gap-1.5">
                 {album.tracks.map((tr, i) => (
                   <TrackRow
                     key={tr.id}
-                    track={tr}
-                    index={i}
-                    active={currentTrackId === tr.id}
+                    number={tr.albumOrder ?? i + 1}
+                    title={tr.title}
                     cover={tr.coverArt ?? album.coverArt}
+                    durationMs={tr.durationMs}
+                    active={currentTrackId === tr.id}
+                    playing={currentTrackId === tr.id && isPlaying}
                     saved={savedSet.has(tr.id)}
+                    trackId={tr.id}
+                    vinyl
                     onPlay={() => playFrom(i)}
                   />
                 ))}
-              </div>
+              </AnimatedList>
             </>
           ) : (
             <p className="text-sm text-[var(--color-muted)]">

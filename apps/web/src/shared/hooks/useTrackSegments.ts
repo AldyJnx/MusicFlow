@@ -51,6 +51,15 @@ export function useSegmentEngineSync(trackId: string | null | undefined) {
           endMs: s.endMs,
           transitionMs: s.transitionMs,
           bands: s.eqConfig.bands,
+          // Carry the segment's effects too, so per-segment reverb / bass boost
+          // actually apply during playback (not just the 10 bands).
+          effects: {
+            bassBoost: s.eqConfig.bassBoost,
+            virtualizer: s.eqConfig.virtualizer,
+            loudness: s.eqConfig.loudness,
+            reverbPreset: s.eqConfig.reverbPreset,
+            reverbAmount: s.eqConfig.reverbAmount,
+          },
         }))
       : [];
 

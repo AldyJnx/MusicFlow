@@ -10,6 +10,7 @@ import Navbar, { type NavbarRef } from "../../shared/ui/navigation/Navbar";
 import ClientSidebar from "../components/navigation/ClientSidebar";
 import AnimatedBackground from "../components/AnimatedBackground";
 import RightPanel from "../components/RightPanel";
+import AIAssistantFab from "../components/AIAssistantFab";
 import ImportModal from "../features/import/ImportModal";
 import CommandPalette from "../features/command-palette/CommandPalette";
 import { usePlayerStore } from "../stores/playStore";
@@ -61,6 +62,7 @@ export default function ClientLayout({ children }: { children: ReactNode }) {
             survive route changes. */}
       <EqDrawer />
       <AIQuickPrompt />
+      <AIAssistantFab />
       <QueueDrawer />
       <UpgradeModal />
       <ImportModal open={importOpen} onClose={() => setImportOpen(false)} />

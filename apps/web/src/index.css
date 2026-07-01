@@ -83,3 +83,41 @@ h3 {
     transform: scaleY(1);
   }
 }
+
+/* ReactBits-style effects (adapted, MIT). */
+@keyframes rb-gradient-x {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+@keyframes rb-aurora-drift {
+  0% {
+    transform: translate3d(-8%, -4%, 0) rotate(0deg) scale(1.1);
+  }
+  50% {
+    transform: translate3d(8%, 4%, 0) rotate(8deg) scale(1.25);
+  }
+  100% {
+    transform: translate3d(-8%, -4%, 0) rotate(0deg) scale(1.1);
+  }
+}
+
+/* Animatable angle for the rotating conic border glow (BorderGlow). */
+@property --rb-glow-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+
+@keyframes rb-glow-spin {
+  to {
+    --rb-glow-angle: 360deg;
+  }
+}
