@@ -1,6 +1,7 @@
 import { createHash } from "crypto";
 import {
   Injectable,
+  Logger,
   NotFoundException,
   ConflictException,
 } from "@nestjs/common";
@@ -14,6 +15,8 @@ import { Prisma, TrackSource, SyncStatus } from "@prisma/client";
 
 @Injectable()
 export class TracksService {
+  private readonly logger = new Logger(TracksService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly storage: StorageService,
@@ -56,7 +59,7 @@ export class TracksService {
     );
     const lyrics = extractEmbeddedLyrics(meta);
 
-    return this.prisma.track.create({
+    const created = await this.prisma.track.create({
       data: {
         user: { connect: { id: userId } },
         title:
@@ -86,6 +89,23 @@ export class TracksService {
         syncStatus: SyncStatus.SYNCED,
       },
     });
+
+    // Mirror embedded lyrics into the lyrics bucket (best-effort; the DB stays
+    // the read source, so a storage hiccup must not fail the upload).
+    const lrc = lyrics.lyricsLrc ?? lyrics.lyricsText;
+    if (lrc) {
+      try {
+        await this.storage.uploadLyrics(created.id, lrc);
+      } catch (err) {
+        this.logger.warn(
+          `Lyrics bucket write-through failed for track ${created.id}: ${
+            (err as Error).message
+          }`,
+        );
+      }
+    }
+
+    return created;
   }
 
   async findAll(

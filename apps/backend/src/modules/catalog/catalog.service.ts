@@ -3,6 +3,7 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
+  Logger,
   NotFoundException,
 } from "@nestjs/common";
 import { TrackSource, SyncStatus } from "@prisma/client";
@@ -67,10 +68,35 @@ const trackCard = {
 
 @Injectable()
 export class CatalogService {
+  private readonly logger = new Logger(CatalogService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly storage: StorageService,
   ) {}
+
+  /**
+   * Mirror a track's lyrics into the lyrics bucket (best-effort). The DB stays
+   * the read source, so a storage hiccup must never fail the write that
+   * triggered this — we log and move on.
+   */
+  private async mirrorLyricsToBucket(
+    trackId: string,
+    lyricsLrc?: string,
+    lyricsText?: string,
+  ): Promise<void> {
+    const lrc = lyricsLrc ?? lyricsText;
+    if (!lrc) return;
+    try {
+      await this.storage.uploadLyrics(trackId, lrc);
+    } catch (err) {
+      this.logger.warn(
+        `Lyrics bucket write-through failed for track ${trackId}: ${
+          (err as Error).message
+        }`,
+      );
+    }
+  }
 
   /**
    * Admin upload of a brand-new catalog song: stores the audio in R2, extracts
@@ -139,7 +165,7 @@ export class CatalogService {
       ? (await this.prisma.track.count({ where: { albumId: album.id } })) + 1
       : null;
 
-    return this.prisma.track.create({
+    const created = await this.prisma.track.create({
       data: {
         userId: adminUserId,
         title:
@@ -179,6 +205,15 @@ export class CatalogService {
         albumOrder: true,
       },
     });
+
+    // Mirror any embedded lyrics into the lyrics bucket, keyed by the new id.
+    await this.mirrorLyricsToBucket(
+      created.id,
+      lyrics.lyricsLrc,
+      lyrics.lyricsText,
+    );
+
+    return created;
   }
 
   /** Upload an artist photo; also stamps it on the artist's catalog tracks. */
@@ -478,6 +513,8 @@ export class CatalogService {
         lyricsText: dto.lyricsText,
       },
     });
+    // Keep a durable .lrc copy in the lyrics bucket, in sync with the DB.
+    await this.mirrorLyricsToBucket(trackId, dto.lyricsLrc, dto.lyricsText);
     // Return only a flag — lyrics content is never echoed back in admin writes.
     return {
       updated: true,

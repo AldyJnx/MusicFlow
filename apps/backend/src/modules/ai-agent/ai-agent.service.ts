@@ -220,8 +220,10 @@ intent rules:
   { "bands":[10 ints -15..15 for 31,62,125,250,500Hz,1k,2k,4k,8k,16k], "bassBoost":0-100, "virtualizer":0-100,
     "loudness":0-100, "reverbPreset":"NONE|SMALL_ROOM|MEDIUM_ROOM|LARGE_ROOM|SMALL_HALL|LARGE_HALL|CATHEDRAL|PLATE|SPRING",
     "reverbAmount":0-100, "explanation":"1-2 sentences" }. Do NOT include trackIds.
-- "recommend": the user wants something to listen to. Pick 3-8 trackIds from the CANDIDATES ONLY
-  (never invent ids or songs not listed). Prefer matches to their taste; add variety. Do NOT include "eq".
+- "recommend": the user wants something to listen to, OR asks for a mood / activity / vibe
+  ("para el gym", "algo tranqui", "sorpréndeme", "para una cena"). Pick 3-8 trackIds from the
+  CANDIDATES ONLY (never invent ids or songs not listed). Prefer the ★ taste matches, then add
+  variety; do NOT re-recommend songs listed under "Recently played". Do NOT include "eq".
 - "reply": clarification, app help, or an off-topic refusal. No eq, no trackIds.`;
 
 @Injectable()
@@ -317,9 +319,12 @@ export class AiAgentService {
   ): Promise<AssistantResponse> {
     const startTime = Date.now();
 
-    const [taste, candidates, trackCtx] = await Promise.all([
-      this.buildTasteProfile(userId),
-      this.getRecommendationCandidates(userId),
+    // Taste first (the candidate pool is built from it), then fetch the pool and
+    // the now-playing context together. The now-playing track is excluded from
+    // the pool so the assistant never recommends what's already playing.
+    const taste = await this.buildTasteProfile(userId);
+    const [candidates, trackCtx] = await Promise.all([
+      this.getRecommendationCandidates(taste, data.trackId),
       data.trackId ? this.loadTrackContext(userId, data.trackId) : null,
     ]);
 
@@ -402,21 +407,31 @@ export class AiAgentService {
     const artistCounts = new Map<string, number>();
     const recentTitles: string[] = [];
 
-    const bump = (map: Map<string, number>, key?: string | null) => {
+    // Weight the signals so the profile reflects what the user reaches for NOW:
+    // recent plays count more than old ones (linear recency decay over the
+    // newest-first list), and an explicit save outweighs a single passive play.
+    const bump = (
+      map: Map<string, number>,
+      key: string | null | undefined,
+      weight: number,
+    ) => {
       const k = (key ?? "").trim();
-      if (k) map.set(k, (map.get(k) ?? 0) + 1);
+      if (k) map.set(k, (map.get(k) ?? 0) + weight);
     };
 
-    for (const p of plays) {
-      bump(genreCounts, p.track.genre);
-      bump(artistCounts, p.track.artist);
+    const SAVE_WEIGHT = 3;
+    plays.forEach((p, i) => {
+      // Newest play ≈3x, oldest ≈1x.
+      const recency = 1 + 2 * (1 - i / Math.max(plays.length, 1));
+      bump(genreCounts, p.track.genre, recency);
+      bump(artistCounts, p.track.artist, recency);
       if (recentTitles.length < 8 && p.track.title) {
         recentTitles.push(`${p.track.title} — ${p.track.artist}`);
       }
-    }
+    });
     for (const s of saves) {
-      bump(genreCounts, s.track.genre);
-      bump(artistCounts, s.track.artist);
+      bump(genreCounts, s.track.genre, SAVE_WEIGHT);
+      bump(artistCounts, s.track.artist, SAVE_WEIGHT);
     }
 
     const top = (map: Map<string, number>, n: number) =>
@@ -438,10 +453,9 @@ export class AiAgentService {
    * so a recommendation can never be a song that isn't in MusicFlow.
    */
   private async getRecommendationCandidates(
-    userId: string,
+    taste: TasteProfile,
+    excludeTrackId?: string,
   ): Promise<RecommendedTrack[]> {
-    const taste = await this.buildTasteProfile(userId);
-
     const select = {
       id: true,
       title: true,
@@ -453,21 +467,24 @@ export class AiAgentService {
       fileUrlRemote: true,
     } as const;
 
+    // Never offer back the track that's already playing.
+    const baseWhere = {
+      isCatalog: true,
+      fileUrlRemote: { not: null },
+      ...(excludeTrackId ? { id: { not: excludeTrackId } } : {}),
+    };
+
     // Prefer tracks in the user's top genres, then top up with variety.
     const preferred = taste.topGenres.length
       ? await this.prisma.track.findMany({
-          where: {
-            isCatalog: true,
-            fileUrlRemote: { not: null },
-            genre: { in: taste.topGenres },
-          },
+          where: { ...baseWhere, genre: { in: taste.topGenres } },
           select,
           take: 40,
         })
       : [];
 
     const variety = await this.prisma.track.findMany({
-      where: { isCatalog: true, fileUrlRemote: { not: null } },
+      where: baseWhere,
       select,
       orderBy: { playHistory: { _count: "desc" } },
       take: 40,
@@ -934,7 +951,9 @@ export class AiAgentService {
       `- Favourite artists: ${taste.topArtists.join(", ") || "(unknown yet)"}`,
     );
     if (taste.recentTitles.length) {
-      lines.push(`- Recently played: ${taste.recentTitles.join("; ")}`);
+      lines.push(
+        `- Recently played (avoid re-recommending these): ${taste.recentTitles.join("; ")}`,
+      );
     }
     if (trackCtx) {
       lines.push("");
@@ -945,32 +964,54 @@ export class AiAgentService {
       );
     }
     lines.push("");
+    const topGenres = new Set(taste.topGenres);
     lines.push(
-      "CANDIDATES (recommend ONLY by these ids; format `id | Title — Artist [genre]`):",
+      "CANDIDATES (recommend ONLY by these ids; ★ = matches their taste — prefer these, then add variety; format `id | Title — Artist [genre]`):",
     );
     for (const c of candidates) {
+      const star = c.genre && topGenres.has(c.genre) ? "★ " : "  ";
       lines.push(
-        `${c.id} | ${c.title} — ${c.artist}${c.genre ? ` [${c.genre}]` : ""}`,
+        `${star}${c.id} | ${c.title} — ${c.artist}${c.genre ? ` [${c.genre}]` : ""}`,
       );
     }
     return lines.join("\n");
   }
 
-  private parseAssistant(raw: string): AssistantParse {
-    let jsonText = raw.trim();
-    const fenceMatch = jsonText.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/);
-    if (fenceMatch) jsonText = fenceMatch[1].trim();
+  /**
+   * Pull a JSON object out of a model response. Strips markdown fences and, if
+   * the model wrapped the JSON in prose despite instructions, falls back to the
+   * outermost {...} span — so a stray sentence never fails the whole request.
+   */
+  private extractJsonObject(raw: string): Record<string, unknown> {
+    let text = raw.trim();
+    const fence = text.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/);
+    if (fence) text = fence[1].trim();
 
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(jsonText);
-    } catch {
-      throw new Error("AI provider returned invalid JSON");
+    const tryParse = (s: string): Record<string, unknown> | null => {
+      try {
+        const v: unknown = JSON.parse(s);
+        return v && typeof v === "object"
+          ? (v as Record<string, unknown>)
+          : null;
+      } catch {
+        return null;
+      }
+    };
+
+    let obj = tryParse(text);
+    if (!obj) {
+      const first = text.indexOf("{");
+      const last = text.lastIndexOf("}");
+      if (first !== -1 && last > first) {
+        obj = tryParse(text.slice(first, last + 1));
+      }
     }
-    if (!parsed || typeof parsed !== "object") {
-      throw new Error("AI response is not an object");
-    }
-    const obj = parsed as Record<string, unknown>;
+    if (!obj) throw new Error("AI provider returned invalid JSON");
+    return obj;
+  }
+
+  private parseAssistant(raw: string): AssistantParse {
+    const obj = this.extractJsonObject(raw);
 
     const intent: AssistantIntent =
       obj.intent === "eq" || obj.intent === "recommend" ? obj.intent : "reply";
@@ -1125,23 +1166,7 @@ export class AiAgentService {
   }
 
   private parseSuggestion(raw: string): EQSuggestion {
-    let jsonText = raw.trim();
-    // Strip markdown fences if the model added them despite instructions.
-    const fenceMatch = jsonText.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/);
-    if (fenceMatch) jsonText = fenceMatch[1].trim();
-
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(jsonText);
-    } catch {
-      throw new Error("AI provider returned invalid JSON");
-    }
-
-    if (!parsed || typeof parsed !== "object") {
-      throw new Error("AI response is not an object");
-    }
-
-    const obj = parsed as Record<string, unknown>;
+    const obj = this.extractJsonObject(raw);
 
     // Scope guard: the model flags requests unrelated to audio/EQ. Reject them
     // with a friendly message instead of fabricating an equalizer.
