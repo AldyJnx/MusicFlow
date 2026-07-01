@@ -7,7 +7,6 @@ import {
   Music4,
   Play,
   Settings2,
-  SquareChartGantt,
   Users,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";

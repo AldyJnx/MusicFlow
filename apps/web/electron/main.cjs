@@ -28,12 +28,15 @@ function createWindow() {
         },
     })
 
-    const devServerUrl = 'http://localhost:5173'
-
-    if (devServerUrl) {
-        mainWindow.loadURL(devServerUrl)
-    } else {
+    // In development (not packaged) load the Vite dev server for HMR; in a
+    // packaged build load the bundled renderer from disk. Using app.isPackaged
+    // keeps the production path from ever pointing at localhost.
+    if (app.isPackaged) {
         mainWindow.loadFile(path.join(__dirname, '../dist/index.html'))
+    } else {
+        const devServerUrl =
+            process.env.VITE_DEV_SERVER_URL || 'http://localhost:5173'
+        mainWindow.loadURL(devServerUrl)
     }
 
     mainWindow.on('closed', () => {

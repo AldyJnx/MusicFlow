@@ -4,6 +4,7 @@ import 'package:audio_service/audio_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:musicflow_mobile/core/audio/audio_service_init.dart';
 import 'package:musicflow_mobile/core/providers/providers.dart';
+import 'package:musicflow_mobile/features/downloads/providers/downloads_providers.dart';
 import 'package:musicflow_mobile/features/library/providers/tracks_providers.dart';
 import 'package:musicflow_mobile/shared/models/eq.dart';
 import 'package:musicflow_mobile/shared/models/track.dart';
@@ -74,8 +75,13 @@ class PlayerController extends StateNotifier<PlayerState> {
 
   // ── Private helpers ─────────────────────────────────────────────────────────
 
-  /// Converts a [Track] to an audio_service [MediaItem].
+  /// Converts a [Track] to an audio_service [MediaItem]. When the track has
+  /// been downloaded, the local file URI replaces the remote URL so playback
+  /// works offline ("auto-switch back to local when available").
   MediaItem _toMediaItem(Track track) {
+    final localUri = _ref.read(downloadsControllerProvider).localUriFor(
+      track.id,
+    );
     return MediaItem(
       id: track.id,
       title: track.title,
@@ -83,7 +89,7 @@ class PlayerController extends StateNotifier<PlayerState> {
       album: track.album,
       duration: Duration(milliseconds: track.durationMs),
       artUri: track.coverArt != null ? Uri.tryParse(track.coverArt!) : null,
-      extras: {'url': track.fileUrlRemote ?? ''},
+      extras: {'url': localUri ?? track.fileUrlRemote ?? ''},
     );
   }
 

@@ -16,6 +16,12 @@ class AppBottomNavigation extends StatelessWidget {
       activeIcon: Icons.home_rounded,
     ),
     _BottomNavItem(
+      route: AppRoutes.catalog,
+      label: 'Catálogo',
+      icon: Icons.explore_outlined,
+      activeIcon: Icons.explore_rounded,
+    ),
+    _BottomNavItem(
       route: AppRoutes.playlists,
       label: 'Biblioteca',
       icon: Icons.library_music_outlined,

@@ -96,6 +96,10 @@
     }
   },
   "themes": {
+    "nebula-pulse": {
+      "name": "Nebula Pulse",
+      "description": "Negro profundo con violeta y magenta reactivos"
+    },
     "midnight-neon": {
       "name": "Midnight Neon",
       "description": "Negro profundo con acento verde neón"
@@ -366,9 +370,21 @@
     "back": "Volver"
   },
   "eq": {
-    "title": "Ecualizador",
-    "subtitle": "Ajusta el sonido en cuatro niveles: global, lista, pista o segmento.",
+    "title": "Ecualización granular",
+    "subtitle": "La curva se adapta a cada sección de la canción.",
     "reset": "Restablecer",
+    "save": "Guardar",
+    "saving": "Guardando…",
+    "saved": "Guardado",
+    "saveSegmentHint": "Los segmentos se editan en el Estudio",
+    "saveNoContext": "Reproduce una canción o lista para guardar en este nivel",
+    "cascade": {
+      "title": "Cascada de EQ · lo más específico gana",
+      "live": "En vivo",
+      "active": "Activo",
+      "empty": "Sin curva",
+      "noContext": "Sin contexto"
+    },
     "scope": {
       "global": "Global",
       "playlist": "Lista",
@@ -484,5 +500,66 @@
         "detectSegments": "Detectar segmentos"
       }
     }
+  },
+  "album": {
+    "back": "Volver",
+    "eyebrow": "Álbum",
+    "songsCount": "{{count}} canciones",
+    "play": "Reproducir",
+    "loading": "Cargando…",
+    "empty": "Este álbum aún no tiene canciones asignadas."
+  },
+  "downloads": {
+    "eyebrow": "Sin conexión",
+    "title": "Descargas",
+    "available": "{{count}} canciones disponibles sin internet.",
+    "offlineMode": "Modo sin conexión",
+    "online": "En línea",
+    "banner": "Estás en modo sin conexión: solo se reproducen tus descargas. Al volver el internet, el catálogo regresa automáticamente.",
+    "empty": "Aún no descargas nada. Toca el ícono de descarga en cualquier canción para escucharla sin conexión.",
+    "removeDownload": "Quitar descarga",
+    "localTitle": "Mis archivos locales",
+    "localFolder": "Carpeta: {{name}} · {{count}} pistas",
+    "localHint": "Reproduce música de tu dispositivo, sin subirla.",
+    "rescan": "Reescanear",
+    "pickFolderTitle": "Elegir una carpeta de música",
+    "pickFolderUnsupportedTitle": "Tu navegador no soporta acceso a carpetas (usa la app de escritorio)",
+    "changeFolder": "Cambiar carpeta",
+    "addFolder": "Agregar carpeta",
+    "localUnsupported": "Este navegador no permite leer carpetas locales. En la app de escritorio (Electron) se reconocen automáticamente.",
+    "localEmpty": "Aún no agregas una carpeta. \"Agregar carpeta\" reconoce tus archivos de audio y los reproduce sin conexión.",
+    "localBadge": "Local"
+  },
+  "catalog": {
+    "title": "Catálogo",
+    "subtitle": "Define las relaciones: artistas, sus álbumes, canciones y letras.",
+    "searchArtist": "Buscar artista…",
+    "newArtist": "Nuevo artista…",
+    "artistMeta": "{{albums}} álb · {{tracks}} canc",
+    "selectArtist": "Selecciona o crea un artista.",
+    "deleteArtist": "Eliminar artista",
+    "deleteArtistConfirm": "¿Eliminar este artista? Sus canciones quedan sin artista.",
+    "name": "Nombre",
+    "imageUrl": "Imagen (URL)",
+    "bio": "Bio",
+    "saveArtist": "Guardar artista",
+    "albums": "Álbumes ({{count}})",
+    "albumTitle": "Título del álbum",
+    "year": "Año",
+    "createAlbum": "Crear álbum",
+    "trackCountShort": "{{count}} canc.",
+    "noAlbums": "Aún no hay álbumes. Crea uno y asigna canciones abajo.",
+    "tracks": "Canciones ({{count}})",
+    "noAlbum": "— Sin álbum —",
+    "lyrics": "Letra",
+    "lyricsHintBefore": "Pega la letra. Si usa marcas de tiempo",
+    "lyricsHintAfter": "se sincroniza con la reproducción; si no, se guarda como texto plano.",
+    "cancel": "Cancelar",
+    "saveLyrics": "Guardar letra",
+    "uploadSong": "Subir canción",
+    "uploadHint": "Alta calidad sin recompresión (WAV/FLAC/MP3, hasta 100 MB). Se asigna al artista y, si eliges álbum, hereda su portada.",
+    "uploadArtistImage": "Subir foto del artista",
+    "uploadAlbumCover": "Subir portada del álbum",
+    "uploadTrackCover": "Subir portada de la canción"
   }
 }

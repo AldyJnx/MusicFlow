@@ -22,7 +22,8 @@ export default function Login() {
     mutationFn: loginRequest,
     onSuccess: (data) => {
       setSession(data);
-      navigate("/library");
+      // Admins land on their panel; everyone else on the client library.
+      navigate(data.user.role === "ADMIN" ? "/admin" : "/library");
     },
   });
 
@@ -60,14 +61,14 @@ export default function Login() {
       />
 
       <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(3,11,18,0.28)_0%,rgba(4,10,16,0.58)_55%,rgba(3,8,14,0.84)_100%)]" />
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(16,233,255,0.1),transparent_36%),radial-gradient(circle_at_bottom,rgba(17,205,233,0.1),transparent_30%)]" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(124,92,232,0.12),transparent_36%),radial-gradient(circle_at_bottom,rgba(232,92,192,0.1),transparent_30%)]" />
 
       <section className="relative z-10 flex min-h-screen flex-col items-center justify-center px-6 py-10">
         <div className="mb-7 flex flex-col items-center">
           <img
             src={logoMusicFlow}
             alt="MusicFlow"
-            className="h-20 w-auto object-contain drop-shadow-[0_0_24px_rgba(22,212,255,0.18)]"
+            className="h-20 w-auto object-contain drop-shadow-[0_0_24px_rgba(124,92,232,0.22)]"
           />
         </div>
 
@@ -81,7 +82,7 @@ export default function Login() {
               <label htmlFor="email" className="sr-only">
                 Correo electrónico
               </label>
-              <div className="flex h-12 items-center gap-3 rounded-[10px] border border-white/10 bg-[#0f1218] px-4 transition focus-within:border-[#14e3f7]/60 focus-within:ring-2 focus-within:ring-[#14e3f7]/30">
+              <div className="flex h-12 items-center gap-3 rounded-[10px] border border-white/10 bg-[#0f1218] px-4 transition focus-within:border-[color-mix(in_srgb,var(--color-primary)_60%,transparent)] focus-within:ring-2 focus-within:ring-[color-mix(in_srgb,var(--color-primary)_30%,transparent)]">
                 <Mail className="h-4 w-4 text-[#9aa6bf]" aria-hidden="true" />
                 <input
                   id="email"
@@ -102,7 +103,7 @@ export default function Login() {
               <label htmlFor="password" className="sr-only">
                 Contraseña
               </label>
-              <div className="flex h-12 items-center gap-3 rounded-[10px] border border-white/10 bg-[#0f1218] px-4 transition focus-within:border-[#14e3f7]/60 focus-within:ring-2 focus-within:ring-[#14e3f7]/30">
+              <div className="flex h-12 items-center gap-3 rounded-[10px] border border-white/10 bg-[#0f1218] px-4 transition focus-within:border-[color-mix(in_srgb,var(--color-primary)_60%,transparent)] focus-within:ring-2 focus-within:ring-[color-mix(in_srgb,var(--color-primary)_30%,transparent)]">
                 <Lock className="h-4 w-4 text-[#9aa6bf]" aria-hidden="true" />
                 <input
                   id="password"
@@ -121,7 +122,7 @@ export default function Login() {
                   aria-label={
                     showPassword ? "Ocultar contraseña" : "Mostrar contraseña"
                   }
-                  className="-mr-2 flex h-9 w-9 items-center justify-center rounded-md text-[#9aa6bf] transition hover:text-white focus:outline-none focus:ring-2 focus:ring-[#14e3f7]/40"
+                  className="-mr-2 flex h-9 w-9 items-center justify-center rounded-md text-[#9aa6bf] transition hover:text-white focus:outline-none focus:ring-2 focus:ring-[color-mix(in_srgb,var(--color-primary)_40%,transparent)]"
                 >
                   {showPassword ? (
                     <EyeOff className="h-4 w-4" />
@@ -153,9 +154,9 @@ export default function Login() {
             <button
               type="submit"
               disabled={!isFormValid || isPending}
-              className={`flex h-[52px] w-full items-center justify-center gap-2 rounded-[11px] text-base font-semibold transition focus:outline-none focus:ring-2 focus:ring-[#14e3f7]/60 focus:ring-offset-2 focus:ring-offset-[#181b23] ${
+              className={`flex h-[52px] w-full items-center justify-center gap-2 rounded-[11px] text-base font-semibold transition focus:outline-none focus:ring-2 focus:ring-[color-mix(in_srgb,var(--color-primary)_60%,transparent)] focus:ring-offset-2 focus:ring-offset-[#181b23] ${
                 isFormValid && !isPending
-                  ? "bg-[#14e3f7] text-[#092d35] shadow-[0_0_24px_rgba(20,227,247,0.28)] hover:bg-[#3ceaf9]"
+                  ? "bg-[linear-gradient(135deg,var(--color-cta-start)_0%,var(--color-cta-end)_100%)] text-[var(--color-primary-contrast)] shadow-[0_0_28px_-4px_var(--color-primary)] hover:opacity-95"
                   : "cursor-not-allowed bg-[#2a303a] text-[#9aa3b5]"
               }`}
             >

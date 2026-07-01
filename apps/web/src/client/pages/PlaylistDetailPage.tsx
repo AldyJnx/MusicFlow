@@ -134,7 +134,7 @@ export default function PlaylistDetailPage() {
 
   return (
     <ClientLayout>
-      <section className="min-h-screen w-full bg-[var(--color-page)] text-[var(--color-text)]">
+      <section className="min-h-screen w-full text-[var(--color-text)]">
         {/* Hero */}
         <header className="relative h-[320px] w-full overflow-hidden">
           {heroCover ? (
@@ -323,6 +323,8 @@ export default function PlaylistDetailPage() {
                         <img
                           src={track.coverArt}
                           alt=""
+                          loading="lazy"
+                          decoding="async"
                           className="h-full w-full object-cover"
                         />
                       ) : (

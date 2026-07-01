@@ -32,56 +32,7 @@ import {
   AuthUser,
 } from "@/common/decorators/current-user.decorator";
 import { QuotaService } from "@/modules/billing/quota.service";
-
-const AUDIO_MIME_PREFIX = "audio/";
-const ALLOWED_AUDIO_MIMES = new Set([
-  "audio/mpeg",
-  "audio/mp3",
-  "audio/mp4",
-  "audio/x-m4a",
-  "audio/aac",
-  "audio/flac",
-  "audio/x-flac",
-  "audio/wav",
-  "audio/x-wav",
-  "audio/ogg",
-  "audio/opus",
-  "audio/vorbis",
-]);
-const ALLOWED_EXTS = new Set([
-  "mp3",
-  "flac",
-  "wav",
-  "m4a",
-  "ogg",
-  "aac",
-  "opus",
-]);
-
-function audioFileFilter(
-  _req: unknown,
-  file: { originalname: string; mimetype: string },
-  cb: (err: Error | null, accept: boolean) => void,
-) {
-  const ext = file.originalname.split(".").pop()?.toLowerCase() ?? "";
-  const mime = (file.mimetype ?? "").toLowerCase();
-  const mimeOk =
-    ALLOWED_AUDIO_MIMES.has(mime) ||
-    // Some browsers send the generic prefix with codec params we don't track
-    // (e.g. audio/mp4; codecs="..."). Treat the prefix as enough as long as
-    // the extension also looks like audio — both signals must agree.
-    (mime.startsWith(AUDIO_MIME_PREFIX) && ALLOWED_EXTS.has(ext));
-  const extOk = ALLOWED_EXTS.has(ext);
-  if (!mimeOk || !extOk) {
-    return cb(
-      new BadRequestException(
-        `Unsupported file type: ${mime || "unknown"} (.${ext || "unknown"})`,
-      ),
-      false,
-    );
-  }
-  cb(null, true);
-}
+import { audioFileFilter } from "@/common/upload/audio-file-filter";
 
 @ApiTags("library")
 @ApiBearerAuth()

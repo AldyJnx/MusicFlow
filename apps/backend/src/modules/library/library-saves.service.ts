@@ -28,7 +28,9 @@ export class LibrarySavesService {
       throw new NotFoundException("Track not found");
     }
 
-    if (track.userId === userId) {
+    // Private uploads are saved implicitly; catalog tracks need an explicit
+    // save row even if the curator owns them.
+    if (track.userId === userId && !track.isCatalog) {
       return { trackId, savedAt: new Date(), implicit: true };
     }
 
@@ -63,9 +65,12 @@ export class LibrarySavesService {
   async unsave(userId: string, trackId: string): Promise<void> {
     const track = await this.prisma.track.findUnique({
       where: { id: trackId },
-      select: { userId: true },
+      select: { userId: true, isCatalog: true },
     });
-    if (track?.userId === userId) {
+    // You can't unsave a *private* track you own (delete it instead). Catalog
+    // tracks can always be unsaved — owning the catalog row doesn't pin the
+    // heart for the curator.
+    if (track?.userId === userId && !track.isCatalog) {
       throw new ConflictException({
         message: "Cannot unsave a track you own. Delete it instead.",
         code: "OWNED_TRACK",
@@ -104,7 +109,12 @@ export class LibrarySavesService {
     const where: Prisma.TrackWhereInput = {
       AND: [
         {
-          OR: [{ userId }, { librarySaves: { some: { userId } } }],
+          // "My Library" = your private uploads + tracks you explicitly saved.
+          // Catalog tracks you curate are NOT auto-included.
+          OR: [
+            { userId, isCatalog: false },
+            { librarySaves: { some: { userId } } },
+          ],
         },
         ...(searchFilter ? [searchFilter] : []),
       ],
@@ -142,7 +152,7 @@ export class LibrarySavesService {
       return { coverArt: explicit.track.coverArt, trackId: explicit.trackId };
     }
     const owned = await this.prisma.track.findFirst({
-      where: { userId, coverArt: { not: null } },
+      where: { userId, isCatalog: false, coverArt: { not: null } },
       orderBy: { createdAt: "desc" },
       select: { id: true, coverArt: true },
     });
@@ -167,8 +177,11 @@ export class LibrarySavesService {
         where: { userId, trackId: { in: trackIds } },
         select: { trackId: true },
       }),
+      // Only *private* uploads are saved-by-ownership. Shared catalog tracks
+      // require an explicit save (a heart), even for the admin who curates
+      // them — otherwise the whole catalog would appear "liked".
       this.prisma.track.findMany({
-        where: { userId, id: { in: trackIds } },
+        where: { userId, isCatalog: false, id: { in: trackIds } },
         select: { id: true },
       }),
     ]);

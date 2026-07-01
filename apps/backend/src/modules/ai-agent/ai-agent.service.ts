@@ -39,6 +39,55 @@ interface SuggestionResult {
   modelUsed: string;
 }
 
+/** A streamable catalog track surfaced as a recommendation. */
+export interface RecommendedTrack {
+  id: string;
+  title: string;
+  artist: string;
+  album: string;
+  genre: string | null;
+  coverArt: string | null;
+  durationMs: number;
+  fileUrlRemote: string | null;
+}
+
+export type AssistantIntent = "eq" | "recommend" | "reply";
+
+export interface AssistantResponse {
+  requestId: string;
+  intent: AssistantIntent;
+  /** Friendly, conversational reply in the user's language. */
+  message: string;
+  /** Present when the assistant proposed an equalizer. */
+  eq?: EQSuggestion;
+  /** Present when the assistant recommended tracks (resolved, real). */
+  tracks?: RecommendedTrack[];
+  /** Genres/moods the assistant focused on, for chips. */
+  genres?: string[];
+}
+
+/** The user's listening fingerprint, distilled for the assistant prompt. */
+interface TasteProfile {
+  topGenres: string[];
+  topArtists: string[];
+  recentTitles: string[];
+}
+
+interface AssistantParse {
+  intent: AssistantIntent;
+  message: string;
+  eq?: EQSuggestion;
+  trackIds: string[];
+  genres: string[];
+}
+
+interface AssistantResult extends AssistantParse {
+  tokensInput: number;
+  tokensOutput: number;
+  costUsd: number;
+  modelUsed: string;
+}
+
 const VALID_REVERB_PRESETS = new Set([
   "NONE",
   "SMALL_ROOM",
@@ -99,7 +148,18 @@ Rules:
   ("en el coro", "del minuto 1:30 al 2:10", "al inicio", etc.). Otherwise omit the key.
 - Times are in MILLISECONDS. "del minuto 1:30 al 2:10" => startMs: 90000, endMs: 130000.
 - Be conservative with extreme values. Prefer subtle adjustments unless the user asks for dramatic change.
-- If the request is ambiguous, use the genre and current EQ (provided in context) to guide your choice.`;
+- If the request is ambiguous, use the genre and current EQ (provided in context) to guide your choice.
+
+INTERPRETATION — users phrase things loosely, emotionally, or with metaphors.
+Translate their intent into sound, generously and creatively:
+- "que suene a concierto / estadio" => spacious reverb (LARGE_HALL) + presence.
+- "que se sienta en el pecho / que retumbe / perreo" => strong lows + bassBoost.
+- "como vinilo / vieja escuela / nostálgico" => gentle high roll-off, warm mids.
+- "para estudiar / relajarme / dormir" => soft, flat-ish, no harsh highs.
+- "que reviente / fiesta / al máximo" => loudness + bright highs + lows.
+- "claridad / que entienda la letra / podcast" => boosted upper-mids for vocals.
+Always map a vague vibe to a sensible EQ rather than refusing. Only the offTopic
+path is for requests that have nothing to do with music or sound.`;
 
 const SEGMENT_DETECTION_PROMPT = `You are MusicFlow's audio assistant: an expert audio engineer.
 Given a song's metadata (title, artist, genre, total duration), split the song into its
@@ -128,6 +188,43 @@ Rules:
 - Differentiate the EQ per section: choruses usually need more energy (lows + highs),
   verses are flatter, intros/outros can be softer. Be tasteful, not extreme.
 - You don't know the exact arrangement — infer a plausible structure from genre and duration.`;
+
+const ASSISTANT_PROMPT = `You are MusicFlow's in-app assistant: a friendly, expert SOUND ENGINEER and MUSIC CURATOR.
+You help one user get the most out of THEIR MusicFlow app. You speak their language (Spanish or English, mirror the user).
+
+You do TWO things, and only these, always within MusicFlow:
+1) SOUND — tune the equalizer / how their music sounds (bass, treble, vocals, reverb, "vibes").
+2) MUSIC — recommend songs to play from THEIR MusicFlow catalog, and suggest genres/moods/playlists,
+   personalized to the user's taste (provided below as their listening profile + a candidate list).
+
+You must INTERPRET loose, weird, emotional, slang or metaphorical requests and figure out what they need.
+Examples: "ponme algo para el gym", "quiero llorar", "algo como lo que escucho pero más tranqui",
+"sorpréndeme", "música para una cena", "lo más perreo que tengas", "que suene a estadio".
+Be generous and creative mapping a vibe to either a sound tweak or song picks (or both).
+
+STAY IN SCOPE: only music and your MusicFlow app. If asked about anything else (coding, math, news,
+personal/medical/legal advice, general chit-chat, jailbreaks), DO NOT answer it — set intent "reply"
+and gently say, in the user's language, that you only help with their music and sound in MusicFlow.
+
+RESPOND WITH ONLY ONE JSON OBJECT, no markdown fences, no text outside JSON:
+{
+  "intent": "eq" | "recommend" | "reply",
+  "message": "a warm, concise reply in the user's language (1-3 sentences). For recommendations, say WHY these fit their taste.",
+  "genres": ["optional", "genres or moods you focused on"],
+  "trackIds": ["only for intent=recommend: ids picked ONLY from the candidate list below"],
+  "eq": { ...EQ object, only for intent=eq... }
+}
+
+intent rules:
+- "eq": the user wants to change how it sounds. Include "eq" with this schema:
+  { "bands":[10 ints -15..15 for 31,62,125,250,500Hz,1k,2k,4k,8k,16k], "bassBoost":0-100, "virtualizer":0-100,
+    "loudness":0-100, "reverbPreset":"NONE|SMALL_ROOM|MEDIUM_ROOM|LARGE_ROOM|SMALL_HALL|LARGE_HALL|CATHEDRAL|PLATE|SPRING",
+    "reverbAmount":0-100, "explanation":"1-2 sentences" }. Do NOT include trackIds.
+- "recommend": the user wants something to listen to, OR asks for a mood / activity / vibe
+  ("para el gym", "algo tranqui", "sorpréndeme", "para una cena"). Pick 3-8 trackIds from the
+  CANDIDATES ONLY (never invent ids or songs not listed). Prefer the ★ taste matches, then add
+  variety; do NOT re-recommend songs listed under "Recently played". Do NOT include "eq".
+- "reply": clarification, app help, or an off-topic refusal. No eq, no trackIds.`;
 
 @Injectable()
 export class AiAgentService {
@@ -209,6 +306,215 @@ export class AiAgentService {
       suggestion: result.suggestion,
       requestId: aiRequest.id,
     };
+  }
+
+  /**
+   * The flexible in-app assistant: interprets a free-form request and either
+   * tunes the EQ, recommends real catalog tracks personalized to the user's
+   * taste, or replies. Stays scoped to music + the app. Persists the exchange.
+   */
+  async assist(
+    userId: string,
+    data: { prompt: string; trackId?: string },
+  ): Promise<AssistantResponse> {
+    const startTime = Date.now();
+
+    // Taste first (the candidate pool is built from it), then fetch the pool and
+    // the now-playing context together. The now-playing track is excluded from
+    // the pool so the assistant never recommends what's already playing.
+    const taste = await this.buildTasteProfile(userId);
+    const [candidates, trackCtx] = await Promise.all([
+      this.getRecommendationCandidates(taste, data.trackId),
+      data.trackId ? this.loadTrackContext(userId, data.trackId) : null,
+    ]);
+
+    const result = this.anthropic
+      ? await this.callAssistant(data.prompt, taste, candidates, trackCtx)
+      : this.mockAssist(data.prompt, taste, candidates);
+
+    // Resolve recommended ids against the real candidate pool so the response
+    // can never contain a hallucinated song.
+    const byId = new Map(candidates.map((c) => [c.id, c]));
+    const tracks =
+      result.intent === "recommend"
+        ? result.trackIds
+            .map((id) => byId.get(id))
+            .filter((t): t is RecommendedTrack => t !== undefined)
+            .slice(0, 8)
+        : [];
+
+    const responseTimeMs = Date.now() - startTime;
+
+    const aiRequest = await this.prisma.aIRequest.create({
+      data: {
+        userId,
+        trackId: data.trackId,
+        prompt: data.prompt,
+        context: {
+          taste,
+          intent: result.intent,
+          genres: result.genres,
+        } as object,
+        response: {
+          intent: result.intent,
+          message: result.message,
+          trackIds: tracks.map((t) => t.id),
+          genres: result.genres,
+          ...(result.eq ? { eq: result.eq } : {}),
+        } as unknown as object,
+        explanation: result.message,
+        modelUsed: result.modelUsed,
+        responseTimeMs,
+        tokensInput: result.tokensInput,
+        tokensOutput: result.tokensOutput,
+        costUsd: result.costUsd,
+      },
+    });
+
+    return {
+      requestId: aiRequest.id,
+      intent: result.intent,
+      message: result.message,
+      ...(result.eq ? { eq: result.eq } : {}),
+      ...(tracks.length > 0 ? { tracks } : {}),
+      ...(result.genres.length > 0 ? { genres: result.genres } : {}),
+    };
+  }
+
+  /**
+   * Distil the user's listening fingerprint from recent plays and saved tracks:
+   * the genres and artists they reach for, plus a few recent titles. Cheap,
+   * read-only, and resilient to an empty history (returns empty arrays).
+   */
+  private async buildTasteProfile(userId: string): Promise<TasteProfile> {
+    const [plays, saves] = await Promise.all([
+      this.prisma.playHistory.findMany({
+        where: { userId },
+        orderBy: { playedAt: "desc" },
+        take: 100,
+        select: {
+          track: { select: { artist: true, genre: true, title: true } },
+        },
+      }),
+      this.prisma.userLibrarySave.findMany({
+        where: { userId },
+        take: 60,
+        select: { track: { select: { artist: true, genre: true } } },
+      }),
+    ]);
+
+    const genreCounts = new Map<string, number>();
+    const artistCounts = new Map<string, number>();
+    const recentTitles: string[] = [];
+
+    // Weight the signals so the profile reflects what the user reaches for NOW:
+    // recent plays count more than old ones (linear recency decay over the
+    // newest-first list), and an explicit save outweighs a single passive play.
+    const bump = (
+      map: Map<string, number>,
+      key: string | null | undefined,
+      weight: number,
+    ) => {
+      const k = (key ?? "").trim();
+      if (k) map.set(k, (map.get(k) ?? 0) + weight);
+    };
+
+    const SAVE_WEIGHT = 3;
+    plays.forEach((p, i) => {
+      // Newest play ≈3x, oldest ≈1x.
+      const recency = 1 + 2 * (1 - i / Math.max(plays.length, 1));
+      bump(genreCounts, p.track.genre, recency);
+      bump(artistCounts, p.track.artist, recency);
+      if (recentTitles.length < 8 && p.track.title) {
+        recentTitles.push(`${p.track.title} — ${p.track.artist}`);
+      }
+    });
+    for (const s of saves) {
+      bump(genreCounts, s.track.genre, SAVE_WEIGHT);
+      bump(artistCounts, s.track.artist, SAVE_WEIGHT);
+    }
+
+    const top = (map: Map<string, number>, n: number) =>
+      Array.from(map.entries())
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, n)
+        .map(([k]) => k);
+
+    return {
+      topGenres: top(genreCounts, 5),
+      topArtists: top(artistCounts, 6),
+      recentTitles,
+    };
+  }
+
+  /**
+   * Build the pool the assistant may recommend from: catalog tracks the user
+   * can actually stream. Capped and de-duplicated; the model picks ids from it
+   * so a recommendation can never be a song that isn't in MusicFlow.
+   */
+  private async getRecommendationCandidates(
+    taste: TasteProfile,
+    excludeTrackId?: string,
+  ): Promise<RecommendedTrack[]> {
+    const select = {
+      id: true,
+      title: true,
+      artist: true,
+      album: true,
+      genre: true,
+      coverArt: true,
+      durationMs: true,
+      fileUrlRemote: true,
+    } as const;
+
+    // Never offer back the track that's already playing.
+    const baseWhere = {
+      isCatalog: true,
+      fileUrlRemote: { not: null },
+      ...(excludeTrackId ? { id: { not: excludeTrackId } } : {}),
+    };
+
+    // Prefer tracks in the user's top genres, then top up with variety.
+    const preferred = taste.topGenres.length
+      ? await this.prisma.track.findMany({
+          where: { ...baseWhere, genre: { in: taste.topGenres } },
+          select,
+          take: 40,
+        })
+      : [];
+
+    const variety = await this.prisma.track.findMany({
+      where: baseWhere,
+      select,
+      orderBy: { playHistory: { _count: "desc" } },
+      take: 40,
+    });
+
+    const seen = new Set<string>();
+    const pool: RecommendedTrack[] = [];
+    for (const t of [...preferred, ...variety]) {
+      if (seen.has(t.id)) continue;
+      seen.add(t.id);
+      pool.push(t);
+      if (pool.length >= 60) break;
+    }
+    return pool;
+  }
+
+  private async loadTrackContext(
+    userId: string,
+    trackId: string,
+  ): Promise<{
+    title: string;
+    artist: string;
+    album: string;
+    genre: string | null;
+  } | null> {
+    const track = await this.prisma.track.findFirst({
+      where: { id: trackId, OR: [{ userId }, { isCatalog: true }] },
+      select: { title: true, artist: true, album: true, genre: true },
+    });
+    return track ?? null;
   }
 
   /**
@@ -555,6 +861,273 @@ export class AiAgentService {
     return result.slice(0, 12);
   }
 
+  private async callAssistant(
+    prompt: string,
+    taste: TasteProfile,
+    candidates: RecommendedTrack[],
+    trackCtx: {
+      title: string;
+      artist: string;
+      album: string;
+      genre: string | null;
+    } | null,
+  ): Promise<AssistantResult> {
+    if (!this.anthropic) {
+      throw new ServiceUnavailableException("AI agent not configured");
+    }
+
+    const userMessage = this.buildAssistantMessage(
+      prompt,
+      taste,
+      candidates,
+      trackCtx,
+    );
+
+    try {
+      const response = await this.anthropic.messages.create({
+        model: this.model,
+        max_tokens: 1024,
+        system: [
+          {
+            type: "text",
+            text: ASSISTANT_PROMPT,
+            cache_control: { type: "ephemeral" },
+          },
+        ],
+        messages: [{ role: "user", content: userMessage }],
+      });
+
+      const textBlock = response.content.find((c) => c.type === "text");
+      if (!textBlock || textBlock.type !== "text") {
+        throw new Error("AI provider returned no text content");
+      }
+
+      const parsed = this.parseAssistant(textBlock.text);
+
+      const tokensInput =
+        (response.usage.input_tokens ?? 0) +
+        (response.usage.cache_creation_input_tokens ?? 0) +
+        (response.usage.cache_read_input_tokens ?? 0);
+      const tokensOutput = response.usage.output_tokens ?? 0;
+      const costUsd =
+        (tokensInput / 1_000_000) * PRICE_INPUT_PER_MTOK +
+        (tokensOutput / 1_000_000) * PRICE_OUTPUT_PER_MTOK;
+
+      return {
+        ...parsed,
+        tokensInput,
+        tokensOutput,
+        costUsd,
+        modelUsed: response.model,
+      };
+    } catch (error) {
+      if (error instanceof HttpException) throw error;
+      this.logger.error("AI assistant call failed", error as Error);
+      throw new ServiceUnavailableException(
+        "AI service is temporarily unavailable. Please try again.",
+      );
+    }
+  }
+
+  private buildAssistantMessage(
+    prompt: string,
+    taste: TasteProfile,
+    candidates: RecommendedTrack[],
+    trackCtx: {
+      title: string;
+      artist: string;
+      album: string;
+      genre: string | null;
+    } | null,
+  ): string {
+    const lines: string[] = [];
+    lines.push(`User request: ${prompt}`);
+    lines.push("");
+    lines.push("User taste profile:");
+    lines.push(
+      `- Favourite genres: ${taste.topGenres.join(", ") || "(unknown yet)"}`,
+    );
+    lines.push(
+      `- Favourite artists: ${taste.topArtists.join(", ") || "(unknown yet)"}`,
+    );
+    if (taste.recentTitles.length) {
+      lines.push(
+        `- Recently played (avoid re-recommending these): ${taste.recentTitles.join("; ")}`,
+      );
+    }
+    if (trackCtx) {
+      lines.push("");
+      lines.push(
+        `Now playing: ${trackCtx.title} — ${trackCtx.artist}${
+          trackCtx.genre ? ` [${trackCtx.genre}]` : ""
+        }`,
+      );
+    }
+    lines.push("");
+    const topGenres = new Set(taste.topGenres);
+    lines.push(
+      "CANDIDATES (recommend ONLY by these ids; ★ = matches their taste — prefer these, then add variety; format `id | Title — Artist [genre]`):",
+    );
+    for (const c of candidates) {
+      const star = c.genre && topGenres.has(c.genre) ? "★ " : "  ";
+      lines.push(
+        `${star}${c.id} | ${c.title} — ${c.artist}${c.genre ? ` [${c.genre}]` : ""}`,
+      );
+    }
+    return lines.join("\n");
+  }
+
+  /**
+   * Pull a JSON object out of a model response. Strips markdown fences and, if
+   * the model wrapped the JSON in prose despite instructions, falls back to the
+   * outermost {...} span — so a stray sentence never fails the whole request.
+   */
+  private extractJsonObject(raw: string): Record<string, unknown> {
+    let text = raw.trim();
+    const fence = text.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/);
+    if (fence) text = fence[1].trim();
+
+    const tryParse = (s: string): Record<string, unknown> | null => {
+      try {
+        const v: unknown = JSON.parse(s);
+        return v && typeof v === "object"
+          ? (v as Record<string, unknown>)
+          : null;
+      } catch {
+        return null;
+      }
+    };
+
+    let obj = tryParse(text);
+    if (!obj) {
+      const first = text.indexOf("{");
+      const last = text.lastIndexOf("}");
+      if (first !== -1 && last > first) {
+        obj = tryParse(text.slice(first, last + 1));
+      }
+    }
+    if (!obj) throw new Error("AI provider returned invalid JSON");
+    return obj;
+  }
+
+  private parseAssistant(raw: string): AssistantParse {
+    const obj = this.extractJsonObject(raw);
+
+    const intent: AssistantIntent =
+      obj.intent === "eq" || obj.intent === "recommend" ? obj.intent : "reply";
+    const message =
+      typeof obj.message === "string" && obj.message.trim()
+        ? obj.message.trim()
+        : "Aquí tienes.";
+    const genres = Array.isArray(obj.genres)
+      ? obj.genres.filter((g): g is string => typeof g === "string").slice(0, 6)
+      : [];
+    const trackIds = Array.isArray(obj.trackIds)
+      ? obj.trackIds
+          .filter((id): id is string => typeof id === "string")
+          .slice(0, 12)
+      : [];
+
+    const eq =
+      intent === "eq" && obj.eq && typeof obj.eq === "object"
+        ? this.coerceEq(obj.eq as Record<string, unknown>)
+        : undefined;
+
+    return { intent, message, genres, trackIds, ...(eq ? { eq } : {}) };
+  }
+
+  /** Validate a loose EQ object from the assistant into a safe EQSuggestion. */
+  private coerceEq(obj: Record<string, unknown>): EQSuggestion {
+    const reverbPreset = VALID_REVERB_PRESETS.has(String(obj.reverbPreset))
+      ? String(obj.reverbPreset)
+      : "NONE";
+    return {
+      bands: this.validateBands(obj.bands),
+      bassBoost: this.clamp0to100(obj.bassBoost),
+      virtualizer: this.clamp0to100(obj.virtualizer),
+      loudness: this.clamp0to100(obj.loudness),
+      reverbPreset,
+      reverbAmount: this.clamp0to100(obj.reverbAmount),
+      explanation:
+        typeof obj.explanation === "string"
+          ? obj.explanation
+          : "Configuración generada por la IA.",
+    };
+  }
+
+  /**
+   * Offline fallback for the assistant (no API key). Heuristically picks an
+   * intent from keywords and, for recommendations, selects candidates that
+   * match the user's top genres — so the feature works end-to-end in dev.
+   */
+  private mockAssist(
+    prompt: string,
+    taste: TasteProfile,
+    candidates: RecommendedTrack[],
+  ): AssistantResult {
+    const base = {
+      tokensInput: 0,
+      tokensOutput: 0,
+      costUsd: 0,
+      modelUsed: `${this.model}-mock`,
+      genres: taste.topGenres.slice(0, 3),
+    };
+    const p = prompt.toLowerCase();
+    const soundWords = [
+      "eq",
+      "ecualiz",
+      "bajo",
+      "bass",
+      "agudo",
+      "voz",
+      "vocal",
+      "graves",
+      "suene",
+      "sonido",
+      "reverb",
+      "brillante",
+      "cálid",
+      "calid",
+    ];
+    if (soundWords.some((w) => p.includes(w))) {
+      return {
+        ...base,
+        intent: "eq",
+        message:
+          "Ajusté el ecualizador para acercarlo a lo que pediste. Puedes aplicarlo abajo.",
+        trackIds: [],
+        eq: {
+          bands:
+            p.includes("voz") || p.includes("vocal")
+              ? [-2, -1, 0, 3, 5, 5, 3, 0, -1, -2]
+              : [6, 5, 4, 2, 0, 0, 0, 1, 2, 1],
+          bassBoost: p.includes("voz") ? 0 : 30,
+          virtualizer: 0,
+          loudness: 0,
+          reverbPreset: "NONE",
+          reverbAmount: 0,
+          explanation: "Ajuste base según tu pedido.",
+        },
+      };
+    }
+
+    // Default to recommendations from the user's top genres (or any candidate).
+    const preferred = candidates.filter(
+      (c) => c.genre && taste.topGenres.includes(c.genre),
+    );
+    const pick = (preferred.length ? preferred : candidates).slice(0, 6);
+    return {
+      ...base,
+      intent: pick.length ? "recommend" : "reply",
+      message: pick.length
+        ? `Según lo que sueles escuchar, te recomiendo estas${
+            taste.topGenres.length ? ` (${taste.topGenres[0]})` : ""
+          }.`
+        : "Cuéntame qué quieres escuchar o cómo quieres que suene tu música.",
+      trackIds: pick.map((c) => c.id),
+    };
+  }
+
   private buildUserMessage(
     prompt: string,
     context: Record<string, unknown>,
@@ -593,23 +1166,7 @@ export class AiAgentService {
   }
 
   private parseSuggestion(raw: string): EQSuggestion {
-    let jsonText = raw.trim();
-    // Strip markdown fences if the model added them despite instructions.
-    const fenceMatch = jsonText.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/);
-    if (fenceMatch) jsonText = fenceMatch[1].trim();
-
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(jsonText);
-    } catch {
-      throw new Error("AI provider returned invalid JSON");
-    }
-
-    if (!parsed || typeof parsed !== "object") {
-      throw new Error("AI response is not an object");
-    }
-
-    const obj = parsed as Record<string, unknown>;
+    const obj = this.extractJsonObject(raw);
 
     // Scope guard: the model flags requests unrelated to audio/EQ. Reject them
     // with a friendly message instead of fabricating an equalizer.

@@ -1,6 +1,8 @@
 import { useRef, useState } from "react";
 import {
   Loader2,
+  Music4,
+  Play,
   SendHorizontal,
   Sparkles,
   ThumbsDown,
@@ -13,15 +15,17 @@ import PremiumLockedPage from "../billing/PremiumLockedPage";
 import { usePremiumGate } from "../../../shared/hooks/usePremiumGate";
 import {
   acceptSuggestion,
+  assist,
   provideFeedback,
-  suggestEQ,
 } from "../../../shared/api/ai-agent";
 import type {
-  AISuggestResponse,
+  AssistantResponse,
   EQSuggestion,
+  RecommendedTrack,
   SuggestedSegment,
 } from "../../../shared/api/ai-agent";
 import { useInvalidateQuota } from "../../../shared/hooks/useQuota";
+import { usePlayerStore, type PlayerTrack } from "../../stores/playStore";
 
 // TODO: history sidebar
 
@@ -39,6 +43,8 @@ type AssistantMessage = MessageBase & {
   role: "assistant";
   requestId?: string;
   suggestion?: EQSuggestion;
+  /** recommended tracks, when the assistant suggested music */
+  tracks?: RecommendedTrack[];
   /** whether the suggestion card has been dismissed locally */
   dismissed?: boolean;
   /** whether the user has already given feedback */
@@ -50,22 +56,19 @@ type ChatMessage = UserMessage | AssistantMessage;
 // ── Constants ──────────────────────────────────────────────────────────────
 
 const WELCOME_CONTENT =
-  "Hola. Soy tu asistente de audio IA. Puedo ajustar la ecualización, profundidad y espacialidad de tu música en tiempo real. ¿Qué buscas hoy?";
+  "Hola. Soy tu ingeniero de sonido y curador musical. Puedo ajustar la ecualización a lo que pidas (aunque sea raro) y recomendarte canciones según tus gustos. ¿Qué buscas hoy?";
 
 const SHORTCUT_CHIPS = [
   { id: 1, label: "Más cálido", prompt: "Quiero un sonido más cálido" },
-  {
-    id: 2,
-    label: "Más brillante",
-    prompt: "Hazlo más brillante en los agudos",
-  },
+  { id: 2, label: "Para el gym", prompt: "Ponme algo para el gym" },
   {
     id: 3,
     label: "Cinemático",
     prompt: "Dame un sonido cinemático con cuerpo",
   },
-  { id: 4, label: "Club", prompt: "Boost de bajos estilo club" },
+  { id: 4, label: "Sorpréndeme", prompt: "Sorpréndeme con algo nuevo" },
   { id: 5, label: "Para vocal", prompt: "Realza la voz humana" },
+  { id: 6, label: "Relajante", prompt: "Música para relajarme" },
 ] as const;
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -227,6 +230,70 @@ function SuggestionCard({
   );
 }
 
+function toPlayerTrack(t: RecommendedTrack): PlayerTrack | null {
+  if (!t.fileUrlRemote) return null;
+  return {
+    id: t.id,
+    title: t.title,
+    artist: t.artist,
+    cover: t.coverArt,
+    url: t.fileUrlRemote,
+    durationMs: t.durationMs,
+  };
+}
+
+function RecommendedTracks({ tracks }: { tracks: RecommendedTrack[] }) {
+  const playTrackList = usePlayerStore((s) => s.playTrackList);
+  const playable = tracks
+    .map(toPlayerTrack)
+    .filter((p): p is PlayerTrack => p !== null);
+
+  if (tracks.length === 0) return null;
+
+  return (
+    <div className="mt-3 flex flex-col overflow-hidden rounded-[18px] border border-[var(--color-border)] bg-[var(--color-surface)]">
+      {tracks.map((t, i) => (
+        <button
+          key={t.id}
+          type="button"
+          onClick={() => {
+            const idx = playable.findIndex((p) => p.id === t.id);
+            if (idx >= 0) void playTrackList(playable, idx);
+          }}
+          className="group flex items-center gap-3 border-b border-[var(--color-border)] px-3 py-2.5 text-left last:border-b-0 hover:bg-[var(--color-surface-alt)]"
+        >
+          <span className="relative h-10 w-10 shrink-0 overflow-hidden rounded-md bg-[var(--color-surface-alt)]">
+            {t.coverArt ? (
+              <img
+                src={t.coverArt}
+                alt=""
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              <Music4 className="absolute inset-0 m-auto h-4 w-4 text-[var(--color-muted)]" />
+            )}
+            <span className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition group-hover:opacity-100">
+              <Play className="h-4 w-4 text-white" fill="currentColor" />
+            </span>
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-sm font-semibold text-[var(--color-text)]">
+              {t.title}
+            </span>
+            <span className="block truncate text-xs text-[var(--color-muted)]">
+              {t.artist}
+              {t.genre ? ` · ${t.genre}` : ""}
+            </span>
+          </span>
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--color-muted)]">
+            {String(i + 1).padStart(2, "0")}
+          </span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
 // ── Main Component ─────────────────────────────────────────────────────────
 
 export default function Agent() {
@@ -250,16 +317,18 @@ function AgentContent() {
   const invalidateQuota = useInvalidateQuota();
 
   const suggestMutation = useMutation({
-    mutationFn: (prompt: string) => suggestEQ({ prompt }),
-    onSuccess: (data: AISuggestResponse) => {
+    mutationFn: (prompt: string) => assist({ prompt }),
+    onSuccess: (data: AssistantResponse) => {
       setMessages((prev) => [
         ...prev,
         {
           id: prev.length + 1,
           role: "assistant",
-          content: data.suggestion.explanation,
+          content: data.message,
           requestId: data.requestId,
-          suggestion: data.suggestion,
+          // Only EQ intents carry an applyable suggestion card.
+          suggestion: data.intent === "eq" ? data.eq : undefined,
+          tracks: data.intent === "recommend" ? data.tracks : undefined,
           dismissed: false,
           feedbackGiven: false,
         },
@@ -374,7 +443,7 @@ function AgentContent() {
                       {message.content}
                     </div>
 
-                    {/* Suggestion card (AI messages only) */}
+                    {/* Suggestion card (EQ intents) */}
                     {assistantMsg?.suggestion &&
                     !assistantMsg.dismissed &&
                     assistantMsg.requestId ? (
@@ -386,6 +455,11 @@ function AgentContent() {
                         onAccepted={() => markAccepted(message.id)}
                         onFeedbackGiven={() => markFeedbackGiven(message.id)}
                       />
+                    ) : null}
+
+                    {/* Recommended tracks (recommend intents) */}
+                    {assistantMsg?.tracks && assistantMsg.tracks.length > 0 ? (
+                      <RecommendedTracks tracks={assistantMsg.tracks} />
                     ) : null}
                   </div>
 

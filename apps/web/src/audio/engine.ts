@@ -59,7 +59,14 @@ export class AudioEngine {
     this.effects.output.connect(this.masterGain);
     this.masterGain.connect(this.context.destination);
 
-    this.segments = new SegmentScheduler(this.equalizer);
+    // Give the scheduler a target that reaches BOTH the EQ bands and the
+    // effects chain, so per-segment effects apply and the cascade is restored
+    // (bands + effects) when playback leaves a segment.
+    this.segments = new SegmentScheduler({
+      setBands: (bands, transitionMs) =>
+        this.equalizer.setBands(bands, transitionMs),
+      setEffects: (fx) => this.setEffects(fx),
+    });
 
     this.audio.addEventListener("play", this.handleStateChange);
     this.audio.addEventListener("pause", this.handleStateChange);

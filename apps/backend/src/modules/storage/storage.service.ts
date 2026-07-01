@@ -9,7 +9,7 @@ import {
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { v4 as uuidv4 } from "uuid";
 
-export type StorageBucket = "audio" | "images";
+export type StorageBucket = "audio" | "images" | "lyrics";
 
 export interface UploadResult {
   key: string;
@@ -89,6 +89,16 @@ export class StorageService {
         publicBase:
           this.configService.get<string>("R2_PUBLIC_IMAGES_URL") ?? endpoint,
       },
+      // Lyrics are served by the backend (not loaded by the browser), so this
+      // bucket needs no public URL — publicBase is only used to build the
+      // archive's reference URL.
+      lyrics: {
+        name:
+          this.configService.get<string>("R2_BUCKET_LYRICS") ??
+          "music-flow-songs-lyrics",
+        publicBase:
+          this.configService.get<string>("R2_PUBLIC_LYRICS_URL") ?? endpoint,
+      },
     };
   }
 
@@ -106,6 +116,29 @@ export class StorageService {
   ): Promise<UploadResult> {
     this.validate(file, AUDIO_MIME_TYPES, MAX_AUDIO_SIZE, "audio");
     return this.upload("audio", file, folder);
+  }
+
+  /**
+   * Persist a track's lyrics (.lrc) to the lyrics bucket. Keyed by track id so
+   * re-saving overwrites in place. The DB stays the read source; this keeps a
+   * durable, synced copy in object storage.
+   */
+  async uploadLyrics(trackId: string, lrc: string): Promise<UploadResult> {
+    const { name, publicBase } = this.buckets.lyrics;
+    const key = `${trackId}.lrc`;
+    await this.s3.send(
+      new PutObjectCommand({
+        Bucket: name,
+        Key: key,
+        Body: lrc,
+        ContentType: "text/plain; charset=utf-8",
+      }),
+    );
+    return {
+      key,
+      url: `${publicBase.replace(/\/+$/, "")}/${key}`,
+      bucket: name,
+    };
   }
 
   /** @deprecated Use uploadImage / uploadAudio for clarity. */

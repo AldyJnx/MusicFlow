@@ -14,6 +14,12 @@ export const sidebarAdmin: SidebarItem[] = [
     iconKey: "playlists",
   },
   {
+    label: "Catálogo",
+    labelKey: "admin.nav.catalog",
+    path: "/admin/catalog",
+    iconKey: "library",
+  },
+  {
     label: "EQ Presets",
     labelKey: "admin.nav.eqPresets",
     path: "/admin/eq-presets",

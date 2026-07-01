@@ -2,6 +2,29 @@ import { useEffect, useRef } from "react";
 import { usePlayerStore } from "../../client/stores/playStore";
 import { getAudioEngine } from "../../audio/engine";
 import { resolveConfig, type EQConfig } from "../api/equalizer";
+import { syncEqUiFromConfig } from "./useEqualizer";
+
+const FLAT_CONFIG = {
+  bands: Array(10).fill(0) as number[],
+  bassBoost: 0,
+  virtualizer: 0,
+  loudness: 0,
+  reverbPreset: "NONE" as const,
+  reverbAmount: 0,
+};
+
+// Module-level (survives ClientLayout remounts on navigation) — the last
+// context we actually resolved + applied. Without this, navigating between
+// pages remounts ClientLayout, re-runs this effect and resets the engine/UI to
+// the saved config (or flat), wiping the user's in-progress manual EQ edits.
+let appliedKey: string | null = null;
+let seqCounter = 0;
+
+/** Call after a manual edit so the cascade re-applies on the next *real*
+ *  track change (and never silently overrides what the user just set). */
+export function markEqContextDirty(): void {
+  appliedKey = null;
+}
 
 /**
  * Watches the current track / playlist context and pushes the resolved EQ
@@ -20,11 +43,15 @@ export function useAutoApplyEQ(): void {
 
   useEffect(() => {
     if (!currentTrackId) return;
-    const seq = ++lastSeqRef.current;
+    const key = `${currentTrackId}:${currentPlaylistId ?? ""}`;
+    // Same context as last time (e.g. just a page navigation) — don't re-apply
+    // and clobber manual edits. Only a genuine track/playlist change proceeds.
+    if (key === appliedKey) return;
+    const seq = (lastSeqRef.current = ++seqCounter);
 
     let cancelled = false;
     void (async () => {
-      let cfg: EQConfig | null = null;
+      let cfg: EQConfig | null;
       try {
         cfg = await resolveConfig(
           currentTrackId,
@@ -45,6 +72,9 @@ export function useAutoApplyEQ(): void {
       })();
       if (!engine) return;
 
+      // Mark this context as applied so navigation remounts don't re-run it.
+      appliedKey = key;
+
       if (cfg) {
         engine.equalizer.setBands(cfg.bands, 250);
         engine.setEffects({
@@ -54,9 +84,24 @@ export function useAutoApplyEQ(): void {
           reverbPreset: cfg.reverbPreset,
           reverbAmount: cfg.reverbAmount,
         });
+        // Register this as the segment scheduler's fallback so that, on a track
+        // WITH segments, leaving a segment restores this cascade EQ (bands +
+        // effects) instead of collapsing to flat.
+        engine.setFallbackEQ({
+          bands: cfg.bands,
+          effects: {
+            bassBoost: cfg.bassBoost,
+            virtualizer: cfg.virtualizer,
+            loudness: cfg.loudness,
+            reverbPreset: cfg.reverbPreset,
+            reverbAmount: cfg.reverbAmount,
+          },
+        });
+        // Mirror into the shared EQ UI so every surface shows this curve.
+        syncEqUiFromConfig(cfg);
       } else {
         // No config for this scope — flat bands.
-        engine.equalizer.setBands(Array(10).fill(0), 250);
+        engine.equalizer.setBands(FLAT_CONFIG.bands, 250);
         engine.setEffects({
           bassBoost: 0,
           virtualizer: 0,
@@ -64,6 +109,17 @@ export function useAutoApplyEQ(): void {
           reverbPreset: "NONE",
           reverbAmount: 0,
         });
+        engine.setFallbackEQ({
+          bands: FLAT_CONFIG.bands,
+          effects: {
+            bassBoost: 0,
+            virtualizer: 0,
+            loudness: 0,
+            reverbPreset: "NONE",
+            reverbAmount: 0,
+          },
+        });
+        syncEqUiFromConfig(FLAT_CONFIG);
       }
     })();
 

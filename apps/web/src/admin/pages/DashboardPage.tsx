@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
@@ -7,12 +7,16 @@ import {
   ArrowRight,
   CalendarDays,
   CalendarRange,
+  ChevronLeft,
+  ChevronRight,
   Crown,
   HardDrive,
   ListMusic,
+  Loader2,
   Minus,
   Music,
   RefreshCw,
+  Search,
   Sparkles,
   ThumbsUp,
   TrendingDown,
@@ -29,8 +33,10 @@ import {
   getActiveUsers,
   getActiveUsersTrend,
   getTopActiveUsers,
+  listUsers,
 } from "../../shared/api/admin";
 import type {
+  AdminUser,
   AIFeedbackStats,
   ActiveUsersStats,
   ActiveUsersTrend,
@@ -782,6 +788,254 @@ function ErrorBanner({ message, onRetry }: ErrorBannerProps) {
 }
 
 // ---------------------------------------------------------------------------
+// Users table (paginated drill-down)
+// ---------------------------------------------------------------------------
+
+const USERS_PAGE_SIZE = 10;
+
+function tierChip(user: AdminUser): { label: string; cls: string } {
+  if (user.role === "ADMIN") {
+    return {
+      label: "Admin",
+      cls: "border-[var(--color-primary)] text-[var(--color-primary)] bg-[color-mix(in_srgb,var(--color-primary)_14%,transparent)]",
+    };
+  }
+  if (user.isPremium) {
+    return {
+      label: "Premium",
+      cls: "border-amber-400/40 text-amber-300 bg-amber-400/10",
+    };
+  }
+  return {
+    label: "Free",
+    cls: "border-[var(--color-border)] text-[var(--color-muted)] bg-[var(--color-page)]",
+  };
+}
+
+function UserAvatar({ username }: { username: string }) {
+  let hue = 0;
+  for (let i = 0; i < username.length; i++) {
+    hue = (hue * 31 + username.charCodeAt(i)) % 360;
+  }
+  const initials = username
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((p) => p[0]?.toUpperCase() ?? "")
+    .join("");
+  return (
+    <div
+      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white"
+      style={{
+        background: `linear-gradient(135deg, hsl(${hue} 70% 50%) 0%, hsl(${(hue + 40) % 360} 65% 35%) 100%)`,
+      }}
+    >
+      {initials || "?"}
+    </div>
+  );
+}
+
+function UsersTable() {
+  const { t } = useTranslation();
+  const navigate = useNavigate();
+  const [page, setPage] = useState(0);
+  const [searchInput, setSearchInput] = useState("");
+  const [search, setSearch] = useState("");
+
+  // Debounce the search box and reset to the first page on a new query.
+  useEffect(() => {
+    const id = window.setTimeout(() => {
+      setSearch(searchInput.trim());
+      setPage(0);
+    }, 350);
+    return () => window.clearTimeout(id);
+  }, [searchInput]);
+
+  const usersQ = useQuery({
+    queryKey: ["admin", "users", { page, search }],
+    queryFn: () =>
+      listUsers({
+        skip: page * USERS_PAGE_SIZE,
+        take: USERS_PAGE_SIZE,
+        search: search || undefined,
+      }),
+    placeholderData: keepPreviousData,
+    staleTime: 30_000,
+  });
+
+  const data = usersQ.data;
+  const users = data?.users ?? [];
+  const total = data?.total ?? 0;
+  const totalPages = Math.max(1, Math.ceil(total / USERS_PAGE_SIZE));
+  const start = total === 0 ? 0 : page * USERS_PAGE_SIZE + 1;
+  const end = Math.min(total, (page + 1) * USERS_PAGE_SIZE);
+
+  return (
+    <article
+      className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-alt)] p-5"
+      aria-labelledby="users-table-title"
+    >
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <h2
+          id="users-table-title"
+          className="text-sm font-semibold uppercase tracking-widest text-[var(--color-muted)]"
+        >
+          {t("admin.dashboard.usersTableTitle", { defaultValue: "Usuarios" })}
+        </h2>
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--color-muted)]" />
+          <input
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            placeholder={t("admin.dashboard.usersSearch", {
+              defaultValue: "Buscar usuario…",
+            })}
+            className="w-56 rounded-lg border border-[var(--color-border)] bg-[var(--color-page)] py-2 pl-9 pr-3 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-primary)]"
+          />
+          {usersQ.isFetching ? (
+            <Loader2 className="absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 animate-spin text-[var(--color-muted)]" />
+          ) : null}
+        </div>
+      </div>
+
+      <div className="overflow-x-auto">
+        <table className="w-full border-collapse text-sm">
+          <thead>
+            <tr className="text-left text-[11px] uppercase tracking-wider text-[var(--color-muted)]">
+              <th className="px-3 py-2 font-semibold">
+                {t("admin.dashboard.colUser", { defaultValue: "Usuario" })}
+              </th>
+              <th className="px-3 py-2 font-semibold">
+                {t("admin.dashboard.colTier", { defaultValue: "Tier" })}
+              </th>
+              <th className="hidden px-3 py-2 font-semibold sm:table-cell">
+                {t("admin.dashboard.colJoined", { defaultValue: "Registro" })}
+              </th>
+              <th className="hidden px-3 py-2 text-right font-semibold md:table-cell">
+                {t("admin.dashboard.colContent", { defaultValue: "Contenido" })}
+              </th>
+              <th className="px-3 py-2" />
+            </tr>
+          </thead>
+          <tbody>
+            {usersQ.isPending ? (
+              Array.from({ length: USERS_PAGE_SIZE }).map((_, i) => (
+                <tr key={i} className="border-t border-[var(--color-border)]">
+                  <td className="px-3 py-3" colSpan={5}>
+                    <div className="h-6 w-full animate-pulse rounded bg-[var(--color-border)]" />
+                  </td>
+                </tr>
+              ))
+            ) : users.length === 0 ? (
+              <tr className="border-t border-[var(--color-border)]">
+                <td
+                  colSpan={5}
+                  className="px-3 py-8 text-center text-[var(--color-muted)]"
+                >
+                  {t("admin.dashboard.usersEmpty", {
+                    defaultValue: "Sin usuarios que coincidan.",
+                  })}
+                </td>
+              </tr>
+            ) : (
+              users.map((u) => {
+                const tier = tierChip(u);
+                return (
+                  <tr
+                    key={u.id}
+                    onClick={() => navigate(`/admin/users/${u.id}`)}
+                    className="group cursor-pointer border-t border-[var(--color-border)] transition hover:bg-[var(--color-page)]"
+                  >
+                    <td className="px-3 py-2.5">
+                      <div className="flex items-center gap-3">
+                        <UserAvatar username={u.username} />
+                        <div className="min-w-0">
+                          <p className="truncate font-semibold text-[var(--color-text)]">
+                            {u.username}
+                            {!u.isActive ? (
+                              <span className="ml-2 rounded-full bg-rose-500/15 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-rose-300">
+                                {t("admin.dashboard.inactive", {
+                                  defaultValue: "Inactivo",
+                                })}
+                              </span>
+                            ) : null}
+                          </p>
+                          <p className="truncate text-[11px] text-[var(--color-muted)]">
+                            {u.email}
+                          </p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-3 py-2.5">
+                      <span
+                        className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${tier.cls}`}
+                      >
+                        {tier.label}
+                      </span>
+                    </td>
+                    <td className="hidden px-3 py-2.5 text-[var(--color-muted)] sm:table-cell">
+                      {new Date(u.createdAt).toLocaleDateString()}
+                    </td>
+                    <td className="hidden px-3 py-2.5 text-right tabular-nums text-[var(--color-muted)] md:table-cell">
+                      {u._count.tracks} · {u._count.playlists}
+                    </td>
+                    <td className="px-3 py-2.5 text-right">
+                      <ArrowRight
+                        className="ml-auto h-3.5 w-3.5 -translate-x-1 text-[var(--color-muted)] opacity-0 transition group-hover:translate-x-0 group-hover:opacity-100"
+                        strokeWidth={2.4}
+                      />
+                    </td>
+                  </tr>
+                );
+              })
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Pagination */}
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+        <p className="text-xs text-[var(--color-muted)]">
+          {t("admin.dashboard.paginationRange", {
+            defaultValue: "Mostrando {{start}}–{{end}} de {{total}}",
+            start,
+            end,
+            total,
+          })}
+        </p>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setPage((p) => Math.max(0, p - 1))}
+            disabled={page === 0 || usersQ.isFetching}
+            className="inline-flex items-center gap-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-page)] px-3 py-1.5 text-xs font-semibold text-[var(--color-text)] transition hover:border-[var(--color-primary)] disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <ChevronLeft className="h-3.5 w-3.5" />
+            {t("admin.dashboard.prev", { defaultValue: "Anterior" })}
+          </button>
+          <span className="text-xs tabular-nums text-[var(--color-muted)]">
+            {t("admin.dashboard.pageOf", {
+              defaultValue: "{{page}} / {{total}}",
+              page: page + 1,
+              total: totalPages,
+            })}
+          </span>
+          <button
+            type="button"
+            onClick={() => setPage((p) => (end >= total ? p : p + 1))}
+            disabled={end >= total || usersQ.isFetching}
+            className="inline-flex items-center gap-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-page)] px-3 py-1.5 text-xs font-semibold text-[var(--color-text)] transition hover:border-[var(--color-primary)] disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {t("admin.dashboard.next", { defaultValue: "Siguiente" })}
+            <ChevronRight className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      </div>
+    </article>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Main page
 // ---------------------------------------------------------------------------
 
@@ -1476,6 +1730,9 @@ export default function DashboardPage() {
             </article>
           </div>
         )}
+
+        {/* ── Users table (paginated) ── */}
+        {!isLoading && <UsersTable />}
       </div>
     </section>
   );

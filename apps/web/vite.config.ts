@@ -4,6 +4,25 @@ import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
 export default defineConfig({
+  build: {
+    rollupOptions: {
+      output: {
+        // Split the big, rarely-changing dependencies into their own cached
+        // chunks so the initial bundle stays small and vendor code isn't
+        // re-downloaded on every app deploy.
+        manualChunks(id) {
+          if (!id.includes('node_modules')) return
+          if (/[\\/]node_modules[\\/](react|react-dom|react-router|react-router-dom|scheduler)[\\/]/.test(id))
+            return 'react-vendor'
+          if (id.includes('@tanstack')) return 'query-vendor'
+          if (/[\\/](i18next|react-i18next)[\\/]/.test(id)) return 'i18n-vendor'
+          if (/[\\/](music-metadata|strtok3|token-types|peek-readable|uint8array-extras)[\\/]/.test(id))
+            return 'media-vendor'
+          return 'vendor'
+        },
+      },
+    },
+  },
   plugins: [
     react(),
     VitePWA({

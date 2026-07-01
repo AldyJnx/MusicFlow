@@ -1,7 +1,4 @@
-import type { MouseEvent } from "react";
-import { useMemo } from "react";
 import {
-  ListMusic,
   Maximize2,
   Pause,
   Play,
@@ -19,24 +16,34 @@ import { useTranslation } from "react-i18next";
 
 import { usePlayerStore } from "../../stores/playStore";
 import { useTrackSegments } from "../../../shared/hooks/useTrackSegments";
-import { usePreferences } from "../../../shared/hooks/usePreferences";
 import { usePremiumGate } from "../../../shared/hooks/usePremiumGate";
+import DownloadButton from "../../../shared/ui/DownloadButton";
+import ElasticSlider from "../../../shared/ui/reactbits/ElasticSlider";
 import TimelineWithSegments from "./TimelineWithSegments";
-import EqBandIndicator from "./EqBandIndicator";
-import Wave from "./Wave";
 
 type MiniPlayerProps = {
+  /** Kept for API compatibility; the bar now docks in-flow. */
   sidebarOffset?: number;
 };
 
 function formatMs(ms: number): string {
-  const totalSeconds = Math.floor(ms / 1000);
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  return `${minutes}:${String(seconds).padStart(2, "0")}`;
+  const total = Math.floor(ms / 1000);
+  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, "0")}`;
 }
 
-export default function MiniPlayer({ sidebarOffset = 0 }: MiniPlayerProps) {
+const GRADS = [
+  "linear-gradient(135deg,#7c5ce8,#e85cc0)",
+  "linear-gradient(135deg,#4cf1a0,#3aa0ff)",
+  "linear-gradient(135deg,#e85cc0,#ff8a5c)",
+  "linear-gradient(135deg,#5c8cff,#7c5ce8)",
+];
+function gradOf(s: string): string {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) % 100000;
+  return GRADS[h % GRADS.length];
+}
+
+export default function MiniPlayer(_: MiniPlayerProps) {
   const { t } = useTranslation();
   const currentTrack = usePlayerStore((s) => s.currentTrack);
   const isExpanded = usePlayerStore((s) => s.isExpanded);
@@ -58,328 +65,196 @@ export default function MiniPlayer({ sidebarOffset = 0 }: MiniPlayerProps) {
   const cycleRepeat = usePlayerStore((s) => s.cycleRepeat);
   const openEqDrawer = usePlayerStore((s) => s.openEqDrawer);
   const openAiPrompt = usePlayerStore((s) => s.openAiPrompt);
-  const openQueueDrawer = usePlayerStore((s) => s.openQueueDrawer);
-  const queueLength = usePlayerStore((s) => s.queue.length);
-  const queueIndex = usePlayerStore((s) => s.queueIndex);
-  const upcomingCount = Math.max(0, queueLength - queueIndex - 1);
 
   const { segments } = useTrackSegments(currentTrack?.id ?? null);
-  const { showWave, playerLayout } = usePreferences();
   const { guard } = usePremiumGate();
+  if (!currentTrack || isExpanded) return null;
 
-  // `auto` maps to the existing layout (expanded). `compact` shrinks padding,
-  // cover, controls and hides the redundant expand button (clicking the bar
-  // already expands the player).
-  const isCompact = playerLayout === "compact";
-
-  // The chip surfaces the segment under the playhead — this is one of the
-  // core MusicFlow differentiators, so we keep it visible even in the
-  // collapsed bar.
-  const activeSegment = useMemo(
-    () =>
-      segments.find((s) => positionMs >= s.startMs && positionMs < s.endMs) ??
-      null,
-    [segments, positionMs],
-  );
-
-  function preventExpand(event: MouseEvent<HTMLElement>) {
-    event.stopPropagation();
-  }
-
-  if (!currentTrack || isExpanded) {
-    return null;
-  }
+  const vol = muted ? 0 : volume;
 
   return (
-    <div
-      className="fixed bottom-4 right-0 z-40 px-6"
-      style={{ left: `${sidebarOffset}px` }}
-      onClick={toggleExpanded}
-      role="button"
-      tabIndex={0}
-      aria-label={t("player.expand", { defaultValue: "Open full player" })}
-    >
-      <div
-        className={`mx-auto grid w-[min(100%,1120px)] cursor-pointer grid-cols-[minmax(0,1.1fr)_minmax(360px,1.4fr)_minmax(220px,1fr)] items-center gap-5 rounded-[24px] border border-[var(--color-border)] bg-[var(--color-surface)]/95 shadow-[0_20px_50px_rgba(0,0,0,0.32)] backdrop-blur-xl ${
-          isCompact ? "px-3 py-2" : "px-5 py-3.5"
-        }`}
+    <div className="sticky bottom-0 z-40 flex h-[78px] flex-none items-center gap-[18px] border-t border-[var(--color-line)] bg-[rgba(8,8,16,.62)] px-[22px] shadow-[0_-10px_40px_-20px_rgba(0,0,0,.8)] backdrop-blur-[34px]">
+      {/* LEFT — cover + title + like */}
+      <button
+        type="button"
+        onClick={toggleExpanded}
+        title={t("player.expand", { defaultValue: "Abrir reproductor" })}
+        className="flex w-[300px] min-w-0 flex-none items-center gap-3 text-left"
       >
-        {/* Track info + segment chip + optional wave */}
-        <div className="flex min-w-0 items-center gap-3">
-          {showWave ? (
-            <div className="shrink-0" onClick={preventExpand}>
-              <Wave active={isPlaying} size={isCompact ? 12 : 16} />
-            </div>
-          ) : null}
+        <span
+          className="h-12 w-12 flex-none overflow-hidden rounded-xl shadow-[0_6px_18px_-6px_rgba(0,0,0,.7)] transition hover:scale-105"
+          style={{ background: gradOf(currentTrack.id) }}
+        >
           {currentTrack.cover ? (
             <img
               src={currentTrack.cover}
-              alt={currentTrack.title}
-              className={`shrink-0 rounded-xl object-cover ring-1 ring-[var(--color-border)] ${
-                isCompact ? "h-10 w-10" : "h-14 w-14"
-              }`}
+              alt=""
+              className="h-full w-full object-cover"
             />
-          ) : (
-            <div
-              className={`shrink-0 rounded-xl bg-[var(--color-surface-alt)] ${
-                isCompact ? "h-10 w-10" : "h-14 w-14"
-              }`}
-            />
-          )}
-          <div className="min-w-0 flex-1">
-            <h2 className="truncate text-base font-semibold tracking-tight text-[var(--color-text)]">
-              {currentTrack.title}
-            </h2>
-            <div className="mt-0.5 flex items-center gap-2 truncate">
-              <p className="truncate text-xs text-[var(--color-muted)]">
-                {currentTrack.artist}
-              </p>
-              {activeSegment ? (
-                <span
-                  className="inline-flex items-center gap-1 rounded-full border border-[var(--color-accent)]/40 bg-[var(--color-accent)]/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--color-accent)]"
-                  title={t("player.activeSegment", {
-                    defaultValue: "Active segment",
-                  })}
-                >
-                  <span className="h-1.5 w-1.5 rounded-full bg-[var(--color-accent)]" />
-                  {activeSegment.label ||
-                    t("player.segment", { defaultValue: "Segment" })}
-                </span>
-              ) : null}
-            </div>
-          </div>
-          <div onClick={preventExpand} className="shrink-0">
-            <EqBandIndicator size={22} />
-          </div>
-        </div>
+          ) : null}
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-[13.5px] font-bold text-[var(--color-text)]">
+            {currentTrack.title}
+          </span>
+          <span className="block truncate text-[11.5px] font-medium text-[var(--color-muted)]">
+            {currentTrack.artist}
+          </span>
+        </span>
+      </button>
 
-        {/* Controls + progress */}
-        <div className="flex min-w-0 flex-col items-center gap-2">
-          <div className="flex items-center gap-4 text-[var(--color-muted)]">
-            <button
-              type="button"
-              onClick={(e) => {
-                preventExpand(e);
-                toggleShuffle();
-              }}
-              aria-pressed={shuffle}
-              title={t("player.shuffle", { defaultValue: "Aleatorio" })}
-              aria-label={t("player.shuffle", { defaultValue: "Aleatorio" })}
-              className={`transition ${
-                shuffle
-                  ? "text-[var(--color-primary)]"
-                  : "hover:text-[var(--color-text)]"
-              }`}
-            >
-              <Shuffle className="h-3.5 w-3.5" strokeWidth={2.4} />
-            </button>
-            <button
-              type="button"
-              onClick={(e) => {
-                preventExpand(e);
-                void previous();
-              }}
-              className="transition hover:text-[var(--color-text)]"
-              aria-label={t("player.previous", { defaultValue: "Previous" })}
-            >
-              <SkipBack className="h-4 w-4" strokeWidth={2.4} />
-            </button>
-            <button
-              type="button"
-              onClick={(e) => {
-                preventExpand(e);
-                void togglePlay();
-              }}
-              className={`inline-flex items-center justify-center rounded-full bg-[var(--color-primary)] text-[var(--color-page)] shadow-[0_8px_20px_rgba(0,0,0,0.28)] transition hover:scale-[1.05] ${
-                isCompact ? "h-8 w-8" : "h-10 w-10"
-              }`}
-              aria-label={
-                isPlaying
-                  ? t("player.pause", { defaultValue: "Pause" })
-                  : t("player.play", { defaultValue: "Play" })
-              }
-            >
-              {isPlaying ? (
-                <Pause className="h-4 w-4" strokeWidth={2.6} />
-              ) : (
-                <Play className="ml-0.5 h-4 w-4" strokeWidth={2.6} />
-              )}
-            </button>
-            <button
-              type="button"
-              onClick={(e) => {
-                preventExpand(e);
-                void next();
-              }}
-              className="transition hover:text-[var(--color-text)]"
-              aria-label={t("player.next", { defaultValue: "Next" })}
-            >
-              <SkipForward className="h-4 w-4" strokeWidth={2.4} />
-            </button>
-            <button
-              type="button"
-              onClick={(e) => {
-                preventExpand(e);
-                cycleRepeat();
-              }}
-              aria-pressed={repeatMode !== "off"}
-              title={
-                repeatMode === "one"
-                  ? t("player.repeatOne", { defaultValue: "Repetir canción" })
-                  : repeatMode === "all"
-                    ? t("player.repeatAll", { defaultValue: "Repetir cola" })
-                    : t("player.repeatOff", { defaultValue: "Repetir" })
-              }
-              aria-label={t("player.repeat", { defaultValue: "Repetir" })}
-              className={`transition ${
-                repeatMode !== "off"
-                  ? "text-[var(--color-primary)]"
-                  : "hover:text-[var(--color-text)]"
-              }`}
-            >
-              {repeatMode === "one" ? (
-                <Repeat1 className="h-3.5 w-3.5" strokeWidth={2.4} />
-              ) : (
-                <Repeat className="h-3.5 w-3.5" strokeWidth={2.4} />
-              )}
-            </button>
-          </div>
-
-          <div
-            className="flex w-full items-center gap-3"
-            onClick={preventExpand}
-          >
-            <span className="w-9 text-right text-[10px] font-medium tabular-nums text-[var(--color-muted)]">
-              {formatMs(positionMs)}
-            </span>
-            <div className="flex-1">
-              <TimelineWithSegments
-                positionMs={positionMs}
-                durationMs={durationMs}
-                segments={segments}
-                onSeek={seek}
-                height={5}
-              />
-            </div>
-            <span className="w-9 text-[10px] font-medium tabular-nums text-[var(--color-muted)]">
-              {formatMs(durationMs)}
-            </span>
-          </div>
-        </div>
-
-        {/* AI + EQ + Volume + Expand */}
-        <div className="flex min-w-0 items-center justify-end gap-2 text-[var(--color-muted)]">
+      {/* CENTER — transport + wave */}
+      <div className="flex min-w-0 flex-1 items-center gap-4">
+        <div className="flex flex-none items-center gap-3.5 text-[var(--color-muted)]">
           <button
             type="button"
-            onClick={(e) => {
-              preventExpand(e);
-              openQueueDrawer();
-            }}
-            className="relative inline-flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-alt)] transition hover:border-[var(--color-primary)] hover:text-[var(--color-text)]"
-            aria-label={t("queue.open", {
-              defaultValue: "Cola de reproducción",
-            })}
-            title={t("queue.open", { defaultValue: "Cola de reproducción" })}
+            onClick={toggleShuffle}
+            aria-pressed={shuffle}
+            title={t("player.shuffle", { defaultValue: "Aleatorio" })}
+            className={`transition ${shuffle ? "text-[var(--color-primary)]" : "hover:text-[var(--color-text)]"}`}
           >
-            <ListMusic className="h-3.5 w-3.5" strokeWidth={2.4} />
-            {upcomingCount > 0 ? (
-              <span className="absolute -right-1 -top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--color-primary)] px-1 text-[9px] font-bold text-[var(--color-primary-contrast)]">
-                {upcomingCount}
-              </span>
-            ) : null}
+            <Shuffle className="h-[17px] w-[17px]" strokeWidth={2} />
           </button>
           <button
             type="button"
-            onClick={(e) => {
-              preventExpand(e);
-              guard("ai", openAiPrompt);
-            }}
-            className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-alt)] text-[var(--color-accent)] transition hover:border-[var(--color-accent)]"
-            aria-label={t("player.openAi", { defaultValue: "Ask AI" })}
-            title={t("player.openAi", { defaultValue: "Ask AI" })}
+            onClick={() => void previous()}
+            title={t("player.previous", { defaultValue: "Anterior" })}
+            className="text-[var(--color-text)] transition hover:opacity-80"
           >
-            <Sparkles className="h-3.5 w-3.5" strokeWidth={2.4} />
+            <SkipBack className="h-5 w-5" fill="currentColor" strokeWidth={0} />
           </button>
           <button
             type="button"
-            onClick={(e) => {
-              preventExpand(e);
-              openEqDrawer();
+            onClick={() => void togglePlay()}
+            className="flex h-[42px] w-[42px] items-center justify-center rounded-full text-white shadow-[0_8px_22px_-6px_var(--color-primary)] transition hover:scale-[1.08] active:scale-90"
+            style={{
+              background:
+                "linear-gradient(135deg,var(--color-primary),var(--color-accent))",
             }}
-            className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-alt)] transition hover:border-[var(--color-primary)] hover:text-[var(--color-text)]"
-            aria-label={t("player.openEq", { defaultValue: "Open EQ" })}
-            title={t("player.openEq", { defaultValue: "Open EQ" })}
-          >
-            <Sliders className="h-3.5 w-3.5" strokeWidth={2.4} />
-          </button>
-          <button
-            type="button"
-            onClick={(e) => {
-              preventExpand(e);
-              toggleMute();
-            }}
-            className="inline-flex h-8 w-8 items-center justify-center transition hover:text-[var(--color-text)]"
             aria-label={
-              muted || volume === 0
-                ? t("player.unmute", { defaultValue: "Unmute" })
-                : t("player.mute", { defaultValue: "Mute" })
+              isPlaying
+                ? t("player.pause", { defaultValue: "Pausa" })
+                : t("player.play", { defaultValue: "Play" })
             }
           >
-            {muted || volume === 0 ? (
-              <VolumeX className="h-4 w-4" strokeWidth={2.2} />
+            {isPlaying ? (
+              <Pause className="h-5 w-5" fill="currentColor" strokeWidth={0} />
             ) : (
-              <Volume2 className="h-4 w-4" strokeWidth={2.2} />
+              <Play
+                className="ml-0.5 h-5 w-5"
+                fill="currentColor"
+                strokeWidth={0}
+              />
             )}
           </button>
-          <input
-            type="range"
-            min="0"
-            max="1"
-            step="0.01"
-            value={muted ? 0 : volume}
-            onClick={preventExpand}
-            onChange={(e) => setVolume(Number(e.target.value))}
-            className="mini-player-slider h-1 w-20 cursor-pointer appearance-none rounded-full bg-[var(--color-surface-alt)]"
-            aria-label={t("player.volume", { defaultValue: "Volume" })}
-          />
-          {!isCompact ? (
-            <button
-              type="button"
-              onClick={(e) => {
-                preventExpand(e);
-                toggleExpanded();
-              }}
-              className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-alt)] transition hover:border-[var(--color-primary)] hover:text-[var(--color-text)]"
-              aria-label={t("player.expand", { defaultValue: "Expand" })}
-              title={t("player.expand", { defaultValue: "Expand" })}
-            >
-              <Maximize2 className="h-3.5 w-3.5" strokeWidth={2.3} />
-            </button>
-          ) : null}
+          <button
+            type="button"
+            onClick={() => void next()}
+            title={t("player.next", { defaultValue: "Siguiente" })}
+            className="text-[var(--color-text)] transition hover:opacity-80"
+          >
+            <SkipForward
+              className="h-5 w-5"
+              fill="currentColor"
+              strokeWidth={0}
+            />
+          </button>
+          <button
+            type="button"
+            onClick={cycleRepeat}
+            aria-pressed={repeatMode !== "off"}
+            title={t("player.repeat", { defaultValue: "Repetir" })}
+            className={`transition ${repeatMode !== "off" ? "text-[var(--color-primary)]" : "hover:text-[var(--color-text)]"}`}
+          >
+            {repeatMode === "one" ? (
+              <Repeat1 className="h-[17px] w-[17px]" strokeWidth={2} />
+            ) : (
+              <Repeat className="h-[17px] w-[17px]" strokeWidth={2} />
+            )}
+          </button>
         </div>
+
+        <span
+          className="w-[34px] flex-none text-right text-[var(--color-muted)]"
+          style={{ font: "600 11px var(--font-mono)" }}
+        >
+          {formatMs(positionMs)}
+        </span>
+        <div className="min-w-0 flex-1">
+          <TimelineWithSegments
+            positionMs={positionMs}
+            durationMs={durationMs}
+            segments={segments}
+            onSeek={seek}
+            height={5}
+          />
+        </div>
+        <span
+          className="w-[34px] flex-none text-[var(--color-muted)]"
+          style={{ font: "600 11px var(--font-mono)" }}
+        >
+          {formatMs(durationMs)}
+        </span>
       </div>
 
-      <style>{`
-        .mini-player-slider::-webkit-slider-thumb {
-          -webkit-appearance: none;
-          appearance: none;
-          width: 11px;
-          height: 11px;
-          border-radius: 9999px;
-          background: var(--color-primary);
-          border: 0;
-          box-shadow: 0 0 0 2px var(--color-surface);
-        }
+      {/* RIGHT — download + EQ + AI + volume + expand */}
+      <div className="flex w-[300px] flex-none items-center justify-end gap-3.5">
+        <DownloadButton
+          track={{
+            id: currentTrack.id,
+            title: currentTrack.title,
+            artist: currentTrack.artist,
+            durationMs: currentTrack.durationMs,
+            url: currentTrack.url,
+            cover: currentTrack.cover,
+          }}
+          size={17}
+        />
+        <button
+          type="button"
+          onClick={() => guard("ai", openAiPrompt)}
+          title={t("player.openAi", { defaultValue: "Asistente IA" })}
+          className="flex h-[34px] w-[34px] items-center justify-center rounded-[10px] border border-[var(--color-line)] bg-white/[0.03] text-[var(--color-accent)] transition hover:scale-105 hover:border-[color-mix(in_srgb,var(--color-accent)_50%,transparent)]"
+        >
+          <Sparkles className="h-4 w-4" strokeWidth={2.2} />
+        </button>
+        <button
+          type="button"
+          onClick={openEqDrawer}
+          title={t("player.openEq", { defaultValue: "Ecualizar esta canción" })}
+          className="flex h-[34px] w-[34px] items-center justify-center rounded-[10px] border border-[color-mix(in_srgb,var(--color-primary)_45%,transparent)] bg-[color-mix(in_srgb,var(--color-primary)_14%,transparent)] text-[var(--color-primary)] transition hover:scale-105"
+        >
+          <Sliders className="h-4 w-4" strokeWidth={2.2} />
+        </button>
 
-        .mini-player-slider::-moz-range-thumb {
-          width: 11px;
-          height: 11px;
-          border-radius: 9999px;
-          background: var(--color-primary);
-          border: 0;
-          box-shadow: 0 0 0 2px var(--color-surface);
-        }
-      `}</style>
+        <ElasticSlider
+          className="w-[130px]"
+          value={vol}
+          onChange={setVolume}
+          onLeftIconClick={toggleMute}
+          leftIconLabel={
+            muted || vol === 0
+              ? t("player.unmute", { defaultValue: "Activar sonido" })
+              : t("player.mute", { defaultValue: "Silenciar" })
+          }
+          leftIcon={
+            muted || vol === 0 ? (
+              <VolumeX className="h-[17px] w-[17px]" strokeWidth={2} />
+            ) : (
+              <Volume2 className="h-[17px] w-[17px]" strokeWidth={2} />
+            )
+          }
+        />
+
+        <button
+          type="button"
+          onClick={toggleExpanded}
+          title={t("player.expand", { defaultValue: "Expandir" })}
+          className="flex h-[34px] w-[34px] items-center justify-center rounded-[10px] border border-[var(--color-line)] bg-white/[0.03] text-[var(--color-muted)] transition hover:text-[var(--color-text)]"
+        >
+          <Maximize2 className="h-4 w-4" strokeWidth={2.2} />
+        </button>
+      </div>
     </div>
   );
 }

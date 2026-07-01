@@ -6,6 +6,7 @@ import {
   Music4,
   Search,
   Settings as SettingsIcon,
+  ShieldCheck,
   User as UserIcon,
 } from "lucide-react";
 import {
@@ -19,13 +20,13 @@ import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import QuotaBadge from "../QuotaBadge";
 import OfflineIndicator from "../OfflineIndicator";
+import TierBadge from "../TierBadge";
 import { useAuthStore } from "../../stores/authStore";
 import { useGlobalSearch } from "../../hooks/useGlobalSearch";
 import {
   usePlayerStore,
   type PlayerTrack,
 } from "../../../client/stores/playStore";
-import ClientTabs from "../../../client/components/navigation/ClientTabs";
 import type { Track } from "../../api/tracks";
 
 type NavbarProps = {
@@ -116,12 +117,8 @@ const Navbar = forwardRef<NavbarRef, NavbarProps>(function Navbar(
   }
 
   return (
-    <header className="sticky top-0 z-30 flex items-center justify-between gap-4 border-b border-[var(--color-border)] bg-[var(--color-navbar)] px-6 py-3">
-      <div className="shrink-0">
-        <ClientTabs />
-      </div>
-
-      <div className="flex flex-1 justify-center">
+    <header className="sticky top-0 z-30 flex h-[62px] items-center justify-between gap-4 border-b border-[var(--color-line)] bg-[rgba(7,7,14,.3)] px-6 backdrop-blur-[20px]">
+      <div className="flex flex-1 justify-start">
         <div ref={containerRef} className="relative w-full max-w-md">
           <div className="flex items-center gap-3 rounded-full bg-[var(--color-page)]/70 px-4 py-2.5">
             <Search
@@ -193,6 +190,24 @@ const Navbar = forwardRef<NavbarRef, NavbarProps>(function Navbar(
 
       <div className="flex shrink-0 items-center gap-2">
         <OfflineIndicator />
+        {isAuthenticated && user?.role === "ADMIN" ? (
+          <button
+            type="button"
+            onClick={() => navigate("/admin")}
+            className="inline-flex items-center gap-1.5 rounded-full border border-[var(--color-primary)] bg-[color-mix(in_srgb,var(--color-primary)_14%,transparent)] px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-[var(--color-primary)] transition hover:bg-[color-mix(in_srgb,var(--color-primary)_22%,transparent)]"
+            title={t("navbar.backToAdmin", {
+              defaultValue: "Volver al modo admin",
+            })}
+          >
+            <ShieldCheck className="h-3.5 w-3.5" strokeWidth={2.4} />
+            <span className="hidden sm:inline">
+              {t("navbar.adminMode", { defaultValue: "Modo admin" })}
+            </span>
+          </button>
+        ) : null}
+        {isAuthenticated && user?.role !== "ADMIN" ? (
+          <TierBadge className="hidden sm:inline-flex" />
+        ) : null}
         {isAuthenticated ? <QuotaBadge /> : null}
         <button
           type="button"
@@ -244,14 +259,34 @@ const Navbar = forwardRef<NavbarRef, NavbarProps>(function Navbar(
                   </p>
                   <p
                     className={`mt-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] ${
-                      user.isPremium
-                        ? "text-emerald-400"
-                        : "text-[var(--color-muted)]"
+                      user.role === "ADMIN"
+                        ? "text-[var(--color-primary)]"
+                        : user.isPremium
+                          ? "text-emerald-400"
+                          : "text-[var(--color-muted)]"
                     }`}
                   >
-                    {user.isPremium ? "Premium" : "Free"}
+                    {user.role === "ADMIN"
+                      ? "Admin"
+                      : user.isPremium
+                        ? "Premium"
+                        : "Free"}
                   </p>
                 </div>
+                {user.role === "ADMIN" ? (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      navigate("/admin");
+                    }}
+                    className="flex w-full items-center gap-3 border-b border-[var(--color-border)] px-4 py-2.5 text-left text-sm font-semibold text-[var(--color-primary)] transition hover:bg-white/[0.04]"
+                  >
+                    <ShieldCheck className="h-4 w-4" strokeWidth={2.1} />
+                    {t("navbar.menu.admin", { defaultValue: "Panel de admin" })}
+                  </button>
+                ) : null}
                 <button
                   type="button"
                   role="menuitem"

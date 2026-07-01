@@ -21,6 +21,7 @@ import {
 import { AiAgentService } from "./ai-agent.service";
 import {
   SuggestEQDto,
+  AssistDto,
   AcceptSuggestionDto,
   ProvideFeedbackDto,
   DetectSegmentsDto,
@@ -61,6 +62,24 @@ export class AiAgentController {
   async suggestEQ(@CurrentUser() user: AuthUser, @Body() dto: SuggestEQDto) {
     await this.quotaService.assertAiQuota(user);
     return this.aiAgentService.suggestEQ(user.id, dto);
+  }
+
+  @Post("assistant")
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @ApiOperation({
+    summary:
+      "Flexible assistant: tune sound or recommend music personalized to taste",
+  })
+  @ApiResponse({ status: 201, description: "Assistant replied" })
+  @ApiResponse({
+    status: 403,
+    description: "Monthly AI request quota exceeded",
+  })
+  @ApiResponse({ status: 429, description: "Too many requests — slow down" })
+  async assist(@CurrentUser() user: AuthUser, @Body() dto: AssistDto) {
+    await this.quotaService.assertAiQuota(user);
+    return this.aiAgentService.assist(user.id, dto);
   }
 
   @Post("detect-segments")

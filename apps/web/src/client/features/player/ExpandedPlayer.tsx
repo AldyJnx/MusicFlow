@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ChevronDown,
-  Heart,
   ListMusic,
+  ListPlus,
   Mic2,
   Pause,
   Play,
@@ -30,6 +30,7 @@ import { usePremiumGate } from "../../../shared/hooks/usePremiumGate";
 import TimelineWithSegments from "./TimelineWithSegments";
 import Wave from "./Wave";
 import AddToPlaylistModal from "../playlists/AddToPlaylistModal";
+import ElasticSlider from "../../../shared/ui/reactbits/ElasticSlider";
 
 type ExpandedPlayerProps = {
   sidebarOffset?: number;
@@ -193,8 +194,10 @@ export default function ExpandedPlayer({
           </p>
         </div>
 
-        {/* ── Main: cover on the left, details + controls on the right ── */}
-        <div className="grid min-h-0 flex-1 grid-cols-1 items-center gap-8 py-4 lg:grid-cols-2 lg:gap-12 xl:gap-16">
+        {/* ── Main: cover on the left, details + controls on the right.
+            Constrained + centered so the two columns read as one unit (no
+            dead space) and the timeline never slides under the queue rail. ── */}
+        <div className="mx-auto grid min-h-0 w-full max-w-5xl flex-1 grid-cols-1 items-center gap-8 py-4 lg:grid-cols-2 lg:gap-12 xl:gap-16">
           {/* Left column — cover or, when toggled, the karaoke lyrics. */}
           <div className="flex min-h-0 items-center justify-center">
             {view === "cover" ? (
@@ -255,7 +258,7 @@ export default function ExpandedPlayer({
                 })}
                 className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white/70 transition hover:border-[var(--color-accent)] hover:text-white"
               >
-                <Heart className="h-[18px] w-[18px]" strokeWidth={2.2} />
+                <ListPlus className="h-[18px] w-[18px]" strokeWidth={2.2} />
               </button>
               <button
                 type="button"
@@ -365,7 +368,7 @@ export default function ExpandedPlayer({
                     ? "border-[var(--color-primary)] bg-[var(--color-primary)]/15 text-[var(--color-primary)] shadow-[0_0_24px_-6px_var(--color-primary)]"
                     : hasEqCurveStashed
                       ? "border-white/30 bg-transparent text-white/70"
-                      : "border-white/10 bg-transparent text-white/40"
+                      : "border-white/15 bg-transparent text-white/55"
                 }`}
               >
                 <span
@@ -430,17 +433,11 @@ export default function ExpandedPlayer({
       {/* ── Floating volume control (bottom-right) ─────────────────────── */}
       <div className="absolute bottom-6 right-6 flex flex-col items-center gap-3">
         {volumeOpen ? (
-          <div className="flex flex-col items-center gap-2 rounded-full border border-white/10 bg-black/40 px-2 py-4 backdrop-blur-md">
-            <input
-              type="range"
-              min="0"
-              max="1"
-              step="0.01"
+          <div className="flex items-center rounded-full border border-white/10 bg-black/40 px-4 py-2.5 backdrop-blur-md">
+            <ElasticSlider
+              className="w-28"
               value={isMuted ? 0 : volume}
-              onChange={(e) => setVolume(Number(e.target.value))}
-              className="expanded-player-slider h-1 w-24 -rotate-90 cursor-pointer appearance-none rounded-full bg-white/10"
-              aria-label={t("player.volume")}
-              style={{ marginTop: "2.5rem", marginBottom: "2.5rem" }}
+              onChange={setVolume}
             />
           </div>
         ) : null}
@@ -461,27 +458,6 @@ export default function ExpandedPlayer({
           )}
         </button>
       </div>
-
-      <style>{`
-        .expanded-player-slider::-webkit-slider-thumb {
-          -webkit-appearance: none;
-          appearance: none;
-          width: 12px;
-          height: 12px;
-          border-radius: 9999px;
-          background: var(--color-primary);
-          border: 0;
-          box-shadow: 0 0 0 2px rgba(0,0,0,0.55);
-        }
-        .expanded-player-slider::-moz-range-thumb {
-          width: 12px;
-          height: 12px;
-          border-radius: 9999px;
-          background: var(--color-primary);
-          border: 0;
-          box-shadow: 0 0 0 2px rgba(0,0,0,0.55);
-        }
-      `}</style>
 
       <AddToPlaylistModal
         open={addToPlaylistOpen}

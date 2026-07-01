@@ -25,7 +25,11 @@
     "prisma:studio": "prisma studio",
     "prisma:seed": "ts-node prisma/seed.ts",
     "seed:r2": "ts-node scripts/seed-r2-tracks.ts",
-    "peaks:backfill": "ts-node scripts/compute-track-peaks.ts"
+    "seed:enrich": "ts-node scripts/seed-r2-enrich.ts",
+    "seed:albums": "ts-node scripts/seed-r2-albums.ts",
+    "backfill:catalog": "ts-node scripts/backfill-catalog.ts",
+    "peaks:backfill": "ts-node scripts/compute-track-peaks.ts",
+    "mirror:lyrics": "ts-node scripts/mirror-lyrics-to-bucket.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.98.0",

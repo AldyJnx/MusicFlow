@@ -1,4 +1,5 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useRef } from "react";
+import { create } from "zustand";
 import { useQuery } from "@tanstack/react-query";
 import { getAudioEngine, type AudioEngine } from "../../audio/engine";
 import type { ReverbPreset, EQPreset } from "../api/equalizer";
@@ -24,16 +25,65 @@ const DEFAULT_EFFECTS: EffectsState = {
   reverbAmount: 0,
 };
 
+// ─── Shared EQ UI state ─────────────────────────────────────────────────────
+//
+// A single source of truth for the equalizer's *visible* curve, shared across
+// every surface (Studio page, player EQ drawer, AI flow). Previously each
+// `useEqualizer()` caller kept its own React state, so adjusting the EQ in one
+// place left the others rendering a flat ("equilibrado") curve even though the
+// audio engine was already shaped. With a shared store, moving the EQ anywhere
+// reflects everywhere — and the cascade auto-apply (useAutoApplyEQ) keeps it in
+// sync when the track changes.
+
+interface EqUiState {
+  bands: number[];
+  effects: EffectsState;
+  /** Replace the visible bands (already length-normalised by callers). */
+  setBandsState: (bands: number[]) => void;
+  /** Merge a partial effects patch. */
+  patchEffectsState: (patch: Partial<EffectsState>) => void;
+}
+
+export const useEqUiStore = create<EqUiState>((set) => ({
+  bands: [...DEFAULT_BANDS],
+  effects: { ...DEFAULT_EFFECTS },
+  setBandsState: (bands) => set({ bands }),
+  patchEffectsState: (patch) =>
+    set((s) => ({ effects: { ...s.effects, ...patch } })),
+}));
+
+/**
+ * Pushes a resolved curve into the shared UI state *without* touching the
+ * audio engine. Used by `useAutoApplyEQ` after it applies the cascade so the
+ * EQ surfaces mirror what's actually playing.
+ */
+export function syncEqUiFromConfig(cfg: {
+  bands: number[];
+  bassBoost: number;
+  virtualizer: number;
+  loudness: number;
+  reverbPreset: ReverbPreset;
+  reverbAmount: number;
+}): void {
+  const padded = Array.from({ length: 10 }, (_, i) => cfg.bands[i] ?? 0);
+  useEqUiStore.getState().setBandsState(padded);
+  useEqUiStore.getState().patchEffectsState({
+    bassBoost: cfg.bassBoost,
+    virtualizer: cfg.virtualizer,
+    loudness: cfg.loudness,
+    reverbPreset: cfg.reverbPreset,
+    reverbAmount: cfg.reverbAmount,
+  });
+}
+
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
 export function useEqualizer() {
   // Lazy engine ref — only populated after the first user interaction
   const engineRef = useRef<AudioEngine | null>(null);
 
-  const [bands, setBandsState] = useState<number[]>([...DEFAULT_BANDS]);
-  const [effects, setEffectsState] = useState<EffectsState>({
-    ...DEFAULT_EFFECTS,
-  });
+  const bands = useEqUiStore((s) => s.bands);
+  const effects = useEqUiStore((s) => s.effects);
 
   // Presets from the backend
   const presetsQuery = useQuery({
@@ -42,8 +92,6 @@ export function useEqualizer() {
   });
 
   // Helper: lazily obtain the engine (only after a user gesture).
-  // getAudioEngine() is imported statically — the AudioContext is only
-  // created inside that factory when first invoked, so module-load is safe.
   const getEngineIfNeeded = useCallback((): AudioEngine | null => {
     if (typeof window === "undefined") return null;
     if (!engineRef.current) {
@@ -60,24 +108,19 @@ export function useEqualizer() {
 
   const setBand = useCallback(
     (index: number, dB: number) => {
-      setBandsState((prev) => {
-        const next = [...prev];
-        next[index] = dB;
-        return next;
-      });
-      const engine = getEngineIfNeeded();
-      engine?.equalizer.setBand(index, dB);
+      const next = [...useEqUiStore.getState().bands];
+      next[index] = dB;
+      useEqUiStore.getState().setBandsState(next);
+      getEngineIfNeeded()?.equalizer.setBand(index, dB);
     },
     [getEngineIfNeeded],
   );
 
   const setBands = useCallback(
     (newBands: number[], transitionMs?: number) => {
-      // Ensure length 10, fill gaps with 0
       const normalised = Array.from({ length: 10 }, (_, i) => newBands[i] ?? 0);
-      setBandsState(normalised);
-      const engine = getEngineIfNeeded();
-      engine?.equalizer.setBands(normalised, transitionMs);
+      useEqUiStore.getState().setBandsState(normalised);
+      getEngineIfNeeded()?.equalizer.setBands(normalised, transitionMs);
     },
     [getEngineIfNeeded],
   );
@@ -86,17 +129,14 @@ export function useEqualizer() {
 
   const setEffects = useCallback(
     (partial: Partial<EffectsState>) => {
-      setEffectsState((prev) => {
-        const next = { ...prev, ...partial };
-        const engine = getEngineIfNeeded();
-        engine?.setEffects({
-          bassBoost: next.bassBoost,
-          virtualizer: next.virtualizer,
-          loudness: next.loudness,
-          reverbPreset: next.reverbPreset,
-          reverbAmount: next.reverbAmount,
-        });
-        return next;
+      useEqUiStore.getState().patchEffectsState(partial);
+      const next = useEqUiStore.getState().effects;
+      getEngineIfNeeded()?.setEffects({
+        bassBoost: next.bassBoost,
+        virtualizer: next.virtualizer,
+        loudness: next.loudness,
+        reverbPreset: next.reverbPreset,
+        reverbAmount: next.reverbAmount,
       });
     },
     [getEngineIfNeeded],
@@ -128,18 +168,17 @@ export function useEqualizer() {
   // ── Hydrate from engine ───────────────────────────────────────────────────
 
   /**
-   * Pull the engine's live bands + effects into local state. Use this when
-   * a panel opens after some other code path (the AI accept flow, for
-   * example) wrote to the engine — without this the panel would render
-   * stale defaults while the audio is already curved.
+   * Pull the engine's live bands + effects into the shared state. Use this
+   * when a panel opens after some other code path wrote to the engine — keeps
+   * the sliders in sync with the audio.
    */
   const syncFromEngine = useCallback(() => {
     const engine = getEngineIfNeeded();
     if (!engine) return;
     const snapshot = engine.getCurrentEqState();
     const padded = Array.from({ length: 10 }, (_, i) => snapshot.bands[i] ?? 0);
-    setBandsState(padded);
-    setEffectsState({
+    useEqUiStore.getState().setBandsState(padded);
+    useEqUiStore.getState().patchEffectsState({
       bassBoost: snapshot.effects.bassBoost,
       virtualizer: snapshot.effects.virtualizer,
       loudness: snapshot.effects.loudness,

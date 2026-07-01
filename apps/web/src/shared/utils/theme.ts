@@ -1,4 +1,5 @@
 export type AppThemeId =
+  | "nebula-pulse"
   | "midnight-neon"
   | "ocean-teal"
   | "sunset-coral"
@@ -48,6 +49,32 @@ export type AppTheme = {
 };
 
 export const APP_THEMES: AppTheme[] = [
+  {
+    id: "nebula-pulse",
+    nameKey: "themes.nebula-pulse.name",
+    descriptionKey: "themes.nebula-pulse.description",
+    mode: "dark",
+    previewClassName: "bg-[linear-gradient(180deg,#0c0c18_0%,#06060e_100%)]",
+    dotsClassName: ["bg-[#7c5ce8]", "bg-[#e85cc0]"],
+    colors: {
+      page: "#06060e",
+      sidebar: "#04040c",
+      navbar: "#06060e",
+      surface: "#0c0c18",
+      surfaceAlt: "#12121f",
+      text: "#f3f4fb",
+      // Lifted from the design's rgba(206,212,240,.64) to clear WCAG AA
+      // (~7:1 on #06060e) per the design critique.
+      muted: "#9a9fc2",
+      border: "#20202e",
+      primary: "#7c5ce8",
+      primaryContrast: "#0a0a14",
+      secondary: "#14142a",
+      ctaStart: "#7c5ce8",
+      ctaEnd: "#e85cc0",
+      accent: "#e85cc0",
+    },
+  },
   {
     id: "midnight-neon",
     nameKey: "themes.midnight-neon.name",
@@ -202,7 +229,7 @@ export const appThemes: Record<AppThemeId, AppTheme> = APP_THEMES.reduce(
   {} as Record<AppThemeId, AppTheme>,
 );
 
-export const DEFAULT_THEME: AppThemeId = "midnight-neon";
+export const DEFAULT_THEME: AppThemeId = "nebula-pulse";
 
 export function normalizeThemeId(value: string | null | undefined): AppThemeId {
   if (!value) return DEFAULT_THEME;

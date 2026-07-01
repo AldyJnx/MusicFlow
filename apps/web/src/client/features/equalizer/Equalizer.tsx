@@ -1,18 +1,23 @@
-import { useMemo, useState } from "react";
-import {
-  Disc3,
-  ListMusic,
-  Music3,
-  RotateCcw,
-  Scissors,
-  Sparkles,
-} from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { animate, stagger } from "animejs";
+import { RotateCcw, Save, Sparkles } from "lucide-react";
+import { motion, useReducedMotion } from "motion/react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 
 import ClientLayout from "../../layout/ClientLayout";
+import EqCascade from "./EqCascade";
+import GradientText from "../../../shared/ui/reactbits/GradientText";
+import Aurora from "../../../shared/ui/reactbits/Aurora";
 import { useEqualizer } from "../../../shared/hooks/useEqualizer";
+import { useEqCascade } from "../../../shared/hooks/useEqCascade";
 import { usePlayerStore } from "../../stores/playStore";
-import type { EQPreset, ReverbPreset } from "../../../shared/api/equalizer";
+import { upsertConfig } from "../../../shared/api/equalizer";
+import type {
+  EQPreset,
+  EQScopeType,
+  ReverbPreset,
+} from "../../../shared/api/equalizer";
 
 const FREQUENCIES = [
   31, 62, 125, 250, 500, 1000, 2000, 4000, 8000, 16000,
@@ -31,13 +36,6 @@ const REVERB_PRESETS: ReverbPreset[] = [
 ];
 
 type ScopeId = "global" | "playlist" | "track" | "segment";
-
-const SCOPES: { id: ScopeId; icon: typeof Disc3 }[] = [
-  { id: "global", icon: Disc3 },
-  { id: "playlist", icon: ListMusic },
-  { id: "track", icon: Music3 },
-  { id: "segment", icon: Scissors },
-];
 
 function formatHz(hz: number): string {
   return hz >= 1000 ? `${hz / 1000}k` : `${hz}`;
@@ -130,60 +128,6 @@ function ResponseCurve({ bands }: { bands: number[] }) {
   );
 }
 
-function ScopeTabs({
-  active,
-  onSelect,
-}: {
-  active: ScopeId;
-  onSelect: (id: ScopeId) => void;
-}) {
-  const { t } = useTranslation();
-
-  return (
-    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-      {SCOPES.map(({ id, icon: Icon }) => {
-        const isActive = id === active;
-        return (
-          <button
-            key={id}
-            type="button"
-            onClick={() => onSelect(id)}
-            className={`group flex items-center gap-3 rounded-2xl border px-4 py-3 text-left transition ${
-              isActive
-                ? "border-[var(--color-primary)] bg-[var(--color-surface-alt)]"
-                : "border-[var(--color-border)] bg-[var(--color-surface)] hover:border-[var(--color-primary)] hover:bg-[var(--color-surface-alt)]"
-            }`}
-          >
-            <span
-              className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition ${
-                isActive
-                  ? "bg-[var(--color-primary)] text-[var(--color-primary-contrast)]"
-                  : "bg-[var(--color-surface-alt)] text-[var(--color-muted)] group-hover:text-[var(--color-text)]"
-              }`}
-            >
-              <Icon className="h-4 w-4" strokeWidth={2.3} />
-            </span>
-            <div className="min-w-0">
-              <p
-                className={`text-sm font-semibold ${
-                  isActive
-                    ? "text-[var(--color-text)]"
-                    : "text-[var(--color-text)]"
-                }`}
-              >
-                {t(`eq.scope.${id}`)}
-              </p>
-              <p className="truncate text-[10px] text-[var(--color-muted)]">
-                {t(`eq.scope.${id}Desc`)}
-              </p>
-            </div>
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
 function EffectSlider({
   label,
   value,
@@ -221,52 +165,246 @@ export default function Equalizer() {
   const {
     bands,
     setBand,
+    setBands,
     effects,
     setEffects,
     presets,
     presetsLoading,
     applyPreset,
     reset,
+    syncFromEngine,
   } = useEqualizer();
   const openAiPrompt = usePlayerStore((s) => s.openAiPrompt);
   const currentTrack = usePlayerStore((s) => s.currentTrack);
+  const queryClient = useQueryClient();
 
   const [scope, setScope] = useState<ScopeId>("global");
+  const reduce = useReducedMotion();
+
+  // anime.js: stagger the 10 band columns up when the panel mounts and each
+  // time the scope changes (so switching Global → Pista feels alive).
+  const bandsRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (reduce) return;
+    const root = bandsRef.current;
+    if (!root) return;
+    const cols = root.querySelectorAll<HTMLElement>("[data-band]");
+    if (!cols.length) return;
+    animate(cols, {
+      translateY: [16, 0],
+      opacity: [0, 1],
+      duration: 420,
+      delay: stagger(35),
+      ease: "outCubic",
+    });
+  }, [scope, reduce]);
 
   const safeBands = useMemo(
     () => Array.from({ length: 10 }, (_, i) => Math.round(bands[i] ?? 0)),
     [bands],
   );
 
+  // Live cascade — the saved config per scope + the current playback context.
+  const { configs, context } = useEqCascade();
+
+  // The saved config for the scope being edited (segments aren't edited here —
+  // they live in the segment timeline, so segment scope loads nothing).
+  const selectedConfig =
+    scope === "global"
+      ? configs.global
+      : scope === "playlist"
+        ? configs.playlist
+        : scope === "track"
+          ? configs.track
+          : null;
+
+  // Load a scope's *saved* curve into the editor when it has one. We never
+  // reset to flat for a scope without a saved config — the editor keeps the
+  // current live curve (shared across every EQ surface) so switching scope or
+  // reopening the page never wrongly shows "equilibrado". To start a scope
+  // from flat, use Restablecer.
+  const loadedKeyRef = useRef<string>("");
+  useEffect(() => {
+    const key = `${scope}:${selectedConfig?.id ?? "none"}`;
+    if (loadedKeyRef.current === key) return;
+    loadedKeyRef.current = key;
+    if (selectedConfig) {
+      setBands(selectedConfig.bands, 250);
+      setEffects({
+        bassBoost: selectedConfig.bassBoost,
+        virtualizer: selectedConfig.virtualizer,
+        loudness: selectedConfig.loudness,
+        reverbPreset: selectedConfig.reverbPreset,
+        reverbAmount: selectedConfig.reverbAmount,
+      });
+    }
+  }, [scope, selectedConfig, setBands, setEffects]);
+
+  // On first mount, mirror the live audio engine into the editor so the
+  // sliders reflect what's actually playing (never a stale flat curve).
+  useEffect(() => {
+    syncFromEngine();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Persist the editor's current curve to the selected scope.
+  const saveMutation = useMutation({
+    mutationFn: () => {
+      const scopeType: EQScopeType =
+        scope === "playlist"
+          ? "PLAYLIST"
+          : scope === "track"
+            ? "TRACK"
+            : "GLOBAL";
+      const scopeId =
+        scope === "playlist"
+          ? (context.playlistId ?? undefined)
+          : scope === "track"
+            ? (context.trackId ?? undefined)
+            : undefined;
+      return upsertConfig({
+        scopeType,
+        scopeId,
+        bands: safeBands,
+        bassBoost: effects.bassBoost,
+        virtualizer: effects.virtualizer,
+        loudness: effects.loudness,
+        reverbPreset: effects.reverbPreset,
+        reverbAmount: effects.reverbAmount,
+      });
+    },
+    onSuccess: (saved) => {
+      // Don't let the load effect re-flat the editor after the refetch.
+      loadedKeyRef.current = `${scope}:${saved.id}`;
+      void queryClient.invalidateQueries({ queryKey: ["eq", "config"] });
+      void queryClient.invalidateQueries({ queryKey: ["eq", "resolve"] });
+    },
+  });
+
+  // Segment EQ is authored in the segment timeline, not here. Playlist/track
+  // scopes need a live context to attach the config to.
+  const canSave =
+    scope === "global" ||
+    (scope === "playlist" && !!context.playlistId) ||
+    (scope === "track" && !!context.trackId);
+
   return (
     <ClientLayout>
-      <section className="min-h-screen w-full bg-[var(--color-page)] px-4 py-6 text-[var(--color-text)] sm:px-6 xl:px-8">
-        <div className="mx-auto grid max-w-7xl gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(280px,320px)]">
+      <section className="min-h-screen w-full px-4 py-6 text-[var(--color-text)] sm:px-6 xl:px-8">
+        <div className="mx-auto flex max-w-4xl flex-col gap-4">
           {/* MAIN COLUMN */}
-          <div className="flex flex-col gap-6 rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-surface)] p-6 shadow-[0_24px_80px_rgba(0,0,0,0.35)] sm:p-8">
+          <motion.div
+            initial={reduce ? false : { opacity: 0, y: 18 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.45, ease: "easeOut" }}
+            className="relative flex flex-col gap-6 overflow-hidden rounded-[var(--radius-card)] border border-[var(--color-line)] bg-[color-mix(in_srgb,var(--color-surface)_86%,transparent)] p-6 shadow-[0_24px_80px_rgba(0,0,0,0.35)] backdrop-blur-[var(--glass-blur)] sm:p-8"
+          >
+            <Aurora intensity={0.18} />
             {/* Header */}
-            <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="relative flex flex-wrap items-start justify-between gap-4">
               <div>
                 <h1 className="text-2xl font-semibold tracking-tight text-[var(--color-text)] sm:text-3xl">
-                  {t("eq.title")}
+                  <GradientText>{t("eq.title")}</GradientText>
                 </h1>
                 <p className="mt-2 max-w-xl text-sm text-[var(--color-muted)]">
                   {t("eq.subtitle")}
                 </p>
               </div>
 
-              <button
-                type="button"
-                onClick={reset}
-                className="inline-flex items-center gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-alt)] px-4 py-2 text-sm font-medium text-[var(--color-muted)] transition hover:border-[var(--color-primary)] hover:text-[var(--color-text)]"
-              >
-                <RotateCcw className="h-3.5 w-3.5" strokeWidth={2.2} />
-                {t("eq.reset")}
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={reset}
+                  className="inline-flex items-center gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-alt)] px-4 py-2 text-sm font-medium text-[var(--color-muted)] transition hover:border-[var(--color-primary)] hover:text-[var(--color-text)]"
+                >
+                  <RotateCcw className="h-3.5 w-3.5" strokeWidth={2.2} />
+                  {t("eq.reset")}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => saveMutation.mutate()}
+                  disabled={!canSave || saveMutation.isPending}
+                  title={
+                    canSave
+                      ? undefined
+                      : scope === "segment"
+                        ? t("eq.saveSegmentHint", {
+                            defaultValue:
+                              "Los segmentos se editan en el Estudio",
+                          })
+                        : t("eq.saveNoContext", {
+                            defaultValue:
+                              "Reproduce una canción/lista para guardar en este nivel",
+                          })
+                  }
+                  className="inline-flex items-center gap-2 rounded-xl border border-transparent bg-[var(--color-primary)] px-4 py-2 text-sm font-semibold text-[var(--color-primary-contrast)] transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  <Save className="h-3.5 w-3.5" strokeWidth={2.4} />
+                  {saveMutation.isPending
+                    ? t("eq.saving", { defaultValue: "Guardando…" })
+                    : saveMutation.isSuccess
+                      ? t("eq.saved", { defaultValue: "Guardado" })
+                      : t("eq.save", { defaultValue: "Guardar" })}
+                </button>
+              </div>
             </div>
 
-            {/* Scope tabs */}
-            <ScopeTabs active={scope} onSelect={setScope} />
+            {/* Now-playing context strip (pretesis "song/playlist context") */}
+            <div
+              className="flex items-center gap-3.5 rounded-2xl border border-[var(--color-line)] bg-[var(--color-glass)] p-3 px-4"
+              style={{ backdropFilter: "blur(16px)" }}
+            >
+              <div
+                className="h-12 w-12 flex-none overflow-hidden rounded-xl shadow-[0_6px_18px_-6px_rgba(0,0,0,.7)]"
+                style={{
+                  background:
+                    "linear-gradient(135deg,var(--color-primary),var(--color-accent))",
+                }}
+              >
+                {currentTrack?.cover ? (
+                  <img
+                    src={currentTrack.cover}
+                    alt=""
+                    className="h-full w-full object-cover"
+                  />
+                ) : null}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p
+                  className="mb-0.5 text-[var(--color-accent)]"
+                  style={{
+                    font: "700 9.5px var(--font-mono)",
+                    letterSpacing: ".16em",
+                  }}
+                >
+                  {currentTrack
+                    ? t("eq.context.playing", {
+                        defaultValue: "EN REPRODUCCIÓN",
+                      })
+                    : t("eq.context.idle", {
+                        defaultValue: "SIN REPRODUCCIÓN",
+                      })}
+                </p>
+                <p
+                  className="truncate text-[17px] font-bold"
+                  style={{ fontFamily: "var(--font-display)" }}
+                >
+                  {currentTrack
+                    ? currentTrack.title
+                    : t("eq.context.idleTitle", {
+                        defaultValue: "Reproduce una canción para ecualizar",
+                      })}
+                </p>
+              </div>
+              {currentTrack ? (
+                <span className="flex-none text-[12.5px] font-semibold text-[var(--color-muted)]">
+                  {currentTrack.artist}
+                </span>
+              ) : null}
+            </div>
+
+            {/* Cascade — Global → Playlist → Pista → Segmento (live context) */}
+            <EqCascade active={scope} onSelect={setScope} />
 
             {/* Response curve */}
             <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-alt)] p-5">
@@ -286,7 +424,7 @@ export default function Equalizer() {
               <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-muted)]">
                 {t("eq.presets")}
               </h2>
-              <div className="flex gap-2 overflow-x-auto pb-1">
+              <div className="flex flex-wrap gap-2">
                 {presetsLoading ? (
                   Array.from({ length: 6 }).map((_, i) => (
                     <div
@@ -325,12 +463,16 @@ export default function Equalizer() {
               <h2 className="mb-5 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-muted)]">
                 {t("eq.bands")}
               </h2>
-              <div className="flex items-end justify-around gap-1">
+              <div
+                ref={bandsRef}
+                className="flex items-end justify-around gap-1"
+              >
                 {FREQUENCIES.map((hz, i) => {
                   const db = safeBands[i];
                   return (
                     <div
                       key={hz}
+                      data-band
                       className="flex flex-1 flex-col items-center gap-2"
                     >
                       <span
@@ -447,72 +589,50 @@ export default function Equalizer() {
                 </div>
               </div>
             </div>
-          </div>
+          </motion.div>
 
-          {/* RIGHT: AI side panel */}
-          <aside className="flex flex-col gap-4 rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-surface)] p-6 shadow-[0_24px_80px_rgba(0,0,0,0.35)]">
-            <div className="flex items-center gap-2">
-              <span className="relative">
-                <span className="absolute inset-0 -m-1 animate-ping rounded-full bg-[var(--color-accent)]/40" />
-                <Sparkles
-                  className="relative h-4 w-4 text-[var(--color-accent)]"
-                  strokeWidth={2.3}
-                />
-              </span>
-              <div>
-                <h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-[var(--color-text)]">
-                  {t("eq.ai.title")}
-                </h3>
-                <p className="text-[10px] text-[var(--color-muted)]">
-                  {t("eq.ai.subtitle")}
-                </p>
-              </div>
-            </div>
-
+          {/* AI quick row (pretesis) */}
+          <div className="flex flex-col gap-3 rounded-2xl border border-[color-mix(in_srgb,var(--color-primary)_30%,transparent)] bg-[linear-gradient(180deg,color-mix(in_srgb,var(--color-primary)_6%,transparent),color-mix(in_srgb,var(--color-accent)_2%,transparent))] p-4">
             <button
               type="button"
               onClick={openAiPrompt}
-              disabled={!currentTrack}
-              className="group relative overflow-hidden rounded-2xl border border-[var(--color-accent)]/40 bg-[linear-gradient(135deg,var(--color-cta-start)_0%,var(--color-cta-end)_100%)] p-5 text-left text-white shadow-[0_18px_40px_rgba(0,0,0,0.25)] transition hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-50"
+              className="flex items-center gap-3 text-left"
             >
-              <p className="text-base font-semibold tracking-tight">
-                {t("player.ai.quickPrompt")}
-              </p>
-              <p className="mt-1 text-xs text-white/80">
-                {currentTrack ? currentTrack.title : t("player.lyrics.empty")}
-              </p>
-              <div className="absolute -bottom-6 -right-6 h-24 w-24 rounded-full bg-white/10 blur-2xl" />
+              <span
+                className="flex h-8 w-8 flex-none items-center justify-center rounded-[10px] text-white shadow-[0_6px_16px_-4px_var(--color-primary)]"
+                style={{
+                  background:
+                    "linear-gradient(145deg,var(--color-primary),var(--color-accent))",
+                }}
+              >
+                <Sparkles
+                  className="h-[17px] w-[17px]"
+                  fill="currentColor"
+                  stroke="none"
+                />
+              </span>
+              <span className="flex-1 text-[13.5px] font-medium text-[var(--color-muted)]">
+                {t("eq.ai.placeholder", {
+                  defaultValue: "Describe cómo quieres que suene…",
+                })}{" "}
+                <span className="font-bold text-[var(--color-accent)]">
+                  {t("eq.ai.open", { defaultValue: "abrir asistente →" })}
+                </span>
+              </span>
             </button>
-
-            <div className="flex flex-col gap-2">
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-[var(--color-muted)]">
-                Atajos
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {(["warmer", "brighter", "punch", "vocal"] as const).map(
-                  (k) => (
-                    <button
-                      key={k}
-                      type="button"
-                      onClick={openAiPrompt}
-                      disabled={!currentTrack}
-                      className="rounded-full border border-[var(--color-border)] bg-[var(--color-surface-alt)] px-3 py-1.5 text-xs font-medium text-[var(--color-text)] transition hover:border-[var(--color-accent)] hover:text-[var(--color-accent)] disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      {t(`player.ai.chips.${k}`)}
-                    </button>
-                  ),
-                )}
-              </div>
+            <div className="flex flex-wrap gap-2">
+              {(["warmer", "brighter", "punch", "vocal"] as const).map((k) => (
+                <button
+                  key={k}
+                  type="button"
+                  onClick={openAiPrompt}
+                  className="rounded-full border border-[var(--color-line)] bg-white/[0.04] px-3.5 py-1.5 text-xs font-semibold text-[var(--color-muted)] transition hover:scale-105 hover:border-[color-mix(in_srgb,var(--color-accent)_50%,transparent)] hover:text-[var(--color-accent)]"
+                >
+                  {t(`player.ai.chips.${k}`)}
+                </button>
+              ))}
             </div>
-
-            <div className="mt-auto rounded-2xl border border-dashed border-[var(--color-border)] bg-[var(--color-surface-alt)]/50 p-4">
-              <p className="text-[11px] leading-5 text-[var(--color-muted)]">
-                Las sugerencias se aplican al alcance activo (
-                {t(`eq.scope.${scope}`).toLowerCase()}). No son destructivas —
-                siempre puedes descartar.
-              </p>
-            </div>
-          </aside>
+          </div>
         </div>
       </section>
     </ClientLayout>

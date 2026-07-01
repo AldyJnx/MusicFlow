@@ -24,6 +24,8 @@ export interface Track {
   year: number | null;
   durationMs: number;
   coverArt: string | null;
+  /** Public URL of the artist's photo (denormalised from the artist images). */
+  artistImage: string | null;
   fileUrlRemote: string | null;
   /** True when the track belongs to the public catalog (Spotify-style). */
   isCatalog: boolean;
@@ -65,8 +67,13 @@ export async function listTracks(
   return data;
 }
 
-export async function listArtists(): Promise<string[]> {
-  const { data } = await api.get<string[]>("/library/tracks/artists");
+export interface ArtistSummary {
+  name: string;
+  imageUrl: string | null;
+}
+
+export async function listArtists(): Promise<ArtistSummary[]> {
+  const { data } = await api.get<ArtistSummary[]>("/library/tracks/artists");
   return data;
 }
 

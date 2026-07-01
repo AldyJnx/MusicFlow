@@ -14,6 +14,7 @@ import { MailModule } from "./modules/mail/mail.module";
 // Feature modules
 import { AuthModule } from "./modules/auth/auth.module";
 import { LibraryModule } from "./modules/library/library.module";
+import { CatalogModule } from "./modules/catalog/catalog.module";
 import { EqualizerModule } from "./modules/equalizer/equalizer.module";
 import { AiAgentModule } from "./modules/ai-agent/ai-agent.module";
 import { AnalyticsModule } from "./modules/analytics/analytics.module";
@@ -60,6 +61,7 @@ const envFilePath = [
     // Features
     AuthModule,
     LibraryModule,
+    CatalogModule,
     EqualizerModule,
     AiAgentModule,
     AnalyticsModule,

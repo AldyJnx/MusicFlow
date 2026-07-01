@@ -87,7 +87,7 @@ export function useRecordPlays() {
   useEffect(() => {
     const prev = active.current;
     if (prev.id && prev.id !== currentId) {
-      flush({ ...prev });
+      flush({ ...prev, id: prev.id });
     }
     if (prev.id !== currentId) {
       active.current = {
@@ -101,7 +101,8 @@ export function useRecordPlays() {
   // Flush the in-progress track when the player tree unmounts (e.g. logout).
   useEffect(() => {
     return () => {
-      if (active.current.id) flush({ ...active.current });
+      const cur = active.current;
+      if (cur.id) flush({ ...cur, id: cur.id });
     };
   }, [flush]);
 }
