@@ -58,14 +58,20 @@ class ArtistDetailScreen extends ConsumerWidget {
             ),
             data: (response) {
               final tracks = response.tracks;
-              String? coverArt;
+              String? artistImage;
+              String? fallbackCoverArt;
               for (final track in tracks) {
-                final candidate = track.coverArt;
-                if (candidate != null && candidate.isNotEmpty) {
-                  coverArt = candidate;
+                final imageCandidate = track.artistImage;
+                if (imageCandidate != null && imageCandidate.isNotEmpty) {
+                  artistImage = imageCandidate;
                   break;
                 }
+                final candidate = track.coverArt;
+                if (candidate != null && candidate.isNotEmpty) {
+                  fallbackCoverArt ??= candidate;
+                }
               }
+              final profileImage = artistImage ?? fallbackCoverArt;
 
               return SingleChildScrollView(
                 padding: const EdgeInsets.fromLTRB(20, 14, 20, 126),
@@ -97,10 +103,13 @@ class ArtistDetailScreen extends ConsumerWidget {
                         child: SizedBox(
                           width: 148,
                           height: 148,
-                          child: coverArt != null
+                          child: profileImage != null
                               ? Image.network(
-                                  coverArt,
+                                  profileImage,
                                   fit: BoxFit.cover,
+                                  cacheWidth: 320,
+                                  cacheHeight: 320,
+                                  filterQuality: FilterQuality.medium,
                                   errorBuilder: (_, __, ___) =>
                                       const _ArtistFallback(),
                                 )
@@ -256,6 +265,9 @@ class _ArtistTrackTile extends StatelessWidget {
                     ? Image.network(
                         track.coverArt!,
                         fit: BoxFit.cover,
+                        cacheWidth: 112,
+                        cacheHeight: 112,
+                        filterQuality: FilterQuality.low,
                         errorBuilder: (_, __, ___) => const _ArtistFallback(),
                       )
                     : const _ArtistFallback(),

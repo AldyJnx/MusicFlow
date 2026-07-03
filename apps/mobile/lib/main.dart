@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,8 +10,10 @@ import 'package:musicflow_mobile/core/theme/musicflow_theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  PaintingBinding.instance.imageCache.maximumSize = 300;
+  PaintingBinding.instance.imageCache.maximumSizeBytes = 160 << 20;
   await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
-  await initAudioService();
+  unawaited(initAudioService());
   runApp(const ProviderScope(child: MusicFlowApp()));
 }
 

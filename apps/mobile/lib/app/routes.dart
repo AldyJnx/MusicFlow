@@ -28,5 +28,10 @@ abstract final class AppRoutes {
   static const String themes = '/settings/themes';
   static const String premium = '/premium';
   static const String nowPlaying = '/now-playing';
+  static const String lyrics = '/lyrics';
   static const String aiAgent = '/ai-agent';
+
+  static String artistDetail(String artist) {
+    return '${AppRoutes.artist}/${Uri.encodeComponent(artist)}';
+  }
 }

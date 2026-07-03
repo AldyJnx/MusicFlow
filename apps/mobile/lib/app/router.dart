@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:musicflow_mobile/app/routes.dart';
@@ -15,6 +15,7 @@ import 'package:musicflow_mobile/features/equalizer/screens/playlist_equalizer_s
 import 'package:musicflow_mobile/features/equalizer/screens/temporal_segments_screen.dart';
 import 'package:musicflow_mobile/features/library/screens/artist_detail_screen.dart';
 import 'package:musicflow_mobile/features/library/screens/home_screen.dart';
+import 'package:musicflow_mobile/features/player/screens/lyrics_screen.dart';
 import 'package:musicflow_mobile/features/player/screens/now_playing_screen.dart';
 import 'package:musicflow_mobile/features/playlists/screens/playlist_detail_screen.dart';
 import 'package:musicflow_mobile/features/playlists/screens/playlist_screens.dart';
@@ -50,15 +51,18 @@ final routerProvider = Provider<GoRouter>((ref) {
       return null;
     },
     routes: [
-      GoRoute(path: AppRoutes.login, builder: (_, __) => const LoginScreen()),
+      GoRoute(path: AppRoutes.login, builder: (_, _) => const LoginScreen()),
       GoRoute(
         path: AppRoutes.register,
-        builder: (_, __) => const RegisterScreen(),
+        builder: (_, _) => const RegisterScreen(),
       ),
-      GoRoute(path: AppRoutes.home, builder: (_, __) => const HomeScreen()),
+      GoRoute(
+        path: AppRoutes.home,
+        pageBuilder: (_, state) => _instantPage(state, const HomeScreen()),
+      ),
       GoRoute(
         path: AppRoutes.catalog,
-        builder: (_, __) => const CatalogScreen(),
+        builder: (_, _) => const CatalogScreen(),
       ),
       GoRoute(
         path: '${AppRoutes.catalogArtist}/:id',
@@ -76,7 +80,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: AppRoutes.downloads,
-        builder: (_, __) => const DownloadsScreen(),
+        builder: (_, _) => const DownloadsScreen(),
       ),
       GoRoute(
         path: '${AppRoutes.playlist}/:id',
@@ -90,41 +94,42 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '${AppRoutes.artist}/:name',
         builder: (_, state) {
           final rawName = state.pathParameters['name'] ?? '';
-          return ArtistDetailScreen(artist: Uri.decodeComponent(rawName));
+          return ArtistDetailScreen(artist: rawName);
         },
       ),
       GoRoute(
         path: AppRoutes.playlists,
-        builder: (_, __) => const PlaylistScreen(),
+        pageBuilder: (_, state) => _instantPage(state, const PlaylistScreen()),
       ),
       GoRoute(
         path: AppRoutes.profile,
-        builder: (_, __) => const ProfileScreen(),
+        pageBuilder: (_, state) => _instantPage(state, const ProfileScreen()),
       ),
       GoRoute(
         path: AppRoutes.editProfile,
-        builder: (_, __) => const EditProfileScreen(),
+        builder: (_, _) => const EditProfileScreen(),
       ),
       GoRoute(
         path: AppRoutes.paymentMethods,
-        builder: (_, __) => const PaymentMethodsScreen(),
+        builder: (_, _) => const PaymentMethodsScreen(),
       ),
       GoRoute(
         path: AppRoutes.settings,
-        builder: (_, __) => const SettingsScreen(),
+        pageBuilder: (_, state) => _instantPage(state, const SettingsScreen()),
       ),
-      GoRoute(path: AppRoutes.themes, builder: (_, __) => const ThemeScreen()),
+      GoRoute(path: AppRoutes.themes, builder: (_, _) => const ThemeScreen()),
       GoRoute(
         path: AppRoutes.premium,
-        builder: (_, __) => const PremiumScreen(),
+        builder: (_, _) => const PremiumScreen(),
       ),
       GoRoute(
         path: AppRoutes.nowPlaying,
-        builder: (_, __) => const NowPlayingScreen(),
+        builder: (_, _) => const NowPlayingScreen(),
       ),
+      GoRoute(path: AppRoutes.lyrics, builder: (_, _) => const LyricsScreen()),
       GoRoute(
         path: AppRoutes.equalizer,
-        builder: (_, __) => const EqualizerScreen(),
+        pageBuilder: (_, state) => _instantPage(state, const EqualizerScreen()),
       ),
       GoRoute(
         path: '${AppRoutes.playlistEqualizer}/:id',
@@ -136,19 +141,20 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: AppRoutes.temporalSegments,
-        builder: (_, __) => const TemporalSegmentsScreen(),
+        builder: (_, _) => const TemporalSegmentsScreen(),
       ),
-      GoRoute(
-        path: AppRoutes.aiAgent,
-        builder: (_, __) => const AiChatScreen(),
-      ),
+      GoRoute(path: AppRoutes.aiAgent, builder: (_, _) => const AiChatScreen()),
     ],
   );
 });
 
+NoTransitionPage<void> _instantPage(GoRouterState state, Widget child) {
+  return NoTransitionPage<void>(key: state.pageKey, child: child);
+}
+
 /// Bridges Riverpod auth state to GoRouter via Listenable.
 class _AuthNotifier extends ChangeNotifier {
   _AuthNotifier(Ref ref) {
-    ref.listen(authControllerProvider, (_, __) => notifyListeners());
+    ref.listen(authControllerProvider, (_, _) => notifyListeners());
   }
 }

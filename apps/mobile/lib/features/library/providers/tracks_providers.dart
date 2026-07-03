@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:musicflow_mobile/core/providers/providers.dart';
 import 'package:musicflow_mobile/shared/models/track.dart';
@@ -36,6 +38,11 @@ class TracksQuery {
 
 final tracksListProvider = FutureProvider.autoDispose
     .family<TracksListResponse, TracksQuery>((ref, query) {
+      final hasSearch = query.search != null && query.search!.isNotEmpty;
+      _cacheFor(
+        ref,
+        hasSearch ? const Duration(seconds: 45) : const Duration(minutes: 3),
+      );
       return ref
           .watch(tracksRepositoryProvider)
           .listTracks(
@@ -50,6 +57,7 @@ final tracksListProvider = FutureProvider.autoDispose
 
 final savedTracksListProvider = FutureProvider.autoDispose
     .family<TracksListResponse, TracksQuery>((ref, query) {
+      _cacheFor(ref, const Duration(minutes: 2));
       return ref
           .watch(tracksRepositoryProvider)
           .listSavedTracks(
@@ -61,17 +69,20 @@ final savedTracksListProvider = FutureProvider.autoDispose
 
 final recentlyPlayedTracksProvider = FutureProvider.autoDispose
     .family<List<Track>, int>((ref, limit) {
+      _cacheFor(ref, const Duration(minutes: 1));
       return ref
           .watch(analyticsRepositoryProvider)
           .getRecentlyPlayed(limit: limit);
     });
 
 final artistsProvider = FutureProvider.autoDispose<List<String>>((ref) {
+  _cacheFor(ref, const Duration(minutes: 2));
   return ref.watch(tracksRepositoryProvider).listArtists();
 });
 
 final savedTrackIdsProvider = FutureProvider.autoDispose
     .family<Set<String>, String>((ref, trackIdsKey) {
+      _cacheFor(ref, const Duration(minutes: 2));
       final ids = trackIdsKey
           .split('|')
           .map((id) => id.trim())
@@ -79,3 +90,9 @@ final savedTrackIdsProvider = FutureProvider.autoDispose
           .toList(growable: false);
       return ref.watch(tracksRepositoryProvider).getSavedTrackIds(ids);
     });
+
+void _cacheFor(Ref ref, Duration duration) {
+  final link = ref.keepAlive();
+  final timer = Timer(duration, link.close);
+  ref.onDispose(timer.cancel);
+}

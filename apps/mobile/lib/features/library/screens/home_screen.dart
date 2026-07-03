@@ -39,18 +39,30 @@ class HomeScreen extends ConsumerStatefulWidget {
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   final _searchController = TextEditingController();
+  final Set<String> _preloadedImageUrls = <String>{};
   Timer? _debounce;
+  Timer? _secondaryLoadTimer;
+  bool _loadSecondaryContent = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _secondaryLoadTimer = Timer(const Duration(milliseconds: 180), () {
+      if (mounted) setState(() => _loadSecondaryContent = true);
+    });
+  }
 
   @override
   void dispose() {
     _searchController.dispose();
     _debounce?.cancel();
+    _secondaryLoadTimer?.cancel();
     super.dispose();
   }
 
   void _onSearchChanged(String value) {
     _debounce?.cancel();
-    _debounce = Timer(const Duration(milliseconds: 400), () {
+    _debounce = Timer(const Duration(milliseconds: 160), () {
       if (mounted) {
         ref.read(_tracksQueryProvider.notifier).state = value.trim();
       }
@@ -95,8 +107,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       take: 5,
     );
     final tracksAsync = ref.watch(tracksListProvider(tracksQuery));
-    final recentlyPlayedAsync = ref.watch(recentlyPlayedTracksProvider(5));
-    final artistsAsync = ref.watch(artistsProvider);
+    final recentlyPlayedAsync = _loadSecondaryContent && searchQuery.isEmpty
+        ? ref.watch(recentlyPlayedTracksProvider(5))
+        : const AsyncValue<List<Track>>.data(<Track>[]);
     final followedArtists = ref.watch(followedArtistsProvider);
 
     return Scaffold(
@@ -188,7 +201,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       context,
                       theme,
                       searchQuery,
-                      artistsAsync,
                       tracksAsync,
                     ),
                     const SizedBox(height: 24),
@@ -315,6 +327,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           response.tracks,
                           followedArtists,
                         );
+                        _precacheTrackImages(tracks);
                         if (tracks.isEmpty) {
                           return const _SongsLoadMessage(
                             message: 'Aun no hay canciones disponibles.',
@@ -354,7 +367,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                 await ref
                                     .read(playerControllerProvider.notifier)
                                     .playTrackList(tracks, startIndex: index);
-                                if (mounted) context.push(AppRoutes.equalizer);
+                                if (context.mounted) {
+                                  context.push(AppRoutes.equalizer);
+                                }
                               },
                             );
                           },
@@ -404,6 +419,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           response.tracks,
                           followedArtists,
                         );
+                        _precacheTrackImages(tracks);
                         return _buildVerticalTrackList(
                           theme: theme,
                           tracks: tracks,
@@ -638,16 +654,36 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     BuildContext context,
     ThemeData theme,
     String query,
-    AsyncValue<List<String>> artistsAsync,
     AsyncValue<TracksListResponse> tracksAsync,
   ) {
     final normalizedQuery = query.toLowerCase();
-    final artists = artistsAsync.maybeWhen(
-      data: (items) => items
-          .where((artist) => artist.toLowerCase().contains(normalizedQuery))
-          .take(4)
-          .toList(),
-      orElse: () => const <String>[],
+    final artists = tracksAsync.maybeWhen(
+      data: (response) {
+        _precacheTrackImages(response.tracks);
+        final byArtist = <String, _ArtistSearchResult>{};
+        for (final track in response.tracks) {
+          final artist = track.artist.trim();
+          if (artist.isEmpty) continue;
+          if (!artist.toLowerCase().contains(normalizedQuery)) continue;
+
+          final key = artist.toLowerCase();
+          final image = _bestArtistImage(track);
+          final existing = byArtist[key];
+          if (existing == null) {
+            byArtist[key] = _ArtistSearchResult(name: artist, imageUrl: image);
+          } else if ((existing.imageUrl == null ||
+                  existing.imageUrl!.isEmpty) &&
+              image != null &&
+              image.isNotEmpty) {
+            byArtist[key] = _ArtistSearchResult(
+              name: existing.name,
+              imageUrl: image,
+            );
+          }
+        }
+        return byArtist.values.take(4).toList(growable: false);
+      },
+      orElse: () => const <_ArtistSearchResult>[],
     );
 
     return Container(
@@ -661,7 +697,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (artistsAsync.isLoading || tracksAsync.isLoading)
+          if (tracksAsync.isLoading)
             const LinearProgressIndicator(
               minHeight: 2,
               color: HomeScreen._accentCyan,
@@ -679,12 +715,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             ...artists.map(
               (artist) => _SearchResultTile(
                 icon: Icons.person_rounded,
-                title: artist,
+                title: artist.name,
                 subtitle: 'Perfil del artista',
+                coverArt: artist.imageUrl,
                 onTap: () {
-                  context.push(
-                    '${AppRoutes.artist}/${Uri.encodeComponent(artist)}',
-                  );
+                  context.push(AppRoutes.artistDetail(artist.name));
                 },
               ),
             ),
@@ -740,11 +775,46 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       ),
     );
   }
+
+  String? _bestArtistImage(Track track) {
+    final artistImage = track.artistImage;
+    if (artistImage != null && artistImage.isNotEmpty) return artistImage;
+    final coverArt = track.coverArt;
+    if (coverArt != null && coverArt.isNotEmpty) return coverArt;
+    return null;
+  }
+
+  void _precacheTrackImages(List<Track> tracks) {
+    final urls = tracks
+        .take(8)
+        .expand((track) => [track.coverArt, track.artistImage])
+        .whereType<String>()
+        .where((url) => url.isNotEmpty && _preloadedImageUrls.add(url))
+        .toList(growable: false);
+    if (urls.isEmpty) return;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      for (final url in urls) {
+        precacheImage(
+          ResizeImage.resizeIfNeeded(320, 320, NetworkImage(url)),
+          context,
+        );
+      }
+    });
+  }
 }
 
 // ---------------------------------------------------------------------------
 // Track card
 // ---------------------------------------------------------------------------
+
+class _ArtistSearchResult {
+  const _ArtistSearchResult({required this.name, this.imageUrl});
+
+  final String name;
+  final String? imageUrl;
+}
 
 class _SongPreviewCard extends StatelessWidget {
   const _SongPreviewCard({
@@ -794,6 +864,9 @@ class _SongPreviewCard extends StatelessWidget {
                 Image.network(
                   track.coverArt!,
                   fit: BoxFit.cover,
+                  cacheWidth: 320,
+                  cacheHeight: 320,
+                  filterQuality: FilterQuality.low,
                   errorBuilder: (_, __, ___) => const _SongIcon(),
                 )
               else
@@ -901,6 +974,9 @@ class _SearchResultTile extends StatelessWidget {
                     ? Image.network(
                         coverArt!,
                         fit: BoxFit.cover,
+                        cacheWidth: 96,
+                        cacheHeight: 96,
+                        filterQuality: FilterQuality.low,
                         errorBuilder: (_, __, ___) => _SearchFallback(icon),
                       )
                     : _SearchFallback(icon),
@@ -1075,6 +1151,9 @@ class _TrackCard extends StatelessWidget {
                     ? Image.network(
                         track.coverArt!,
                         fit: BoxFit.cover,
+                        cacheWidth: 112,
+                        cacheHeight: 112,
+                        filterQuality: FilterQuality.low,
                         errorBuilder: (ctx, err, st) => _coverPlaceholder(),
                       )
                     : _coverPlaceholder(),

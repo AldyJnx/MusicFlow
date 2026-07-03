@@ -22,16 +22,27 @@ Track _$TrackFromJson(Map<String, dynamic> json) {
 /// @nodoc
 mixin _$Track {
   String get id => throw _privateConstructorUsedError;
+  @JsonKey(fromJson: _stringFromJson)
   String get userId => throw _privateConstructorUsedError;
+  @JsonKey(fromJson: _stringFromJson)
   String get title => throw _privateConstructorUsedError;
+  @JsonKey(fromJson: _artistNameFromJson)
   String get artist => throw _privateConstructorUsedError;
+  @JsonKey(fromJson: _albumTitleFromJson)
   String get album => throw _privateConstructorUsedError;
+  @JsonKey(fromJson: _nullableStringFromJson)
   String? get albumArtist => throw _privateConstructorUsedError;
+  @JsonKey(fromJson: _nullableStringFromJson)
   String? get genre => throw _privateConstructorUsedError;
   int? get year => throw _privateConstructorUsedError;
   int get durationMs => throw _privateConstructorUsedError;
+  @JsonKey(fromJson: _nullableUrlFromJson)
   String? get coverArt => throw _privateConstructorUsedError;
+  @JsonKey(fromJson: _nullableUrlFromJson)
+  String? get artistImage => throw _privateConstructorUsedError;
+  @JsonKey(fromJson: _nullableUrlFromJson)
   String? get fileUrlRemote => throw _privateConstructorUsedError;
+  @JsonKey(fromJson: _nullableStringFromJson)
   String? get filePathLocal => throw _privateConstructorUsedError;
   TrackSource get source => throw _privateConstructorUsedError;
   SyncStatus get syncStatus => throw _privateConstructorUsedError;
@@ -54,17 +65,18 @@ abstract class $TrackCopyWith<$Res> {
   @useResult
   $Res call({
     String id,
-    String userId,
-    String title,
-    String artist,
-    String album,
-    String? albumArtist,
-    String? genre,
+    @JsonKey(fromJson: _stringFromJson) String userId,
+    @JsonKey(fromJson: _stringFromJson) String title,
+    @JsonKey(fromJson: _artistNameFromJson) String artist,
+    @JsonKey(fromJson: _albumTitleFromJson) String album,
+    @JsonKey(fromJson: _nullableStringFromJson) String? albumArtist,
+    @JsonKey(fromJson: _nullableStringFromJson) String? genre,
     int? year,
     int durationMs,
-    String? coverArt,
-    String? fileUrlRemote,
-    String? filePathLocal,
+    @JsonKey(fromJson: _nullableUrlFromJson) String? coverArt,
+    @JsonKey(fromJson: _nullableUrlFromJson) String? artistImage,
+    @JsonKey(fromJson: _nullableUrlFromJson) String? fileUrlRemote,
+    @JsonKey(fromJson: _nullableStringFromJson) String? filePathLocal,
     TrackSource source,
     SyncStatus syncStatus,
     DateTime createdAt,
@@ -97,6 +109,7 @@ class _$TrackCopyWithImpl<$Res, $Val extends Track>
     Object? year = freezed,
     Object? durationMs = null,
     Object? coverArt = freezed,
+    Object? artistImage = freezed,
     Object? fileUrlRemote = freezed,
     Object? filePathLocal = freezed,
     Object? source = null,
@@ -146,6 +159,10 @@ class _$TrackCopyWithImpl<$Res, $Val extends Track>
                 ? _value.coverArt
                 : coverArt // ignore: cast_nullable_to_non_nullable
                       as String?,
+            artistImage: freezed == artistImage
+                ? _value.artistImage
+                : artistImage // ignore: cast_nullable_to_non_nullable
+                      as String?,
             fileUrlRemote: freezed == fileUrlRemote
                 ? _value.fileUrlRemote
                 : fileUrlRemote // ignore: cast_nullable_to_non_nullable
@@ -186,17 +203,18 @@ abstract class _$$TrackImplCopyWith<$Res> implements $TrackCopyWith<$Res> {
   @useResult
   $Res call({
     String id,
-    String userId,
-    String title,
-    String artist,
-    String album,
-    String? albumArtist,
-    String? genre,
+    @JsonKey(fromJson: _stringFromJson) String userId,
+    @JsonKey(fromJson: _stringFromJson) String title,
+    @JsonKey(fromJson: _artistNameFromJson) String artist,
+    @JsonKey(fromJson: _albumTitleFromJson) String album,
+    @JsonKey(fromJson: _nullableStringFromJson) String? albumArtist,
+    @JsonKey(fromJson: _nullableStringFromJson) String? genre,
     int? year,
     int durationMs,
-    String? coverArt,
-    String? fileUrlRemote,
-    String? filePathLocal,
+    @JsonKey(fromJson: _nullableUrlFromJson) String? coverArt,
+    @JsonKey(fromJson: _nullableUrlFromJson) String? artistImage,
+    @JsonKey(fromJson: _nullableUrlFromJson) String? fileUrlRemote,
+    @JsonKey(fromJson: _nullableStringFromJson) String? filePathLocal,
     TrackSource source,
     SyncStatus syncStatus,
     DateTime createdAt,
@@ -228,6 +246,7 @@ class __$$TrackImplCopyWithImpl<$Res>
     Object? year = freezed,
     Object? durationMs = null,
     Object? coverArt = freezed,
+    Object? artistImage = freezed,
     Object? fileUrlRemote = freezed,
     Object? filePathLocal = freezed,
     Object? source = null,
@@ -277,6 +296,10 @@ class __$$TrackImplCopyWithImpl<$Res>
             ? _value.coverArt
             : coverArt // ignore: cast_nullable_to_non_nullable
                   as String?,
+        artistImage: freezed == artistImage
+            ? _value.artistImage
+            : artistImage // ignore: cast_nullable_to_non_nullable
+                  as String?,
         fileUrlRemote: freezed == fileUrlRemote
             ? _value.fileUrlRemote
             : fileUrlRemote // ignore: cast_nullable_to_non_nullable
@@ -311,17 +334,18 @@ class __$$TrackImplCopyWithImpl<$Res>
 class _$TrackImpl implements _Track {
   const _$TrackImpl({
     required this.id,
-    required this.userId,
-    required this.title,
-    required this.artist,
-    required this.album,
-    this.albumArtist,
-    this.genre,
+    @JsonKey(fromJson: _stringFromJson) required this.userId,
+    @JsonKey(fromJson: _stringFromJson) required this.title,
+    @JsonKey(fromJson: _artistNameFromJson) required this.artist,
+    @JsonKey(fromJson: _albumTitleFromJson) required this.album,
+    @JsonKey(fromJson: _nullableStringFromJson) this.albumArtist,
+    @JsonKey(fromJson: _nullableStringFromJson) this.genre,
     this.year,
     required this.durationMs,
-    this.coverArt,
-    this.fileUrlRemote,
-    this.filePathLocal,
+    @JsonKey(fromJson: _nullableUrlFromJson) this.coverArt,
+    @JsonKey(fromJson: _nullableUrlFromJson) this.artistImage,
+    @JsonKey(fromJson: _nullableUrlFromJson) this.fileUrlRemote,
+    @JsonKey(fromJson: _nullableStringFromJson) this.filePathLocal,
     this.source = TrackSource.local,
     this.syncStatus = SyncStatus.pending,
     required this.createdAt,
@@ -334,26 +358,38 @@ class _$TrackImpl implements _Track {
   @override
   final String id;
   @override
+  @JsonKey(fromJson: _stringFromJson)
   final String userId;
   @override
+  @JsonKey(fromJson: _stringFromJson)
   final String title;
   @override
+  @JsonKey(fromJson: _artistNameFromJson)
   final String artist;
   @override
+  @JsonKey(fromJson: _albumTitleFromJson)
   final String album;
   @override
+  @JsonKey(fromJson: _nullableStringFromJson)
   final String? albumArtist;
   @override
+  @JsonKey(fromJson: _nullableStringFromJson)
   final String? genre;
   @override
   final int? year;
   @override
   final int durationMs;
   @override
+  @JsonKey(fromJson: _nullableUrlFromJson)
   final String? coverArt;
   @override
+  @JsonKey(fromJson: _nullableUrlFromJson)
+  final String? artistImage;
+  @override
+  @JsonKey(fromJson: _nullableUrlFromJson)
   final String? fileUrlRemote;
   @override
+  @JsonKey(fromJson: _nullableStringFromJson)
   final String? filePathLocal;
   @override
   @JsonKey()
@@ -368,7 +404,7 @@ class _$TrackImpl implements _Track {
 
   @override
   String toString() {
-    return 'Track(id: $id, userId: $userId, title: $title, artist: $artist, album: $album, albumArtist: $albumArtist, genre: $genre, year: $year, durationMs: $durationMs, coverArt: $coverArt, fileUrlRemote: $fileUrlRemote, filePathLocal: $filePathLocal, source: $source, syncStatus: $syncStatus, createdAt: $createdAt, updatedAt: $updatedAt)';
+    return 'Track(id: $id, userId: $userId, title: $title, artist: $artist, album: $album, albumArtist: $albumArtist, genre: $genre, year: $year, durationMs: $durationMs, coverArt: $coverArt, artistImage: $artistImage, fileUrlRemote: $fileUrlRemote, filePathLocal: $filePathLocal, source: $source, syncStatus: $syncStatus, createdAt: $createdAt, updatedAt: $updatedAt)';
   }
 
   @override
@@ -389,6 +425,8 @@ class _$TrackImpl implements _Track {
                 other.durationMs == durationMs) &&
             (identical(other.coverArt, coverArt) ||
                 other.coverArt == coverArt) &&
+            (identical(other.artistImage, artistImage) ||
+                other.artistImage == artistImage) &&
             (identical(other.fileUrlRemote, fileUrlRemote) ||
                 other.fileUrlRemote == fileUrlRemote) &&
             (identical(other.filePathLocal, filePathLocal) ||
@@ -416,6 +454,7 @@ class _$TrackImpl implements _Track {
     year,
     durationMs,
     coverArt,
+    artistImage,
     fileUrlRemote,
     filePathLocal,
     source,
@@ -441,17 +480,18 @@ class _$TrackImpl implements _Track {
 abstract class _Track implements Track {
   const factory _Track({
     required final String id,
-    required final String userId,
-    required final String title,
-    required final String artist,
-    required final String album,
-    final String? albumArtist,
-    final String? genre,
+    @JsonKey(fromJson: _stringFromJson) required final String userId,
+    @JsonKey(fromJson: _stringFromJson) required final String title,
+    @JsonKey(fromJson: _artistNameFromJson) required final String artist,
+    @JsonKey(fromJson: _albumTitleFromJson) required final String album,
+    @JsonKey(fromJson: _nullableStringFromJson) final String? albumArtist,
+    @JsonKey(fromJson: _nullableStringFromJson) final String? genre,
     final int? year,
     required final int durationMs,
-    final String? coverArt,
-    final String? fileUrlRemote,
-    final String? filePathLocal,
+    @JsonKey(fromJson: _nullableUrlFromJson) final String? coverArt,
+    @JsonKey(fromJson: _nullableUrlFromJson) final String? artistImage,
+    @JsonKey(fromJson: _nullableUrlFromJson) final String? fileUrlRemote,
+    @JsonKey(fromJson: _nullableStringFromJson) final String? filePathLocal,
     final TrackSource source,
     final SyncStatus syncStatus,
     required final DateTime createdAt,
@@ -463,26 +503,38 @@ abstract class _Track implements Track {
   @override
   String get id;
   @override
+  @JsonKey(fromJson: _stringFromJson)
   String get userId;
   @override
+  @JsonKey(fromJson: _stringFromJson)
   String get title;
   @override
+  @JsonKey(fromJson: _artistNameFromJson)
   String get artist;
   @override
+  @JsonKey(fromJson: _albumTitleFromJson)
   String get album;
   @override
+  @JsonKey(fromJson: _nullableStringFromJson)
   String? get albumArtist;
   @override
+  @JsonKey(fromJson: _nullableStringFromJson)
   String? get genre;
   @override
   int? get year;
   @override
   int get durationMs;
   @override
+  @JsonKey(fromJson: _nullableUrlFromJson)
   String? get coverArt;
   @override
+  @JsonKey(fromJson: _nullableUrlFromJson)
+  String? get artistImage;
+  @override
+  @JsonKey(fromJson: _nullableUrlFromJson)
   String? get fileUrlRemote;
   @override
+  @JsonKey(fromJson: _nullableStringFromJson)
   String? get filePathLocal;
   @override
   TrackSource get source;
