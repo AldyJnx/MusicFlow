@@ -22,7 +22,7 @@ import { PrismaClient } from "@prisma/client";
 function loadEnv() {
   const text = readFileSync(join(__dirname, "..", ".env"), "utf8");
   for (const line of text.split(/\r?\n/)) {
-    const m = line.match(/^([A-Z0-9_]+)=(.*)$/);
+    const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*)$/);
     if (m && process.env[m[1]] === undefined) {
       process.env[m[1]] = m[2].trim().replace(/^(['"])(.*)\1$/, "$2");
     }
@@ -149,7 +149,9 @@ async function main() {
       await s3.send(
         new CopyObjectCommand({
           Bucket: process.env.R2_BUCKET_IMAGES!,
-          CopySource: encodeURI(`${process.env.R2_BUCKET_ARTIST_IMAGES}/${key}`),
+          CopySource: encodeURI(
+            `${process.env.R2_BUCKET_ARTIST_IMAGES}/${key}`,
+          ),
           Key: destKey,
           ContentType: "image/webp",
           MetadataDirective: "REPLACE",
@@ -159,12 +161,17 @@ async function main() {
       console.warn(`  copy failed for ${key}: ${(e as Error).name}`);
       continue;
     }
-    imgByNorm.set(norm(name), publicUrl(process.env.R2_PUBLIC_IMAGES_URL!, destKey));
+    imgByNorm.set(
+      norm(name),
+      publicUrl(process.env.R2_PUBLIC_IMAGES_URL!, destKey),
+    );
   }
 
   // Resolve an image URL for an artist: exact → containment → manual alias.
   const ALIAS: Record<string, string> = {
     "billie eilish": "billie elish",
+    "the black eyed peas": "black eyed peas",
+    "the smiths": "smiths",
     "maroon 5": "marron 5",
     "guns n' roses": "guns and roses",
     camila: "camila grupo",
@@ -202,7 +209,8 @@ async function main() {
   console.log(
     `Artist images: applied to ${imgSet} tracks across ${artists.length - unmatched.length}/${artists.length} artists.`,
   );
-  if (unmatched.length) console.log(`  Unmatched artists: ${unmatched.join(", ")}`);
+  if (unmatched.length)
+    console.log(`  Unmatched artists: ${unmatched.join(", ")}`);
 }
 
 main()

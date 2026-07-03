@@ -5,6 +5,7 @@ import {
   PutObjectCommand,
   DeleteObjectCommand,
   GetObjectCommand,
+  S3ServiceException,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { v4 as uuidv4 } from "uuid";
@@ -173,6 +174,29 @@ export class StorageService {
       Key: key,
     });
     return getSignedUrl(this.s3, command, { expiresIn: expiresInSeconds });
+  }
+
+  async getTextObject(
+    bucket: StorageBucket,
+    key: string,
+  ): Promise<string | null> {
+    try {
+      const res = await this.s3.send(
+        new GetObjectCommand({
+          Bucket: this.buckets[bucket].name,
+          Key: key,
+        }),
+      );
+      return (await res.Body?.transformToString("utf-8")) ?? null;
+    } catch (error) {
+      if (
+        error instanceof S3ServiceException &&
+        (error.name === "NoSuchKey" || error.$metadata.httpStatusCode === 404)
+      ) {
+        return null;
+      }
+      throw error;
+    }
   }
 
   /** @deprecated Use getSignedDownloadUrl. */

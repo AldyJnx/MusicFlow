@@ -13,6 +13,14 @@ import {
 } from "@/common/audio/track-metadata";
 import { Prisma, TrackSource, SyncStatus } from "@prisma/client";
 
+function hasLrcTimestamps(value: string): boolean {
+  return /\[\d{1,2}:\d{2}(?:\.\d{1,3})?\]/.test(value);
+}
+
+function uniqueKeys(keys: string[]): string[] {
+  return [...new Set(keys.map((key) => key.trim()).filter(Boolean))];
+}
+
 @Injectable()
 export class TracksService {
   private readonly logger = new Logger(TracksService.name);
@@ -196,19 +204,56 @@ export class TracksService {
   async getLyrics(id: string, userId: string) {
     const track = await this.prisma.track.findFirst({
       where: { id, OR: [{ userId }, { isCatalog: true }] },
-      select: { id: true, lyricsLrc: true, lyricsText: true },
+      select: {
+        id: true,
+        artist: true,
+        title: true,
+        lyricsLrc: true,
+        lyricsText: true,
+      },
     });
 
     if (!track) {
       throw new NotFoundException("Track not found");
     }
 
+    const bucketLrc = await this.findLyricsInBucket(track);
+    const lrc = bucketLrc ?? track.lyricsLrc ?? null;
+    const text =
+      track.lyricsText ?? (lrc && !hasLrcTimestamps(lrc) ? lrc : null);
+
     return {
       trackId: track.id,
-      lrc: track.lyricsLrc ?? null,
-      text: track.lyricsText ?? null,
-      hasLyrics: Boolean(track.lyricsLrc || track.lyricsText),
+      lrc,
+      text,
+      hasLyrics: Boolean(lrc || text),
     };
+  }
+
+  private async findLyricsInBucket(track: {
+    id: string;
+    artist: string;
+    title: string;
+  }): Promise<string | null> {
+    const keys = [
+      `${track.id}.lrc`,
+      `${track.artist} - ${track.title}.lrc`,
+      `${track.artist}-${track.title}.lrc`,
+    ];
+
+    for (const key of uniqueKeys(keys)) {
+      try {
+        const lrc = await this.storage.getTextObject("lyrics", key);
+        if (lrc?.trim()) return lrc;
+      } catch (err) {
+        this.logger.warn(
+          `Lyrics bucket read failed for ${track.id}/${key}: ${
+            (err as Error).message
+          }`,
+        );
+      }
+    }
+    return null;
   }
 
   async create(userId: string, data: Prisma.TrackCreateWithoutUserInput) {

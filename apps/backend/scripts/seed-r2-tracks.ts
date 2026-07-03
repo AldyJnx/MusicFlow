@@ -337,7 +337,9 @@ async function main() {
   console.log("  owner =", owner.email, `(${owner.id})`);
 
   console.log("→ Listing R2 buckets");
-  const audios = await listAll(process.env.R2_BUCKET_AUDIO!);
+  const audios = (await listAll(process.env.R2_BUCKET_AUDIO!)).filter((item) =>
+    isSeedAudioObject(item.Key),
+  );
   const covers = await listAll(process.env.R2_BUCKET_IMAGES!);
   console.log(`  audio: ${audios.length} objects · images: ${covers.length}`);
 
@@ -572,6 +574,11 @@ async function main() {
     })`,
   );
   await prisma.$disconnect();
+}
+
+function isSeedAudioObject(key: string): boolean {
+  if (key.includes("/")) return false;
+  return /\.(wav|mp3|flac|ogg|m4a|mpeg)$/i.test(key);
 }
 
 main().catch(async (e) => {
