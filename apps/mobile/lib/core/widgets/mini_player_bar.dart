@@ -11,8 +11,12 @@ class MiniPlayerBar extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = context.musicFlowColors;
-    final player = ref.watch(playerControllerProvider);
-    final track = player.currentTrack;
+    final track = ref.watch(
+      playerControllerProvider.select((state) => state.currentTrack),
+    );
+    final isPlaying = ref.watch(
+      playerControllerProvider.select((state) => state.isPlaying),
+    );
 
     if (track == null) {
       return const SizedBox.shrink();
@@ -58,7 +62,10 @@ class MiniPlayerBar extends ConsumerWidget {
                           ? Image.network(
                               track.coverArt!,
                               fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) =>
+                              cacheWidth: 96,
+                              cacheHeight: 96,
+                              filterQuality: FilterQuality.low,
+                              errorBuilder: (_, _, _) =>
                                   const _MiniCoverPlaceholder(),
                             )
                           : const _MiniCoverPlaceholder(),
@@ -126,7 +133,7 @@ class MiniPlayerBar extends ConsumerWidget {
                           .read(playerControllerProvider.notifier)
                           .togglePlay(),
                       icon: Icon(
-                        player.isPlaying
+                        isPlaying
                             ? Icons.pause_rounded
                             : Icons.play_arrow_rounded,
                         color: colors.background,

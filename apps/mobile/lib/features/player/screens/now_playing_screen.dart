@@ -25,6 +25,11 @@ class NowPlayingScreen extends ConsumerWidget {
               .watch(savedTrackIdsProvider(track.id))
               .maybeWhen(data: (ids) => ids, orElse: () => const <String>{});
     final isSaved = track != null && savedIds.contains(track.id);
+    final hasPrevious =
+        track != null &&
+        (player.queueIndex > 0 || player.position > const Duration(seconds: 3));
+    final hasNext =
+        track != null && player.queueIndex < player.queue.length - 1;
     final progress = player.duration.inMilliseconds <= 0
         ? 0.0
         : (player.position.inMilliseconds / player.duration.inMilliseconds)
@@ -205,9 +210,10 @@ class NowPlayingScreen extends ConsumerWidget {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     IconButton(
-                      onPressed: controller.previous,
+                      onPressed: hasPrevious ? controller.previous : null,
                       icon: const Icon(Icons.skip_previous_rounded),
                       color: Colors.white,
+                      disabledColor: Colors.white24,
                       iconSize: 38,
                     ),
                     const SizedBox(width: 18),
@@ -238,9 +244,10 @@ class NowPlayingScreen extends ConsumerWidget {
                     ),
                     const SizedBox(width: 18),
                     IconButton(
-                      onPressed: controller.next,
+                      onPressed: hasNext ? controller.next : null,
                       icon: const Icon(Icons.skip_next_rounded),
                       color: Colors.white,
+                      disabledColor: Colors.white24,
                       iconSize: 38,
                     ),
                   ],
@@ -261,10 +268,7 @@ class NowPlayingScreen extends ConsumerWidget {
                       color: colors.primary,
                       onPressed: track == null
                           ? null
-                          : () => _showComingSoon(
-                              context,
-                              'Lyrics y karaoke proximamente.',
-                            ),
+                          : () => context.push(AppRoutes.lyrics),
                     ),
                   ],
                 ),
@@ -280,12 +284,6 @@ class NowPlayingScreen extends ConsumerWidget {
     final minutes = duration.inMinutes;
     final seconds = duration.inSeconds.remainder(60);
     return '$minutes:${seconds.toString().padLeft(2, '0')}';
-  }
-
-  void _showComingSoon(BuildContext context, String message) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<void> _openCastPicker(BuildContext context) async {

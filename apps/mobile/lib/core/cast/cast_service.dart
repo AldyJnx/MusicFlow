@@ -11,7 +11,8 @@ class CastService {
     if (!Platform.isAndroid) {
       return const CastLaunchResult(
         opened: false,
-        message: 'La conexion a TV por Miracast esta disponible desde Android.',
+        message:
+            'Transmitir audio a TV requiere Google Cast o un receiver compatible.',
       );
     }
 
@@ -20,7 +21,7 @@ class CastService {
       return CastLaunchResult(
         opened: opened ?? false,
         message: opened == true
-            ? 'Selecciona tu TV desde el panel de transmision.'
+            ? 'Se abrieron los ajustes de transmision. Audio Cast real requiere Google Cast SDK.'
             : 'No se pudo abrir el panel de transmision.',
       );
     } on PlatformException catch (error) {
@@ -31,7 +32,8 @@ class CastService {
     } on MissingPluginException {
       return const CastLaunchResult(
         opened: false,
-        message: 'La transmision no esta disponible en este dispositivo.',
+        message:
+            'Audio Cast real aun no esta integrado. Requiere Google Cast SDK y un receiver.',
       );
     }
   }

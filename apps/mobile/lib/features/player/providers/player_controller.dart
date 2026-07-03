@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:musicflow_mobile/core/audio/audio_service_init.dart';
+import 'package:musicflow_mobile/core/audio/musicflow_audio_handler.dart';
 import 'package:musicflow_mobile/core/providers/providers.dart';
 import 'package:musicflow_mobile/features/downloads/providers/downloads_providers.dart';
 import 'package:musicflow_mobile/features/library/providers/tracks_providers.dart';
@@ -61,7 +62,7 @@ class PlayerState {
 
 class PlayerController extends StateNotifier<PlayerState> {
   PlayerController(this._ref) : super(const PlayerState()) {
-    _listenToHandler();
+    unawaited(_listenToHandler());
   }
 
   final Ref _ref;
@@ -79,9 +80,9 @@ class PlayerController extends StateNotifier<PlayerState> {
   /// been downloaded, the local file URI replaces the remote URL so playback
   /// works offline ("auto-switch back to local when available").
   MediaItem _toMediaItem(Track track) {
-    final localUri = _ref.read(downloadsControllerProvider).localUriFor(
-      track.id,
-    );
+    final localUri = _ref
+        .read(downloadsControllerProvider)
+        .localUriFor(track.id);
     return MediaItem(
       id: track.id,
       title: track.title,
@@ -94,10 +95,13 @@ class PlayerController extends StateNotifier<PlayerState> {
   }
 
   /// Wires handler streams → local [PlayerState].
-  void _listenToHandler() {
+  Future<MusicFlowAudioHandler> _handler() => initAudioService();
+
+  Future<void> _listenToHandler() async {
+    final handler = await _handler();
     // Playback state (playing flag + position).
     _subs.add(
-      audioHandler.playbackState.listen((ps) {
+      handler.playbackState.listen((ps) {
         state = state.copyWith(
           isPlaying: ps.playing,
           position: ps.updatePosition,
@@ -108,7 +112,7 @@ class PlayerController extends StateNotifier<PlayerState> {
 
     // Current media item (track metadata + duration).
     _subs.add(
-      audioHandler.mediaItem.listen((item) {
+      handler.mediaItem.listen((item) {
         if (item == null) return;
         if (_expectedMediaItemId != null && item.id != _expectedMediaItemId) {
           return;
@@ -145,63 +149,109 @@ class PlayerController extends StateNotifier<PlayerState> {
     String? playlistId,
     bool clearPlaylistContext = false,
   }) async {
+    final selectedTrackId = tracks.isEmpty
+        ? null
+        : tracks[startIndex.clamp(0, tracks.length - 1)].id;
     final validTracks = tracks
         .where((t) => t.fileUrlRemote != null && t.fileUrlRemote!.isNotEmpty)
         .toList();
     if (validTracks.isEmpty) return;
 
-    final clampedIndex = startIndex.clamp(0, validTracks.length - 1);
-    final items = validTracks.map(_toMediaItem).toList();
-    await _recordCurrentPlay(skipped: true);
+    final selectedValidIndex = selectedTrackId == null
+        ? -1
+        : validTracks.indexWhere((track) => track.id == selectedTrackId);
+    final clampedIndex = selectedValidIndex == -1
+        ? startIndex.clamp(0, validTracks.length - 1)
+        : selectedValidIndex;
+    unawaited(_recordCurrentPlay(skipped: true));
     _expectedMediaItemId = validTracks[clampedIndex].id;
 
+    final selectedTrack = validTracks[clampedIndex];
     state = state.copyWith(
       queue: validTracks,
       queueIndex: clampedIndex,
-      currentTrack: validTracks[clampedIndex],
-      isPlaying: false,
+      currentTrack: selectedTrack,
+      isPlaying: true,
       position: Duration.zero,
       currentPlaylistId: clearPlaylistContext ? null : playlistId,
       clearCurrentPlaylist: clearPlaylistContext || playlistId == null,
     );
-    _applyStoredEqualizer(
-      validTracks[clampedIndex].id,
-      playlistId: clearPlaylistContext ? null : playlistId,
+    unawaited(
+      _applyStoredEqualizer(
+        selectedTrack.id,
+        playlistId: clearPlaylistContext ? null : playlistId,
+      ),
     );
 
-    await audioHandler.setQueue(items);
-    await audioHandler.skipToQueueItem(clampedIndex);
+    final handler = await _handler();
+    if (state.currentTrack?.id != selectedTrack.id) {
+      return;
+    }
+    final items = validTracks.map(_toMediaItem).toList();
+    await handler.setQueue(items);
+    await handler.skipToQueueItem(clampedIndex);
+    if (state.currentTrack?.id != selectedTrack.id) {
+      return;
+    }
+    await handler.play();
   }
 
   Future<void> togglePlay() async {
     if (state.isPlaying) {
       await _recordCurrentPlay(skipped: false);
-      await audioHandler.pause();
+      await (await _handler()).pause();
     } else {
-      await audioHandler.play();
+      await (await _handler()).play();
     }
   }
 
   Future<void> pause() async {
     await _recordCurrentPlay(skipped: false);
-    await audioHandler.pause();
+    await (await _handler()).pause();
   }
 
   Future<void> next() async {
+    if (state.queue.isEmpty || state.queueIndex >= state.queue.length - 1) {
+      return;
+    }
     await _recordCurrentPlay(skipped: true);
-    await audioHandler.skipToNext();
+    final nextIndex = state.queueIndex + 1;
+    state = state.copyWith(
+      queueIndex: nextIndex,
+      currentTrack: state.queue[nextIndex],
+      position: Duration.zero,
+      isPlaying: true,
+    );
+    await (await _handler()).skipToNext();
   }
 
   Future<void> previous() async {
+    if (state.queue.isEmpty) return;
+    if (state.position > const Duration(seconds: 3)) {
+      await seek(Duration.zero);
+      return;
+    }
+    if (state.queueIndex <= 0) return;
     await _recordCurrentPlay(skipped: true);
-    await audioHandler.skipToPrevious();
+    final previousIndex = state.queueIndex - 1;
+    state = state.copyWith(
+      queueIndex: previousIndex,
+      currentTrack: state.queue[previousIndex],
+      position: Duration.zero,
+      isPlaying: true,
+    );
+    await (await _handler()).skipToPrevious();
   }
 
-  Future<void> seek(Duration position) => audioHandler.seek(position);
+  Future<void> seek(Duration position) async {
+    await (await _handler()).seek(position);
+  }
 
-  Future<void> setVolume(double volume) => audioHandler.setPlayerVolume(volume);
+  Future<void> setVolume(double volume) async {
+    await (await _handler()).setPlayerVolume(volume);
+  }
 
-  Future<void> setEqualizerBands(List<double> bands) {
+  Future<void> setEqualizerBands(List<double> bands) async {
     _lastAppliedEqKey = state.currentTrack == null
         ? null
         : _eqKey(state.currentTrack!.id, state.currentPlaylistId);
@@ -209,12 +259,12 @@ class PlayerController extends StateNotifier<PlayerState> {
       _baseEqBandsByTrack[_eqKey(track.id, state.currentPlaylistId)] = bands;
     }
     _activeSegmentId = null;
-    return audioHandler.setEqualizerBands(bands);
+    await (await _handler()).setEqualizerBands(bands);
   }
 
   Future<void> setQueueIndex(int index) async {
     await _recordCurrentPlay(skipped: true);
-    await audioHandler.skipToQueueItem(index);
+    await (await _handler()).skipToQueueItem(index);
   }
 
   Future<void> refreshCurrentEqualizer() async {
@@ -284,7 +334,7 @@ class PlayerController extends StateNotifier<PlayerState> {
 
     final segmentBands = activeSegment?.eqConfig.bands;
     if (segmentBands != null && segmentBands.length == 10) {
-      await audioHandler.setEqualizerBands(
+      await (await _handler()).setEqualizerBands(
         segmentBands.map((value) => value.toDouble()).toList(),
       );
       return;
@@ -292,9 +342,9 @@ class PlayerController extends StateNotifier<PlayerState> {
 
     final baseBands = _baseEqBandsByTrack[key];
     if (baseBands != null && baseBands.length == 10) {
-      await audioHandler.setEqualizerBands(baseBands);
+      await (await _handler()).setEqualizerBands(baseBands);
     } else {
-      await audioHandler.resetEqualizer();
+      await (await _handler()).resetEqualizer();
     }
   }
 
