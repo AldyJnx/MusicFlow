@@ -21,6 +21,7 @@ class _TemporalSegmentsScreenState
 
   Future<List<EQSegment>>? _future;
   String? _loadedTrackId;
+  bool _savingSegment = false;
 
   @override
   Widget build(BuildContext context) {
@@ -105,11 +106,22 @@ class _TemporalSegmentsScreenState
                   width: double.infinity,
                   height: 48,
                   child: FilledButton.icon(
-                    onPressed: track == null
+                    onPressed: track == null || _savingSegment
                         ? null
                         : () => _showCreateDialog(context),
-                    icon: const Icon(Icons.add_rounded),
-                    label: const Text('Crear tramo actual'),
+                    icon: _savingSegment
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: _bgDark,
+                            ),
+                          )
+                        : const Icon(Icons.add_rounded),
+                    label: Text(
+                      _savingSegment ? 'Guardando tramo' : 'Crear tramo actual',
+                    ),
                     style: FilledButton.styleFrom(
                       backgroundColor: _accent,
                       foregroundColor: _bgDark,
@@ -186,16 +198,20 @@ class _TemporalSegmentsScreenState
     });
   }
 
-  Future<void> _showCreateDialog(BuildContext context) async {
+  Future<void> _showCreateDialog(BuildContext screenContext) async {
     final player = ref.read(playerControllerProvider);
     final track = player.currentTrack;
-    if (track == null) return;
+    if (track == null || _savingSegment) return;
 
     final startSeconds = player.position.inSeconds;
-    final maxSeconds = player.duration.inSeconds > 0
+    var maxSeconds = player.duration.inSeconds > 0
         ? player.duration.inSeconds
         : startSeconds + 30;
-    final endSeconds = (startSeconds + 30).clamp(startSeconds + 1, maxSeconds);
+    if (maxSeconds <= startSeconds) {
+      maxSeconds = startSeconds + 30;
+    }
+    final preferredEnd = startSeconds + 30;
+    final endSeconds = preferredEnd > maxSeconds ? maxSeconds : preferredEnd;
     final labelController = TextEditingController(text: 'Tramo destacado');
     final startController = TextEditingController(
       text: startSeconds.toString(),
@@ -203,9 +219,10 @@ class _TemporalSegmentsScreenState
     final endController = TextEditingController(text: endSeconds.toString());
     var preset = _SegmentPreset.voice;
 
-    final created = await showDialog<bool>(
-      context: context,
-      builder: (context) {
+    final draft = await showDialog<_SegmentDraft>(
+      context: screenContext,
+      builder: (dialogContext) {
+        String? validationError;
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
@@ -275,48 +292,63 @@ class _TemporalSegmentsScreenState
                         }
                       },
                     ),
+                    if (validationError != null) ...[
+                      const SizedBox(height: 12),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          validationError!,
+                          style: const TextStyle(
+                            color: Color(0xFFFF8A8A),
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
               actions: [
                 TextButton(
-                  onPressed: () => Navigator.of(context).pop(false),
+                  onPressed: () => Navigator.of(dialogContext).pop(),
                   child: const Text('Cancelar'),
                 ),
                 FilledButton(
-                  onPressed: () async {
+                  onPressed: () {
                     final start = int.tryParse(startController.text.trim());
                     final end = int.tryParse(endController.text.trim());
                     if (start == null || end == null || end <= start) {
-                      _showSnack(
-                        context,
-                        'El fin debe ser mayor que el inicio.',
-                      );
+                      setDialogState(() {
+                        validationError =
+                            'El fin debe ser mayor que el inicio.';
+                      });
                       return;
                     }
-                    try {
-                      await ref
-                          .read(equalizerRepositoryProvider)
-                          .createSegment(
-                            trackId: track.id,
-                            label: labelController.text.trim().isEmpty
-                                ? 'Tramo destacado'
-                                : labelController.text.trim(),
-                            startMs: start * 1000,
-                            endMs: end * 1000,
-                            bands: preset.bands,
-                          );
-                      await ref
-                          .read(playerControllerProvider.notifier)
-                          .refreshCurrentEqualizer();
-                      if (context.mounted) Navigator.of(context).pop(true);
-                    } catch (_) {
-                      if (!context.mounted) return;
-                      _showSnack(
-                        context,
-                        'No se pudo crear el tramo. Verifica tu plan o conexion.',
-                      );
+                    if (start < 0 || end < 0) {
+                      setDialogState(() {
+                        validationError =
+                            'Los tiempos no pueden ser negativos.';
+                      });
+                      return;
                     }
+                    if (end > maxSeconds) {
+                      setDialogState(() {
+                        validationError =
+                            'El fin no puede superar ${_formatSeconds(maxSeconds)}.';
+                      });
+                      return;
+                    }
+
+                    Navigator.of(dialogContext).pop(
+                      _SegmentDraft(
+                        label: labelController.text.trim().isEmpty
+                            ? 'Tramo destacado'
+                            : labelController.text.trim(),
+                        startMs: start * 1000,
+                        endMs: end * 1000,
+                        bands: preset.bands,
+                      ),
+                    );
                   },
                   child: const Text('Crear'),
                 ),
@@ -331,9 +363,35 @@ class _TemporalSegmentsScreenState
     startController.dispose();
     endController.dispose();
 
-    if (created == true && context.mounted) {
-      _showSnack(context, 'Tramo creado.');
+    if (draft == null || !mounted) return;
+
+    setState(() => _savingSegment = true);
+    try {
+      await ref
+          .read(equalizerRepositoryProvider)
+          .createSegment(
+            trackId: track.id,
+            label: draft.label,
+            startMs: draft.startMs,
+            endMs: draft.endMs,
+            bands: draft.bands,
+          );
+      await ref
+          .read(playerControllerProvider.notifier)
+          .refreshCurrentEqualizer();
+      if (!mounted || !screenContext.mounted) return;
+      _showSnack(screenContext, 'Tramo creado.');
       _reload(track.id);
+    } catch (_) {
+      if (!mounted || !screenContext.mounted) return;
+      _showSnack(
+        screenContext,
+        'No se pudo crear el tramo. Verifica tu plan o conexion.',
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _savingSegment = false);
+      }
     }
   }
 
@@ -342,6 +400,27 @@ class _TemporalSegmentsScreenState
       ..hideCurrentSnackBar()
       ..showSnackBar(SnackBar(content: Text(message)));
   }
+
+  String _formatSeconds(int seconds) {
+    final duration = Duration(seconds: seconds);
+    final minutes = duration.inMinutes;
+    final rest = duration.inSeconds.remainder(60);
+    return '$minutes:${rest.toString().padLeft(2, '0')}';
+  }
+}
+
+class _SegmentDraft {
+  const _SegmentDraft({
+    required this.label,
+    required this.startMs,
+    required this.endMs,
+    required this.bands,
+  });
+
+  final String label;
+  final int startMs;
+  final int endMs;
+  final List<int> bands;
 }
 
 class _SegmentCard extends StatelessWidget {
