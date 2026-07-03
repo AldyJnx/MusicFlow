@@ -38,6 +38,12 @@ export interface AuthSession extends AuthTokens {
   user: SafeUser;
 }
 
+const DEMO_PREMIUM_EMAILS = new Set(["maspintorobertofernando@gmail.com"]);
+
+function isDemoPremiumEmail(email: string): boolean {
+  return DEMO_PREMIUM_EMAILS.has(email.trim().toLowerCase());
+}
+
 function toSafeUser(user: {
   id: string;
   email: string;
@@ -87,6 +93,7 @@ export class AuthService {
         email: dto.email,
         username: dto.username,
         password: hashedPassword,
+        isPremium: isDemoPremiumEmail(dto.email),
         preferences: {
           create: {},
         },
@@ -115,13 +122,27 @@ export class AuthService {
       throw new UnauthorizedException("Account is deactivated");
     }
 
+    const sessionUser =
+      isDemoPremiumEmail(user.email) && !user.isPremium
+        ? await this.prisma.user.update({
+            where: { id: user.id },
+            data: { isPremium: true },
+          })
+        : user;
+
     // Stamp lastLogin so the admin dashboard can compute DAU/WAU/MAU.
     // Fire-and-forget — failures here must never break login.
     this.prisma.user
-      .update({ where: { id: user.id }, data: { lastLogin: new Date() } })
+      .update({
+        where: { id: sessionUser.id },
+        data: { lastLogin: new Date() },
+      })
       .catch(() => {});
 
-    return { ...this.generateTokens(user), user: toSafeUser(user) };
+    return {
+      ...this.generateTokens(sessionUser),
+      user: toSafeUser(sessionUser),
+    };
   }
 
   async refreshTokens(refreshToken: string): Promise<AuthTokens> {
