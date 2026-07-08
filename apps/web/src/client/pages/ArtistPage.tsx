@@ -28,6 +28,7 @@ import AnimatedList from "../../shared/ui/reactbits/AnimatedList";
 import SplitText from "../../shared/ui/reactbits/SplitText";
 import { useSavedCheckQuery } from "../../shared/hooks/useLibrarySaves";
 import { usePremiumGate } from "../../shared/hooks/usePremiumGate";
+import { formatDurationLong } from "../../shared/utils/duration";
 import { usePlayerStore, type PlayerTrack } from "../stores/playStore";
 import type { Track } from "../../shared/api/tracks";
 
@@ -41,13 +42,6 @@ function toPlayerTrack(t: Track): PlayerTrack | null {
     url: t.fileUrlRemote,
     durationMs: t.durationMs,
   };
-}
-
-/** Total album length as "1 h 12 min" / "38 min". */
-function formatTotal(ms: number): string {
-  const min = Math.round(ms / 60000);
-  if (min < 60) return `${min} min`;
-  return `${Math.floor(min / 60)} h ${min % 60} min`;
 }
 
 /**
@@ -72,13 +66,14 @@ export default function ArtistPage() {
   const { guard } = usePremiumGate();
 
   const tracksQ = useTracksQuery({ artist: artistName, take: 100 });
-  const tracks = tracksQ.data?.tracks ?? [];
+  const tracks = useMemo(() => tracksQ.data?.tracks ?? [], [tracksQ.data]);
 
   // Resolve the catalog artist (by name) to surface admin-curated albums.
   const catalogArtistsQ = useQuery({
     queryKey: ["catalog", "artists"],
     queryFn: listCatalogArtists,
-    staleTime: 60_000,
+    staleTime: 10 * 60_000,
+    gcTime: 15 * 60_000,
   });
   const catalogArtistId = useMemo(
     () =>
@@ -90,8 +85,15 @@ export default function ArtistPage() {
     queryKey: ["catalog", "artist", catalogArtistId],
     queryFn: () => getCatalogArtist(catalogArtistId as string),
     enabled: !!catalogArtistId,
+    staleTime: 10 * 60_000,
+    gcTime: 15 * 60_000,
   });
-  const albums = catalogArtistQ.data?.albums ?? [];
+  // Albums with no tracks assigned yet would land the user on an empty page —
+  // keep them out of the grid until they have content.
+  const albums = useMemo(
+    () => (catalogArtistQ.data?.albums ?? []).filter((al) => al.trackCount > 0),
+    [catalogArtistQ.data],
+  );
 
   // Map album title → id so a track's album label can link to its album page
   // (the Track shape only carries the album name, not its id).
@@ -100,6 +102,20 @@ export default function ArtistPage() {
     for (const al of albums) if (al.title) m.set(al.title, al.id);
     return m;
   }, [albums]);
+
+  // The library Track rows often carry an empty `album` even when the track
+  // is part of a curated catalog album (visible right above in the Álbumes
+  // grid). Resolve the album via the catalog before falling back to "Single"
+  // so the two sections never contradict each other.
+  const catalogByTrackId = useMemo(() => {
+    const m = new Map<string, CatalogTrackCard>();
+    for (const tr of catalogArtistQ.data?.tracks ?? []) m.set(tr.id, tr);
+    return m;
+  }, [catalogArtistQ.data]);
+  const albumTitleById = useMemo(
+    () => new Map(albums.map((al) => [al.id, al.title])),
+    [albums],
+  );
 
   // Group the artist's catalog tracks by album so each card can show the real
   // total duration and play the whole album.
@@ -363,16 +379,24 @@ export default function ArtistPage() {
           ) : (
             <AnimatedList className="flex flex-col gap-1.5">
               {tracks.map((track, idx) => {
-                const albumId = track.album
-                  ? albumIdByTitle.get(track.album)
-                  : undefined;
+                const catalogTrack = catalogByTrackId.get(track.id);
+                const albumTitle =
+                  track.album ||
+                  catalogTrack?.album ||
+                  (catalogTrack?.albumId
+                    ? (albumTitleById.get(catalogTrack.albumId) ?? "")
+                    : "");
+                const albumId =
+                  (albumTitle ? albumIdByTitle.get(albumTitle) : undefined) ??
+                  catalogTrack?.albumId ??
+                  undefined;
                 return (
                   <TrackRow
                     key={track.id}
                     number={String(idx + 1).padStart(2, "0")}
                     title={track.title}
                     subtitle={
-                      track.album ||
+                      albumTitle ||
                       t("artist.singleSentinel", { defaultValue: "Single" })
                     }
                     cover={track.coverArt}
@@ -446,7 +470,10 @@ function AlbumCard({
       role="button"
       tabIndex={0}
       onKeyDown={(e) => {
-        if (e.key === "Enter") onOpen();
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onOpen();
+        }
       }}
       className="group relative flex cursor-pointer flex-col gap-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3 text-left transition hover:-translate-y-1 hover:border-[var(--color-primary)] hover:bg-[var(--color-surface-alt)] hover:shadow-[0_18px_40px_-16px_rgba(0,0,0,.7)]"
     >
@@ -483,7 +510,7 @@ function AlbumCard({
             className={`flex h-8 w-8 items-center justify-center rounded-full bg-black/55 text-white backdrop-blur transition hover:bg-black/75 ${
               menuOpen
                 ? "opacity-100"
-                : "opacity-0 group-hover:opacity-100 focus:opacity-100"
+                : "opacity-0 group-hover:opacity-100 focus:opacity-100 [@media(pointer:coarse)]:opacity-100"
             }`}
           >
             <MoreHorizontal className="h-4 w-4" strokeWidth={2.4} />
@@ -547,7 +574,7 @@ function AlbumCard({
             aria-label={t("artist.playAlbum", {
               defaultValue: "Reproducir álbum",
             })}
-            className="absolute bottom-2 right-2 flex h-11 w-11 translate-y-2 items-center justify-center rounded-full bg-[var(--color-primary)] text-[var(--color-primary-contrast)] opacity-0 shadow-[0_10px_24px_-6px_var(--color-primary)] transition group-hover:translate-y-0 group-hover:opacity-100 hover:scale-110"
+            className="absolute bottom-2 right-2 flex h-11 w-11 translate-y-2 items-center justify-center rounded-full bg-[var(--color-primary)] text-[var(--color-primary-contrast)] opacity-0 shadow-[0_10px_24px_-6px_var(--color-primary)] transition group-hover:translate-y-0 group-hover:opacity-100 hover:scale-110 [@media(pointer:coarse)]:translate-y-0 [@media(pointer:coarse)]:opacity-100"
           >
             <Play className="h-5 w-5" fill="currentColor" />
           </button>
@@ -557,13 +584,13 @@ function AlbumCard({
         <p className="truncate text-sm font-bold text-[var(--color-text)]">
           {album.title}
         </p>
-        <p className="truncate text-[11px] text-[var(--color-muted)]">
+        <p className="truncate text-xs text-[var(--color-muted)]">
           {album.year ? `${album.year} · ` : ""}
           {t("artist.albumMeta", {
             defaultValue: "{{count}} canciones",
             count: album.trackCount,
           })}
-          {durationMs > 0 ? ` · ${formatTotal(durationMs)}` : ""}
+          {durationMs > 0 ? ` · ${formatDurationLong(durationMs)}` : ""}
         </p>
       </div>
     </div>

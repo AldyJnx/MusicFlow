@@ -12,6 +12,7 @@ import {
   extractEmbeddedLyrics,
 } from "@/common/audio/track-metadata";
 import { Prisma, TrackSource, SyncStatus } from "@prisma/client";
+import { attachEqStatus } from "./eq-status.util";
 
 function hasLrcTimestamps(value: string): boolean {
   return /\[\d{1,2}:\d{2}(?:\.\d{1,3})?\]/.test(value);
@@ -168,17 +169,27 @@ export class TracksService {
         where,
         skip,
         take,
-        orderBy: [{ artist: "asc" }, { album: "asc" }, { trackNumber: "asc" }],
+        // `id` is the final tiebreaker so pagination is deterministic even when
+        // many rows share artist/album/trackNumber (e.g. empty album, null track
+        // number) — otherwise page boundaries shift and rows can duplicate or
+        // vanish across pages.
+        orderBy: [
+          { artist: "asc" },
+          { album: "asc" },
+          { trackNumber: "asc" },
+          { id: "asc" },
+        ],
       }),
       this.prisma.track.count({ where }),
     ]);
 
     // Strip the potentially-large lyrics from list payloads — they're fetched
     // on demand via GET /tracks/:id/lyrics. Keeps the catalog/library fast.
-    const tracks = rows.map(
+    const stripped = rows.map(
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       ({ lyricsLrc, lyricsText, ...rest }) => rest,
     );
+    const tracks = await attachEqStatus(this.prisma, userId, stripped);
 
     return { tracks, total, skip, take };
   }

@@ -5,6 +5,7 @@ import { animate } from "animejs";
 import SaveButton from "./SaveButton";
 import GradientText from "./reactbits/GradientText";
 import BorderGlow from "./reactbits/BorderGlow";
+import { formatDuration } from "../utils/duration";
 
 const MINI_VINYL_BG =
   "repeating-radial-gradient(circle at center, #0c0c0f 0 1px, #1b1b20 1px 2.5px), #0a0a0d";
@@ -14,11 +15,6 @@ function prefersReducedMotion(): boolean {
     typeof window !== "undefined" &&
     window.matchMedia("(prefers-reduced-motion: reduce)").matches
   );
-}
-
-function fmt(ms: number): string {
-  const s = Math.round(ms / 1000);
-  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 }
 
 /** Three animated EQ bars; pauses when not playing. */
@@ -224,7 +220,7 @@ function TrackRow({
         className="text-right text-xs text-[var(--color-muted)]"
         style={{ fontFamily: "var(--font-mono)" }}
       >
-        {fmt(durationMs)}
+        {formatDuration(durationMs)}
       </span>
     </div>
   );

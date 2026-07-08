@@ -13,22 +13,14 @@ import {
 } from "../../shared/api/catalog";
 import SaveButton from "../../shared/ui/SaveButton";
 import TrackRow from "../../shared/ui/TrackRow";
+import {
+  formatDuration,
+  formatDurationLong,
+} from "../../shared/utils/duration";
 import AnimatedList from "../../shared/ui/reactbits/AnimatedList";
 import SplitText from "../../shared/ui/reactbits/SplitText";
 import { useSavedCheckQuery } from "../../shared/hooks/useLibrarySaves";
 import { usePlayerStore, type PlayerTrack } from "../stores/playStore";
-
-function fmt(ms: number): string {
-  const s = Math.round(ms / 1000);
-  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
-}
-
-/** Total album length as "1 h 12 min" / "38 min". */
-function fmtTotal(ms: number): string {
-  const min = Math.round(ms / 60000);
-  if (min < 60) return `${min} min`;
-  return `${Math.floor(min / 60)} h ${min % 60} min`;
-}
 
 function toPlayerTrack(t: CatalogTrackCard): PlayerTrack | null {
   if (!t.fileUrlRemote) return null;
@@ -129,6 +121,8 @@ export default function AlbumPage() {
     queryKey: ["catalog", "album", id],
     queryFn: () => getCatalogAlbum(id),
     enabled: !!id,
+    staleTime: 10 * 60_000,
+    gcTime: 15 * 60_000,
   });
   const album = albumQ.data;
 
@@ -138,10 +132,16 @@ export default function AlbumPage() {
     queryKey: ["catalog", "artist", artistId],
     queryFn: () => getCatalogArtist(artistId as string),
     enabled: !!artistId,
-    staleTime: 60_000,
+    staleTime: 10 * 60_000,
+    gcTime: 15 * 60_000,
   });
   const moreAlbums = useMemo(
-    () => (artistQ.data?.albums ?? []).filter((a) => a.id !== id),
+    () =>
+      (artistQ.data?.albums ?? []).filter(
+        // Skip the current album and empty ones — a card that opens a
+        // trackless page is a dead end.
+        (a) => a.id !== id && a.trackCount > 0,
+      ),
     [artistQ.data, id],
   );
 
@@ -241,23 +241,26 @@ export default function AlbumPage() {
                   {album
                     ? ` · ${t("album.songsCount", { defaultValue: "{{count}} canciones", count: album.tracks.length })}`
                     : ""}
-                  {album && totalMs > 0 ? ` · ${fmtTotal(totalMs)}` : ""}
+                  {album && totalMs > 0
+                    ? ` · ${formatDurationLong(totalMs)}`
+                    : ""}
                 </button>
               </div>
             </div>
 
             <div className="flex flex-wrap items-center gap-3">
+              {/* Solid primary — same dominant-action style as ArtistPage/HeroFeatured. */}
               <button
                 type="button"
                 onClick={() => playFrom(0)}
                 disabled={!album?.tracks.length}
-                className="inline-flex items-center gap-2 rounded-full px-6 py-3 text-sm font-bold text-white shadow-[0_12px_30px_-8px_var(--color-primary)] transition hover:scale-105 disabled:opacity-40"
-                style={{
-                  background:
-                    "linear-gradient(135deg,var(--color-primary),var(--color-accent))",
-                }}
+                className="inline-flex items-center gap-2.5 rounded-full bg-[var(--color-primary)] px-8 py-3.5 text-base font-bold uppercase tracking-wider text-[var(--color-primary-contrast)] shadow-[0_10px_24px_rgba(0,0,0,0.35)] transition hover:scale-[1.03] disabled:cursor-not-allowed disabled:opacity-50"
               >
-                <Play className="h-4 w-4" fill="currentColor" />
+                <Play
+                  className="h-5 w-5"
+                  strokeWidth={2.4}
+                  fill="currentColor"
+                />
                 {t("album.play", { defaultValue: "Reproducir" })}
               </button>
 
@@ -326,7 +329,7 @@ export default function AlbumPage() {
                     className={`group relative aspect-[4/5] cursor-pointer overflow-hidden rounded-2xl border text-left transition hover:-translate-y-1 ${
                       active
                         ? "border-[var(--color-primary)] ring-1 ring-[var(--color-primary)]/50"
-                        : "border-[var(--color-line)] hover:border-[var(--color-primary)]/60"
+                        : "border-[var(--color-border)] hover:border-[var(--color-primary)]/60"
                     }`}
                   >
                     {/* Cover as a dimmed background texture */}
@@ -344,11 +347,19 @@ export default function AlbumPage() {
 
                     {/* Save — top-right */}
                     <span
-                      className="absolute right-2 top-2 opacity-0 transition group-hover:opacity-100 focus-within:opacity-100 data-[saved=true]:opacity-100"
+                      className="absolute right-2 top-2 opacity-0 transition group-hover:opacity-100 focus-within:opacity-100 data-[saved=true]:opacity-100 [@media(pointer:coarse)]:opacity-100"
                       data-saved={savedSet.has(tr.id)}
                       onClick={(e) => e.stopPropagation()}
                     >
                       <SaveButton trackId={tr.id} saved={savedSet.has(tr.id)} />
+                    </span>
+
+                    {/* Track number — album order matters even in the grid */}
+                    <span
+                      className="absolute left-2 top-2 rounded-full bg-black/55 px-2 py-0.5 text-[11px] font-bold text-white/85 backdrop-blur"
+                      style={{ fontFamily: "var(--font-mono)" }}
+                    >
+                      {String(tr.albumOrder ?? i + 1).padStart(2, "0")}
                     </span>
 
                     {/* Play / EQ overlay — center on hover, persistent when active */}
@@ -409,10 +420,10 @@ export default function AlbumPage() {
                         {tr.title}
                       </p>
                       <p
-                        className="text-[11px] text-white/70"
+                        className="text-xs text-white/70"
                         style={{ fontFamily: "var(--font-mono)" }}
                       >
-                        {fmt(tr.durationMs)}
+                        {formatDuration(tr.durationMs)}
                       </p>
                     </div>
                   </div>
@@ -422,7 +433,7 @@ export default function AlbumPage() {
           ) : album && album.tracks.length ? (
             <>
               {/* Column header */}
-              <div className="grid grid-cols-[28px_1fr_auto_56px] items-center gap-4 border-b border-[var(--color-line)] px-3 pb-2 text-[10px] font-bold uppercase tracking-widest text-[var(--color-muted)]">
+              <div className="grid grid-cols-[28px_1fr_auto_56px] items-center gap-4 border-b border-[var(--color-line)] px-3 pb-2 text-[11px] font-bold uppercase tracking-widest text-[var(--color-muted)]">
                 <span className="text-center">#</span>
                 <span>{t("album.colTitle", { defaultValue: "Título" })}</span>
                 <span />
@@ -435,7 +446,7 @@ export default function AlbumPage() {
                 {album.tracks.map((tr, i) => (
                   <TrackRow
                     key={tr.id}
-                    number={tr.albumOrder ?? i + 1}
+                    number={String(tr.albumOrder ?? i + 1).padStart(2, "0")}
                     title={tr.title}
                     cover={tr.coverArt ?? album.coverArt}
                     durationMs={tr.durationMs}
@@ -473,7 +484,7 @@ export default function AlbumPage() {
                   key={al.id}
                   type="button"
                   onClick={() => navigate(`/album/${al.id}`)}
-                  className="group flex flex-col gap-2.5 rounded-2xl border border-[var(--color-line)] bg-[var(--color-surface)]/60 p-3 text-left transition hover:-translate-y-1 hover:border-[var(--color-primary)]/60 hover:bg-[var(--color-surface-alt)]"
+                  className="group flex flex-col gap-2.5 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]/60 p-3 text-left transition hover:-translate-y-1 hover:border-[var(--color-primary)]/60 hover:bg-[var(--color-surface-alt)]"
                 >
                   <div className="relative aspect-square overflow-hidden rounded-xl bg-[var(--color-surface-alt)] shadow-[0_10px_30px_-12px_rgba(0,0,0,.7)]">
                     {al.coverArt ? (
@@ -495,7 +506,7 @@ export default function AlbumPage() {
                     <p className="truncate text-sm font-bold text-[var(--color-text)]">
                       {al.title}
                     </p>
-                    <p className="truncate text-[11px] text-[var(--color-muted)]">
+                    <p className="truncate text-xs text-[var(--color-muted)]">
                       {al.year ? `${al.year} · ` : ""}
                       {t("album.songsCount", {
                         defaultValue: "{{count}} canciones",

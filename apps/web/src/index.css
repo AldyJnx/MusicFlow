@@ -21,11 +21,16 @@
   --color-accent: #e85cc0;
   /* Success / "active" green — the cascade's ACTIVO badge (design `gn`). */
   --color-success: #4cf1a0;
-  /* Card / hero radius. New surfaces in the cyan fusion adopt this; legacy
-     callsites can migrate progressively. */
+  /* Radius scale: rounded-lg (8px) compact rows/chips · rounded-xl (12px)
+     buttons, covers, menus · rounded-2xl (16px) cards · --radius-card (24px)
+     page-level surfaces (tables, stat cards, heroes). Avoid arbitrary values
+     outside this scale. */
   --radius-card: 24px;
   /* Glassmorphism — surfaces that float over the animated background.
-     Mirrors the pretesis design's --glass / --line / --gblur. */
+     Mirrors the pretesis design's --glass / --line / --gblur.
+     Border rule: --color-border for component borders on opaque surfaces
+     (cards, inputs, buttons); --color-line for hairline separators and
+     strokes over glass (dividers, border-b, glass pills). */
   --color-glass: rgba(255, 255, 255, 0.04);
   --color-line: rgba(255, 255, 255, 0.08);
   --glass-blur: 30px;
@@ -81,6 +86,20 @@ h3 {
   }
   50% {
     transform: scaleY(1);
+  }
+}
+
+/* Kill decorative animation for users who asked for less motion. Covers the
+   infinite loops (logo EQ bars, vinyl spin, playing indicators) that inline
+   styles start unconditionally. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }
 

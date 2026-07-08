@@ -15,15 +15,16 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 
 import ClientLayout from "../layout/ClientLayout";
 import {
-  useTracksQuery,
+  useInfiniteTracksQuery,
   useAlbumsQuery,
   useArtistsQuery,
 } from "../../shared/hooks/useTracks";
 import {
   useSavedCheckQuery,
-  useSavedTracksQuery,
+  useInfiniteSavedTracksQuery,
 } from "../../shared/hooks/useLibrarySaves";
 import { listGenres, type Track } from "../../shared/api/tracks";
+import { formatDuration } from "../../shared/utils/duration";
 import { usePlayerStore, type PlayerTrack } from "../stores/playStore";
 import SaveButton from "../../shared/ui/SaveButton";
 import ImportModal from "../features/import/ImportModal";
@@ -33,13 +34,13 @@ type LibraryScope = "catalog" | "mylibrary";
 type LibraryTab = "songs" | "albums" | "artists";
 const tabs: LibraryTab[] = ["songs", "albums", "artists"];
 
-/** Convert milliseconds to M:SS display string */
-function formatMs(ms: number): string {
-  const totalSeconds = Math.floor(ms / 1000);
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  return `${minutes}:${String(seconds).padStart(2, "0")}`;
-}
+// Songs-table column template, shared by header, rows and skeletons. Columns
+// collapse with the viewport: base = title/duration/save/menu, md adds the
+// row number, lg adds the EQ-status column (the product differentiator), and
+// xl finally adds the album. minmax(0,…) lets the title cell truncate instead
+// of forcing horizontal clipping.
+const ROW_GRID =
+  "grid grid-cols-[minmax(0,1fr)_64px_40px_40px] md:grid-cols-[40px_minmax(0,1fr)_64px_44px_44px] lg:grid-cols-[40px_minmax(0,1.6fr)_150px_64px_44px_44px] xl:grid-cols-[58px_minmax(0,1.8fr)_minmax(0,1.1fr)_160px_90px_48px_48px]";
 
 /**
  * Tile for the Artists tab. Uses the same gradient + initials pattern as
@@ -69,7 +70,7 @@ function ArtistTile({
     <button
       type="button"
       onClick={onClick}
-      className="group flex cursor-pointer flex-col items-center gap-3 rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-surface-alt)] p-4 text-center transition hover:-translate-y-1 hover:border-[var(--color-primary)] hover:shadow-[0_18px_40px_rgba(0,0,0,0.32)]"
+      className="group flex cursor-pointer flex-col items-center gap-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-alt)] p-4 text-center transition hover:-translate-y-1 hover:border-[var(--color-primary)] hover:shadow-[0_18px_40px_rgba(0,0,0,0.32)]"
     >
       <div
         className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-full text-lg font-bold text-white shadow-[0_10px_24px_rgba(0,0,0,0.32)] transition group-hover:scale-105"
@@ -103,17 +104,17 @@ function ArtistTile({
 // --- Skeleton row for loading state ---
 function SkeletonRow() {
   return (
-    <div className="grid grid-cols-[58px_minmax(260px,1.8fr)_minmax(170px,1.1fr)_160px_90px_48px_48px] items-center gap-4 px-4 py-4 animate-pulse">
-      <div className="h-4 w-6 rounded bg-[var(--color-border)]" />
-      <div className="flex items-center gap-4">
-        <div className="h-14 w-14 rounded-md bg-[var(--color-border)]" />
+    <div className={`${ROW_GRID} items-center gap-4 px-4 py-4 animate-pulse`}>
+      <div className="hidden h-4 w-6 rounded bg-[var(--color-border)] md:block" />
+      <div className="flex min-w-0 items-center gap-4">
+        <div className="h-14 w-14 flex-none rounded-md bg-[var(--color-border)]" />
         <div className="flex flex-col gap-2">
           <div className="h-4 w-36 rounded bg-[var(--color-border)]" />
           <div className="h-3 w-24 rounded bg-[var(--color-border)]" />
         </div>
       </div>
-      <div className="h-4 w-28 rounded bg-[var(--color-border)]" />
-      <div className="h-6 w-20 rounded bg-[var(--color-border)]" />
+      <div className="hidden h-4 w-28 rounded bg-[var(--color-border)] xl:block" />
+      <div className="hidden h-6 w-20 rounded bg-[var(--color-border)] lg:block" />
       <div className="h-4 w-10 rounded bg-[var(--color-border)]" />
       <div className="h-8 w-8 rounded-lg bg-[var(--color-border)]" />
     </div>
@@ -146,13 +147,21 @@ export default function LibraryPage() {
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Albums/artists only make sense in the catalog scope. Reset to songs when
-  // switching to "My Library" — that view is a flat saved-tracks list.
+  // Albums/artists only make sense in the catalog scope — "My Library" is a
+  // flat saved-tracks list. Derived (not synced via effect) so switching
+  // scopes never triggers a cascading render, and the previous tab is
+  // restored when the user returns to the catalog.
+  const effectiveTab: LibraryTab = scope === "mylibrary" ? "songs" : activeTab;
+
+  // Close the row action menu with Escape (the backdrop handles clicks).
   useEffect(() => {
-    if (scope === "mylibrary" && activeTab !== "songs") {
-      setActiveTab("songs");
+    if (!rowMenu) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setRowMenu(null);
     }
-  }, [scope, activeTab]);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [rowMenu]);
 
   // Debounce search input by 300 ms
   useEffect(() => {
@@ -165,35 +174,64 @@ export default function LibraryPage() {
     };
   }, [searchInput]);
 
-  const catalogQuery = useTracksQuery(
+  const catalogQuery = useInfiniteTracksQuery(
     {
       search: debouncedSearch || undefined,
       genre: activeGenre ?? undefined,
-      take: 100,
     },
     { enabled: scope === "catalog" },
   );
-  const savedQuery = useSavedTracksQuery(
-    {
-      search: debouncedSearch || undefined,
-      take: 100,
-    },
+  const savedQuery = useInfiniteSavedTracksQuery(
+    { search: debouncedSearch || undefined },
     { enabled: scope === "mylibrary" },
   );
   const tracksQuery = scope === "catalog" ? catalogQuery : savedQuery;
 
-  const albumsQuery = useAlbumsQuery();
-  const artistsQuery = useArtistsQuery();
+  // Albums/Artists are heavy catalog-wide lists that are irrelevant to the
+  // default "songs" view, so fetch them only when their tab is actually opened.
+  const albumsQuery = useAlbumsQuery(undefined, {
+    enabled: scope === "catalog" && effectiveTab === "albums",
+  });
+  const artistsQuery = useArtistsQuery({
+    enabled: scope === "catalog" && effectiveTab === "artists",
+  });
   const genresQuery = useQuery({
     queryKey: ["library", "genres"],
     queryFn: listGenres,
-    staleTime: 60_000,
+    staleTime: 10 * 60_000,
+    gcTime: 15 * 60_000,
+    enabled: scope === "catalog" && effectiveTab === "songs",
   });
   const genres = genresQuery.data ?? [];
 
-  const tracks = tracksQuery.data?.tracks ?? [];
+  // Flatten the loaded pages into a single list for rendering, de-duping by id
+  // as a safety net against any page-boundary overlap.
+  const tracks = useMemo(() => {
+    const flat = tracksQuery.data?.pages.flatMap((p) => p.tracks) ?? [];
+    const seen = new Set<string>();
+    return flat.filter((t) => (seen.has(t.id) ? false : seen.add(t.id)));
+  }, [tracksQuery.data]);
+  const totalTracks = tracksQuery.data?.pages[0]?.total ?? null;
   const albums = albumsQuery.data ?? [];
   const artists = artistsQuery.data ?? [];
+
+  // Infinite-scroll sentinel: when it scrolls into view, pull the next page.
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
+  const { fetchNextPage, hasNextPage, isFetchingNextPage } = tracksQuery;
+  useEffect(() => {
+    const el = loadMoreRef.current;
+    if (!el || !hasNextPage) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting && !isFetchingNextPage) {
+          void fetchNextPage();
+        }
+      },
+      { rootMargin: "600px" },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [fetchNextPage, hasNextPage, isFetchingNextPage, effectiveTab]);
 
   // Bulk-check which visible tracks are saved so the heart icons paint
   // correctly. In "My Library" everything in the list is implicitly saved,
@@ -227,7 +265,7 @@ export default function LibraryPage() {
   }
 
   function handleTrackClick(track: Track) {
-    const playable = (tracksQuery.data?.tracks ?? [])
+    const playable = tracks
       .map(toPlayerTrack)
       .filter((p): p is PlayerTrack => p !== null);
     if (playable.length === 0) return;
@@ -283,40 +321,22 @@ export default function LibraryPage() {
             </button>
           </div>
 
-          {/* --- Stat card: total tracks (live from API) --- */}
-          <article className="flex items-center justify-between rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-surface-alt)] px-5 py-5">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--color-muted)]">
-                {scope === "catalog"
-                  ? t("library.totalTracks")
-                  : t("library.savedTracks", {
-                      defaultValue: "TUS CANCIONES GUARDADAS",
-                    })}
-              </p>
-              <p className="mt-3 text-3xl font-semibold tracking-tight text-[var(--color-text)]">
-                {tracksQuery.data?.total ?? "—"}
-              </p>
-            </div>
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[var(--color-secondary)] text-[var(--color-primary)]">
-              {scope === "catalog" ? (
-                <Music4 className="h-5 w-5" strokeWidth={2.2} />
-              ) : (
-                <Heart
-                  className="h-5 w-5"
-                  strokeWidth={2.2}
-                  fill="currentColor"
-                />
-              )}
-            </div>
-          </article>
-
           <div className="flex flex-col gap-5">
-            {/* --- Header: tabs + search + genre chips --- */}
+            {/* --- Header: title + live count + tabs + search + genre chips --- */}
             <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
               <div>
                 <h1 className="text-2xl font-semibold tracking-tight text-[var(--color-text)]">
                   {t("library.title")}
                 </h1>
+                {/* The track count reads as a subtitle instead of a separate
+                    stat card so the page has a single visual anchor. */}
+                {totalTracks !== null ? (
+                  <p className="mt-1 text-sm text-[var(--color-muted)]">
+                    {scope === "catalog"
+                      ? t("library.catalogCount", { count: totalTracks })
+                      : t("library.savedCount", { count: totalTracks })}
+                  </p>
+                ) : null}
                 <div className="mt-3 flex items-center gap-5 border-b border-[var(--color-border)] pb-2">
                   {(scope === "catalog"
                     ? tabs
@@ -327,13 +347,13 @@ export default function LibraryPage() {
                       type="button"
                       onClick={() => setActiveTab(tab)}
                       className={`relative pb-2 text-sm font-medium transition ${
-                        activeTab === tab
+                        effectiveTab === tab
                           ? "text-[var(--color-primary)]"
                           : "text-[var(--color-muted)] hover:text-[var(--color-text)]"
                       }`}
                     >
                       {t(`library.tabs.${tab}`)}
-                      {activeTab === tab ? (
+                      {effectiveTab === tab ? (
                         <span className="absolute inset-x-0 -bottom-[9px] h-0.5 rounded-full bg-[var(--color-primary)]" />
                       ) : null}
                     </button>
@@ -355,10 +375,10 @@ export default function LibraryPage() {
                 scope, only when the user actually has tracks across distinct
                 genres. The saved-tracks endpoint doesn't filter by genre. */}
             {scope === "catalog" &&
-              activeTab === "songs" &&
+              effectiveTab === "songs" &&
               genres.length > 0 && (
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="mr-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--color-muted)]">
+                  <span className="mr-2 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--color-muted)]">
                     {t("library.genres")}:
                   </span>
                   <button
@@ -394,14 +414,22 @@ export default function LibraryPage() {
               )}
 
             {/* --- Tab content --- */}
-            {activeTab === "songs" && (
+            {effectiveTab === "songs" && (
               <div className="overflow-hidden rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-surface-alt)]">
                 {/* Table header */}
-                <div className="grid grid-cols-[58px_minmax(260px,1.8fr)_minmax(170px,1.1fr)_160px_90px_48px_48px] items-center gap-4 border-b border-[var(--color-border)] px-4 py-4 text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--color-muted)]">
-                  <span>{t("library.table.number")}</span>
+                <div
+                  className={`${ROW_GRID} items-center gap-4 border-b border-[var(--color-border)] px-4 py-4 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--color-muted)]`}
+                >
+                  <span className="hidden md:block">
+                    {t("library.table.number")}
+                  </span>
                   <span>{t("library.table.title")}</span>
-                  <span>{t("library.table.album")}</span>
-                  <span>{t("library.table.eqStatus")}</span>
+                  <span className="hidden xl:block">
+                    {t("library.table.album")}
+                  </span>
+                  <span className="hidden lg:block">
+                    {t("library.table.eqStatus")}
+                  </span>
                   <span className="flex items-center gap-2">
                     <Clock3 className="h-3.5 w-3.5" strokeWidth={2.1} />
                   </span>
@@ -465,58 +493,82 @@ export default function LibraryPage() {
                     {tracks.map((track, index) => (
                       <article
                         key={track.id}
-                        className="grid cursor-pointer grid-cols-[58px_minmax(260px,1.8fr)_minmax(170px,1.1fr)_160px_90px_48px_48px] items-center gap-4 px-4 py-4 transition hover:bg-[var(--color-surface)]"
+                        role="button"
+                        tabIndex={0}
+                        className={`${ROW_GRID} cursor-pointer items-center gap-4 px-4 py-4 transition hover:bg-[var(--color-surface)] focus-visible:bg-[var(--color-surface)] focus-visible:outline-none`}
                         onClick={() => handleTrackClick(track)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            handleTrackClick(track);
+                          }
+                        }}
                       >
-                        <span className="text-xs font-semibold text-[var(--color-muted)]">
+                        <span className="hidden text-xs font-semibold text-[var(--color-muted)] md:block">
                           {String(index + 1).padStart(2, "0")}
                         </span>
 
-                        <div className="flex items-center gap-4">
+                        <div className="flex min-w-0 items-center gap-4">
                           {track.coverArt ? (
                             <img
                               src={track.coverArt}
                               alt={track.title}
                               loading="lazy"
                               decoding="async"
-                              className="h-14 w-14 rounded-md object-cover"
+                              className="h-14 w-14 flex-none rounded-md object-cover"
                             />
                           ) : (
-                            <div className="flex h-14 w-14 items-center justify-center rounded-md bg-[var(--color-border)]">
+                            <div className="flex h-14 w-14 flex-none items-center justify-center rounded-md bg-[var(--color-border)]">
                               <Music4
                                 className="h-6 w-6 text-[var(--color-muted)]"
                                 strokeWidth={1.5}
                               />
                             </div>
                           )}
-                          <div>
-                            <h2 className="text-base font-semibold tracking-tight text-[var(--color-text)]">
-                              {track.title}
-                            </h2>
-                            <p className="mt-1 text-sm text-[var(--color-muted)]">
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <h2 className="truncate text-base font-semibold tracking-tight text-[var(--color-text)]">
+                                {track.title}
+                              </h2>
+                              {track.isCatalog ? (
+                                <span className="hidden flex-none items-center rounded-full border border-[var(--color-primary)]/40 bg-[var(--color-primary)]/10 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider text-[var(--color-primary)] sm:inline-flex">
+                                  {t("library.catalogBadge")}
+                                </span>
+                              ) : null}
+                            </div>
+                            <p className="mt-1 truncate text-sm text-[var(--color-muted)]">
                               {track.artist}
                             </p>
                           </div>
                         </div>
 
-                        <div>
-                          <p className="text-base italic text-[var(--color-muted)]">
+                        <div className="hidden min-w-0 xl:block">
+                          <p className="truncate text-base italic text-[var(--color-muted)]">
                             {track.album}
                           </p>
                         </div>
 
-                        <div>
-                          {track.isCatalog ? (
-                            <span className="inline-flex items-center rounded-full border border-[var(--color-primary)]/40 bg-[var(--color-primary)]/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[var(--color-primary)]">
-                              {t("library.catalogBadge")}
+                        <div className="hidden lg:block">
+                          {(track.eqSegmentCount ?? 0) > 0 ? (
+                            <span className="inline-flex items-center rounded-full border border-[var(--color-accent)]/40 bg-[var(--color-accent)]/10 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider text-[var(--color-accent)]">
+                              {t("library.eqSegments", {
+                                count: track.eqSegmentCount,
+                              })}
+                            </span>
+                          ) : track.hasCustomEq ? (
+                            <span className="inline-flex items-center rounded-full border border-[var(--color-primary)]/40 bg-[var(--color-primary)]/10 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider text-[var(--color-primary)]">
+                              {t("library.eqCustomBadge")}
                             </span>
                           ) : (
                             <span className="text-[var(--color-muted)]">—</span>
                           )}
                         </div>
 
-                        <span className="text-sm text-[var(--color-muted)]">
-                          {formatMs(track.durationMs)}
+                        <span
+                          className="text-sm text-[var(--color-muted)]"
+                          style={{ fontFamily: "var(--font-mono)" }}
+                        >
+                          {formatDuration(track.durationMs)}
                         </span>
 
                         <SaveButton
@@ -555,18 +607,49 @@ export default function LibraryPage() {
                     ))}
                   </div>
                 )}
+
+                {/* Infinite-scroll sentinel + "loading more" rows. Needs a
+                    non-zero height so the IntersectionObserver can detect it
+                    even before any skeletons render. A manual button is kept as
+                    a fallback (accessibility + environments where the observer
+                    doesn't fire). */}
+                {tracksQuery.isSuccess && hasNextPage && (
+                  <div
+                    ref={loadMoreRef}
+                    className="min-h-[64px] divide-y divide-[var(--color-border)]"
+                  >
+                    {isFetchingNextPage ? (
+                      <>
+                        <SkeletonRow />
+                        <SkeletonRow />
+                      </>
+                    ) : (
+                      <div className="flex justify-center py-4">
+                        <button
+                          type="button"
+                          onClick={() => fetchNextPage()}
+                          className="rounded-xl border border-[var(--color-border)] px-5 py-2 text-sm font-medium text-[var(--color-muted)] transition hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]"
+                        >
+                          {t("library.loadMore", {
+                            defaultValue: "Cargar más",
+                          })}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
 
             {/* --- Albums tab --- */}
-            {activeTab === "albums" && (
+            {effectiveTab === "albums" && (
               <div>
                 {albumsQuery.isLoading && (
                   <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
                     {Array.from({ length: 10 }).map((_, i) => (
                       <div
                         key={i}
-                        className="animate-pulse rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-alt)] p-3"
+                        className="animate-pulse rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-alt)] p-3"
                       >
                         <div className="mb-3 h-36 rounded-lg bg-[var(--color-border)]" />
                         <div className="h-4 w-3/4 rounded bg-[var(--color-border)]" />
@@ -608,7 +691,7 @@ export default function LibraryPage() {
                     {albums.map((album) => (
                       <article
                         key={album.album}
-                        className="cursor-pointer rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-alt)] p-3 transition hover:bg-[var(--color-surface)]"
+                        className="cursor-pointer rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-alt)] p-3 transition hover:bg-[var(--color-surface)]"
                       >
                         {album.coverArt ? (
                           <img
@@ -642,14 +725,14 @@ export default function LibraryPage() {
             )}
 
             {/* --- Artists tab --- */}
-            {activeTab === "artists" && (
+            {effectiveTab === "artists" && (
               <div>
                 {artistsQuery.isLoading && (
                   <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
                     {Array.from({ length: 12 }).map((_, i) => (
                       <div
                         key={i}
-                        className="animate-pulse rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-alt)] p-4"
+                        className="animate-pulse rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-alt)] p-4"
                       >
                         <div className="h-5 w-3/4 rounded bg-[var(--color-border)]" />
                       </div>

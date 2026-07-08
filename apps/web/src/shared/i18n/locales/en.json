@@ -336,6 +336,13 @@
       "duration": "Duration"
     },
     "catalogBadge": "Catalog",
+    "catalogCount_one": "{{count}} song in the catalog",
+    "catalogCount_other": "{{count}} songs in the catalog",
+    "savedCount_one": "{{count}} saved song",
+    "savedCount_other": "{{count}} saved songs",
+    "eqCustomBadge": "Custom EQ",
+    "eqSegments_one": "{{count}} segment",
+    "eqSegments_other": "{{count}} segments",
     "loadError": "We couldn’t load your library. Try again.",
     "retry": "Retry",
     "empty": "Your library is empty."

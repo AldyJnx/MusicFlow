@@ -29,6 +29,10 @@ export interface Track {
   fileUrlRemote: string | null;
   /** True when the track belongs to the public catalog (Spotify-style). */
   isCatalog: boolean;
+  /** The caller has an active track-level EQ config for this track. */
+  hasCustomEq?: boolean;
+  /** How many EQ segments the caller defined on this track. */
+  eqSegmentCount?: number;
   source: TrackSource;
   syncStatus: SyncStatus;
   createdAt: string;

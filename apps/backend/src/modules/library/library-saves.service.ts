@@ -5,6 +5,7 @@ import {
 } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "@/prisma/prisma.service";
+import { attachEqStatus } from "./eq-status.util";
 
 @Injectable()
 export class LibrarySavesService {
@@ -120,15 +121,18 @@ export class LibrarySavesService {
       ],
     };
 
-    const [tracks, total] = await Promise.all([
+    const [rows, total] = await Promise.all([
       this.prisma.track.findMany({
         where,
         skip,
         take,
-        orderBy: { updatedAt: "desc" },
+        // `id` tiebreaker keeps pagination deterministic when many rows share
+        // the same updatedAt (e.g. after a bulk catalog update).
+        orderBy: [{ updatedAt: "desc" }, { id: "asc" }],
       }),
       this.prisma.track.count({ where }),
     ]);
+    const tracks = await attachEqStatus(this.prisma, userId, rows);
 
     return { tracks, total, skip, take };
   }
