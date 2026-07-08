@@ -101,3 +101,6 @@ claude-skills/
 # DB data dump for deploy import (no commitear: contiene datos/hashes)
 musicflow_import.sql
 musicflow_data.sql
+
+# Prototipo de diseño local (mockups HTML de referencia)
+pretesis/
