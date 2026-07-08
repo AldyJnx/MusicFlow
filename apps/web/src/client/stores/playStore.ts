@@ -166,6 +166,30 @@ async function loadAndPlay(track: PlayerTrack): Promise<void> {
   }
   await engine.load(url);
   await engine.play();
+  // Warm the next track once the current one is playing, so advancing the queue
+  // is near-instant. Skipped on shuffle (next track is unpredictable).
+  prefetchNext();
+}
+
+/**
+ * Prefetch the upcoming queue item's remote stream into the browser cache.
+ * Reads the live store, so callers just need to have committed `queueIndex`
+ * before invoking `loadAndPlay`. No-ops on shuffle and for local/offline items.
+ */
+function prefetchNext(): void {
+  const { queue, queueIndex, shuffle, repeatMode } = usePlayerStore.getState();
+  if (shuffle || queue.length < 2) return;
+  let nextIndex = queueIndex + 1;
+  if (nextIndex >= queue.length) {
+    if (repeatMode === "all") nextIndex = 0;
+    else return;
+  }
+  const next = queue[nextIndex];
+  if (!next?.url) return;
+  // Only remote http(s) streams benefit from warming; local files and already
+  // downloaded copies resolve instantly and would just waste data.
+  if (!/^https?:/i.test(next.url) || next.id.startsWith("local:")) return;
+  getAudioEngine().prefetch(next.url);
 }
 
 // ─── Store ───────────────────────────────────────────────────────────────────

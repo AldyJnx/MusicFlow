@@ -125,6 +125,10 @@ model Track {
   // Files
   filePathLocal  String?  @map("file_path_local")
   fileUrlRemote  String?  @map("file_url_remote")
+  // Lossless original (WAV) URL, preserved when `fileUrlRemote` is swapped to a
+  // compressed streaming asset (AAC/Opus). Lets the offline-download feature
+  // still offer the original quality while streaming stays lightweight.
+  originalUrlRemote String? @map("original_url_remote")
   fileHash       String   @map("file_hash")
   fileSizeBytes  BigInt?  @map("file_size_bytes")
   codec          String   @default("")

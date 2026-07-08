@@ -97,3 +97,7 @@ apps/backend/dist/
 .claude/
 CLAUDE.md
 claude-skills/
+
+# DB data dump for deploy import (no commitear: contiene datos/hashes)
+musicflow_import.sql
+musicflow_data.sql

@@ -1,4 +1,9 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import {
   checkSavedTracks,
   getLatestSavedCover,
@@ -6,7 +11,7 @@ import {
   saveTrack,
   unsaveTrack,
 } from "../api/library-saves";
-import { trackKeys } from "./useTracks";
+import { trackKeys, TRACKS_PAGE_SIZE } from "./useTracks";
 
 export const savesKeys = {
   all: ["library", "saves"] as const,
@@ -36,6 +41,28 @@ export function useSavedTracksQuery(
   return useQuery({
     queryKey: savesKeys.list(params),
     queryFn: () => listSavedTracks(params),
+    staleTime: 30_000,
+    enabled: options?.enabled ?? true,
+  });
+}
+
+/**
+ * Paginated saved-tracks list (infinite scroll), mirroring
+ * `useInfiniteTracksQuery` so the "My Library" tab loads incrementally.
+ */
+export function useInfiniteSavedTracksQuery(
+  params?: { search?: string },
+  options?: { enabled?: boolean },
+) {
+  return useInfiniteQuery({
+    queryKey: [...savesKeys.list(params), "infinite"] as const,
+    queryFn: ({ pageParam }) =>
+      listSavedTracks({ ...params, skip: pageParam, take: TRACKS_PAGE_SIZE }),
+    initialPageParam: 0,
+    getNextPageParam: (lastPage) => {
+      const loaded = lastPage.skip + lastPage.tracks.length;
+      return loaded < lastPage.total ? loaded : undefined;
+    },
     staleTime: 30_000,
     enabled: options?.enabled ?? true,
   });

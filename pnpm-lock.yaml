@@ -82,9 +82,6 @@ importers:
       handlebars:
         specifier: ^4.7.8
         version: 4.7.9
-      lodash:
-        specifier: ^4.18.1
-        version: 4.18.1
       music-metadata:
         specifier: ^7.14.0
         version: 7.14.0
@@ -161,6 +158,9 @@ importers:
       eslint-plugin-prettier:
         specifier: ^5.1.2
         version: 5.5.5(@types/eslint@9.6.1)(eslint-config-prettier@9.1.2(eslint@8.57.1))(eslint@8.57.1)(prettier@3.8.3)
+      ffmpeg-static:
+        specifier: ^5.3.0
+        version: 5.3.0
       jest:
         specifier: ^30.4.2
         version: 30.4.2(@types/node@25.9.1)(ts-node@10.9.2(@swc/core@1.15.30)(@types/node@25.9.1)(typescript@5.9.3))
@@ -1884,6 +1884,13 @@ packages:
         integrity: sha512-WABsvMSBs/DDadwhAUDw6uXwUE6w4DC/bnC4E2Y2rqbCTw5E1PPfj6VksnSCALkv9ynZfYGYYO4+Rvhmn5kgpw==,
       }
     engines: { node: ">= 10" }
+
+  "@derhuerst/http-basic@8.2.4":
+    resolution:
+      {
+        integrity: sha512-F9rL9k9Xjf5blCz8HsJRO4diy111cayL2vkY2XE4r4t3n0yPXVYy3KD3nJ1qbrSn9743UWSXH4IwuCa/HWlGFw==,
+      }
+    engines: { node: ">=6.0.0" }
 
   "@electron/get@5.0.0":
     resolution:
@@ -4133,6 +4140,12 @@ packages:
         integrity: sha512-bhhdtPw7JqCiEfC9Jimx5LqX9BDIPJEh2q/fQ4bqbBPtyEZYr3cvF22NwG0DmPZNYA0CAf2CnqDB4KIGGpJcaw==,
       }
 
+  "@types/node@10.17.60":
+    resolution:
+      {
+        integrity: sha512-F0KIgDJfy2nA3zMLmWGKxcH2ZVEtCZXHHdOQs2gSaQ27+lNeEfGxzkIw90aXswATX7AZ33tahPbzy6KAfUreVw==,
+      }
+
   "@types/node@24.12.4":
     resolution:
       {
@@ -5415,6 +5428,12 @@ packages:
     resolution:
       {
         integrity: sha512-bOoxfJPyYo+ds6W0YfptaCWbFnJYjh2Y1Eow5lRv+vI2u8ganPZqNm1JwNh0t2ELQCqIWg4B3dWEusgAmsoyOw==,
+      }
+
+  caseless@0.12.0:
+    resolution:
+      {
+        integrity: sha512-4tYFyifaFfGacoiObjJegolkwSU4xQNGbVgUiNYVUxbQ2x2lUsFvY4hVgVzGiIe6WLOPqycWXA40l+PWsxthUw==,
       }
 
   chalk@3.0.0:
@@ -6873,6 +6892,13 @@ packages:
         integrity: sha512-cPJU47OaAoCbg0pBvzsgpTPhmhqI5eJjh/JIu8tPj5q+T7iLvW/JAYUqmE7KOB4R1ZyEhzBaIQpQpardBF5z8A==,
       }
 
+  ffmpeg-static@5.3.0:
+    resolution:
+      {
+        integrity: sha512-H+K6sW6TiIX6VGend0KQwthe+kaceeH/luE8dIZyOP35ik7ahYojDuqlTV1bOrtEwl01sy2HFNGQfi5IDJvotg==,
+      }
+    engines: { node: ">=16" }
+
   figures@3.2.0:
     resolution:
       {
@@ -7470,6 +7496,12 @@ packages:
         integrity: sha512-4FbRdAX+bSdmo4AUFuS0WNiPz8NgFt+r8ThgNWmlrjQjt1Q7ZR9+zTlce2859x4KSXrwIsaeTqDoKQmtP8pLmQ==,
       }
     engines: { node: ">= 0.8" }
+
+  http-response-object@3.0.2:
+    resolution:
+      {
+        integrity: sha512-bqX0XTF6fnXSQcEJ2Iuyr75yVakyjIDCqroJQ/aHfSdlM743Cwqoi2nDYMzLGWUcuTWGWy8AAvOKXTfiv6q9RA==,
+      }
 
   https-proxy-agent@5.0.1:
     resolution:
@@ -9593,6 +9625,12 @@ packages:
         integrity: sha512-GQ2EWRpQV8/o+Aw8YqtfZZPfNRWZYkbidE9k5rpl/hC3vtHHBfGm2Ifi6qWV+coDGkrUKZAxE3Lot5kcsRlh+g==,
       }
     engines: { node: ">=6" }
+
+  parse-cache-control@1.0.1:
+    resolution:
+      {
+        integrity: sha512-60zvsJReQPX5/QP0Kzfd/VrpjScIQ7SHBW6bFCYfEP+fp0Eppr1SHhIO5nd1PjZtvclzSzES9D/p5nFJurwfWg==,
+      }
 
   parse-json@5.2.0:
     resolution:
@@ -13826,6 +13864,13 @@ snapshots:
       "@css-inline/css-inline-win32-arm64-msvc": 0.20.0
       "@css-inline/css-inline-win32-x64-msvc": 0.20.0
 
+  "@derhuerst/http-basic@8.2.4":
+    dependencies:
+      caseless: 0.12.0
+      concat-stream: 2.0.0
+      http-response-object: 3.0.2
+      parse-cache-control: 1.0.1
+
   "@electron/get@5.0.0":
     dependencies:
       debug: 4.4.3
@@ -15334,6 +15379,8 @@ snapshots:
     dependencies:
       "@types/express": 4.17.25
 
+  "@types/node@10.17.60": {}
+
   "@types/node@24.12.4":
     dependencies:
       undici-types: 7.16.0
@@ -16186,6 +16233,8 @@ snapshots:
 
   caniuse-lite@1.0.30001790: {}
 
+  caseless@0.12.0: {}
+
   chalk@3.0.0:
     dependencies:
       ansi-styles: 4.3.0
@@ -16758,8 +16807,7 @@ snapshots:
   entities@7.0.1:
     optional: true
 
-  env-paths@2.2.1:
-    optional: true
+  env-paths@2.2.1: {}
 
   env-paths@3.0.0: {}
 
@@ -17178,6 +17226,15 @@ snapshots:
 
   fflate@0.8.2: {}
 
+  ffmpeg-static@5.3.0:
+    dependencies:
+      "@derhuerst/http-basic": 8.2.4
+      env-paths: 2.2.1
+      https-proxy-agent: 5.0.1
+      progress: 2.0.3
+    transitivePeerDependencies:
+      - supports-color
+
   figures@3.2.0:
     dependencies:
       escape-string-regexp: 1.0.5
@@ -17587,6 +17644,10 @@ snapshots:
       setprototypeof: 1.2.0
       statuses: 2.0.2
       toidentifier: 1.0.1
+
+  http-response-object@3.0.2:
+    dependencies:
+      "@types/node": 10.17.60
 
   https-proxy-agent@5.0.1:
     dependencies:
@@ -19406,6 +19467,8 @@ snapshots:
   parent-module@1.0.1:
     dependencies:
       callsites: 3.1.0
+
+  parse-cache-control@1.0.1: {}
 
   parse-json@5.2.0:
     dependencies:

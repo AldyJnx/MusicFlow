@@ -50,5 +50,6 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=3s --start-period=15s --retries=3 \
   CMD wget --no-verbose --tries=1 --spider http://localhost:8000/api/health || exit 1
 
-# Apply migrations, then start
-CMD ["sh", "-c", "npx prisma migrate deploy && node dist/main.js"]
+# Apply migrations, then start. The build preserves the `src/` root (scripts/
+# live alongside src/), so the entrypoint is dist/src/main.js — not dist/main.js.
+CMD ["sh", "-c", "npx prisma migrate deploy && node dist/src/main.js"]

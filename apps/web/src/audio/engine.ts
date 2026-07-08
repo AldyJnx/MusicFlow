@@ -36,10 +36,17 @@ export class AudioEngine {
   private lastVolume = 0.8;
   private currentTrackUrl: string | null = null;
 
+  // Hidden element used to warm the HTTP cache for the next track in the queue,
+  // so switching tracks starts almost instantly.
+  private prefetchAudio: HTMLAudioElement | null = null;
+  private prefetchedUrl: string | null = null;
+
   constructor() {
     this.audio = new Audio();
     this.audio.crossOrigin = "anonymous";
-    this.audio.preload = "metadata";
+    // "auto" lets the browser buffer ahead on the active track so playback and
+    // seeking stay smooth. With the compressed catalog this is a cheap win.
+    this.audio.preload = "auto";
 
     const AudioContextCtor =
       window.AudioContext ||
@@ -77,9 +84,35 @@ export class AudioEngine {
 
   // ============ Playback ============
 
+  /**
+   * Warm the browser's HTTP cache for an upcoming track so a later `load()` of
+   * the same URL resolves almost instantly. Safe to call repeatedly; no-ops when
+   * the URL is already the current or last-prefetched one.
+   */
+  prefetch(url: string | null | undefined): void {
+    if (!url || url === this.currentTrackUrl || url === this.prefetchedUrl) {
+      return;
+    }
+    this.prefetchedUrl = url;
+    if (!this.prefetchAudio) {
+      this.prefetchAudio = new Audio();
+      this.prefetchAudio.crossOrigin = "anonymous";
+      this.prefetchAudio.preload = "auto";
+    }
+    this.prefetchAudio.src = url;
+    this.prefetchAudio.load();
+  }
+
   async load(url: string): Promise<void> {
     if (this.currentTrackUrl === url) return;
     this.currentTrackUrl = url;
+    // If this URL was prefetched, release the warmer element; the bytes stay in
+    // the browser's HTTP cache so the main element loads them without a refetch.
+    if (this.prefetchedUrl === url && this.prefetchAudio) {
+      this.prefetchAudio.removeAttribute("src");
+      this.prefetchAudio.load();
+      this.prefetchedUrl = null;
+    }
     this.audio.src = url;
     this.audio.load();
     await new Promise<void>((resolve, reject) => {
