@@ -13,7 +13,7 @@
     "compress-images": "node scripts/compress-images.mjs"
   },
   "dependencies": {
-    "@tanstack/react-query": "^5.100.14",
+    "@tanstack/react-query": "^5.101.2",
     "animejs": "^4.4.1",
     "axios": "^1.16.1",
     "i18next": "^26.3.1",
@@ -23,8 +23,8 @@
     "music-metadata": "^11.13.0",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
-    "react-i18next": "^17.0.8",
-    "react-router-dom": "^7.14.2",
+    "react-i18next": "^17.0.9",
+    "react-router-dom": "^7.18.1",
     "wavesurfer.js": "^7.10.4",
     "zustand": "^5.0.13"
   },
