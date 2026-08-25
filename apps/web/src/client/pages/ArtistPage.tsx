@@ -23,6 +23,7 @@ import {
   type CatalogAlbumSummary,
   type CatalogTrackCard,
 } from "../../shared/api/catalog";
+import { getHomeRecommendations } from "../../shared/api/recommendations";
 import TrackRow from "../../shared/ui/TrackRow";
 import AnimatedList from "../../shared/ui/reactbits/AnimatedList";
 import SplitText from "../../shared/ui/reactbits/SplitText";
@@ -62,7 +63,6 @@ export default function ArtistPage() {
   const navigate = useNavigate();
   const params = useParams<{ name: string }>();
   const artistName = decodeURIComponent(params.name ?? "");
-  const playTrack = usePlayerStore((s) => s.playTrack);
   const playTrackList = usePlayerStore((s) => s.playTrackList);
   const addToQueue = usePlayerStore((s) => s.addToQueue);
   const openEqDrawer = usePlayerStore((s) => s.openEqDrawer);
@@ -70,6 +70,7 @@ export default function ArtistPage() {
   const currentTrackId = usePlayerStore((s) => s.currentTrack?.id ?? null);
   const isPlaying = usePlayerStore((s) => s.isPlaying);
   const { guard } = usePremiumGate();
+  const playRequestRef = useRef(0);
 
   const tracksQ = useTracksQuery({ artist: artistName, take: 100 });
   const tracks = tracksQ.data?.tracks ?? [];
@@ -168,9 +169,33 @@ export default function ArtistPage() {
     .map((p) => p[0]?.toUpperCase() ?? "")
     .join("");
 
-  function playOne(track: Track) {
+  async function playOne(track: Track) {
     const playable = toPlayerTrack(track);
-    if (playable) void playTrack(playable);
+    if (!playable) return;
+    const requestId = ++playRequestRef.current;
+
+    // `playTrack` resets the queue to one item. Reuse the deterministic
+    // recommendation endpoint to keep direct artist playback accompanied by
+    // a useful, non-AI "up next" list.
+    try {
+      const result = await getHomeRecommendations(15);
+      const queuedIds = new Set([playable.id]);
+      const suggestions = result.tracks
+        .map(toPlayerTrack)
+        .filter((candidate): candidate is PlayerTrack => {
+          if (!candidate || queuedIds.has(candidate.id)) return false;
+          queuedIds.add(candidate.id);
+          return true;
+        })
+        .slice(0, 15);
+
+      if (requestId !== playRequestRef.current) return;
+      await playTrackList([playable, ...suggestions], 0);
+    } catch {
+      // Recommendation failures must not block the user-selected song.
+      if (requestId !== playRequestRef.current) return;
+      await playTrackList([playable], 0);
+    }
   }
 
   function playAll(startIndex = 0) {
@@ -382,7 +407,7 @@ export default function ArtistPage() {
                     saved={savedSet.has(track.id)}
                     trackId={track.id}
                     vinyl
-                    onPlay={() => playOne(track)}
+                    onPlay={() => void playOne(track)}
                     onSubtitleClick={
                       albumId ? () => navigate(`/album/${albumId}`) : undefined
                     }

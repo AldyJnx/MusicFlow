@@ -52,10 +52,56 @@ export interface CatalogAlbumDetail {
   tracks: CatalogTrackCard[];
 }
 
+export interface CatalogRecentAlbum {
+  id: string;
+  title: string;
+  coverArt: string | null;
+  year: number | null;
+  createdAt: string;
+  artist: { id: string; name: string; imageUrl: string | null };
+  trackCount: number;
+  tracks: CatalogTrackCard[];
+}
+
+export interface CatalogArtistsPage {
+  items: CatalogArtist[];
+  total: number;
+  nextOffset: number | null;
+}
+
 // ── Public reads ──────────────────────────────────────────────────────────────
 
 export async function listCatalogArtists(): Promise<CatalogArtist[]> {
   const { data } = await api.get<CatalogArtist[]>("/catalog/artists");
+  return data;
+}
+
+export async function searchCatalogArtists(
+  query: string,
+  limit = 4,
+): Promise<CatalogArtistsPage> {
+  const { data } = await api.get<CatalogArtistsPage>("/catalog/artists/page", {
+    params: { q: query, offset: 0, limit },
+  });
+  return data;
+}
+
+export async function listRecentCatalogAlbums(
+  limit = 10,
+): Promise<CatalogRecentAlbum[]> {
+  const { data } = await api.get<CatalogRecentAlbum[]>(
+    "/catalog/albums/recent",
+    { params: { limit } },
+  );
+  return data;
+}
+
+export async function listTrendingCatalogTracks(
+  limit = 5,
+): Promise<CatalogTrackCard[]> {
+  const { data } = await api.get<CatalogTrackCard[]>("/catalog/trending", {
+    params: { limit },
+  });
   return data;
 }
 

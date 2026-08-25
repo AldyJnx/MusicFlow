@@ -7,6 +7,7 @@ import {
   Music4,
   Play,
   Settings2,
+  UserRound,
   Users,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -19,9 +20,6 @@ import {
 import { usePlayerStore, type PlayerTrack } from "../../stores/playStore";
 import { useAuthStore } from "../../../shared/stores/authStore";
 import type { Track } from "../../../shared/api/tracks";
-
-const avatarUrl =
-  "https://i.pinimg.com/1200x/0d/c7/fc/0dc7fc4c4bda090b7f39f2d636f9eb0f.jpg";
 
 function toPlayerTrack(t: Track): PlayerTrack | null {
   if (!t.fileUrlRemote) return null;
@@ -103,11 +101,12 @@ export default function ProfileSettings() {
                 <div className="flex flex-col gap-6 sm:flex-row sm:items-center">
                   <div className="relative shrink-0">
                     <div className="absolute inset-0 rounded-full bg-[radial-gradient(circle,rgba(104,80,255,0.45),transparent_65%)] blur-xl" />
-                    <img
-                      src={avatarUrl}
-                      alt={user?.username ?? "Avatar"}
-                      className="relative h-40 w-40 rounded-full border border-[#23263b] object-cover shadow-[0_0_0_6px_rgba(26,29,42,0.9),0_0_30px_rgba(99,102,241,0.24)]"
-                    />
+                    <div
+                      className="relative flex h-40 w-40 items-center justify-center rounded-full border border-[#23263b] bg-[#202637] text-slate-300 shadow-[0_0_0_6px_rgba(26,29,42,0.9),0_0_30px_rgba(99,102,241,0.24)]"
+                      aria-label="Avatar de usuario"
+                    >
+                      <UserRound className="h-16 w-16" strokeWidth={1.5} />
+                    </div>
                     <button
                       type="button"
                       className="absolute bottom-3 right-1 inline-flex h-10 w-10 items-center justify-center rounded-full bg-[#3b82f6] text-white shadow-[0_8px_24px_rgba(59,130,246,0.35)] transition hover:brightness-110"

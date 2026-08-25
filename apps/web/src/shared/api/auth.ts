@@ -23,6 +23,15 @@ export async function login(payload: LoginPayload): Promise<AuthResponse> {
   return data;
 }
 
+export async function exchangeGoogleTicket(
+  ticket: string,
+): Promise<AuthResponse> {
+  const { data } = await api.post<AuthResponse>("/auth/google/exchange", {
+    ticket,
+  });
+  return data;
+}
+
 export async function register(
   payload: RegisterPayload,
 ): Promise<AuthResponse> {

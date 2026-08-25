@@ -20,10 +20,11 @@ interface UpsellErrorBody {
   };
 }
 
-const baseURL = import.meta.env.VITE_API_URL ?? "http://localhost:8000/api";
+export const apiBaseUrl =
+  import.meta.env.VITE_API_URL ?? "http://localhost:8000/api";
 
 export const api = axios.create({
-  baseURL,
+  baseURL: apiBaseUrl,
   withCredentials: true,
 });
 
@@ -46,7 +47,7 @@ async function refreshAccessToken(): Promise<string | null> {
 
   try {
     const res = await axios.post<{ accessToken: string; refreshToken: string }>(
-      `${baseURL}/auth/refresh`,
+      `${apiBaseUrl}/auth/refresh`,
       { refreshToken },
     );
     setTokens(res.data.accessToken, res.data.refreshToken);

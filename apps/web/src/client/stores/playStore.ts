@@ -3,6 +3,7 @@ import { persist } from "zustand/middleware";
 import { getAudioEngine } from "../../audio/engine";
 import { resolvePlayableUrl } from "../../shared/stores/downloadsStore";
 import { resolveLocalUrl } from "../../shared/offline/localLibrary";
+import { googleCast } from "../../shared/cast/googleCast";
 
 // ─── Track shape ────────────────────────────────────────────────────────────
 
@@ -40,6 +41,7 @@ interface PlayerState {
   durationMs: number;
   volume: number;
   muted: boolean;
+  playbackTarget: "local" | "cast";
   isExpanded: boolean;
   /** Lateral EQ drawer triggered from the persistent player. */
   eqDrawerOpen: boolean;
@@ -95,6 +97,27 @@ interface PlayerActions {
 // ─── Lazy engine init ────────────────────────────────────────────────────────
 
 let engineInitialized = false;
+let castBridgeInitialized = false;
+let playbackRequestId = 0;
+let queueBeforeShuffle: PlayerTrack[] | null = null;
+
+async function prepareLocalTrack(
+  track: PlayerTrack,
+  positionMs: number,
+): Promise<void> {
+  const requestId = ++playbackRequestId;
+  const engine = getAudioEngine();
+  let url = await resolvePlayableUrl({ id: track.id, url: track.url });
+  if (requestId !== playbackRequestId) return;
+  if (url === track.url && track.id.startsWith("local:")) {
+    url = (await resolveLocalUrl(track.id)) ?? track.url;
+  }
+  if (requestId !== playbackRequestId) return;
+  await engine.load(url);
+  if (requestId !== playbackRequestId) return;
+  engine.seek(positionMs);
+  engine.pause();
+}
 
 export function initializePlayerEngine(): void {
   if (engineInitialized) return;
@@ -110,6 +133,7 @@ export function initializePlayerEngine(): void {
   let lastCommittedPos = 0;
   engine.onStatus((status) => {
     const prev = usePlayerStore.getState();
+    if (prev.playbackTarget === "cast") return;
     const discreteChanged =
       prev.isPlaying !== status.isPlaying ||
       prev.volume !== status.volume ||
@@ -134,6 +158,7 @@ export function initializePlayerEngine(): void {
   // track; everything else falls through to next() (which itself honors
   // shuffle and repeat-all).
   engine.onEnded(() => {
+    if (usePlayerStore.getState().playbackTarget === "cast") return;
     if (usePlayerStore.getState().repeatMode === "one") {
       const eng = getAudioEngine();
       eng.seek(0);
@@ -142,6 +167,56 @@ export function initializePlayerEngine(): void {
     }
     void usePlayerStore.getState().next();
   });
+
+  if (!castBridgeInitialized) {
+    castBridgeInitialized = true;
+    googleCast.subscribe((cast) => {
+      const state = usePlayerStore.getState();
+      if (cast.connection === "connected") {
+        if (state.playbackTarget !== "cast") {
+          const shouldPlay = state.isPlaying;
+          const positionMs = state.positionMs;
+          getAudioEngine().pause();
+          usePlayerStore.setState({ playbackTarget: "cast" });
+          if (state.currentTrack) {
+            void googleCast
+              .loadTrack(state.currentTrack, positionMs, shouldPlay)
+              .catch(() => {
+                usePlayerStore.setState({ isPlaying: false });
+              });
+          }
+        }
+        usePlayerStore.setState({
+          playbackTarget: "cast",
+          isPlaying: cast.isPlaying,
+          positionMs: cast.positionMs,
+          durationMs: cast.durationMs || state.durationMs,
+          volume: cast.volume,
+          muted: cast.muted,
+        });
+        return;
+      }
+
+      if (state.playbackTarget === "cast") {
+        const track = state.currentTrack;
+        const positionMs = state.positionMs;
+        usePlayerStore.setState({ playbackTarget: "local", isPlaying: false });
+        if (track) {
+          void prepareLocalTrack(track, positionMs).then(() => {
+            usePlayerStore.setState({ positionMs, isPlaying: false });
+          });
+        }
+      }
+    });
+    googleCast.onEnded(() => {
+      const state = usePlayerStore.getState();
+      if (state.repeatMode === "one" && state.currentTrack) {
+        void googleCast.loadTrack(state.currentTrack, 0, true);
+        return;
+      }
+      void state.next();
+    });
+  }
 }
 
 // ─── Internal helper ─────────────────────────────────────────────────────────
@@ -157,15 +232,44 @@ let bypassStash: ReturnType<
 
 async function loadAndPlay(track: PlayerTrack): Promise<void> {
   initializePlayerEngine();
-  const engine = getAudioEngine();
-  // Resolve the best source: a downloaded copy → a local file → remote stream.
-  // All three play offline except the last.
-  let url = await resolvePlayableUrl({ id: track.id, url: track.url });
-  if (url === track.url && track.id.startsWith("local:")) {
-    url = (await resolveLocalUrl(track.id)) ?? track.url;
+  const requestId = ++playbackRequestId;
+  if (googleCast.getSnapshot().connection === "connected") {
+    usePlayerStore.setState({
+      playbackTarget: "cast",
+      isPlaying: true,
+      positionMs: 0,
+      durationMs: track.durationMs,
+    });
+    try {
+      await googleCast.loadTrack(track, 0, true);
+    } catch {
+      if (requestId === playbackRequestId) {
+        usePlayerStore.setState({ isPlaying: false });
+      }
+    }
+    return;
   }
-  await engine.load(url);
-  await engine.play();
+  const engine = getAudioEngine();
+  try {
+    // Resolve the best source: a downloaded copy → a local file → remote stream.
+    // All three play offline except the last. A newer transport action wins over
+    // any slow IndexedDB or media metadata request from an older one.
+    let url = await resolvePlayableUrl({ id: track.id, url: track.url });
+    if (requestId !== playbackRequestId) return;
+    if (url === track.url && track.id.startsWith("local:")) {
+      url = (await resolveLocalUrl(track.id)) ?? track.url;
+    }
+    if (requestId !== playbackRequestId) return;
+    await engine.load(url);
+    if (requestId !== playbackRequestId) return;
+    await engine.play();
+  } catch {
+    // A failed or superseded source must not surface as an unhandled rejection
+    // from a transport button. Only the latest request may change UI state.
+    if (requestId === playbackRequestId) {
+      usePlayerStore.setState({ isPlaying: false });
+    }
+  }
 }
 
 // ─── Store ───────────────────────────────────────────────────────────────────
@@ -185,6 +289,7 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
       durationMs: 0,
       volume: 0.8,
       muted: false,
+      playbackTarget: "local",
       isExpanded: false,
       eqDrawerOpen: false,
       aiPromptOpen: false,
@@ -195,11 +300,15 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
 
       playTrack: async (track) => {
         initializePlayerEngine();
+        queueBeforeShuffle = null;
         set({
           currentTrack: track,
           queue: [track],
           queueIndex: 0,
           currentPlaylistId: null,
+          positionMs: 0,
+          durationMs: track.durationMs,
+          isPlaying: true,
         });
         await loadAndPlay(track);
       },
@@ -207,6 +316,7 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
       playTrackList: async (tracks, startIndex = 0, opts) => {
         if (tracks.length === 0) return;
         initializePlayerEngine();
+        queueBeforeShuffle = null;
         const index = Math.max(0, Math.min(startIndex, tracks.length - 1));
         const track = tracks[index];
         set({
@@ -214,16 +324,26 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
           queue: tracks,
           queueIndex: index,
           currentPlaylistId: opts?.playlistId ?? null,
+          positionMs: 0,
+          durationMs: track.durationMs,
+          isPlaying: true,
         });
         await loadAndPlay(track);
       },
 
       pause: () => {
         initializePlayerEngine();
+        if (get().playbackTarget === "cast") {
+          googleCast.pause();
+          set({ isPlaying: false });
+          return;
+        }
         getAudioEngine().pause();
       },
 
       stop: () => {
+        playbackRequestId++;
+        queueBeforeShuffle = null;
         // Halt the audio element and wipe player state. Only touches the
         // engine if it was ever initialized, so logout never spins up a
         // fresh AudioContext just to pause silence.
@@ -231,6 +351,9 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
           const engine = getAudioEngine();
           engine.pause();
           engine.seek(0);
+        }
+        if (googleCast.getSnapshot().connection === "connected") {
+          googleCast.disconnect();
         }
         set({
           currentTrack: null,
@@ -244,6 +367,7 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
           eqDrawerOpen: false,
           aiPromptOpen: false,
           queueDrawerOpen: false,
+          playbackTarget: "local",
         });
       },
 
@@ -251,34 +375,72 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
         initializePlayerEngine();
         const { currentTrack } = get();
         if (!currentTrack) return;
+        if (get().playbackTarget === "cast") {
+          googleCast.togglePlay();
+          set((state) => ({ isPlaying: !state.isPlaying }));
+          return;
+        }
         await getAudioEngine().toggle();
       },
 
       next: async () => {
         initializePlayerEngine();
-        const { queue, queueIndex, shuffle, repeatMode } = get();
+        const { queue, queueIndex, repeatMode } = get();
         if (queue.length === 0) return;
 
-        let nextIndex: number;
-        if (shuffle && queue.length > 1) {
-          // Pick a random track other than the current one.
-          do {
-            nextIndex = Math.floor(Math.random() * queue.length);
-          } while (nextIndex === queueIndex);
-        } else {
-          nextIndex = queueIndex + 1;
-          if (nextIndex >= queue.length) {
-            if (repeatMode === "all") nextIndex = 0;
-            else return; // end of queue, no repeat → stop advancing
-          }
+        // Shuffle permutes the remaining queue once while keeping the
+        // selected track first. Advancing through that order avoids repeats.
+        let nextIndex = queueIndex + 1;
+        if (nextIndex >= queue.length) {
+          if (repeatMode === "all") nextIndex = 0;
+          else return; // end of queue, no repeat → stop advancing
         }
 
         const track = queue[nextIndex];
-        set({ currentTrack: track, queueIndex: nextIndex });
+        set({
+          currentTrack: track,
+          queueIndex: nextIndex,
+          positionMs: 0,
+          durationMs: track.durationMs,
+          isPlaying: true,
+        });
         await loadAndPlay(track);
       },
 
-      toggleShuffle: () => set((s) => ({ shuffle: !s.shuffle })),
+      toggleShuffle: () => {
+        const { queue, queueIndex, shuffle } = get();
+        if (shuffle) {
+          const restored = queueBeforeShuffle ?? queue;
+          const currentId = get().currentTrack?.id;
+          queueBeforeShuffle = null;
+          set({
+            shuffle: false,
+            queue: restored,
+            queueIndex: Math.max(
+              0,
+              restored.findIndex((track) => track.id === currentId),
+            ),
+          });
+          return;
+        }
+
+        if (queue.length < 2) {
+          set({ shuffle: true });
+          return;
+        }
+
+        queueBeforeShuffle = [...queue];
+        const current = queue[queueIndex];
+        const remaining = queue.filter((_, index) => index !== queueIndex);
+        for (let index = remaining.length - 1; index > 0; index--) {
+          const swapIndex = Math.floor(Math.random() * (index + 1));
+          [remaining[index], remaining[swapIndex]] = [
+            remaining[swapIndex],
+            remaining[index],
+          ];
+        }
+        set({ shuffle: true, queue: [current, ...remaining], queueIndex: 0 });
+      },
 
       cycleRepeat: () =>
         set((s) => ({
@@ -294,32 +456,44 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
         initializePlayerEngine();
         const { positionMs, queue, queueIndex } = get();
         if (positionMs > 3000) {
-          getAudioEngine().seek(0);
+          if (get().playbackTarget === "cast") googleCast.seek(0);
+          else getAudioEngine().seek(0);
+          set({ positionMs: 0 });
           return;
         }
         const prevIndex = queueIndex - 1;
         if (prevIndex < 0) return;
         const track = queue[prevIndex];
-        set({ currentTrack: track, queueIndex: prevIndex });
+        set({
+          currentTrack: track,
+          queueIndex: prevIndex,
+          positionMs: 0,
+          durationMs: track.durationMs,
+          isPlaying: true,
+        });
         await loadAndPlay(track);
       },
 
       seek: (positionMs) => {
         initializePlayerEngine();
-        getAudioEngine().seek(positionMs);
+        if (get().playbackTarget === "cast") googleCast.seek(positionMs);
+        else getAudioEngine().seek(positionMs);
+        set({ positionMs });
       },
 
       setVolume: (v) => {
         initializePlayerEngine();
         const clamped = Math.min(1, Math.max(0, v));
-        getAudioEngine().setVolume(clamped);
+        if (get().playbackTarget === "cast") googleCast.setVolume(clamped);
+        else getAudioEngine().setVolume(clamped);
         set({ volume: clamped, muted: clamped === 0 });
       },
 
       toggleMute: () => {
         initializePlayerEngine();
         const { muted } = get();
-        getAudioEngine().setMuted(!muted);
+        if (get().playbackTarget === "cast") googleCast.toggleMute();
+        else getAudioEngine().setMuted(!muted);
         set({ muted: !muted });
       },
 
@@ -383,10 +557,12 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
       },
 
       addToQueue: (track) => {
+        queueBeforeShuffle = null;
         set((s) => ({ queue: [...s.queue, track] }));
       },
 
       playNext: (track) => {
+        queueBeforeShuffle = null;
         set((s) => {
           const next = [...s.queue];
           next.splice(s.queueIndex + 1, 0, track);
@@ -395,6 +571,7 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
       },
 
       reorderQueue: (from, to) => {
+        queueBeforeShuffle = null;
         set((s) => {
           if (from === to) return s;
           const next = [...s.queue];
@@ -410,6 +587,7 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
       },
 
       removeFromQueue: (index) => {
+        queueBeforeShuffle = null;
         set((s) => {
           const next = s.queue.filter((_, i) => i !== index);
           const queueIndex =
@@ -419,6 +597,7 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
       },
 
       clearQueue: () => {
+        queueBeforeShuffle = null;
         set({ queue: [], queueIndex: 0 });
       },
     }),

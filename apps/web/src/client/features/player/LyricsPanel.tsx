@@ -3,7 +3,10 @@ import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 import { Mic2, Pencil } from "lucide-react";
 
-import { useLyrics } from "../../../shared/hooks/useLyrics";
+import {
+  useCurrentLyricsLineIndex,
+  useLyrics,
+} from "../../../shared/hooks/useLyrics";
 import { usePlayerStore } from "../../stores/playStore";
 import { getTrackLyrics } from "../../../shared/api/tracks";
 import LyricsEditor from "./LyricsEditor";
@@ -19,8 +22,8 @@ type LyricsPanelProps = {
  */
 export default function LyricsPanel({ trackId }: LyricsPanelProps) {
   const { t } = useTranslation();
-  const { mode, lines, plainText, currentLineIndex, isLoading } =
-    useLyrics(trackId);
+  const { mode, lines, plainText, isLoading } = useLyrics(trackId);
+  const currentLineIndex = useCurrentLyricsLineIndex(lines);
   const seek = usePlayerStore((s) => s.seek);
   const containerRef = useRef<HTMLDivElement>(null);
   const activeRef = useRef<HTMLButtonElement>(null);

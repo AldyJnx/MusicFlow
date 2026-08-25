@@ -13,6 +13,7 @@ import {
   VolumeX,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { useNavigate } from "react-router-dom";
 
 import { usePlayerStore } from "../../stores/playStore";
 import { useTrackSegments } from "../../../shared/hooks/useTrackSegments";
@@ -20,6 +21,7 @@ import { usePremiumGate } from "../../../shared/hooks/usePremiumGate";
 import DownloadButton from "../../../shared/ui/DownloadButton";
 import ElasticSlider from "../../../shared/ui/reactbits/ElasticSlider";
 import TimelineWithSegments from "./TimelineWithSegments";
+import GoogleCastButton from "../../../shared/ui/GoogleCastButton";
 
 type MiniPlayerProps = {
   /** Kept for API compatibility; the bar now docks in-flow. */
@@ -45,6 +47,7 @@ function gradOf(s: string): string {
 
 export default function MiniPlayer(_: MiniPlayerProps) {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const currentTrack = usePlayerStore((s) => s.currentTrack);
   const isExpanded = usePlayerStore((s) => s.isExpanded);
   const isPlaying = usePlayerStore((s) => s.isPlaying);
@@ -75,33 +78,42 @@ export default function MiniPlayer(_: MiniPlayerProps) {
   return (
     <div className="sticky bottom-0 z-40 flex h-[78px] flex-none items-center gap-[18px] border-t border-[var(--color-line)] bg-[rgba(8,8,16,.62)] px-[22px] shadow-[0_-10px_40px_-20px_rgba(0,0,0,.8)] backdrop-blur-[34px]">
       {/* LEFT — cover + title + like */}
-      <button
-        type="button"
-        onClick={toggleExpanded}
-        title={t("player.expand", { defaultValue: "Abrir reproductor" })}
-        className="flex w-[300px] min-w-0 flex-none items-center gap-3 text-left"
-      >
-        <span
-          className="h-12 w-12 flex-none overflow-hidden rounded-xl shadow-[0_6px_18px_-6px_rgba(0,0,0,.7)] transition hover:scale-105"
-          style={{ background: gradOf(currentTrack.id) }}
+      <div className="flex w-[300px] min-w-0 flex-none items-center gap-3">
+        <button
+          type="button"
+          onClick={toggleExpanded}
+          title={t("player.expand", { defaultValue: "Abrir reproductor" })}
+          className="flex min-w-0 flex-1 items-center gap-3 text-left"
         >
-          {currentTrack.cover ? (
-            <img
-              src={currentTrack.cover}
-              alt=""
-              className="h-full w-full object-cover"
-            />
-          ) : null}
-        </span>
-        <span className="min-w-0 flex-1">
-          <span className="block truncate text-[13.5px] font-bold text-[var(--color-text)]">
-            {currentTrack.title}
+          <span
+            className="h-12 w-12 flex-none overflow-hidden rounded-xl shadow-[0_6px_18px_-6px_rgba(0,0,0,.7)] transition hover:scale-105"
+            style={{ background: gradOf(currentTrack.id) }}
+          >
+            {currentTrack.cover ? (
+              <img
+                src={currentTrack.cover}
+                alt=""
+                className="h-full w-full object-cover"
+              />
+            ) : null}
           </span>
-          <span className="block truncate text-[11.5px] font-medium text-[var(--color-muted)]">
-            {currentTrack.artist}
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-[13.5px] font-bold text-[var(--color-text)]">
+              {currentTrack.title}
+            </span>
           </span>
-        </span>
-      </button>
+        </button>
+        <button
+          type="button"
+          onClick={() =>
+            navigate(`/artist/${encodeURIComponent(currentTrack.artist)}`)
+          }
+          title={`Ver perfil de ${currentTrack.artist}`}
+          className="min-w-0 flex-1 truncate text-left text-[11.5px] font-medium text-[var(--color-muted)] transition hover:text-[var(--color-accent)]"
+        >
+          {currentTrack.artist}
+        </button>
+      </div>
 
       {/* CENTER — transport + wave */}
       <div className="flex min-w-0 flex-1 items-center gap-4">
@@ -198,7 +210,8 @@ export default function MiniPlayer(_: MiniPlayerProps) {
       </div>
 
       {/* RIGHT — download + EQ + AI + volume + expand */}
-      <div className="flex w-[300px] flex-none items-center justify-end gap-3.5">
+      <div className="flex w-[340px] flex-none items-center justify-end gap-3.5">
+        <GoogleCastButton className="flex h-[34px] w-[34px] items-center justify-center rounded-[10px] border border-[var(--color-line)] bg-white/[0.03] text-[var(--color-muted)] transition hover:border-[var(--color-primary)] hover:text-[var(--color-text)] disabled:opacity-100" />
         <DownloadButton
           track={{
             id: currentTrack.id,

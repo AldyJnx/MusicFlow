@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import ExpandedPlayer from "../features/player/ExpandedPlayer";
 import MiniPlayer from "../features/player/MiniPlayer";
 import EqDrawer from "../features/player/EqDrawer";
@@ -22,8 +22,21 @@ export default function ClientLayout({ children }: { children: ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
   const [rightCollapsed, setRightCollapsed] = useState(true);
   const [importOpen, setImportOpen] = useState(false);
-  const sidebarWidth = collapsed ? 72 : 196;
+  const [isDesktop, setIsDesktop] = useState(
+    () => window.matchMedia("(min-width: 1024px)").matches,
+  );
   const navbarRef = useRef<NavbarRef>(null);
+
+  useEffect(() => {
+    const media = window.matchMedia("(min-width: 1024px)");
+    const updateViewport = () => setIsDesktop(media.matches);
+    updateViewport();
+    media.addEventListener("change", updateViewport);
+    return () => media.removeEventListener("change", updateViewport);
+  }, []);
+
+  const sidebarWidth = isDesktop ? (collapsed ? 72 : 196) : 0;
+  const rightPanelWidth = isDesktop ? (rightCollapsed ? 64 : 322) : 0;
 
   // Keep the audio engine's segment scheduler in sync with the current track.
   // Mounted exactly once here so MiniPlayer/ExpandedPlayer mounts/unmounts
@@ -45,10 +58,16 @@ export default function ClientLayout({ children }: { children: ReactNode }) {
         onFocusSearch={() => navbarRef.current?.focusSearch()}
         onOpenImport={() => setImportOpen(true)}
       />
-      <div className="relative z-10 flex min-h-screen flex-1 flex-col">
+      <div
+        className="relative z-10 flex min-h-screen min-w-0 flex-1 flex-col transition-[margin] duration-300"
+        style={{ marginLeft: sidebarWidth, marginRight: rightPanelWidth }}
+      >
         <Navbar ref={navbarRef} />
         <main className="flex-1">{children}</main>
-        <ExpandedPlayer sidebarOffset={sidebarWidth} />
+        <ExpandedPlayer
+          sidebarOffset={sidebarWidth}
+          rightPanelOffset={rightPanelWidth}
+        />
         <MiniPlayer sidebarOffset={sidebarWidth} />
       </div>
 

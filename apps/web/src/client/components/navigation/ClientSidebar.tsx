@@ -126,7 +126,7 @@ export default function ClientSidebar({
 
   return (
     <aside
-      className={`sticky top-0 z-10 flex h-screen flex-none flex-col gap-[3px] overflow-hidden border-r border-[var(--color-line)] bg-[rgba(8,8,16,.42)] py-5 backdrop-blur-[var(--glass-blur)] transition-all duration-300 ${
+      className={`fixed inset-y-0 left-0 z-[60] hidden h-screen flex-none flex-col gap-[3px] overflow-hidden border-r border-[var(--color-line)] bg-[rgba(8,8,16,.42)] py-5 backdrop-blur-[var(--glass-blur)] transition-all duration-300 lg:flex ${
         collapsed ? "w-[72px] px-3" : "w-[196px] px-3.5"
       }`}
     >

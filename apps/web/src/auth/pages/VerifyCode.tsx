@@ -2,7 +2,6 @@ import { useMemo, useState } from "react";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 
-import fondoLogin from "../../assets/Fondo_Login.webp";
 import logoMusicFlow from "../../assets/Logo_Music_Flow.webp";
 
 export default function VerifyCode() {
@@ -55,7 +54,7 @@ export default function VerifyCode() {
   return (
     <main className="relative min-h-screen overflow-hidden bg-[#07131a] text-white">
       <img
-        src={fondoLogin}
+        src="https://www.youtube.com/embed/uDDt8BSnZD8?autoplay=1&mute=1&loop=1&playlist=uDDt8BSnZD8&controls=0&modestbranding=1&playsinline=1&rel=0&iv_load_policy=3&disablekb=1&fs=0&cc_load_policy=0"
         alt="Fondo MusicFlow"
         className="absolute inset-0 h-full w-full object-cover"
       />

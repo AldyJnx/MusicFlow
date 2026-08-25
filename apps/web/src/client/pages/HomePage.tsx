@@ -1,4 +1,5 @@
 import { ChevronLeft, ChevronRight, Play } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
@@ -6,6 +7,12 @@ import { useNavigate } from "react-router-dom";
 import ClientLayout from "../layout/ClientLayout";
 import { useArtistsQuery, useTracksQuery } from "../../shared/hooks/useTracks";
 import { useScrollReveal } from "../../shared/hooks/useScrollReveal";
+import { useHomeRecommendationsQuery } from "../../shared/hooks/useRecommendations";
+import {
+  listRecentCatalogAlbums,
+  listTrendingCatalogTracks,
+  type CatalogRecentAlbum,
+} from "../../shared/api/catalog";
 import { usePlayerStore, type PlayerTrack } from "../stores/playStore";
 import type { Track } from "../../shared/api/tracks";
 
@@ -31,7 +38,12 @@ function gradOf(seed: string): string {
   return GRADS[hashIndex(seed, GRADS.length)];
 }
 
-function toPlayerTrack(t: Track): PlayerTrack | null {
+type PlayableTrack = Pick<
+  Track,
+  "id" | "title" | "artist" | "coverArt" | "fileUrlRemote" | "durationMs"
+>;
+
+function toPlayerTrack(t: PlayableTrack): PlayerTrack | null {
   if (!t.fileUrlRemote) return null;
   return {
     id: t.id,
@@ -83,23 +95,26 @@ function Hero({
   items,
   onPlay,
   onArtist,
+  isTrending,
 }: {
-  items: Track[];
-  onPlay: (t: Track) => void;
+  items: PlayableTrack[];
+  onPlay: (t: PlayableTrack) => void;
   onArtist: (name: string) => void;
+  isTrending: boolean;
 }) {
   const { t } = useTranslation();
   const [idx, setIdx] = useState(0);
-  const touchedAt = useRef(0);
+  const touchedAt = useRef(Number.NEGATIVE_INFINITY);
   const n = items.length;
 
-  // Auto-advance, pausing for 7s after a manual interaction.
+  // One trend stays on screen for four seconds. Manual navigation pauses the
+  // cycle briefly so the selected song can be read without being replaced.
   useEffect(() => {
     if (n <= 1) return;
     const id = window.setInterval(() => {
       if (performance.now() - touchedAt.current < 7000) return;
       setIdx((p) => (p + 1) % n);
-    }, 6000);
+    }, 4000);
     return () => window.clearInterval(id);
   }, [n]);
 
@@ -123,7 +138,7 @@ function Hero({
       <div className="relative h-[312px] overflow-hidden rounded-[26px] shadow-[0_30px_70px_-30px_rgba(0,0,0,.85)]">
         <div
           key={cur.id}
-          className="absolute inset-0"
+          className="pointer-events-none absolute inset-0"
           style={{ animation: "fadeUp .5s cubic-bezier(.16,1,.3,1) both" }}
         >
           <div className="absolute inset-0" style={{ background: grad }} />
@@ -193,7 +208,9 @@ function Hero({
                       opacity: 0.7,
                     }}
                   >
-                    {t("home.trending", { defaultValue: "EN TENDENCIA" })}
+                    {isTrending
+                      ? t("home.trending", { defaultValue: "EN TENDENCIA" })
+                      : "DESTACADO"}
                   </span>
                   <span className="text-[13px] font-semibold text-[var(--color-muted)]">
                     {cur.artist}
@@ -215,6 +232,7 @@ function Hero({
                   {t("home.track", { defaultValue: "CANCIÓN" })}
                 </span>
                 <span
+                  data-testid="home-hero-title"
                   className="truncate"
                   style={{
                     fontFamily: "var(--font-display)",
@@ -229,7 +247,7 @@ function Hero({
               <button
                 type="button"
                 onClick={() => onArtist(cur.artist)}
-                className="flex flex-col gap-[3px] text-left transition hover:text-[var(--color-accent)]"
+                className="pointer-events-auto flex flex-col gap-[3px] text-left transition hover:text-[var(--color-accent)]"
               >
                 <span
                   className="text-[var(--color-muted)]"
@@ -261,6 +279,7 @@ function Hero({
               <button
                 type="button"
                 onClick={() => go(-1)}
+                data-testid="home-hero-previous"
                 aria-label={t("home.scrollLeft", { defaultValue: "Anterior" })}
                 className="absolute left-[18px] top-1/2 z-[2] flex h-[38px] w-[38px] -translate-y-1/2 items-center justify-center rounded-full border border-[var(--color-line)] bg-[rgba(8,8,16,.5)] text-white backdrop-blur-[14px] transition hover:bg-[rgba(8,8,16,.8)] active:scale-90"
               >
@@ -269,10 +288,11 @@ function Hero({
               <button
                 type="button"
                 onClick={() => go(1)}
+                data-testid="home-hero-next"
                 aria-label={t("home.scrollRight", {
                   defaultValue: "Siguiente",
                 })}
-                className="absolute right-[18px] top-[90px] z-[2] flex h-[38px] w-[38px] items-center justify-center rounded-full border border-[var(--color-line)] bg-[rgba(8,8,16,.5)] text-white backdrop-blur-[14px] transition hover:bg-[rgba(8,8,16,.8)] active:scale-90"
+                className="absolute right-[18px] top-1/2 z-[2] flex h-[38px] w-[38px] -translate-y-1/2 items-center justify-center rounded-full border border-[var(--color-line)] bg-[rgba(8,8,16,.5)] text-white backdrop-blur-[14px] transition hover:bg-[rgba(8,8,16,.8)] active:scale-90"
               >
                 <ChevronRight className="h-[18px] w-[18px]" strokeWidth={2.4} />
               </button>
@@ -307,7 +327,7 @@ function Hero({
             <button
               type="button"
               onClick={() => onPlay(cur)}
-              className="flex h-[50px] items-center gap-[9px] rounded-full px-7 text-[14.5px] font-bold text-white shadow-[0_12px_30px_-8px_var(--color-primary)] transition hover:scale-105 active:scale-95"
+              className="pointer-events-auto flex h-[50px] items-center gap-[9px] rounded-full px-7 text-[14.5px] font-bold text-white shadow-[0_12px_30px_-8px_var(--color-primary)] transition hover:scale-105 active:scale-95"
               style={{
                 background:
                   "linear-gradient(135deg,var(--color-primary),var(--color-accent))",
@@ -324,7 +344,13 @@ function Hero({
 }
 
 // ─── Album rail card (180px) ────────────────────────────────────────────────
-function AlbumCard({ track, onPlay }: { track: Track; onPlay: () => void }) {
+function AlbumCard({
+  album,
+  onPlay,
+}: {
+  album: CatalogRecentAlbum;
+  onPlay: () => void;
+}) {
   return (
     <button
       type="button"
@@ -334,27 +360,27 @@ function AlbumCard({ track, onPlay }: { track: Track; onPlay: () => void }) {
     >
       <div className="relative mb-2.5 aspect-square overflow-hidden rounded-2xl shadow-[0_10px_30px_-12px_rgba(0,0,0,.7)]">
         <div
-          className="absolute inset-0"
-          style={{ background: gradOf(track.id) }}
+          className="pointer-events-none absolute inset-0"
+          style={{ background: gradOf(album.id) }}
         />
-        {track.coverArt ? (
+        {album.coverArt ? (
           <img
-            src={track.coverArt}
-            alt={track.title}
-            className="absolute inset-0 h-full w-full object-cover transition duration-300 group-hover:scale-[1.04]"
+            src={album.coverArt}
+            alt={album.title}
+            className="pointer-events-none absolute inset-0 h-full w-full object-cover transition duration-300 group-hover:scale-[1.04]"
           />
         ) : null}
-        <div className="absolute inset-0 flex items-end justify-end bg-gradient-to-t from-black/30 to-transparent p-3 opacity-0 transition group-hover:opacity-100">
+        <div className="pointer-events-none absolute inset-0 flex items-end justify-end bg-gradient-to-t from-black/30 to-transparent p-3 opacity-0 transition group-hover:opacity-100">
           <span className="flex h-11 w-11 translate-y-2 items-center justify-center rounded-full bg-[var(--color-success)] shadow-[0_8px_22px_-6px_var(--color-success)] transition group-hover:translate-y-0">
             <Play className="h-5 w-5" fill="#0a0a14" stroke="none" />
           </span>
         </div>
       </div>
       <div className="truncate text-[13.5px] font-bold text-[var(--color-text)]">
-        {track.title}
+        {album.title}
       </div>
       <div className="truncate text-[11.5px] font-medium text-[var(--color-muted)]">
-        {track.artist}
+        {album.artist.name}
       </div>
     </button>
   );
@@ -414,18 +440,35 @@ export default function HomePage() {
 
   const tracksQ = useTracksQuery({ take: 20 });
   const artistsQ = useArtistsQuery();
+  const recommendationsQ = useHomeRecommendationsQuery(6);
+  const recentAlbumsQ = useQuery({
+    queryKey: ["catalog", "albums", "recent", 10],
+    queryFn: () => listRecentCatalogAlbums(10),
+    staleTime: 5 * 60_000,
+  });
+  const trendingQ = useQuery({
+    queryKey: ["catalog", "trending", 5],
+    queryFn: () => listTrendingCatalogTracks(5),
+    staleTime: 60_000,
+  });
 
-  const tracks = tracksQ.data?.tracks ?? [];
+  const tracks = useMemo(() => tracksQ.data?.tracks ?? [], [tracksQ.data]);
   const artists = (artistsQ.data ?? []).slice(0, 8);
+  const albums = recentAlbumsQ.data ?? [];
+  const recs = recommendationsQ.data?.tracks ?? [];
 
-  const heroItems = useMemo(
-    () => tracks.filter((tr) => tr.fileUrlRemote).slice(0, 5),
-    [tracks],
+  const trendingItems = useMemo(
+    () => (trendingQ.data ?? []).filter((track) => track.fileUrlRemote),
+    [trendingQ.data],
   );
-  const albums = tracks.slice(0, 10);
-  const recs = tracks.slice(0, 6);
-
-  function playFromList(list: Track[], track: Track) {
+  const heroItems = useMemo(
+    () =>
+      trendingItems.length > 0
+        ? trendingItems
+        : tracks.filter((track) => track.fileUrlRemote).slice(0, 5),
+    [tracks, trendingItems],
+  );
+  function playFromList(list: PlayableTrack[], track: PlayableTrack) {
     const playable = list
       .map(toPlayerTrack)
       .filter((p): p is PlayerTrack => p !== null);
@@ -434,8 +477,20 @@ export default function HomePage() {
     void playTrackList(playable, Math.max(0, idx));
   }
 
+  function playAlbum(album: CatalogRecentAlbum) {
+    const playable = album.tracks
+      .map(toPlayerTrack)
+      .filter((track): track is PlayerTrack => track !== null);
+    if (playable.length > 0) void playTrackList(playable, 0);
+  }
+
   const revealRef = useRef<HTMLDivElement>(null);
-  useScrollReveal(revealRef, [tracks.length, artists.length]);
+  useScrollReveal(revealRef, [
+    tracks.length,
+    artists.length,
+    albums.length,
+    recs.length,
+  ]);
 
   return (
     <ClientLayout>
@@ -448,6 +503,7 @@ export default function HomePage() {
             <Hero
               items={heroItems}
               onPlay={(tr) => playFromList(heroItems, tr)}
+              isTrending={trendingItems.length > 0}
               onArtist={(name) =>
                 navigate(`/artist/${encodeURIComponent(name)}`)
               }
@@ -483,7 +539,7 @@ export default function HomePage() {
             <div className="mb-9" data-reveal data-reveal-delay="100">
               <AlbumsRail
                 albums={albums}
-                onPlay={(tr) => playFromList(albums, tr)}
+                onPlay={playAlbum}
                 onSeeAll={() => navigate("/library")}
               />
             </div>
@@ -533,8 +589,8 @@ function AlbumsRail({
   onPlay,
   onSeeAll,
 }: {
-  albums: Track[];
-  onPlay: (t: Track) => void;
+  albums: CatalogRecentAlbum[];
+  onPlay: (album: CatalogRecentAlbum) => void;
   onSeeAll: () => void;
 }) {
   const { t } = useTranslation();
@@ -545,8 +601,12 @@ function AlbumsRail({
         onSeeAll={onSeeAll}
       />
       <div className="grid gap-x-[18px] gap-y-6 [grid-template-columns:repeat(auto-fill,minmax(160px,1fr))]">
-        {albums.map((tr) => (
-          <AlbumCard key={tr.id} track={tr} onPlay={() => onPlay(tr)} />
+        {albums.map((album) => (
+          <AlbumCard
+            key={album.id}
+            album={album}
+            onPlay={() => onPlay(album)}
+          />
         ))}
       </div>
     </>
@@ -559,7 +619,7 @@ function RecRow({
   active,
   onPlay,
 }: {
-  track: Track;
+  track: PlayableTrack;
   active: boolean;
   onPlay: () => void;
 }) {

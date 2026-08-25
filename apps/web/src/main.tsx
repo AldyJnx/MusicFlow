@@ -1,4 +1,3 @@
-import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import "./index.css";
@@ -11,20 +10,26 @@ import { initializePreferences } from "./shared/stores/preferencesStore.ts";
 void i18n;
 initializePreferences();
 
+// Older service workers cached authenticated API responses without varying by
+// Authorization. The route is gone; purge its cache on upgrade as well.
+if ("caches" in window) {
+  void window.caches.delete("musicflow-api");
+}
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       retry: 1,
-      staleTime: 60_000,
+      staleTime: 2 * 60_000,
+      gcTime: 10 * 60_000,
       refetchOnWindowFocus: false,
+      refetchOnReconnect: true,
     },
   },
 });
 
 createRoot(document.getElementById("root")!).render(
-  <StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <App />
-    </QueryClientProvider>
-  </StrictMode>,
+  <QueryClientProvider client={queryClient}>
+    <App />
+  </QueryClientProvider>,
 );

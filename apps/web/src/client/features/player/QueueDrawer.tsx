@@ -155,7 +155,7 @@ export default function QueueDrawer() {
             ) : null}
           </div>
 
-          <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-4">
+          <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {totalAfter === 0 ? (
               <div className="mx-3 mt-4 rounded-xl border border-dashed border-[var(--color-border)] p-6 text-center">
                 <p className="text-xs text-[var(--color-muted)]">

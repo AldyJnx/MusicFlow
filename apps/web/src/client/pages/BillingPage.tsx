@@ -1,13 +1,9 @@
-import { Crown, Loader2, Sparkles, Sliders, Upload } from "lucide-react";
+import { Crown, Sparkles, Sliders, Upload } from "lucide-react";
 import type { ReactNode } from "react";
-import { useMutation } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import ClientLayout from "../layout/ClientLayout";
 import { useQuotaQuery } from "../../shared/hooks/useQuota";
-import {
-  createCheckoutSession,
-  type QuotaSlice,
-} from "../../shared/api/billing";
+import { type QuotaSlice } from "../../shared/api/billing";
 
 function formatResetDate(iso: string | undefined, lang: string): string | null {
   if (!iso) return null;
@@ -94,13 +90,6 @@ export default function BillingPage() {
   const { data, isLoading, error } = useQuotaQuery();
   const { t, i18n } = useTranslation();
 
-  const upgrade = useMutation({
-    mutationFn: createCheckoutSession,
-    onSuccess: (res) => {
-      window.location.assign(res.url);
-    },
-  });
-
   return (
     <ClientLayout>
       <section className="min-h-screen w-full bg-[var(--color-page)] px-4 py-6 text-[var(--color-text)] sm:px-6 xl:px-8">
@@ -155,31 +144,13 @@ export default function BillingPage() {
                   </div>
                 </div>
                 {!data.isPremium ? (
-                  <div className="flex flex-col items-end gap-1">
-                    <button
-                      type="button"
-                      onClick={() => upgrade.mutate()}
-                      disabled={upgrade.isPending}
-                      className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-b from-[var(--color-cta-start)] to-[var(--color-cta-end)] px-5 py-3 text-sm font-semibold text-white shadow-[0_10px_24px_rgba(0,0,0,0.28)] transition hover:brightness-110 disabled:opacity-60"
-                    >
-                      {upgrade.isPending ? (
-                        <Loader2
-                          className="h-4 w-4 animate-spin"
-                          strokeWidth={2.2}
-                        />
-                      ) : null}
-                      {t("billing.upgrade", {
-                        defaultValue: "Hacerme Premium",
-                      })}
-                    </button>
-                    {upgrade.isError ? (
-                      <span className="text-xs text-rose-300">
-                        {t("billing.upgradeError", {
-                          defaultValue:
-                            "No pudimos abrir el checkout. Probá de nuevo.",
-                        })}
-                      </span>
-                    ) : null}
+                  <div className="text-right">
+                    <p className="text-base font-semibold text-[var(--color-text)]">
+                      S/ 13.00 al mes
+                    </p>
+                    <p className="mt-1 text-xs text-[var(--color-muted)]">
+                      Mercado Pago estará disponible próximamente
+                    </p>
                   </div>
                 ) : null}
               </div>

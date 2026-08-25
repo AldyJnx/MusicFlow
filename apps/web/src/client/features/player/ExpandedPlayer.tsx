@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import {
   ChevronDown,
   ListMusic,
@@ -25,18 +25,25 @@ import { usePlayerStore } from "../../stores/playStore";
 import { useTrackSegments } from "../../../shared/hooks/useTrackSegments";
 import { usePreferences } from "../../../shared/hooks/usePreferences";
 import { useEqualizer } from "../../../shared/hooks/useEqualizer";
-import { useLyrics } from "../../../shared/hooks/useLyrics";
+import {
+  useCurrentLyricsLineIndex,
+  useLyrics,
+} from "../../../shared/hooks/useLyrics";
+import type { LyricsLine } from "../../../shared/utils/lrc";
 import { usePremiumGate } from "../../../shared/hooks/usePremiumGate";
+import { getAudioEngine } from "../../../audio/engine";
 import TimelineWithSegments from "./TimelineWithSegments";
 import Wave from "./Wave";
 import AddToPlaylistModal from "../playlists/AddToPlaylistModal";
-import ElasticSlider from "../../../shared/ui/reactbits/ElasticSlider";
+import GoogleCastButton from "../../../shared/ui/GoogleCastButton";
 
 type ExpandedPlayerProps = {
   sidebarOffset?: number;
+  rightPanelOffset?: number;
 };
 
 type View = "cover" | "lyrics";
+type LyricsStyle = "classic" | "glow";
 
 function formatMs(ms: number): string {
   const totalSeconds = Math.floor(ms / 1000);
@@ -55,6 +62,7 @@ function hasActiveEq(bands: number[]): boolean {
 
 export default function ExpandedPlayer({
   sidebarOffset = 0,
+  rightPanelOffset = 0,
 }: ExpandedPlayerProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -93,8 +101,10 @@ export default function ExpandedPlayer({
   const isMuted = muted || volume === 0;
 
   const [view, setView] = useState<View>("cover");
+  const [lyricsStyle, setLyricsStyle] = useState<LyricsStyle>("glow");
   const [addToPlaylistOpen, setAddToPlaylistOpen] = useState(false);
   const [volumeOpen, setVolumeOpen] = useState(false);
+  const volumeControlRef = useRef<HTMLDivElement | null>(null);
 
   const activeSegment = useMemo(
     () =>
@@ -126,6 +136,40 @@ export default function ExpandedPlayer({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isExpanded, setExpanded]);
 
+  useEffect(() => {
+    if (!isExpanded) return undefined;
+
+    // The expanded player owns the viewport. Without this lock, wheel events
+    // at either edge of the lyrics panel can scroll the route behind it.
+    const { body, documentElement } = document;
+    const previousBodyOverflow = body.style.overflow;
+    const previousHtmlOverflow = documentElement.style.overflow;
+    body.style.overflow = "hidden";
+    documentElement.style.overflow = "hidden";
+
+    return () => {
+      body.style.overflow = previousBodyOverflow;
+      documentElement.style.overflow = previousHtmlOverflow;
+    };
+  }, [isExpanded]);
+
+  useEffect(() => {
+    if (!volumeOpen) return undefined;
+
+    const closeOnOutsidePointerDown = (event: PointerEvent) => {
+      if (!volumeControlRef.current?.contains(event.target as Node)) {
+        setVolumeOpen(false);
+      }
+    };
+    window.addEventListener("pointerdown", closeOnOutsidePointerDown, true);
+    return () =>
+      window.removeEventListener(
+        "pointerdown",
+        closeOnOutsidePointerDown,
+        true,
+      );
+  }, [volumeOpen]);
+
   if (!currentTrack || !isExpanded) return null;
 
   function openSegmentsForCurrentTrack() {
@@ -142,8 +186,10 @@ export default function ExpandedPlayer({
 
   return (
     <section
-      className="fixed bottom-0 right-0 top-0 z-50 overflow-hidden"
-      style={{ left: `${sidebarOffset}px` }}
+      className="fixed bottom-0 top-0 z-50 overflow-hidden overscroll-none"
+      style={{ left: `${sidebarOffset}px`, right: `${rightPanelOffset}px` }}
+      role="dialog"
+      aria-label={t("player.expandedTitle", { defaultValue: "Reproductor" })}
     >
       {/* ── Backdrop stack ──────────────────────────────────────────────
           Three opaque layers so nothing of the underlying page can leak
@@ -192,14 +238,15 @@ export default function ExpandedPlayer({
           <p className="pointer-events-none absolute left-1/2 -translate-x-1/2 text-[11px] font-semibold uppercase tracking-[0.42em] text-white/55">
             {t("player.expandedTitle", { defaultValue: "Reproductor" })}
           </p>
+          <GoogleCastButton className="absolute right-0 z-20 inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-black/30 text-white/85 backdrop-blur transition hover:border-[var(--color-primary)] hover:text-white disabled:opacity-100" />
         </div>
 
         {/* ── Main: cover on the left, details + controls on the right.
             Constrained + centered so the two columns read as one unit (no
             dead space) and the timeline never slides under the queue rail. ── */}
-        <div className="mx-auto grid min-h-0 w-full max-w-5xl flex-1 grid-cols-1 items-center gap-8 py-4 lg:grid-cols-2 lg:gap-12 xl:gap-16">
+        <div className="mx-auto grid h-full min-h-0 w-full max-w-5xl flex-1 grid-cols-1 items-center gap-8 py-4 lg:grid-cols-2 lg:gap-12 xl:gap-16">
           {/* Left column — cover or, when toggled, the karaoke lyrics. */}
-          <div className="flex min-h-0 items-center justify-center">
+          <div className="flex h-full min-h-0 items-center justify-center overflow-hidden">
             {view === "cover" ? (
               <CoverArt
                 cover={currentTrack.cover}
@@ -208,7 +255,11 @@ export default function ExpandedPlayer({
                 t={t}
               />
             ) : (
-              <LyricsKaraoke trackId={currentTrack.id} seek={seek} />
+              <LyricsKaraoke
+                trackId={currentTrack.id}
+                seek={seek}
+                style={lyricsStyle}
+              />
             )}
           </div>
 
@@ -224,10 +275,17 @@ export default function ExpandedPlayer({
             <h1 className="mt-2 truncate text-4xl font-extrabold tracking-tight text-white drop-shadow-[0_2px_16px_rgba(0,0,0,0.7)] xl:text-5xl">
               {currentTrack.title}
             </h1>
-            <p className="mt-2 flex items-center gap-2 text-base text-white/75">
+            <button
+              type="button"
+              onClick={() =>
+                navigate(`/artist/${encodeURIComponent(currentTrack.artist)}`)
+              }
+              className="mt-2 flex max-w-full items-center gap-2 text-left text-base text-white/75 transition hover:text-[var(--color-accent)]"
+              title={`Ver perfil de ${currentTrack.artist}`}
+            >
               <span className="truncate">{currentTrack.artist}</span>
               <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--color-accent)]" />
-            </p>
+            </button>
 
             {/* Timeline */}
             <div className="mt-8">
@@ -339,6 +397,26 @@ export default function ExpandedPlayer({
                 <Mic2 className="h-4 w-4" strokeWidth={2.4} />
                 {t("player.viewLyrics", { defaultValue: "Letra" })}
               </button>
+              {view === "lyrics" ? (
+                <button
+                  type="button"
+                  onClick={() =>
+                    setLyricsStyle((style) =>
+                      style === "glow" ? "classic" : "glow",
+                    )
+                  }
+                  aria-pressed={lyricsStyle === "glow"}
+                  title={
+                    lyricsStyle === "glow"
+                      ? "Usar letra clásica"
+                      : "Usar letra con brillo progresivo"
+                  }
+                  className="inline-flex h-12 items-center gap-2 rounded-2xl border border-white/20 bg-white/5 px-4 text-sm font-semibold text-white/85 transition hover:border-[var(--color-primary)] hover:text-white"
+                >
+                  <Sparkles className="h-4 w-4" strokeWidth={2.4} />
+                  {lyricsStyle === "glow" ? "Brillo" : "Clásica"}
+                </button>
+              ) : null}
             </div>
 
             {/* Discreet sound-detail strip — EQ status + bypass, EQ drawer,
@@ -431,11 +509,16 @@ export default function ExpandedPlayer({
       </div>
 
       {/* ── Floating volume control (bottom-right) ─────────────────────── */}
-      <div className="absolute bottom-6 right-6 flex flex-col items-center gap-3">
+      <div
+        ref={volumeControlRef}
+        data-testid="expanded-volume-control"
+        className="absolute bottom-6 right-6 z-20 flex flex-col items-center gap-3"
+        onPointerEnter={() => setVolumeOpen(true)}
+        onFocusCapture={() => setVolumeOpen(true)}
+      >
         {volumeOpen ? (
-          <div className="flex items-center rounded-full border border-white/10 bg-black/40 px-4 py-2.5 backdrop-blur-md">
-            <ElasticSlider
-              className="w-28"
+          <div className="rounded-2xl border border-white/10 bg-black/50 px-3 py-4 shadow-2xl backdrop-blur-md">
+            <VerticalVolumeSlider
               value={isMuted ? 0 : volume}
               onChange={setVolume}
             />
@@ -443,10 +526,7 @@ export default function ExpandedPlayer({
         ) : null}
         <button
           type="button"
-          onClick={() => {
-            if (volumeOpen) toggleMute();
-            setVolumeOpen((o) => !o);
-          }}
+          onClick={toggleMute}
           className="inline-flex h-12 w-12 items-center justify-center rounded-full border border-white/15 bg-black/40 text-white/85 backdrop-blur transition hover:border-[var(--color-primary)] hover:text-white"
           aria-label={isMuted ? t("player.unmute") : t("player.mute")}
           title={t("player.volume")}
@@ -554,29 +634,39 @@ function CoverArt({
  * lines fade, upcoming lines hint at what's next. Auto-scroll keeps the
  * active line centered. Click any line to seek there.
  */
-function LyricsKaraoke({
+const LyricsKaraoke = memo(function LyricsKaraoke({
   trackId,
   seek,
+  style,
 }: {
   trackId: string | null;
   seek: (ms: number) => void;
+  style: LyricsStyle;
 }) {
   const { t } = useTranslation();
-  const { mode, lines, plainText, currentLineIndex, isLoading } =
-    useLyrics(trackId);
+  const { mode, lines, plainText, isLoading } = useLyrics(trackId);
+  const currentLineIndex = useCurrentLyricsLineIndex(lines);
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const activeRef = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => {
     if (mode !== "synced" || currentLineIndex < 0) return;
-    activeRef.current?.scrollIntoView({
-      block: "center",
-      behavior: "smooth",
-    });
+    const container = containerRef.current;
+    const activeLine = activeRef.current;
+    if (!container || !activeLine) return;
+
+    // scrollIntoView() also scrolls page ancestors. Center only the lyrics
+    // panel so changing line never moves the route underneath the player.
+    const nextTop =
+      activeLine.offsetTop -
+      container.clientHeight / 2 +
+      activeLine.clientHeight / 2;
+    container.scrollTo({ top: Math.max(0, nextTop), behavior: "smooth" });
   }, [mode, currentLineIndex]);
 
   if (isLoading) {
     return (
-      <div className="flex h-full max-h-[60vh] w-full items-center justify-center text-sm text-white/60">
+      <div className="flex h-full min-h-0 w-full items-center justify-center text-sm text-white/60">
         {t("player.lyrics.loading", { defaultValue: "Cargando letra…" })}
       </div>
     );
@@ -584,7 +674,7 @@ function LyricsKaraoke({
 
   if (mode === "none") {
     return (
-      <div className="flex h-full max-h-[60vh] w-full flex-col items-center justify-center gap-2 text-center">
+      <div className="flex h-full min-h-0 w-full flex-col items-center justify-center gap-2 text-center">
         <Mic2 className="h-10 w-10 text-white/30" strokeWidth={1.5} />
         <p className="text-sm text-white/60">
           {t("player.lyrics.empty", {
@@ -597,14 +687,20 @@ function LyricsKaraoke({
 
   if (mode === "plain") {
     return (
-      <div className="mx-auto max-h-[60vh] w-full overflow-y-auto px-4 text-center text-2xl font-medium leading-[1.6] text-white/80">
+      <div
+        ref={containerRef}
+        className="mx-auto h-full min-h-0 w-full max-w-[460px] overflow-y-auto overscroll-contain px-4 text-center text-2xl font-medium leading-[1.6] text-white/80 [scrollbar-gutter:stable]"
+      >
         <pre className="whitespace-pre-wrap font-sans">{plainText}</pre>
       </div>
     );
   }
 
   return (
-    <div className="mx-auto flex max-h-[60vh] w-full flex-col overflow-y-auto px-4 py-8">
+    <div
+      ref={containerRef}
+      className="mx-auto flex h-full min-h-0 w-full max-w-[460px] flex-col overflow-y-auto overscroll-contain px-4 py-8 [scrollbar-gutter:stable]"
+    >
       {lines.map((line, i) => {
         const isActive = i === currentLineIndex;
         const isPast = i < currentLineIndex;
@@ -618,14 +714,160 @@ function LyricsKaraoke({
               isActive
                 ? "text-3xl font-bold leading-tight text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.6)]"
                 : isPast
-                  ? "text-lg font-semibold leading-snug text-white/40 hover:text-white/70"
-                  : "text-lg font-semibold leading-snug text-white/55 hover:text-white/85"
+                  ? "text-lg font-semibold leading-snug text-white/40 [text-shadow:0_0_16px_rgba(255,255,255,0.08)] hover:text-white/70"
+                  : "text-lg font-semibold leading-snug text-white/30 [filter:blur(0.25px)] [text-shadow:0_0_18px_rgba(255,255,255,0.12)] hover:text-white/70"
             }`}
           >
-            {line.text || "♪"}
+            {style === "glow" && isActive ? (
+              <GlowLyricsLine line={line} nextLine={lines[i + 1]} />
+            ) : (
+              line.text || "♪"
+            )}
           </button>
         );
       })}
+    </div>
+  );
+});
+
+function GlowLyricsLine({
+  line,
+  nextLine,
+}: {
+  line: LyricsLine;
+  nextLine: LyricsLine | undefined;
+}) {
+  const words = useMemo(
+    () => line.text.trim().split(/\s+/).filter(Boolean),
+    [line.text],
+  );
+  const wordRefs = useRef<Array<HTMLSpanElement | null>>([]);
+  const durationMs = Math.max(
+    1_200,
+    (nextLine?.timeMs ?? line.timeMs + 4_000) - line.timeMs,
+  );
+
+  useEffect(() => {
+    let frame = 0;
+    const updateWordProgress = () => {
+      const state = usePlayerStore.getState();
+      // The store intentionally updates at a modest rate for the rest of the
+      // UI. The active lyric alone reads the media clock each frame, keeping
+      // karaoke smooth without making the whole player render at 60 FPS.
+      const positionMs =
+        state.playbackTarget === "cast"
+          ? state.positionMs
+          : getAudioEngine().getStatus().positionMs;
+      const wordCursor =
+        Math.max(0, Math.min(1, (positionMs - line.timeMs) / durationMs)) *
+        words.length;
+
+      wordRefs.current.forEach((wordElement, index) => {
+        if (!wordElement) return;
+        const progress = Math.max(0, Math.min(1, wordCursor - index));
+        wordElement.style.backgroundPosition = `${100 - progress * 100}% 0`;
+      });
+      frame = requestAnimationFrame(updateWordProgress);
+    };
+
+    updateWordProgress();
+    return () => cancelAnimationFrame(frame);
+  }, [durationMs, line.timeMs, words.length]);
+
+  if (words.length === 0) return <>♪</>;
+
+  return (
+    <span
+      className="flex flex-wrap gap-x-2 gap-y-1"
+      data-testid="lyrics-glow-line"
+    >
+      {words.map((word, index) => {
+        return (
+          <span
+            key={`${word}-${index}`}
+            ref={(element) => {
+              wordRefs.current[index] = element;
+            }}
+            className="inline-block bg-clip-text text-transparent [background-size:200%_100%]"
+            style={{
+              backgroundImage:
+                "linear-gradient(90deg, #ffffff 0%, #ffffff 50%, rgba(255,255,255,0.28) 50%, rgba(255,255,255,0.36) 100%)",
+              backgroundPosition: "100% 0",
+              WebkitBackgroundClip: "text",
+              textShadow: "0 0 14px rgba(255,255,255,0.16)",
+            }}
+          >
+            {word}
+          </span>
+        );
+      })}
+    </span>
+  );
+}
+
+function VerticalVolumeSlider({
+  value,
+  onChange,
+}: {
+  value: number;
+  onChange: (value: number) => void;
+}) {
+  const trackRef = useRef<HTMLDivElement | null>(null);
+  const [dragging, setDragging] = useState(false);
+  const percentage = Math.round(Math.max(0, Math.min(1, value)) * 100);
+
+  function updateFromPointer(clientY: number) {
+    const track = trackRef.current;
+    if (!track) return;
+    const { top, height } = track.getBoundingClientRect();
+    onChange(Math.max(0, Math.min(1, 1 - (clientY - top) / height)));
+  }
+
+  return (
+    <div className="flex flex-col items-center gap-3">
+      <span className="text-[10px] font-semibold tabular-nums text-white/65">
+        {percentage}%
+      </span>
+      <div
+        ref={trackRef}
+        data-testid="expanded-volume-slider"
+        role="slider"
+        tabIndex={0}
+        aria-label="Volumen"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={percentage}
+        onKeyDown={(event) => {
+          if (event.key === "ArrowUp" || event.key === "ArrowRight") {
+            event.preventDefault();
+            onChange(Math.min(1, value + 0.05));
+          }
+          if (event.key === "ArrowDown" || event.key === "ArrowLeft") {
+            event.preventDefault();
+            onChange(Math.max(0, value - 0.05));
+          }
+        }}
+        onPointerDown={(event) => {
+          setDragging(true);
+          event.currentTarget.setPointerCapture(event.pointerId);
+          updateFromPointer(event.clientY);
+        }}
+        onPointerMove={(event) => {
+          if (dragging) updateFromPointer(event.clientY);
+        }}
+        onPointerUp={() => setDragging(false)}
+        onPointerCancel={() => setDragging(false)}
+        className="relative h-36 w-5 cursor-pointer touch-none rounded-full bg-white/15 outline-none ring-[var(--color-primary)] focus-visible:ring-2"
+      >
+        <span
+          className="absolute bottom-0 left-0 w-full rounded-full bg-[var(--color-primary)]"
+          style={{ height: `${percentage}%` }}
+        />
+        <span
+          className="absolute left-1/2 h-4 w-4 -translate-x-1/2 rounded-full border-2 border-white bg-[var(--color-primary)] shadow-[0_2px_10px_rgba(0,0,0,0.45)]"
+          style={{ bottom: `calc(${percentage}% - 8px)` }}
+        />
+      </div>
     </div>
   );
 }

@@ -35,6 +35,7 @@ export class AudioEngine {
   private endedListeners = new Set<() => void>();
   private lastVolume = 0.8;
   private currentTrackUrl: string | null = null;
+  private loadRequestId = 0;
 
   constructor() {
     this.audio = new Audio();
@@ -78,20 +79,32 @@ export class AudioEngine {
   // ============ Playback ============
 
   async load(url: string): Promise<void> {
-    if (this.currentTrackUrl === url) return;
+    if (
+      this.currentTrackUrl === url &&
+      this.audio.readyState >= HTMLMediaElement.HAVE_METADATA
+    ) {
+      return;
+    }
+    const requestId = ++this.loadRequestId;
     this.currentTrackUrl = url;
+    this.audio.pause();
     this.audio.src = url;
     this.audio.load();
     await new Promise<void>((resolve, reject) => {
       const onLoaded = () => {
         this.audio.removeEventListener("loadedmetadata", onLoaded);
         this.audio.removeEventListener("error", onError);
-        resolve();
+        if (requestId === this.loadRequestId) resolve();
+        else reject(new DOMException("Track load superseded", "AbortError"));
       };
       const onError = () => {
         this.audio.removeEventListener("loadedmetadata", onLoaded);
         this.audio.removeEventListener("error", onError);
-        reject(new Error("Failed to load track"));
+        if (requestId === this.loadRequestId) {
+          reject(new Error("Failed to load track"));
+        } else {
+          reject(new DOMException("Track load superseded", "AbortError"));
+        }
       };
       this.audio.addEventListener("loadedmetadata", onLoaded);
       this.audio.addEventListener("error", onError);

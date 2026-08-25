@@ -20,16 +20,24 @@ export type LyricsLine = {
 
 const TIMESTAMP_RE = /\[(\d{1,2}):(\d{1,2})(?:[.:](\d{1,3}))?\]/g;
 const META_TAG_RE = /^\[[a-zA-Z]+:[^\]]*\]\s*$/;
+const OFFSET_TAG_RE = /^\[offset:([+-]?\d+)\]\s*$/i;
 
 export function parseLrc(input: string | null | undefined): LyricsLine[] {
   if (!input) return [];
 
   const out: LyricsLine[] = [];
   const rawLines = input.split(/\r?\n/);
+  let offsetMs = 0;
 
   for (const rawLine of rawLines) {
     const line = rawLine.trim();
     if (!line) continue;
+    const offsetMatch = line.match(OFFSET_TAG_RE);
+    if (offsetMatch) {
+      // LRC's optional offset tag is milliseconds and shifts every timestamp.
+      offsetMs = Number(offsetMatch[1]);
+      continue;
+    }
     if (META_TAG_RE.test(line)) continue;
 
     const timestamps: number[] = [];
@@ -60,8 +68,9 @@ export function parseLrc(input: string | null | undefined): LyricsLine[] {
     }
   }
 
-  out.sort((a, b) => a.timeMs - b.timeMs);
-  return out;
+  return out
+    .map((line) => ({ ...line, timeMs: Math.max(0, line.timeMs + offsetMs) }))
+    .sort((a, b) => a.timeMs - b.timeMs);
 }
 
 /**

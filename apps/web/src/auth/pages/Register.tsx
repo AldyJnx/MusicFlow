@@ -12,10 +12,11 @@ import {
 import { Link, useNavigate } from "react-router-dom";
 import { useMutation } from "@tanstack/react-query";
 import axios from "axios";
+import { FcGoogle } from "react-icons/fc";
 
-import fondoLogin from "../../assets/Fondo_Login.webp";
 import logoMusicFlow from "../../assets/Logo_Music_Flow.webp";
 import { register as registerRequest } from "../../shared/api/auth";
+import { apiBaseUrl } from "../../shared/api/client";
 import { useAuthStore } from "../../shared/stores/authStore";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -35,7 +36,7 @@ export default function Register() {
     mutationFn: registerRequest,
     onSuccess: (data) => {
       setSession(data);
-      navigate("/library");
+      navigate("/headphones-tip");
     },
   });
 
@@ -85,12 +86,18 @@ export default function Register() {
     });
   }
 
+  function handleGoogleRegistration() {
+    // Google OAuth lives on the API because its client secret must never be
+    // bundled into Vite's public environment.
+    window.location.assign(`${apiBaseUrl}/auth/google`);
+  }
+
   const isPending = registerMutation.isPending;
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-[#07131a] text-white">
       <img
-        src={fondoLogin}
+        src="https://www.youtube.com/embed/uDDt8BSnZD8?autoplay=1&mute=1&loop=1&playlist=uDDt8BSnZD8&controls=0&modestbranding=1&playsinline=1&rel=0&iv_load_policy=3&disablekb=1&fs=0&cc_load_policy=0"
         alt=""
         aria-hidden="true"
         className="absolute inset-0 h-full w-full object-cover"
@@ -282,6 +289,21 @@ export default function Register() {
               )}
             </button>
           </form>
+
+          <div className="my-4 flex items-center gap-3 text-xs text-[#9aa6bf]">
+            <span className="h-px flex-1 bg-white/10" />
+            o regÃ­strate con
+            <span className="h-px flex-1 bg-white/10" />
+          </div>
+
+          <button
+            type="button"
+            onClick={handleGoogleRegistration}
+            className="flex h-11 w-full items-center justify-center gap-2 rounded-[10px] border border-white/15 bg-white/[0.06] text-sm font-semibold text-white transition hover:bg-white/[0.12] focus:outline-none focus:ring-2 focus:ring-white/40"
+          >
+            <FcGoogle aria-hidden="true" className="h-5 w-5" />
+            Registrarme con Google
+          </button>
 
           <div className="mt-4 border-t border-white/10 pt-4 text-center">
             <Link

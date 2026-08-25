@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { listTracks, type Track } from "../api/tracks";
+import { searchCatalogArtists, type CatalogArtist } from "../api/catalog";
 
 const DEBOUNCE_MS = 250;
 const RESULT_LIMIT = 6;
@@ -10,15 +11,16 @@ interface GlobalSearchState {
   setQuery: (q: string) => void;
   query: string;
   /** Tracks matching the latest debounced query, or `[]` when query is empty. */
-  results: Track[];
+  tracks: Track[];
+  /** Artist profiles matching the same query. */
+  artists: CatalogArtist[];
   isLoading: boolean;
 }
 
 /**
- * Cross-catalog typeahead used by the navbar. Hits the same
- * /library/tracks?search= endpoint that the library page does — the backend
- * already filters title/artist/album insensitively and unions the user's own
- * uploads with public catalog tracks.
+ * Cross-catalog typeahead used by the navbar. Tracks and catalog artists are
+ * requested together so a search such as "Bruno Mars" exposes the profile as
+ * well as matching songs without a serial request waterfall.
  */
 export function useGlobalSearch(): GlobalSearchState {
   const [query, setQuery] = useState("");
@@ -37,7 +39,13 @@ export function useGlobalSearch(): GlobalSearchState {
 
   const q = useQuery({
     queryKey: ["globalSearch", debounced],
-    queryFn: () => listTracks({ search: debounced, take: RESULT_LIMIT }),
+    queryFn: async () => {
+      const [trackResponse, artistResponse] = await Promise.all([
+        listTracks({ search: debounced, take: RESULT_LIMIT }),
+        searchCatalogArtists(debounced, RESULT_LIMIT),
+      ]);
+      return { tracks: trackResponse.tracks, artists: artistResponse.items };
+    },
     enabled,
     staleTime: 30_000,
   });
@@ -45,7 +53,8 @@ export function useGlobalSearch(): GlobalSearchState {
   return {
     query,
     setQuery,
-    results: enabled ? (q.data?.tracks ?? []) : [],
+    tracks: enabled ? (q.data?.tracks ?? []) : [],
+    artists: enabled ? (q.data?.artists ?? []) : [],
     isLoading: enabled && q.isLoading,
   };
 }

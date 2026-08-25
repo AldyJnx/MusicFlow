@@ -16,8 +16,8 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import ClientLayout from "../layout/ClientLayout";
 import {
   useTracksQuery,
-  useAlbumsQuery,
-  useArtistsQuery,
+  useAlbumsInfiniteQuery,
+  useArtistsInfiniteQuery,
 } from "../../shared/hooks/useTracks";
 import {
   useSavedCheckQuery,
@@ -28,6 +28,7 @@ import { usePlayerStore, type PlayerTrack } from "../stores/playStore";
 import SaveButton from "../../shared/ui/SaveButton";
 import ImportModal from "../features/import/ImportModal";
 import AddToPlaylistModal from "../features/playlists/AddToPlaylistModal";
+import PagedLibraryCarousel from "../../shared/ui/PagedLibraryCarousel";
 
 type LibraryScope = "catalog" | "mylibrary";
 type LibraryTab = "songs" | "albums" | "artists";
@@ -68,11 +69,12 @@ function ArtistTile({
   return (
     <button
       type="button"
+      data-testid={`library-artist-${name}`}
       onClick={onClick}
-      className="group flex cursor-pointer flex-col items-center gap-3 rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-surface-alt)] p-4 text-center transition hover:-translate-y-1 hover:border-[var(--color-primary)] hover:shadow-[0_18px_40px_rgba(0,0,0,0.32)]"
+      className="group flex h-[248px] w-full cursor-pointer flex-col items-center justify-center gap-3 rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-surface-alt)] p-4 text-center transition hover:-translate-y-1 hover:border-[var(--color-primary)] hover:shadow-[0_18px_40px_rgba(0,0,0,0.32)]"
     >
       <div
-        className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-full text-lg font-bold text-white shadow-[0_10px_24px_rgba(0,0,0,0.32)] transition group-hover:scale-105"
+        className="flex h-40 w-40 shrink-0 items-center justify-center overflow-hidden rounded-full text-xl font-bold text-white shadow-[0_10px_24px_rgba(0,0,0,0.32)] transition group-hover:scale-105"
         style={
           imageUrl
             ? undefined
@@ -93,7 +95,7 @@ function ArtistTile({
           initials || "?"
         )}
       </div>
-      <p className="w-full truncate text-sm font-semibold text-[var(--color-text)] group-hover:text-[var(--color-primary)]">
+      <p className="min-h-10 w-full overflow-hidden text-base font-semibold leading-5 text-[var(--color-text)] group-hover:text-[var(--color-primary)]">
         {name}
       </p>
     </button>
@@ -128,7 +130,11 @@ export default function LibraryPage() {
     searchParams.get("scope") === "mylibrary" ? "mylibrary" : "catalog";
   const tabParam = searchParams.get("tab");
   const initialTab: LibraryTab =
-    tabParam === "albums" || tabParam === "artists" ? tabParam : "songs";
+    initialScope === "mylibrary"
+      ? "songs"
+      : tabParam === "albums" || tabParam === "artists"
+        ? tabParam
+        : "songs";
   const [scope, setScope] = useState<LibraryScope>(initialScope);
   const [importOpen, setImportOpen] = useState(false);
   // Track queued for the "add to playlist" modal (null = modal closed).
@@ -145,14 +151,6 @@ export default function LibraryPage() {
   const [searchInput, setSearchInput] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Albums/artists only make sense in the catalog scope. Reset to songs when
-  // switching to "My Library" — that view is a flat saved-tracks list.
-  useEffect(() => {
-    if (scope === "mylibrary" && activeTab !== "songs") {
-      setActiveTab("songs");
-    }
-  }, [scope, activeTab]);
 
   // Debounce search input by 300 ms
   useEffect(() => {
@@ -182,8 +180,12 @@ export default function LibraryPage() {
   );
   const tracksQuery = scope === "catalog" ? catalogQuery : savedQuery;
 
-  const albumsQuery = useAlbumsQuery();
-  const artistsQuery = useArtistsQuery();
+  const albumsQuery = useAlbumsInfiniteQuery(debouncedSearch, {
+    enabled: scope === "catalog" && activeTab === "albums",
+  });
+  const artistsQuery = useArtistsInfiniteQuery(debouncedSearch, {
+    enabled: scope === "catalog" && activeTab === "artists",
+  });
   const genresQuery = useQuery({
     queryKey: ["library", "genres"],
     queryFn: listGenres,
@@ -191,9 +193,14 @@ export default function LibraryPage() {
   });
   const genres = genresQuery.data ?? [];
 
-  const tracks = tracksQuery.data?.tracks ?? [];
-  const albums = albumsQuery.data ?? [];
-  const artists = artistsQuery.data ?? [];
+  const tracks = useMemo(
+    () => tracksQuery.data?.tracks ?? [],
+    [tracksQuery.data],
+  );
+  const albumPages = albumsQuery.data?.pages.map((page) => page.items) ?? [];
+  const artistPages = artistsQuery.data?.pages.map((page) => page.items) ?? [];
+  const albumTotal = albumsQuery.data?.pages[0]?.total ?? 0;
+  const artistTotal = artistsQuery.data?.pages[0]?.total ?? 0;
 
   // Bulk-check which visible tracks are saved so the heart icons paint
   // correctly. In "My Library" everything in the list is implicitly saved,
@@ -256,7 +263,10 @@ export default function LibraryPage() {
               </button>
               <button
                 type="button"
-                onClick={() => setScope("mylibrary")}
+                onClick={() => {
+                  setScope("mylibrary");
+                  setActiveTab("songs");
+                }}
                 className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition ${
                   scope === "mylibrary"
                     ? "bg-[var(--color-primary)] text-[var(--color-primary-contrast)] shadow"
@@ -563,7 +573,7 @@ export default function LibraryPage() {
               <div>
                 {albumsQuery.isLoading && (
                   <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-                    {Array.from({ length: 10 }).map((_, i) => (
+                    {Array.from({ length: 6 }).map((_, i) => (
                       <div
                         key={i}
                         className="animate-pulse rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-alt)] p-3"
@@ -591,7 +601,7 @@ export default function LibraryPage() {
                   </div>
                 )}
 
-                {albumsQuery.isSuccess && albums.length === 0 && (
+                {albumsQuery.isSuccess && albumTotal === 0 && (
                   <div className="flex flex-col items-center gap-3 py-16 text-center">
                     <Music4
                       className="h-10 w-10 text-[var(--color-muted)]"
@@ -603,12 +613,32 @@ export default function LibraryPage() {
                   </div>
                 )}
 
-                {albumsQuery.isSuccess && albums.length > 0 && (
-                  <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-                    {albums.map((album) => (
-                      <article
-                        key={album.album}
-                        className="cursor-pointer rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-alt)] p-3 transition hover:bg-[var(--color-surface)]"
+                {albumsQuery.isSuccess && albumTotal > 0 && (
+                  <PagedLibraryCarousel
+                    key={`albums-${debouncedSearch}`}
+                    pages={albumPages}
+                    total={albumTotal}
+                    getKey={(album) =>
+                      `${album.album}-${album.albumArtist ?? ""}`
+                    }
+                    hasNextPage={albumsQuery.hasNextPage}
+                    isFetchingNextPage={albumsQuery.isFetchingNextPage}
+                    fetchNextPage={albumsQuery.fetchNextPage}
+                    resetKey={`albums-${debouncedSearch}`}
+                    label="Álbumes"
+                    renderItem={(album) => (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (album.albumId)
+                            navigate(`/album/${album.albumId}`);
+                        }}
+                        className="flex h-[276px] min-w-0 flex-col rounded-xl border border-[var(--color-border)] bg-[rgba(18,24,35,0.78)] p-3 text-left shadow-[0_12px_30px_rgba(0,0,0,0.14)] backdrop-blur-sm transition hover:-translate-y-0.5 hover:border-[var(--color-primary)]/50 hover:bg-[rgba(18,24,35,0.9)]"
+                        aria-label={
+                          album.albumId
+                            ? `Abrir álbum ${album.album}`
+                            : `Álbum ${album.album} no disponible`
+                        }
                       >
                         {album.coverArt ? (
                           <img
@@ -616,17 +646,17 @@ export default function LibraryPage() {
                             loading="lazy"
                             decoding="async"
                             alt={album.album}
-                            className="mb-3 h-36 w-full rounded-lg object-cover"
+                            className="mb-3 h-[176px] w-full shrink-0 rounded-lg object-cover"
                           />
                         ) : (
-                          <div className="mb-3 flex h-36 w-full items-center justify-center rounded-lg bg-[var(--color-border)]">
+                          <div className="mb-3 flex h-[176px] w-full shrink-0 items-center justify-center rounded-lg bg-[var(--color-border)]">
                             <Music4
                               className="h-8 w-8 text-[var(--color-muted)]"
                               strokeWidth={1.5}
                             />
                           </div>
                         )}
-                        <p className="truncate text-sm font-semibold text-[var(--color-text)]">
+                        <p className="min-h-10 break-words text-sm font-semibold leading-5 text-[var(--color-text)] [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2]">
                           {album.album}
                         </p>
                         {album.albumArtist && (
@@ -634,9 +664,9 @@ export default function LibraryPage() {
                             {album.albumArtist}
                           </p>
                         )}
-                      </article>
-                    ))}
-                  </div>
+                      </button>
+                    )}
+                  />
                 )}
               </div>
             )}
@@ -646,7 +676,7 @@ export default function LibraryPage() {
               <div>
                 {artistsQuery.isLoading && (
                   <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
-                    {Array.from({ length: 12 }).map((_, i) => (
+                    {Array.from({ length: 6 }).map((_, i) => (
                       <div
                         key={i}
                         className="animate-pulse rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-alt)] p-4"
@@ -672,7 +702,7 @@ export default function LibraryPage() {
                   </div>
                 )}
 
-                {artistsQuery.isSuccess && artists.length === 0 && (
+                {artistsQuery.isSuccess && artistTotal === 0 && (
                   <div className="flex flex-col items-center gap-3 py-16 text-center">
                     <Music4
                       className="h-10 w-10 text-[var(--color-muted)]"
@@ -684,19 +714,27 @@ export default function LibraryPage() {
                   </div>
                 )}
 
-                {artistsQuery.isSuccess && artists.length > 0 && (
-                  <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
-                    {artists.map((artist) => (
+                {artistsQuery.isSuccess && artistTotal > 0 && (
+                  <PagedLibraryCarousel
+                    key={`artists-${debouncedSearch}`}
+                    pages={artistPages}
+                    total={artistTotal}
+                    getKey={(artist) => artist.name}
+                    hasNextPage={artistsQuery.hasNextPage}
+                    isFetchingNextPage={artistsQuery.isFetchingNextPage}
+                    fetchNextPage={artistsQuery.fetchNextPage}
+                    resetKey={`artists-${debouncedSearch}`}
+                    label="Artistas"
+                    renderItem={(artist) => (
                       <ArtistTile
-                        key={artist.name}
                         name={artist.name}
                         imageUrl={artist.imageUrl}
                         onClick={() =>
                           navigate(`/artist/${encodeURIComponent(artist.name)}`)
                         }
                       />
-                    ))}
-                  </div>
+                    )}
+                  />
                 )}
               </div>
             )}

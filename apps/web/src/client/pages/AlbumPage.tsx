@@ -305,7 +305,7 @@ export default function AlbumPage() {
             </p>
           ) : album && album.tracks.length && view === "cards" ? (
             /* ── Cards view ─────────────────────────────────────────────── */
-            <div className="grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(190px,1fr))]">
+            <div className="grid justify-start gap-4 [grid-template-columns:repeat(auto-fill,minmax(190px,220px))]">
               {album.tracks.map((tr, i) => {
                 const active = currentTrackId === tr.id;
                 const cover = tr.coverArt ?? album.coverArt;
@@ -323,7 +323,7 @@ export default function AlbumPage() {
                         playFrom(i);
                       }
                     }}
-                    className={`group relative aspect-[4/5] cursor-pointer overflow-hidden rounded-2xl border text-left transition hover:-translate-y-1 ${
+                    className={`group relative h-[238px] cursor-pointer overflow-hidden rounded-2xl border text-left transition hover:-translate-y-1 ${
                       active
                         ? "border-[var(--color-primary)] ring-1 ring-[var(--color-primary)]/50"
                         : "border-[var(--color-line)] hover:border-[var(--color-primary)]/60"

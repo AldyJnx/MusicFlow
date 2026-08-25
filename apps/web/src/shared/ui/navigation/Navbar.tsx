@@ -67,7 +67,7 @@ const Navbar = forwardRef<NavbarRef, NavbarProps>(function Navbar(
   const clearSession = useAuthStore((s) => s.clear);
   const playTrack = usePlayerStore((s) => s.playTrack);
   const stopPlayback = usePlayerStore((s) => s.stop);
-  const { query, setQuery, results, isLoading } = useGlobalSearch();
+  const { query, setQuery, tracks, artists, isLoading } = useGlobalSearch();
   const [focused, setFocused] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -116,6 +116,12 @@ const Navbar = forwardRef<NavbarRef, NavbarProps>(function Navbar(
     setFocused(false);
   }
 
+  function handlePickArtist(name: string) {
+    navigate(`/artist/${encodeURIComponent(name)}`);
+    setQuery("");
+    setFocused(false);
+  }
+
   return (
     <header className="sticky top-0 z-30 flex h-[62px] items-center justify-between gap-4 border-b border-[var(--color-line)] bg-[rgba(7,7,14,.3)] px-6 backdrop-blur-[20px]">
       <div className="flex flex-1 justify-start">
@@ -144,45 +150,90 @@ const Navbar = forwardRef<NavbarRef, NavbarProps>(function Navbar(
 
           {dropdownOpen ? (
             <div className="absolute left-0 right-0 top-[calc(100%+10px)] overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[0_18px_40px_rgba(0,0,0,0.34)]">
-              {results.length === 0 && !isLoading ? (
+              {artists.length === 0 && tracks.length === 0 && !isLoading ? (
                 <div className="px-4 py-6 text-center text-sm text-[var(--color-muted)]">
                   {t("navbar.searchEmpty", {
                     defaultValue: "Sin resultados",
                   })}
                 </div>
               ) : null}
-              {results.map((track) => (
-                <button
-                  key={track.id}
-                  type="button"
-                  onClick={() => handlePick(track)}
-                  className="flex w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-white/[0.04]"
-                >
-                  {track.coverArt ? (
-                    <img
-                      src={track.coverArt}
-                      alt=""
-                      className="h-10 w-10 rounded-lg object-cover"
-                    />
-                  ) : (
-                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[var(--color-surface-alt)]">
-                      <Music4
-                        className="h-4 w-4 text-[var(--color-muted)]"
-                        strokeWidth={1.8}
-                      />
-                    </div>
-                  )}
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold text-[var(--color-text)]">
-                      {track.title}
-                    </p>
-                    <p className="truncate text-xs text-[var(--color-muted)]">
-                      {track.artist}
-                      {track.album ? ` · ${track.album}` : ""}
-                    </p>
-                  </div>
-                </button>
-              ))}
+              {artists.length > 0 ? (
+                <div className="py-1.5">
+                  <p className="px-4 pb-1 pt-2 text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-muted)]">
+                    {t("navbar.artists", { defaultValue: "Artistas" })}
+                  </p>
+                  {artists.map((artist) => (
+                    <button
+                      key={artist.id}
+                      type="button"
+                      onClick={() => handlePickArtist(artist.name)}
+                      className="flex w-full items-center gap-3 px-4 py-2.5 text-left transition hover:bg-white/[0.04]"
+                    >
+                      {artist.imageUrl ? (
+                        <img
+                          src={artist.imageUrl}
+                          alt=""
+                          className="h-10 w-10 rounded-full object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--color-surface-alt)]">
+                          <UserIcon
+                            className="h-4 w-4 text-[var(--color-muted)]"
+                            strokeWidth={1.8}
+                          />
+                        </div>
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-semibold text-[var(--color-text)]">
+                          {artist.name}
+                        </p>
+                        <p className="truncate text-xs text-[var(--color-muted)]">
+                          {artist.trackCount} canciones disponibles
+                        </p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+              {tracks.length > 0 ? (
+                <div className="border-t border-[var(--color-border)] py-1.5">
+                  <p className="px-4 pb-1 pt-2 text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-muted)]">
+                    {t("navbar.tracks", { defaultValue: "Canciones" })}
+                  </p>
+                  {tracks.map((track) => (
+                    <button
+                      key={track.id}
+                      type="button"
+                      onClick={() => handlePick(track)}
+                      className="flex w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-white/[0.04]"
+                    >
+                      {track.coverArt ? (
+                        <img
+                          src={track.coverArt}
+                          alt=""
+                          className="h-10 w-10 rounded-lg object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[var(--color-surface-alt)]">
+                          <Music4
+                            className="h-4 w-4 text-[var(--color-muted)]"
+                            strokeWidth={1.8}
+                          />
+                        </div>
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-semibold text-[var(--color-text)]">
+                          {track.title}
+                        </p>
+                        <p className="truncate text-xs text-[var(--color-muted)]">
+                          {track.artist}
+                          {track.album ? ` · ${track.album}` : ""}
+                        </p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              ) : null}
             </div>
           ) : null}
         </div>

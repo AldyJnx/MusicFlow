@@ -44,9 +44,22 @@ export interface TracksListResponse {
 }
 
 export interface Album {
+  albumId: string | null;
   album: string;
   albumArtist: string | null;
   coverArt: string | null;
+}
+
+export interface OffsetPage<T> {
+  items: T[];
+  total: number;
+  nextOffset: number | null;
+}
+
+export interface PageParams {
+  q?: string;
+  offset?: number;
+  limit?: number;
 }
 
 export interface ListTracksParams {
@@ -77,10 +90,30 @@ export async function listArtists(): Promise<ArtistSummary[]> {
   return data;
 }
 
+export async function listArtistsPage(
+  params: PageParams,
+): Promise<OffsetPage<ArtistSummary>> {
+  const { data } = await api.get<OffsetPage<ArtistSummary>>(
+    "/library/tracks/artists/page",
+    { params },
+  );
+  return data;
+}
+
 export async function listAlbums(artist?: string): Promise<Album[]> {
   const { data } = await api.get<Album[]>("/library/tracks/albums", {
     params: artist ? { artist } : undefined,
   });
+  return data;
+}
+
+export async function listAlbumsPage(
+  params: PageParams,
+): Promise<OffsetPage<Album>> {
+  const { data } = await api.get<OffsetPage<Album>>(
+    "/library/tracks/albums/page",
+    { params },
+  );
   return data;
 }
 

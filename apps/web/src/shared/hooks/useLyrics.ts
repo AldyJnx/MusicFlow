@@ -12,21 +12,16 @@ export type UseLyricsResult = {
   lines: LyricsLine[];
   /** Plain text fallback. Always present when mode === 'plain'. */
   plainText: string | null;
-  currentLineIndex: number;
   isLoading: boolean;
   isError: boolean;
 };
 
 /**
- * Fetches the lyrics for a track and, when the LRC has timestamps, returns
- * the index of the line currently being sung based on the audio playhead.
- *
- * Re-renders every time the player's `positionMs` ticks, but the parsing of
- * the raw LRC happens once per track (memoized on the payload).
+ * Fetches and parses the lyrics once per track. Consumers that need the
+ * active line should use `useCurrentLyricsLineIndex`, whose selector only
+ * changes when the line changes rather than at every audio position tick.
  */
 export function useLyrics(trackId: string | null): UseLyricsResult {
-  const positionMs = usePlayerStore((s) => s.positionMs);
-
   const query = useQuery({
     queryKey: ["track-lyrics", trackId],
     enabled: Boolean(trackId),
@@ -56,17 +51,18 @@ export function useLyrics(trackId: string | null): UseLyricsResult {
     };
   }, [query.data]);
 
-  const currentLineIndex = useMemo(() => {
-    if (parsed.mode !== "synced") return -1;
-    return findCurrentLineIndex(parsed.lines, positionMs);
-  }, [parsed.mode, parsed.lines, positionMs]);
-
   return {
     mode: parsed.mode,
     lines: parsed.lines,
     plainText: parsed.plainText,
-    currentLineIndex,
     isLoading: query.isLoading,
     isError: query.isError,
   };
+}
+
+/** Re-renders only when playback crosses into a different timed LRC line. */
+export function useCurrentLyricsLineIndex(lines: LyricsLine[]): number {
+  return usePlayerStore((state) =>
+    findCurrentLineIndex(lines, state.positionMs),
+  );
 }

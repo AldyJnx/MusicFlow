@@ -69,7 +69,10 @@ export default function RightPanel({
 
   if (collapsed) {
     return (
-      <div className="sticky top-0 z-10 hidden h-screen w-16 flex-none flex-col items-center gap-2.5 border-l border-[var(--color-line)] bg-[rgba(8,8,16,.4)] px-0 pb-3.5 pt-[58px] backdrop-blur-[var(--glass-blur)] lg:flex">
+      <div
+        data-testid="right-panel"
+        className="fixed inset-y-0 right-0 z-[60] hidden h-screen w-16 flex-none flex-col items-center gap-2.5 border-l border-[var(--color-line)] bg-[rgba(8,8,16,.4)] px-0 pb-3.5 pt-[58px] backdrop-blur-[var(--glass-blur)] lg:flex"
+      >
         <button
           type="button"
           onClick={onToggle}
@@ -106,7 +109,7 @@ export default function RightPanel({
             ) : null}
           </div>
         ) : null}
-        <div className="flex min-h-0 w-full flex-1 flex-col items-center gap-2 overflow-y-auto pt-0.5">
+        <div className="flex min-h-0 w-full flex-1 flex-col items-center gap-2 overflow-y-auto pt-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {upcoming.slice(0, 12).map(({ trk, absIndex }) => (
             <button
               key={trk.id + absIndex}
@@ -131,7 +134,10 @@ export default function RightPanel({
   }
 
   return (
-    <aside className="sticky top-0 z-10 hidden h-screen w-[322px] flex-none flex-col border-l border-[var(--color-line)] bg-[rgba(8,8,16,.4)] backdrop-blur-[var(--glass-blur)] lg:flex">
+    <aside
+      data-testid="right-panel"
+      className="fixed inset-y-0 right-0 z-[60] hidden h-screen w-[322px] flex-none flex-col border-l border-[var(--color-line)] bg-[rgba(8,8,16,.4)] backdrop-blur-[var(--glass-blur)] lg:flex"
+    >
       <header className="flex h-[62px] flex-none items-center gap-2 border-b border-[var(--color-line)] px-3">
         <button
           type="button"
@@ -159,7 +165,7 @@ export default function RightPanel({
         ))}
       </header>
 
-      <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto p-3.5">
+      <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto p-3.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <span
           className="mb-1.5 text-[var(--color-muted)]"
           style={{ font: "700 9.5px var(--font-mono)", letterSpacing: ".16em" }}

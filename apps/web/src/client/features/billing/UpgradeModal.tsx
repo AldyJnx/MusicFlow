@@ -93,7 +93,7 @@ export default function UpgradeModal() {
     [activeFeature],
   );
 
-  // Form validity. Loose on purpose — this is a simulator, not Stripe.
+  // Form validity is intentionally loose because this is only a simulator.
   const cardDigits = card.replace(/\D/g, "");
   const expiryDigits = expiry.replace(/\D/g, "");
   const cvvDigits = cvv.replace(/\D/g, "");

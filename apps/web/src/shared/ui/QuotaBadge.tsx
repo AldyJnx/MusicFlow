@@ -14,7 +14,7 @@ export default function QuotaBadge() {
   const { t } = useTranslation();
   const navigate = useNavigate();
 
-  if (isLoading || !data) return null;
+  if (isLoading || !data || !data.aiRequests) return null;
 
   // Premium/admin: tier is already shown by TierBadge — no quota meter needed.
   if (data.isPremium) return null;

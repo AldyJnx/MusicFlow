@@ -4,8 +4,11 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 import ChangePassword from "./auth/pages/ChangePassword";
 import ForgotPassword from "./auth/pages/ForgotPassword";
 import Login from "./auth/pages/Login";
+import HeadphonesTip from "./auth/pages/HeadphonesTip";
 import Register from "./auth/pages/Register";
 import VerifyCode from "./auth/pages/VerifyCode";
+import AccountDeletion from "./auth/pages/AccountDeletion";
+import GoogleOAuthCallback from "./auth/pages/GoogleOAuthCallback";
 import RouteFallback from "./shared/ui/RouteFallback";
 import PWAInstallBanner from "./shared/ui/PWAInstallBanner";
 import UpsellModal from "./shared/ui/UpsellModal";
@@ -17,8 +20,9 @@ import { useLocalLibraryStore } from "./shared/offline/localLibrary";
 
 // Split the two app shells: a client user never downloads the admin bundle and
 // vice-versa. Auth pages stay eager — they're the entry point.
-const ClientRoutes = lazy(() => import("./client/routes/clientRoutes"));
+const UsuariosRoutes = lazy(() => import("./usuarios/routes/UsuariosRoutes"));
 const AdminRoutes = lazy(() => import("./admin/routes/adminRoutes"));
+const ArtistaRoutes = lazy(() => import("./artista/routes/ArtistaRoutes"));
 
 function App() {
   const queryClient = useQueryClient();
@@ -55,12 +59,19 @@ function App() {
       <Suspense fallback={<RouteFallback />}>
         <Routes>
           <Route path="/" element={<Login />} />
+          <Route path="/headphones-tip" element={<HeadphonesTip />} />
           <Route path="/register" element={<Register />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/verify-code" element={<VerifyCode />} />
           <Route path="/change-password" element={<ChangePassword />} />
+          <Route path="/account-deletion" element={<AccountDeletion />} />
+          <Route
+            path="/auth/google/callback"
+            element={<GoogleOAuthCallback />}
+          />
           <Route path="/admin/*" element={<AdminRoutes />} />
-          <Route path="/*" element={<ClientRoutes />} />
+          <Route path="/artist-dashboard/*" element={<ArtistaRoutes />} />
+          <Route path="/*" element={<UsuariosRoutes />} />
         </Routes>
       </Suspense>
       <PWAInstallBanner />
