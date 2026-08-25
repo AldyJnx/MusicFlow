@@ -474,7 +474,7 @@ model Device {
   deviceType  DeviceType  @map("device_type")
   deviceName  String      @map("device_name")
   lastSyncAt  DateTime?   @map("last_sync_at")
-  fcmToken    String?     @map("fcm_token")
+  pushToken   String?     @map("push_token")
   createdAt   DateTime    @default(now()) @map("created_at")
 
   // Relations
@@ -1611,7 +1611,7 @@ Responde SIEMPRE en este formato JSON:
 
 #### PB-073: Notificaciones push (2 SP)
 
-- FCM (mobile)
+- Proveedor de notificaciones push (mobile)
 - Notificaciones del sistema (desktop)
 
 ---

@@ -91,10 +91,12 @@ Aceptamos el coste de Prisma (cliente más pesado) por la productividad.
 
 **Justificación:** estándar de la industria; estrategias intercambiables (JWT hoy, OAuth Google/Spotify mañana sin reescribir). `@nestjs/jwt` da control fino sobre payload, expiración y refresh tokens rotativos.
 
-**Configuración elegida:**
-
-- Access token: 15 min, firma HS256, en memoria del cliente.
-- Refresh token: 7 días, rotativo, en `httpOnly` cookie (mitigación XSS).
+**Estado actual:** el backend emite access y refresh token firmados con secretos
+independientes. Mobile los guarda en Keystore/Keychain mediante
+`flutter_secure_storage`. Web persiste ambos en `localStorage` para restaurar la
+sesión; esta decisión conserva la sesión, pero amplifica el impacto de un XSS.
+La migración web a refresh token rotativo en cookie `httpOnly`, `Secure` y
+`SameSite` está registrada como trabajo de seguridad pendiente.
 
 ### class-validator + class-transformer
 
@@ -397,9 +399,13 @@ El switch lo controla el admin desde PB-106.
 
 **Justificación:** parsing de `.env` tipado con validación al boot — si falta `JWT_SECRET`, el servidor no arranca (mejor que descubrirlo en producción).
 
-### JWT con refresh rotativo
+### JWT y renovación de sesión
 
-**Decisión clave:** access token corto (15 min) en memoria + refresh largo (7 días) en cookie `httpOnly` `Secure` `SameSite=Strict`. Refresh tokens se rotan en cada uso — si un refresh viejo se reutiliza, asumimos robo y revocamos toda la familia.
+**Estado actual:** el API valida JWT y vuelve a consultar rol, estado y plan del
+usuario en cada autenticación. El refresh token todavía es stateless: no existe
+familia persistida, revocación ni detección de reutilización. El objetivo de
+producción es access token corto en memoria y refresh rotativo en cookie
+`httpOnly`, `Secure` y `SameSite`, con revocación de familia al detectar reuse.
 
 ### CORS estricto
 
@@ -413,9 +419,12 @@ El switch lo controla el admin desde PB-106.
 
 **Justificación:** versiones anteriores rompen las prepared statements de Prisma. Si se usa pooling en prod, pinear la versión.
 
-### Helmet (a añadir)
+### Helmet
 
-**Justificación:** headers de seguridad (CSP, HSTS, X-Content-Type-Options). Pendiente de incorporación a `main.ts`.
+**Justificación:** ya está incorporado en `main.ts` para emitir headers de
+seguridad. La CSP no debe desactivarse en producción al habilitar Swagger; la
+documentación debe servirse con una política compatible o limitarse a entornos
+internos.
 
 ---
 

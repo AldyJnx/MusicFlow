@@ -87,7 +87,7 @@ MusicFlow/
 │   │   │       ├── ai-agent/    # Agente IA (sugerencias y detección)
 │   │   │       ├── analytics/   # PlayHistory, stats
 │   │   │       ├── sync/        # Sincronización híbrida
-│   │   │       ├── billing/     # Premium / cuotas / Stripe
+│   │   │       ├── billing/     # Premium / cuotas / Mercado Pago
 │   │   │       ├── preferences/ # Preferencias de usuario
 │   │   │       ├── storage/     # Cliente R2 / S3-compatible
 │   │   │       └── admin/       # Panel de administración
@@ -136,7 +136,7 @@ MusicFlow/
 - **Swagger** / OpenAPI (`@nestjs/swagger`)
 - **Integración con IA** mediante SDK (`@anthropic-ai/sdk`); incluye un modo mock para desarrollo sin API key
 - **Cloudflare R2** para storage de audio e imágenes (S3-compatible)
-- **Stripe** (checkout / webhooks de suscripción)
+- **Mercado Pago** (suscripción alojada; integración preparada)
 - **Jest** + Supertest (testing)
 
 ### Frontend Web + Desktop (`apps/web`)
@@ -261,8 +261,8 @@ REDIS_URL=redis://localhost:6379
 # JWT
 JWT_SECRET=cambia-este-valor
 JWT_REFRESH_SECRET=cambia-este-valor-tambien
-JWT_ACCESS_EXPIRES=15m
-JWT_REFRESH_EXPIRES=7d
+JWT_EXPIRES_IN=15m
+JWT_REFRESH_EXPIRES_IN=7d
 
 # Cloudflare R2 (Storage)
 R2_ENDPOINT=https://<account>.r2.cloudflarestorage.com
@@ -278,18 +278,23 @@ R2_PUBLIC_IMAGES_URL=https://<bucket-images>.r2.dev
 ANTHROPIC_API_KEY=
 ANTHROPIC_MODEL=<id-del-modelo>
 
-# Stripe (opcional, billing)
-STRIPE_SECRET_KEY=
-STRIPE_WEBHOOK_SECRET=
+# Mercado Pago (se habilitará al integrar suscripciones)
+MERCADO_PAGO_TEST_ACCESS_TOKEN=
+MERCADO_PAGO_ACCESS_TOKEN=
+MERCADO_PAGO_TEST_WEBHOOK_SECRET=
+MERCADO_PAGO_WEBHOOK_SECRET=
+MERCADO_PAGO_TEST_PREAPPROVAL_PLAN_ID=
+MERCADO_PAGO_PREAPPROVAL_PLAN_ID=
 ```
 
 ### Frontend (`apps/web/.env`)
 
 ```env
 VITE_API_URL=http://localhost:8000
+VITE_CAST_RECEIVER_APP_ID=
 ```
 
-> **Importante:** nunca commitear `.env` con secretos. `R2_ACCESS_KEY`, `R2_SECRET_ACCESS_KEY`, `ANTHROPIC_API_KEY` y las claves de Stripe se gestionan fuera del repositorio (Vault, secrets de CI, etc.).
+> **Importante:** nunca commitear `.env` con secretos. `R2_ACCESS_KEY`, `R2_SECRET_ACCESS_KEY`, `ANTHROPIC_API_KEY` y los tokens de Mercado Pago se gestionan fuera del repositorio (Vault, secrets de CI, etc.). El Application ID de Cast es público.
 
 ---
 

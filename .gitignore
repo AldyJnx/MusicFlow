@@ -23,10 +23,11 @@ env/
 *~
 .DS_Store
 
-# Environment files
+# Local environment files
 .env
-.env.local
-.env.*.local
+.env.*
+!.env.example
+!.env.*.example
 *.local
 
 # Build outputs
@@ -41,6 +42,11 @@ coverage/
 htmlcov/
 .pytest_cache/
 .nyc_output/
+
+# Generated reports and test artifacts
+reports/
+playwright-report/
+test-results/
 
 # Docker
 docker-compose.override.yml
@@ -97,3 +103,4 @@ apps/backend/dist/
 .claude/
 CLAUDE.md
 claude-skills/
+.agents/
