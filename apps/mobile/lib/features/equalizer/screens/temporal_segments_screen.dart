@@ -22,6 +22,7 @@ class _TemporalSegmentsScreenState
   Future<List<EQSegment>>? _future;
   String? _loadedTrackId;
   bool _savingSegment = false;
+  String? _deletingSegmentId;
 
   @override
   Widget build(BuildContext context) {
@@ -178,7 +179,12 @@ class _TemporalSegmentsScreenState
                                   const SizedBox(height: 12),
                               itemBuilder: (context, index) {
                                 final segment = segments[index];
-                                return _SegmentCard(segment: segment);
+                                return _SegmentCard(
+                                  segment: segment,
+                                  isDeleting: _deletingSegmentId == segment.id,
+                                  onDelete: () =>
+                                      _confirmDeleteSegment(context, segment),
+                                );
                               },
                             );
                           },
@@ -212,156 +218,14 @@ class _TemporalSegmentsScreenState
     }
     final preferredEnd = startSeconds + 30;
     final endSeconds = preferredEnd > maxSeconds ? maxSeconds : preferredEnd;
-    final labelController = TextEditingController(text: 'Tramo destacado');
-    final startController = TextEditingController(
-      text: startSeconds.toString(),
-    );
-    final endController = TextEditingController(text: endSeconds.toString());
-    var preset = _SegmentPreset.voice;
-
     final draft = await showDialog<_SegmentDraft>(
       context: screenContext,
-      builder: (dialogContext) {
-        String? validationError;
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            return AlertDialog(
-              backgroundColor: _panel,
-              titleTextStyle: const TextStyle(
-                color: Colors.white,
-                fontSize: 20,
-                fontWeight: FontWeight.w900,
-              ),
-              contentTextStyle: const TextStyle(color: Colors.white70),
-              title: const Text('Crear tramo'),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    _DialogField(
-                      controller: labelController,
-                      label: 'Nombre',
-                      keyboardType: TextInputType.text,
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _DialogField(
-                            controller: startController,
-                            label: 'Inicio (s)',
-                            keyboardType: TextInputType.number,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: _DialogField(
-                            controller: endController,
-                            label: 'Fin (s)',
-                            keyboardType: TextInputType.number,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 14),
-                    DropdownButtonFormField<_SegmentPreset>(
-                      initialValue: preset,
-                      dropdownColor: _panel,
-                      decoration: const InputDecoration(
-                        labelText: 'Curva de EQ',
-                        labelStyle: TextStyle(color: Colors.white60),
-                        enabledBorder: UnderlineInputBorder(
-                          borderSide: BorderSide(color: Colors.white38),
-                        ),
-                      ),
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w700,
-                      ),
-                      items: _SegmentPreset.values
-                          .map(
-                            (item) => DropdownMenuItem(
-                              value: item,
-                              child: Text(item.label),
-                            ),
-                          )
-                          .toList(),
-                      onChanged: (value) {
-                        if (value != null) {
-                          setDialogState(() => preset = value);
-                        }
-                      },
-                    ),
-                    if (validationError != null) ...[
-                      const SizedBox(height: 12),
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          validationError!,
-                          style: const TextStyle(
-                            color: Color(0xFFFF8A8A),
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(dialogContext).pop(),
-                  child: const Text('Cancelar'),
-                ),
-                FilledButton(
-                  onPressed: () {
-                    final start = int.tryParse(startController.text.trim());
-                    final end = int.tryParse(endController.text.trim());
-                    if (start == null || end == null || end <= start) {
-                      setDialogState(() {
-                        validationError =
-                            'El fin debe ser mayor que el inicio.';
-                      });
-                      return;
-                    }
-                    if (start < 0 || end < 0) {
-                      setDialogState(() {
-                        validationError =
-                            'Los tiempos no pueden ser negativos.';
-                      });
-                      return;
-                    }
-                    if (end > maxSeconds) {
-                      setDialogState(() {
-                        validationError =
-                            'El fin no puede superar ${_formatSeconds(maxSeconds)}.';
-                      });
-                      return;
-                    }
-
-                    Navigator.of(dialogContext).pop(
-                      _SegmentDraft(
-                        label: labelController.text.trim().isEmpty
-                            ? 'Tramo destacado'
-                            : labelController.text.trim(),
-                        startMs: start * 1000,
-                        endMs: end * 1000,
-                        bands: preset.bands,
-                      ),
-                    );
-                  },
-                  child: const Text('Crear'),
-                ),
-              ],
-            );
-          },
-        );
-      },
+      builder: (_) => _CreateSegmentDialog(
+        startSeconds: startSeconds,
+        endSeconds: endSeconds,
+        maxSeconds: maxSeconds,
+      ),
     );
-
-    labelController.dispose();
-    startController.dispose();
-    endController.dispose();
 
     if (draft == null || !mounted) return;
 
@@ -395,17 +259,67 @@ class _TemporalSegmentsScreenState
     }
   }
 
+  Future<void> _confirmDeleteSegment(
+    BuildContext screenContext,
+    EQSegment segment,
+  ) async {
+    final track = ref.read(playerControllerProvider).currentTrack;
+    if (track == null || _deletingSegmentId != null) return;
+
+    final confirmed = await showDialog<bool>(
+      context: screenContext,
+      builder: (context) => AlertDialog(
+        backgroundColor: _panel,
+        title: const Text(
+          'Eliminar tramo',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900),
+        ),
+        content: Text(
+          'Seguro que deseas eliminar "${segment.label ?? 'Tramo destacado'}"?',
+          style: const TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFFFF5E6C),
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Eliminar'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _deletingSegmentId = segment.id);
+    try {
+      await ref.read(equalizerRepositoryProvider).deleteSegment(segment.id);
+      await ref
+          .read(playerControllerProvider.notifier)
+          .refreshCurrentEqualizer();
+      if (!mounted || !screenContext.mounted) return;
+      _showSnack(screenContext, 'Tramo eliminado.');
+      _reload(track.id);
+    } catch (_) {
+      if (!mounted || !screenContext.mounted) return;
+      _showSnack(screenContext, 'No se pudo eliminar el tramo.');
+    } finally {
+      if (mounted) {
+        setState(() => _deletingSegmentId = null);
+      }
+    }
+  }
+
   void _showSnack(BuildContext context, String message) {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(SnackBar(content: Text(message)));
-  }
-
-  String _formatSeconds(int seconds) {
-    final duration = Duration(seconds: seconds);
-    final minutes = duration.inMinutes;
-    final rest = duration.inSeconds.remainder(60);
-    return '$minutes:${rest.toString().padLeft(2, '0')}';
   }
 }
 
@@ -423,10 +337,188 @@ class _SegmentDraft {
   final List<int> bands;
 }
 
+class _CreateSegmentDialog extends StatefulWidget {
+  const _CreateSegmentDialog({
+    required this.startSeconds,
+    required this.endSeconds,
+    required this.maxSeconds,
+  });
+
+  final int startSeconds;
+  final int endSeconds;
+  final int maxSeconds;
+
+  @override
+  State<_CreateSegmentDialog> createState() => _CreateSegmentDialogState();
+}
+
+class _CreateSegmentDialogState extends State<_CreateSegmentDialog> {
+  late final TextEditingController _labelController;
+  late final TextEditingController _startController;
+  late final TextEditingController _endController;
+  _SegmentPreset _preset = _SegmentPreset.voice;
+  String? _validationError;
+
+  @override
+  void initState() {
+    super.initState();
+    _labelController = TextEditingController(text: 'Tramo destacado');
+    _startController = TextEditingController(
+      text: widget.startSeconds.toString(),
+    );
+    _endController = TextEditingController(text: widget.endSeconds.toString());
+  }
+
+  @override
+  void dispose() {
+    _labelController.dispose();
+    _startController.dispose();
+    _endController.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final start = int.tryParse(_startController.text.trim());
+    final end = int.tryParse(_endController.text.trim());
+    if (start == null || end == null || end <= start) {
+      setState(() => _validationError = 'El fin debe ser mayor que el inicio.');
+      return;
+    }
+    if (start < 0 || end < 0) {
+      setState(() => _validationError = 'Los tiempos no pueden ser negativos.');
+      return;
+    }
+    if (end > widget.maxSeconds) {
+      setState(
+        () => _validationError =
+            'El fin no puede superar ${_formatSeconds(widget.maxSeconds)}.',
+      );
+      return;
+    }
+
+    Navigator.of(context).pop(
+      _SegmentDraft(
+        label: _labelController.text.trim().isEmpty
+            ? 'Tramo destacado'
+            : _labelController.text.trim(),
+        startMs: start * 1000,
+        endMs: end * 1000,
+        bands: _preset.bands,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      backgroundColor: _TemporalSegmentsScreenState._panel,
+      titleTextStyle: const TextStyle(
+        color: Colors.white,
+        fontSize: 20,
+        fontWeight: FontWeight.w900,
+      ),
+      contentTextStyle: const TextStyle(color: Colors.white70),
+      title: const Text('Crear tramo'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _DialogField(
+              controller: _labelController,
+              label: 'Nombre',
+              keyboardType: TextInputType.text,
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: _DialogField(
+                    controller: _startController,
+                    label: 'Inicio (s)',
+                    keyboardType: TextInputType.number,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _DialogField(
+                    controller: _endController,
+                    label: 'Fin (s)',
+                    keyboardType: TextInputType.number,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            DropdownButtonFormField<_SegmentPreset>(
+              initialValue: _preset,
+              dropdownColor: _TemporalSegmentsScreenState._panel,
+              decoration: const InputDecoration(
+                labelText: 'Curva de EQ',
+                labelStyle: TextStyle(color: Colors.white60),
+                enabledBorder: UnderlineInputBorder(
+                  borderSide: BorderSide(color: Colors.white38),
+                ),
+              ),
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w700,
+              ),
+              items: _SegmentPreset.values
+                  .map(
+                    (item) =>
+                        DropdownMenuItem(value: item, child: Text(item.label)),
+                  )
+                  .toList(),
+              onChanged: (value) {
+                if (value != null) {
+                  setState(() => _preset = value);
+                }
+              },
+            ),
+            if (_validationError != null) ...[
+              const SizedBox(height: 12),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  _validationError!,
+                  style: const TextStyle(
+                    color: Color(0xFFFF8A8A),
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancelar'),
+        ),
+        FilledButton(onPressed: _submit, child: const Text('Crear')),
+      ],
+    );
+  }
+
+  String _formatSeconds(int seconds) {
+    final duration = Duration(seconds: seconds);
+    final minutes = duration.inMinutes;
+    final rest = duration.inSeconds.remainder(60);
+    return '$minutes:${rest.toString().padLeft(2, '0')}';
+  }
+}
+
 class _SegmentCard extends StatelessWidget {
-  const _SegmentCard({required this.segment});
+  const _SegmentCard({
+    required this.segment,
+    required this.isDeleting,
+    required this.onDelete,
+  });
 
   final EQSegment segment;
+  final bool isDeleting;
+  final VoidCallback onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -484,12 +576,40 @@ class _SegmentCard extends StatelessWidget {
               ],
             ),
           ),
-          Text(
-            peak == 0 ? 'Plano' : '${peak > 0 ? '+' : ''}$peak dB',
-            style: const TextStyle(
-              color: _TemporalSegmentsScreenState._accent,
-              fontWeight: FontWeight.w900,
-            ),
+          const SizedBox(width: 10),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                peak == 0 ? 'Plano' : '${peak > 0 ? '+' : ''}$peak dB',
+                style: const TextStyle(
+                  color: _TemporalSegmentsScreenState._accent,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                width: 36,
+                height: 36,
+                child: IconButton(
+                  tooltip: 'Eliminar tramo',
+                  padding: EdgeInsets.zero,
+                  onPressed: isDeleting ? null : onDelete,
+                  icon: isDeleting
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Color(0xFFFF7A85),
+                          ),
+                        )
+                      : const Icon(Icons.delete_outline_rounded, size: 21),
+                  color: const Color(0xFFFF7A85),
+                  disabledColor: Colors.white24,
+                ),
+              ),
+            ],
           ),
         ],
       ),

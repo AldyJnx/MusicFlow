@@ -19,6 +19,7 @@ class AuthUser with _$AuthUser {
     required UserRole role,
     @Default(false) bool isPremium,
     String? avatar,
+    DateTime? onboardingCompletedAt,
   }) = _AuthUser;
 
   factory AuthUser.fromJson(Map<String, dynamic> json) =>

@@ -47,6 +47,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    unawaited(ref.read(authControllerProvider.notifier).refreshCurrentUser());
     _secondaryLoadTimer = Timer(const Duration(milliseconds: 180), () {
       if (mounted) setState(() => _loadSecondaryContent = true);
     });
@@ -62,11 +63,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   void _onSearchChanged(String value) {
     _debounce?.cancel();
+    if (value.trim().isEmpty) {
+      ref.read(_tracksQueryProvider.notifier).state = '';
+      return;
+    }
     _debounce = Timer(const Duration(milliseconds: 160), () {
       if (mounted) {
         ref.read(_tracksQueryProvider.notifier).state = value.trim();
       }
     });
+  }
+
+  void _clearSearch() {
+    _debounce?.cancel();
+    _searchController.clear();
+    ref.read(_tracksQueryProvider.notifier).state = '';
   }
 
   void _openPlaylistScreen(BuildContext context) {
@@ -87,6 +98,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       }
       ref.invalidate(savedTrackIdsProvider(savedIdsKey));
       ref.invalidate(savedTracksListProvider(const TracksQuery(take: 5)));
+      ref.invalidate(homeRecommendationsProvider);
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -101,12 +113,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final colors = context.musicFlowColors;
     final authState = ref.watch(authControllerProvider);
     final username = authState.user?.username ?? 'Oyente';
+    final isPremium = authState.user?.isPremium ?? false;
     final searchQuery = ref.watch(_tracksQueryProvider);
     final tracksQuery = TracksQuery(
       search: searchQuery.isEmpty ? null : searchQuery,
-      take: 5,
+      take: searchQuery.isEmpty ? 24 : 8,
     );
     final tracksAsync = ref.watch(tracksListProvider(tracksQuery));
+    final carouselTracksAsync = searchQuery.isEmpty
+        ? ref.watch(homeRecommendationsProvider)
+        : tracksAsync;
     final recentlyPlayedAsync = _loadSecondaryContent && searchQuery.isEmpty
         ? ref.watch(recentlyPlayedTracksProvider(5))
         : const AsyncValue<List<Track>>.data(<Track>[]);
@@ -140,7 +156,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 children: [
                   Align(
                     alignment: Alignment.centerRight,
-                    child: _buildPlanPill(context, theme),
+                    child: _buildPlanPill(context, theme, isPremium),
                   ),
                   const SizedBox(height: 18),
                   Row(
@@ -179,7 +195,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.08),
+                      color: Colors.white.withValues(alpha: 0.08),
                       borderRadius: BorderRadius.circular(22),
                       border: Border.all(color: colors.border),
                     ),
@@ -187,12 +203,24 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       controller: _searchController,
                       style: const TextStyle(color: Colors.white),
                       onChanged: _onSearchChanged,
-                      decoration: const InputDecoration(
-                        icon: Icon(Icons.search_rounded, color: Colors.white70),
+                      decoration: InputDecoration(
+                        icon: const Icon(
+                          Icons.search_rounded,
+                          color: Colors.white70,
+                        ),
                         hintText: '¿Que quieres escuchar hoy?',
-                        hintStyle: TextStyle(color: Colors.white54),
+                        hintStyle: const TextStyle(color: Colors.white54),
                         border: InputBorder.none,
+                        suffixIcon: searchQuery.isEmpty
+                            ? null
+                            : IconButton(
+                                onPressed: _clearSearch,
+                                icon: const Icon(Icons.close_rounded),
+                                color: Colors.white70,
+                                tooltip: 'Limpiar busqueda',
+                              ),
                       ),
+                      textInputAction: TextInputAction.search,
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -289,7 +317,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               Container(
                                 padding: const EdgeInsets.all(12),
                                 decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.08),
+                                  color: Colors.white.withValues(alpha: 0.08),
                                   borderRadius: BorderRadius.circular(14),
                                 ),
                                 child: Icon(
@@ -312,21 +340,27 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   const SizedBox(height: 16),
                   SizedBox(
                     height: 176,
-                    child: tracksAsync.when(
+                    child: carouselTracksAsync.when(
                       loading: () => Center(
                         child: CircularProgressIndicator(color: colors.primary),
                       ),
                       error: (error, _) => _SongsLoadMessage(
                         message:
                             'No se pudo conectar con tu biblioteca. Revisa la API.',
-                        onRetry: () =>
-                            ref.invalidate(tracksListProvider(tracksQuery)),
+                        onRetry: () => searchQuery.isEmpty
+                            ? ref.invalidate(homeRecommendationsProvider)
+                            : ref.invalidate(tracksListProvider(tracksQuery)),
                       ),
                       data: (response) {
-                        final tracks = _prioritizeFollowedArtists(
-                          response.tracks,
-                          followedArtists,
-                        );
+                        final tracks =
+                            (searchQuery.isEmpty
+                                    ? response.tracks
+                                    : _prioritizeFollowedArtists(
+                                        response.tracks,
+                                        followedArtists,
+                                      ))
+                                .take(6)
+                                .toList(growable: false);
                         _precacheTrackImages(tracks);
                         if (tracks.isEmpty) {
                           return const _SongsLoadMessage(
@@ -346,8 +380,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         return ListView.separated(
                           scrollDirection: Axis.horizontal,
                           itemCount: tracks.length,
-                          separatorBuilder: (_, __) =>
-                              const SizedBox(width: 14),
+                          separatorBuilder: (_, _) => const SizedBox(width: 14),
                           itemBuilder: (context, index) {
                             final track = tracks[index];
                             return _SongPreviewCard(
@@ -389,7 +422,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   if (searchQuery.isEmpty)
                     recentlyPlayedAsync.when(
                       loading: _buildTrackListLoading,
-                      error: (_, __) => _buildTrackListError(
+                      error: (_, _) => _buildTrackListError(
                         context,
                         theme,
                         message:
@@ -407,7 +440,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   else
                     tracksAsync.when(
                       loading: _buildTrackListLoading,
-                      error: (_, __) => _buildTrackListError(
+                      error: (_, _) => _buildTrackListError(
                         context,
                         theme,
                         message: 'No se pudieron cargar las canciones.',
@@ -434,10 +467,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     width: double.infinity,
                     padding: const EdgeInsets.all(18),
                     decoration: BoxDecoration(
-                      color: HomeScreen._cardSoft.withOpacity(0.72),
+                      color: HomeScreen._cardSoft.withValues(alpha: 0.72),
                       borderRadius: BorderRadius.circular(22),
                       border: Border.all(
-                        color: HomeScreen._lightBlue.withOpacity(0.15),
+                        color: HomeScreen._lightBlue.withValues(alpha: 0.15),
                       ),
                     ),
                     child: Row(
@@ -445,7 +478,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: HomeScreen._accentCyan.withOpacity(0.1),
+                            color: HomeScreen._accentCyan.withValues(
+                              alpha: 0.1,
+                            ),
                             borderRadius: BorderRadius.circular(14),
                           ),
                           child: const Icon(
@@ -508,7 +543,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  Widget _buildPlanPill(BuildContext context, ThemeData theme) {
+  Widget _buildPlanPill(BuildContext context, ThemeData theme, bool isPremium) {
     return SizedBox(
       width: 182,
       child: InkWell(
@@ -519,17 +554,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.06),
+            color: Colors.white.withValues(alpha: 0.06),
             borderRadius: BorderRadius.circular(999),
-            border: Border.all(color: Colors.white.withOpacity(0.05)),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(
-                Icons.workspace_premium_rounded,
+                isPremium
+                    ? Icons.workspace_premium_rounded
+                    : Icons.workspace_premium_outlined,
                 size: 16,
-                color: HomeScreen._accentCyan.withOpacity(0.95),
+                color: isPremium
+                    ? const Color(0xFFFFD66B)
+                    : HomeScreen._accentCyan.withValues(alpha: 0.95),
               ),
               const SizedBox(width: 8),
               Column(
@@ -545,7 +584,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     ),
                   ),
                   Text(
-                    'GRATUITO',
+                    isPremium ? 'PREMIUM' : 'GRATUITO',
                     style: theme.textTheme.labelMedium?.copyWith(
                       color: Colors.white,
                       fontWeight: FontWeight.w800,
@@ -620,7 +659,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       itemCount: tracks.length,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      separatorBuilder: (_, __) => const SizedBox(height: 12),
+      separatorBuilder: (_, _) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
         final track = tracks[index];
         return _TrackCard(
@@ -639,13 +678,28 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     List<Track> tracks,
     Set<String> followedArtists,
   ) {
-    if (followedArtists.isEmpty) return tracks;
-    final copy = [...tracks];
+    final copy = _dailyShuffle(tracks);
+    if (followedArtists.isEmpty) return copy;
+    final normalizedFollowed = followedArtists
+        .map((artist) => artist.toLowerCase().trim())
+        .toSet();
     copy.sort((a, b) {
-      final aFollowed = followedArtists.contains(a.artist);
-      final bFollowed = followedArtists.contains(b.artist);
+      final aFollowed = normalizedFollowed.contains(a.artist.toLowerCase());
+      final bFollowed = normalizedFollowed.contains(b.artist.toLowerCase());
       if (aFollowed == bFollowed) return 0;
       return aFollowed ? -1 : 1;
+    });
+    return copy;
+  }
+
+  List<Track> _dailyShuffle(List<Track> tracks) {
+    final copy = [...tracks];
+    final now = DateTime.now();
+    final seed = now.year * 10000 + now.month * 100 + now.day;
+    copy.sort((a, b) {
+      final aHash = (a.id.hashCode ^ seed) & 0x7fffffff;
+      final bHash = (b.id.hashCode ^ seed) & 0x7fffffff;
+      return aHash.compareTo(bHash);
     });
     return copy;
   }
@@ -690,9 +744,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: HomeScreen._cardSoft.withOpacity(0.82),
+        color: HomeScreen._cardSoft.withValues(alpha: 0.82),
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: HomeScreen._accentCyan.withOpacity(0.12)),
+        border: Border.all(
+          color: HomeScreen._accentCyan.withValues(alpha: 0.12),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -735,7 +791,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           const SizedBox(height: 10),
           tracksAsync.when(
             loading: () => const SizedBox.shrink(),
-            error: (_, __) => const Text(
+            error: (_, _) => const Text(
               'No se pudieron buscar canciones.',
               style: TextStyle(color: Colors.white60),
             ),
@@ -848,7 +904,9 @@ class _SongPreviewCard extends StatelessWidget {
               end: Alignment.bottomRight,
               colors: [Color(0xFF12384A), Color(0xFF0A1B25)],
             ),
-            border: Border.all(color: HomeScreen._accentCyan.withOpacity(0.14)),
+            border: Border.all(
+              color: HomeScreen._accentCyan.withValues(alpha: 0.14),
+            ),
             boxShadow: const [
               BoxShadow(
                 color: Color(0x2200CFFF),
@@ -867,7 +925,7 @@ class _SongPreviewCard extends StatelessWidget {
                   cacheWidth: 320,
                   cacheHeight: 320,
                   filterQuality: FilterQuality.low,
-                  errorBuilder: (_, __, ___) => const _SongIcon(),
+                  errorBuilder: (_, _, _) => const _SongIcon(),
                 )
               else
                 const _SongIcon(),
@@ -877,8 +935,8 @@ class _SongPreviewCard extends StatelessWidget {
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
                     colors: [
-                      Colors.black.withOpacity(0.08),
-                      const Color(0xFF071A24).withOpacity(0.86),
+                      Colors.black.withValues(alpha: 0.08),
+                      const Color(0xFF071A24).withValues(alpha: 0.86),
                     ],
                     stops: const [0.32, 1],
                   ),
@@ -977,7 +1035,7 @@ class _SearchResultTile extends StatelessWidget {
                         cacheWidth: 96,
                         cacheHeight: 96,
                         filterQuality: FilterQuality.low,
-                        errorBuilder: (_, __, ___) => _SearchFallback(icon),
+                        errorBuilder: (_, _, _) => _SearchFallback(icon),
                       )
                     : _SearchFallback(icon),
               ),
@@ -1046,7 +1104,7 @@ class _RoundCardAction extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.black.withOpacity(0.28),
+      color: Colors.black.withValues(alpha: 0.28),
       shape: const CircleBorder(),
       child: InkWell(
         customBorder: const CircleBorder(),
@@ -1070,7 +1128,7 @@ class _SongIcon extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.12),
+        color: Colors.white.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(16),
       ),
       child: const Icon(Icons.graphic_eq_rounded, color: Colors.white),
@@ -1135,9 +1193,9 @@ class _TrackCard extends StatelessWidget {
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: _cardDark.withOpacity(0.92),
+          color: _cardDark.withValues(alpha: 0.92),
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.white.withOpacity(0.06)),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
         ),
         child: Row(
           children: [

@@ -4,6 +4,7 @@ import 'package:audio_service/audio_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:musicflow_mobile/core/audio/audio_service_init.dart';
 import 'package:musicflow_mobile/core/audio/musicflow_audio_handler.dart';
+import 'package:musicflow_mobile/core/cast/cast_service.dart';
 import 'package:musicflow_mobile/core/providers/providers.dart';
 import 'package:musicflow_mobile/features/downloads/providers/downloads_providers.dart';
 import 'package:musicflow_mobile/features/library/providers/tracks_providers.dart';
@@ -21,6 +22,7 @@ class PlayerState {
     this.position = Duration.zero,
     this.duration = Duration.zero,
     this.currentPlaylistId,
+    this.isLooping = false,
   });
 
   final Track? currentTrack;
@@ -30,6 +32,7 @@ class PlayerState {
   final Duration position;
   final Duration duration;
   final String? currentPlaylistId;
+  final bool isLooping;
 
   PlayerState copyWith({
     Track? currentTrack,
@@ -41,6 +44,7 @@ class PlayerState {
     Duration? duration,
     String? currentPlaylistId,
     bool clearCurrentPlaylist = false,
+    bool? isLooping,
   }) {
     return PlayerState(
       currentTrack: clearCurrentTrack
@@ -54,6 +58,7 @@ class PlayerState {
       currentPlaylistId: clearCurrentPlaylist
           ? null
           : (currentPlaylistId ?? this.currentPlaylistId),
+      isLooping: isLooping ?? this.isLooping,
     );
   }
 }
@@ -63,6 +68,14 @@ class PlayerState {
 class PlayerController extends StateNotifier<PlayerState> {
   PlayerController(this._ref) : super(const PlayerState()) {
     unawaited(_listenToHandler());
+    _subs.add(
+      CastService.instance.connectionChanges.listen((connected) {
+        final track = state.currentTrack;
+        if (connected && track != null) {
+          unawaited(_syncCast(track));
+        }
+      }),
+    );
   }
 
   final Ref _ref;
@@ -194,19 +207,36 @@ class PlayerController extends StateNotifier<PlayerState> {
       return;
     }
     await handler.play();
+    unawaited(_syncCast(selectedTrack));
   }
 
   Future<void> togglePlay() async {
+    final remotePlaying = await CastService.instance.togglePlayback();
+    if (remotePlaying != null) {
+      state = state.copyWith(isPlaying: remotePlaying);
+      return;
+    }
     if (state.isPlaying) {
-      await _recordCurrentPlay(skipped: false);
-      await (await _handler()).pause();
+      state = state.copyWith(isPlaying: false);
+      unawaited(_recordCurrentPlay(skipped: false));
+      try {
+        await (await _handler()).pause();
+      } catch (_) {
+        state = state.copyWith(isPlaying: true);
+      }
     } else {
-      await (await _handler()).play();
+      state = state.copyWith(isPlaying: true);
+      try {
+        await (await _handler()).play();
+      } catch (_) {
+        state = state.copyWith(isPlaying: false);
+      }
     }
   }
 
   Future<void> pause() async {
-    await _recordCurrentPlay(skipped: false);
+    state = state.copyWith(isPlaying: false);
+    unawaited(_recordCurrentPlay(skipped: false));
     await (await _handler()).pause();
   }
 
@@ -249,6 +279,12 @@ class PlayerController extends StateNotifier<PlayerState> {
 
   Future<void> setVolume(double volume) async {
     await (await _handler()).setPlayerVolume(volume);
+  }
+
+  Future<void> toggleLooping() async {
+    final enabled = !state.isLooping;
+    state = state.copyWith(isLooping: enabled);
+    await (await _handler()).setLooping(enabled);
   }
 
   Future<void> setEqualizerBands(List<double> bands) async {
@@ -381,6 +417,26 @@ class PlayerController extends StateNotifier<PlayerState> {
     }
   }
 
+  Future<void> _syncCast(Track track) async {
+    try {
+      if (await CastService.instance.syncTrack(track)) {
+        await _pauseForCast();
+      }
+    } catch (_) {
+      // Local playback stays available when no Cast receiver can load media.
+    }
+  }
+
+  Future<void> _pauseForCast() async {
+    if (!state.isPlaying) return;
+    state = state.copyWith(isPlaying: false);
+    try {
+      await (await _handler()).pause();
+    } catch (_) {
+      // The remote receiver keeps playing even if the local pause races it.
+    }
+  }
+
   // ── Disposal ─────────────────────────────────────────────────────────────────
 
   @override
@@ -396,7 +452,5 @@ class PlayerController extends StateNotifier<PlayerState> {
 
 final playerControllerProvider =
     StateNotifierProvider<PlayerController, PlayerState>((ref) {
-      final controller = PlayerController(ref);
-      ref.onDispose(controller.dispose);
-      return controller;
+      return PlayerController(ref);
     });

@@ -28,7 +28,11 @@ class CatalogAlbumScreen extends ConsumerWidget {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [colors.gradientStart, colors.gradientEnd, colors.background],
+            colors: [
+              colors.gradientStart,
+              colors.gradientEnd,
+              colors.background,
+            ],
             stops: const [0.0, 0.28, 0.78],
           ),
         ),
@@ -36,7 +40,7 @@ class CatalogAlbumScreen extends ConsumerWidget {
           child: albumAsync.when(
             loading: () =>
                 Center(child: CircularProgressIndicator(color: colors.primary)),
-            error: (_, __) => CatalogMessage(
+            error: (_, _) => CatalogMessage(
               message: 'No se pudo cargar el álbum.',
               onRetry: () => ref.invalidate(catalogAlbumProvider(albumId)),
             ),
@@ -99,14 +103,20 @@ class _AlbumBody extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 4),
-          Text(subtitle, style: TextStyle(color: colors.textMuted, fontSize: 12)),
+          Text(
+            subtitle,
+            style: TextStyle(color: colors.textMuted, fontSize: 12),
+          ),
           const SizedBox(height: 16),
           FilledButton.icon(
             onPressed: tracks.isEmpty
                 ? null
                 : () => ref
                       .read(playerControllerProvider.notifier)
-                      .playTrackList(catalogCardsToTracks(tracks), startIndex: 0),
+                      .playTrackList(
+                        catalogCardsToTracks(tracks),
+                        startIndex: 0,
+                      ),
             icon: const Icon(Icons.play_arrow_rounded),
             label: const Text('Reproducir'),
             style: FilledButton.styleFrom(
@@ -120,7 +130,10 @@ class _AlbumBody extends ConsumerWidget {
               contentPadding: EdgeInsets.zero,
               onTap: () => ref
                   .read(playerControllerProvider.notifier)
-                  .playTrackList(catalogCardsToTracks(tracks), startIndex: e.key),
+                  .playTrackList(
+                    catalogCardsToTracks(tracks),
+                    startIndex: e.key,
+                  ),
               leading: SizedBox(
                 width: 28,
                 child: Center(

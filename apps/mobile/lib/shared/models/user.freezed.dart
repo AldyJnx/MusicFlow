@@ -27,6 +27,7 @@ mixin _$AuthUser {
   UserRole get role => throw _privateConstructorUsedError;
   bool get isPremium => throw _privateConstructorUsedError;
   String? get avatar => throw _privateConstructorUsedError;
+  DateTime? get onboardingCompletedAt => throw _privateConstructorUsedError;
 
   /// Serializes this AuthUser to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
@@ -50,6 +51,7 @@ abstract class $AuthUserCopyWith<$Res> {
     UserRole role,
     bool isPremium,
     String? avatar,
+    DateTime? onboardingCompletedAt,
   });
 }
 
@@ -74,6 +76,7 @@ class _$AuthUserCopyWithImpl<$Res, $Val extends AuthUser>
     Object? role = null,
     Object? isPremium = null,
     Object? avatar = freezed,
+    Object? onboardingCompletedAt = freezed,
   }) {
     return _then(
       _value.copyWith(
@@ -101,6 +104,10 @@ class _$AuthUserCopyWithImpl<$Res, $Val extends AuthUser>
                 ? _value.avatar
                 : avatar // ignore: cast_nullable_to_non_nullable
                       as String?,
+            onboardingCompletedAt: freezed == onboardingCompletedAt
+                ? _value.onboardingCompletedAt
+                : onboardingCompletedAt // ignore: cast_nullable_to_non_nullable
+                      as DateTime?,
           )
           as $Val,
     );
@@ -123,6 +130,7 @@ abstract class _$$AuthUserImplCopyWith<$Res>
     UserRole role,
     bool isPremium,
     String? avatar,
+    DateTime? onboardingCompletedAt,
   });
 }
 
@@ -146,6 +154,7 @@ class __$$AuthUserImplCopyWithImpl<$Res>
     Object? role = null,
     Object? isPremium = null,
     Object? avatar = freezed,
+    Object? onboardingCompletedAt = freezed,
   }) {
     return _then(
       _$AuthUserImpl(
@@ -173,6 +182,10 @@ class __$$AuthUserImplCopyWithImpl<$Res>
             ? _value.avatar
             : avatar // ignore: cast_nullable_to_non_nullable
                   as String?,
+        onboardingCompletedAt: freezed == onboardingCompletedAt
+            ? _value.onboardingCompletedAt
+            : onboardingCompletedAt // ignore: cast_nullable_to_non_nullable
+                  as DateTime?,
       ),
     );
   }
@@ -188,6 +201,7 @@ class _$AuthUserImpl implements _AuthUser {
     required this.role,
     this.isPremium = false,
     this.avatar,
+    this.onboardingCompletedAt,
   });
 
   factory _$AuthUserImpl.fromJson(Map<String, dynamic> json) =>
@@ -206,10 +220,12 @@ class _$AuthUserImpl implements _AuthUser {
   final bool isPremium;
   @override
   final String? avatar;
+  @override
+  final DateTime? onboardingCompletedAt;
 
   @override
   String toString() {
-    return 'AuthUser(id: $id, email: $email, username: $username, role: $role, isPremium: $isPremium, avatar: $avatar)';
+    return 'AuthUser(id: $id, email: $email, username: $username, role: $role, isPremium: $isPremium, avatar: $avatar, onboardingCompletedAt: $onboardingCompletedAt)';
   }
 
   @override
@@ -224,13 +240,23 @@ class _$AuthUserImpl implements _AuthUser {
             (identical(other.role, role) || other.role == role) &&
             (identical(other.isPremium, isPremium) ||
                 other.isPremium == isPremium) &&
-            (identical(other.avatar, avatar) || other.avatar == avatar));
+            (identical(other.avatar, avatar) || other.avatar == avatar) &&
+            (identical(other.onboardingCompletedAt, onboardingCompletedAt) ||
+                other.onboardingCompletedAt == onboardingCompletedAt));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode =>
-      Object.hash(runtimeType, id, email, username, role, isPremium, avatar);
+  int get hashCode => Object.hash(
+    runtimeType,
+    id,
+    email,
+    username,
+    role,
+    isPremium,
+    avatar,
+    onboardingCompletedAt,
+  );
 
   /// Create a copy of AuthUser
   /// with the given fields replaced by the non-null parameter values.
@@ -254,6 +280,7 @@ abstract class _AuthUser implements AuthUser {
     required final UserRole role,
     final bool isPremium,
     final String? avatar,
+    final DateTime? onboardingCompletedAt,
   }) = _$AuthUserImpl;
 
   factory _AuthUser.fromJson(Map<String, dynamic> json) =
@@ -271,6 +298,8 @@ abstract class _AuthUser implements AuthUser {
   bool get isPremium;
   @override
   String? get avatar;
+  @override
+  DateTime? get onboardingCompletedAt;
 
   /// Create a copy of AuthUser
   /// with the given fields replaced by the non-null parameter values.

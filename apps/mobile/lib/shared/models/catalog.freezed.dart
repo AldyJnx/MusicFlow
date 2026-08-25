@@ -25,6 +25,7 @@ mixin _$CatalogArtist {
   String get name => throw _privateConstructorUsedError;
   String get slug => throw _privateConstructorUsedError;
   String? get imageUrl => throw _privateConstructorUsedError;
+  List<String> get genres => throw _privateConstructorUsedError;
   int get albumCount => throw _privateConstructorUsedError;
   int get trackCount => throw _privateConstructorUsedError;
 
@@ -50,6 +51,7 @@ abstract class $CatalogArtistCopyWith<$Res> {
     String name,
     String slug,
     String? imageUrl,
+    List<String> genres,
     int albumCount,
     int trackCount,
   });
@@ -74,6 +76,7 @@ class _$CatalogArtistCopyWithImpl<$Res, $Val extends CatalogArtist>
     Object? name = null,
     Object? slug = null,
     Object? imageUrl = freezed,
+    Object? genres = null,
     Object? albumCount = null,
     Object? trackCount = null,
   }) {
@@ -95,6 +98,10 @@ class _$CatalogArtistCopyWithImpl<$Res, $Val extends CatalogArtist>
                 ? _value.imageUrl
                 : imageUrl // ignore: cast_nullable_to_non_nullable
                       as String?,
+            genres: null == genres
+                ? _value.genres
+                : genres // ignore: cast_nullable_to_non_nullable
+                      as List<String>,
             albumCount: null == albumCount
                 ? _value.albumCount
                 : albumCount // ignore: cast_nullable_to_non_nullable
@@ -123,6 +130,7 @@ abstract class _$$CatalogArtistImplCopyWith<$Res>
     String name,
     String slug,
     String? imageUrl,
+    List<String> genres,
     int albumCount,
     int trackCount,
   });
@@ -146,6 +154,7 @@ class __$$CatalogArtistImplCopyWithImpl<$Res>
     Object? name = null,
     Object? slug = null,
     Object? imageUrl = freezed,
+    Object? genres = null,
     Object? albumCount = null,
     Object? trackCount = null,
   }) {
@@ -167,6 +176,10 @@ class __$$CatalogArtistImplCopyWithImpl<$Res>
             ? _value.imageUrl
             : imageUrl // ignore: cast_nullable_to_non_nullable
                   as String?,
+        genres: null == genres
+            ? _value._genres
+            : genres // ignore: cast_nullable_to_non_nullable
+                  as List<String>,
         albumCount: null == albumCount
             ? _value.albumCount
             : albumCount // ignore: cast_nullable_to_non_nullable
@@ -188,9 +201,10 @@ class _$CatalogArtistImpl implements _CatalogArtist {
     required this.name,
     required this.slug,
     this.imageUrl,
+    final List<String> genres = const <String>[],
     this.albumCount = 0,
     this.trackCount = 0,
-  });
+  }) : _genres = genres;
 
   factory _$CatalogArtistImpl.fromJson(Map<String, dynamic> json) =>
       _$$CatalogArtistImplFromJson(json);
@@ -203,6 +217,15 @@ class _$CatalogArtistImpl implements _CatalogArtist {
   final String slug;
   @override
   final String? imageUrl;
+  final List<String> _genres;
+  @override
+  @JsonKey()
+  List<String> get genres {
+    if (_genres is EqualUnmodifiableListView) return _genres;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableListView(_genres);
+  }
+
   @override
   @JsonKey()
   final int albumCount;
@@ -212,7 +235,7 @@ class _$CatalogArtistImpl implements _CatalogArtist {
 
   @override
   String toString() {
-    return 'CatalogArtist(id: $id, name: $name, slug: $slug, imageUrl: $imageUrl, albumCount: $albumCount, trackCount: $trackCount)';
+    return 'CatalogArtist(id: $id, name: $name, slug: $slug, imageUrl: $imageUrl, genres: $genres, albumCount: $albumCount, trackCount: $trackCount)';
   }
 
   @override
@@ -225,6 +248,7 @@ class _$CatalogArtistImpl implements _CatalogArtist {
             (identical(other.slug, slug) || other.slug == slug) &&
             (identical(other.imageUrl, imageUrl) ||
                 other.imageUrl == imageUrl) &&
+            const DeepCollectionEquality().equals(other._genres, _genres) &&
             (identical(other.albumCount, albumCount) ||
                 other.albumCount == albumCount) &&
             (identical(other.trackCount, trackCount) ||
@@ -239,6 +263,7 @@ class _$CatalogArtistImpl implements _CatalogArtist {
     name,
     slug,
     imageUrl,
+    const DeepCollectionEquality().hash(_genres),
     albumCount,
     trackCount,
   );
@@ -263,6 +288,7 @@ abstract class _CatalogArtist implements CatalogArtist {
     required final String name,
     required final String slug,
     final String? imageUrl,
+    final List<String> genres,
     final int albumCount,
     final int trackCount,
   }) = _$CatalogArtistImpl;
@@ -278,6 +304,8 @@ abstract class _CatalogArtist implements CatalogArtist {
   String get slug;
   @override
   String? get imageUrl;
+  @override
+  List<String> get genres;
   @override
   int get albumCount;
   @override

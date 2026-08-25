@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 /// Configuration constants and environment-resolved values for the mobile app.
 class AppConfig {
   AppConfig._();
@@ -7,7 +9,14 @@ class AppConfig {
   // --dart-define=API_BASE_URL=http://10.0.2.2:8000/api
   static const String apiBaseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'http://10.0.2.2:8000/api',
+    defaultValue: 'http://192.168.18.32:8000/api',
+  );
+
+  // Store billing is intentionally disabled until Google Play Billing and
+  // StoreKit are integrated. Never route mobile purchases through web Stripe.
+  static const bool billingEnabled = bool.fromEnvironment(
+    'MOBILE_BILLING_ENABLED',
+    defaultValue: false,
   );
 
   static const String r2AudioPublicBase = String.fromEnvironment(
@@ -19,4 +28,28 @@ class AppConfig {
     'R2_IMAGES_PUBLIC_BASE',
     defaultValue: 'https://pub-7f3d08bcabf44d68b2a57424acfc9d48.r2.dev',
   );
+
+  // Cast Application IDs are public client identifiers, not secrets. The
+  // debug fallback keeps local device launches working when VS Code is started
+  // without the development dart-define file. Release builds default to the
+  // published MusicFlow receiver, while CI can still override the value.
+  // Google's Default Media Receiver lets local builds discover and cast to
+  // devices on the LAN without registering every test TV in our console.
+  static const String _debugCastReceiverAppId = 'CC1AD845';
+  static const String _productionCastReceiverAppId = '47AE1B10';
+  static const String _configuredCastReceiverAppId = String.fromEnvironment(
+    'CAST_RECEIVER_APP_ID',
+    defaultValue: '',
+  );
+
+  static String get castReceiverAppId {
+    if (_configuredCastReceiverAppId.isNotEmpty) {
+      return _configuredCastReceiverAppId;
+    }
+    return kDebugMode
+        ? _debugCastReceiverAppId
+        : _productionCastReceiverAppId;
+  }
+
+  static bool get isCastConfigured => castReceiverAppId.isNotEmpty;
 }

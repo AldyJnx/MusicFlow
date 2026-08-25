@@ -14,17 +14,22 @@ _$AuthUserImpl _$$AuthUserImplFromJson(Map<String, dynamic> json) =>
       role: $enumDecode(_$UserRoleEnumMap, json['role']),
       isPremium: json['isPremium'] as bool? ?? false,
       avatar: json['avatar'] as String?,
+      onboardingCompletedAt: json['onboardingCompletedAt'] == null
+          ? null
+          : DateTime.parse(json['onboardingCompletedAt'] as String),
     );
 
-Map<String, dynamic> _$$AuthUserImplToJson(_$AuthUserImpl instance) =>
-    <String, dynamic>{
-      'id': instance.id,
-      'email': instance.email,
-      'username': instance.username,
-      'role': _$UserRoleEnumMap[instance.role]!,
-      'isPremium': instance.isPremium,
-      'avatar': instance.avatar,
-    };
+Map<String, dynamic> _$$AuthUserImplToJson(
+  _$AuthUserImpl instance,
+) => <String, dynamic>{
+  'id': instance.id,
+  'email': instance.email,
+  'username': instance.username,
+  'role': _$UserRoleEnumMap[instance.role]!,
+  'isPremium': instance.isPremium,
+  'avatar': instance.avatar,
+  'onboardingCompletedAt': instance.onboardingCompletedAt?.toIso8601String(),
+};
 
 const _$UserRoleEnumMap = {UserRole.admin: 'ADMIN', UserRole.client: 'CLIENT'};
 

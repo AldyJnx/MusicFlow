@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:musicflow_mobile/app/router.dart';
 import 'package:musicflow_mobile/core/audio/audio_service_init.dart';
+import 'package:musicflow_mobile/core/cast/cast_service.dart';
 import 'package:musicflow_mobile/core/providers/app_settings_provider.dart';
 import 'package:musicflow_mobile/core/theme/musicflow_theme.dart';
 
@@ -14,7 +15,16 @@ Future<void> main() async {
   PaintingBinding.instance.imageCache.maximumSizeBytes = 160 << 20;
   await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
   unawaited(initAudioService());
+  unawaited(_initializeCast());
   runApp(const ProviderScope(child: MusicFlowApp()));
+}
+
+Future<void> _initializeCast() async {
+  try {
+    await CastService.instance.initialize();
+  } catch (_) {
+    // Cast remains optional. Opening the app must not depend on a receiver.
+  }
 }
 
 class MusicFlowApp extends ConsumerWidget {

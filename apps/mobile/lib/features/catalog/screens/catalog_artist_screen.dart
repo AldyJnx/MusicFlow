@@ -30,7 +30,11 @@ class CatalogArtistScreen extends ConsumerWidget {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [colors.gradientStart, colors.gradientEnd, colors.background],
+            colors: [
+              colors.gradientStart,
+              colors.gradientEnd,
+              colors.background,
+            ],
             stops: const [0.0, 0.28, 0.78],
           ),
         ),
@@ -38,7 +42,7 @@ class CatalogArtistScreen extends ConsumerWidget {
           child: artistAsync.when(
             loading: () =>
                 Center(child: CircularProgressIndicator(color: colors.primary)),
-            error: (_, __) => CatalogMessage(
+            error: (_, _) => CatalogMessage(
               message: 'No se pudo cargar el artista.',
               onRetry: () => ref.invalidate(catalogArtistProvider(artistId)),
             ),
@@ -114,7 +118,11 @@ class _ArtistBody extends ConsumerWidget {
             const SizedBox(height: 12),
             Text(
               artist.bio!,
-              style: TextStyle(color: colors.textMuted, fontSize: 13, height: 1.4),
+              style: TextStyle(
+                color: colors.textMuted,
+                fontSize: 13,
+                height: 1.4,
+              ),
             ),
           ],
           const SizedBox(height: 20),
@@ -123,7 +131,10 @@ class _ArtistBody extends ConsumerWidget {
                 ? null
                 : () => ref
                       .read(playerControllerProvider.notifier)
-                      .playTrackList(catalogCardsToTracks(tracks), startIndex: 0),
+                      .playTrackList(
+                        catalogCardsToTracks(tracks),
+                        startIndex: 0,
+                      ),
             icon: const Icon(Icons.play_arrow_rounded),
             label: const Text('Reproducir'),
             style: FilledButton.styleFrom(
@@ -140,14 +151,13 @@ class _ArtistBody extends ConsumerWidget {
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 itemCount: artist.albums.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 14),
+                separatorBuilder: (_, _) => const SizedBox(width: 14),
                 itemBuilder: (context, i) {
                   final album = artist.albums[i];
                   return _AlbumCard(
                     album: album,
-                    onTap: () => context.push(
-                      '${AppRoutes.catalogAlbum}/${album.id}',
-                    ),
+                    onTap: () =>
+                        context.push('${AppRoutes.catalogAlbum}/${album.id}'),
                   );
                 },
               ),
@@ -162,7 +172,10 @@ class _ArtistBody extends ConsumerWidget {
               track: e.value,
               onTap: () => ref
                   .read(playerControllerProvider.notifier)
-                  .playTrackList(catalogCardsToTracks(tracks), startIndex: e.key),
+                  .playTrackList(
+                    catalogCardsToTracks(tracks),
+                    startIndex: e.key,
+                  ),
             ),
           ),
         ],
@@ -269,7 +282,10 @@ class _TrackRow extends StatelessWidget {
         track.title,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
-        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+        style: const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.w600,
+        ),
       ),
       subtitle: track.album.isEmpty
           ? null

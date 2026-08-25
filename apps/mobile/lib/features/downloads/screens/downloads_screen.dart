@@ -58,7 +58,11 @@ class DownloadsScreen extends ConsumerWidget {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [colors.gradientStart, colors.gradientEnd, colors.background],
+            colors: [
+              colors.gradientStart,
+              colors.gradientEnd,
+              colors.background,
+            ],
             stops: const [0.0, 0.28, 0.78],
           ),
         ),
@@ -81,7 +85,7 @@ class DownloadsScreen extends ConsumerWidget {
                               ? Image.network(
                                   d.coverArt!,
                                   fit: BoxFit.cover,
-                                  errorBuilder: (_, __, ___) =>
+                                  errorBuilder: (_, _, _) =>
                                       _coverFallback(colors),
                                 )
                               : _coverFallback(colors),

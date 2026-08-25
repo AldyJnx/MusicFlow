@@ -5,7 +5,9 @@ import 'package:go_router/go_router.dart';
 import 'package:musicflow_mobile/app/routes.dart';
 import 'package:musicflow_mobile/core/providers/providers.dart';
 import 'package:musicflow_mobile/core/theme/musicflow_theme.dart';
+import 'package:musicflow_mobile/features/library/providers/playlists_providers.dart';
 import 'package:musicflow_mobile/features/player/providers/player_controller.dart';
+import 'package:musicflow_mobile/shared/models/track.dart';
 
 class AiChatScreen extends ConsumerStatefulWidget {
   const AiChatScreen({super.key});
@@ -51,39 +53,56 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
     _controller.clear();
 
     try {
+      final libraryResult = await _tryCreateLibraryFromPrompt(text);
+      if (libraryResult != null) {
+        if (!mounted) return;
+        setState(() {
+          _messages.add(
+            _ChatMessage(
+              text: libraryResult.message,
+              isUser: false,
+              time: _currentTime(),
+              suggestions: [
+                'Biblioteca creada',
+                '${libraryResult.addedCount} canciones',
+              ],
+            ),
+          );
+        });
+        return;
+      }
+
       final player = ref.read(playerControllerProvider);
       final response = await ref
           .read(aiAgentRepositoryProvider)
-          .suggest(
-            prompt: text,
-            trackId: player.currentTrack?.id,
-            playlistId: player.currentPlaylistId,
-            context: {
-              if (player.currentTrack case final track?)
-                'currentTrack': {
-                  'title': track.title,
-                  'artist': track.artist,
-                  'album': track.album,
-                  'durationMs': track.durationMs,
-                },
-            },
-          );
-      final suggestion = response.suggestion;
-      final bands = suggestion.bands.join(', ');
+          .assist(prompt: text, trackId: player.currentTrack?.id);
+      final suggestion = response.eq;
+      final bands = suggestion?.bands.join(', ');
+      final trackLines = response.tracks
+          .map((track) => '• ${track.title} — ${track.artist}')
+          .join('\n');
       if (!mounted) return;
       setState(() {
         _messages.add(
           _ChatMessage(
-            text: '${suggestion.explanation}\n\nBandas EQ: [$bands]',
+            text: [
+              response.message,
+              if (suggestion != null && suggestion.explanation.isNotEmpty)
+                suggestion.explanation,
+              if (bands != null) 'Bandas EQ: [$bands]',
+              if (trackLines.isNotEmpty) trackLines,
+            ].join('\n\n'),
             isUser: false,
             time: _currentTime(),
-            suggestions: [
-              'Bass ${suggestion.bassBoost}',
-              'Loudness ${suggestion.loudness}',
-              suggestion.reverbPreset,
-            ],
+            suggestions: suggestion == null
+                ? response.genres
+                : [
+                    'Bass ${suggestion.bassBoost}',
+                    'Loudness ${suggestion.loudness}',
+                    suggestion.reverbPreset,
+                  ],
             requestId: response.requestId,
-            bands: suggestion.bands,
+            bands: suggestion?.bands,
           ),
         );
       });
@@ -112,9 +131,317 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
     return '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
   }
 
+  Future<_LibraryCreationResult?> _tryCreateLibraryFromPrompt(
+    String prompt,
+  ) async {
+    final request = _extractLibraryRequest(prompt);
+    if (request == null) return null;
+
+    final tracks = await _findTracksForLibrary(request.terms);
+    final playlist = await ref
+        .read(playlistsRepositoryProvider)
+        .createPlaylist(
+          name: request.name,
+          description: request.terms.isEmpty
+              ? 'Creada con Flow AI'
+              : 'Creada con Flow AI para: ${request.terms.join(', ')}',
+        );
+
+    var added = 0;
+    for (final track in tracks.take(12)) {
+      try {
+        await ref
+            .read(playlistsRepositoryProvider)
+            .addTrack(playlistId: playlist.id, trackId: track.id);
+        added++;
+      } catch (_) {
+        // The playlist endpoint prevents duplicates; keep adding the rest.
+      }
+    }
+
+    ref.invalidate(playlistsProvider);
+    final trackLines = tracks
+        .take(6)
+        .map((track) => '• ${track.title} — ${track.artist}')
+        .join('\n');
+    final exactText = request.terms.isEmpty
+        ? ''
+        : ' según: ${request.terms.join(', ')}';
+    final message = added == 0
+        ? 'Creé la biblioteca "${request.name}", pero no encontré canciones disponibles$exactText para agregar todavía.'
+        : 'Listo, creé la biblioteca "${request.name}" y agregué $added canciones disponibles$exactText.\n\n$trackLines';
+    return _LibraryCreationResult(
+      name: request.name,
+      addedCount: added,
+      message: message,
+    );
+  }
+
+  _LibraryRequest? _extractLibraryRequest(String prompt) {
+    final normalized = prompt.toLowerCase();
+    final wantsCreate =
+        normalized.contains('crea') ||
+        normalized.contains('crear') ||
+        normalized.contains('agrega') ||
+        normalized.contains('agregar') ||
+        normalized.contains('genera') ||
+        normalized.contains('generar') ||
+        normalized.contains('generame') ||
+        normalized.contains('genérame');
+    final mentionsLibrary =
+        normalized.contains('biblioteca') || normalized.contains('playlist');
+    if (!wantsCreate || !mentionsLibrary) return null;
+
+    final quoted = RegExp(r'["“”](.+?)["“”]').firstMatch(prompt);
+    final nameMatch = RegExp(
+      r'(?:llamada|llamado|nombre|como|que se llame)\s+(.+?)(?=\s+(?:de|con|para)\b|$)',
+      caseSensitive: false,
+    ).firstMatch(prompt);
+
+    final name = quoted != null
+        ? _cleanLibraryName(quoted.group(1))
+        : nameMatch != null
+        ? _cleanLibraryName(nameMatch.group(1))
+        : _cleanLibraryName(
+            prompt.replaceAll(
+              RegExp(
+                r'\b(crea|crear|agrega|agregar|genera|generar|generame|genérame|una|un|nueva|nuevo|biblioteca|playlist|a mi cuenta|en mi cuenta|por favor)\b',
+                caseSensitive: false,
+              ),
+              ' ',
+            ),
+          );
+    if (name == null) return null;
+
+    final criteriaSource = nameMatch == null
+        ? prompt
+        : prompt.substring(nameMatch.end);
+    final terms = _extractLibraryTerms(criteriaSource, name);
+    return _LibraryRequest(name: name, terms: terms);
+  }
+
+  List<String> _extractLibraryTerms(String raw, String libraryName) {
+    var text = raw
+        .replaceAll(
+          RegExp(RegExp.escape(libraryName), caseSensitive: false),
+          ' ',
+        )
+        .replaceAll(
+          RegExp(
+            r'\b(crea|crear|agrega|agregar|genera|generar|generame|genérame|biblioteca|playlist|llamada|llamado|nombre|como|que se llame|musicas|músicas|musica|música|canciones|temas|de|del|para|con|a mi cuenta|en mi cuenta|por favor)\b',
+            caseSensitive: false,
+          ),
+          ' ',
+        )
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+    if (text.isEmpty) return const [];
+
+    return text
+        .split(RegExp(r'\s+(?:y|o)\s+|[,;/]+', caseSensitive: false))
+        .map((term) => term.trim())
+        .where((term) => term.length > 2)
+        .toList(growable: false);
+  }
+
+  Future<List<Track>> _findTracksForLibrary(List<String> terms) async {
+    final repo = ref.read(tracksRepositoryProvider);
+    final found = <String, Track>{};
+    final availableGenres = await _safeListGenres();
+    final normalizedTerms = terms
+        .map(_normalizeTerm)
+        .where((term) {
+          return term.isNotEmpty;
+        })
+        .toList(growable: false);
+
+    for (final term in normalizedTerms) {
+      final aliases = _termAliases(term);
+      final genreAliases = _resolveGenreAliases(term, availableGenres);
+      final termMatches = <String, Track>{};
+      for (final genre in genreAliases) {
+        final response = await repo.listTracks(genre: genre, take: 24);
+        for (final track in response.tracks) {
+          termMatches[track.id] = track;
+        }
+      }
+      for (final alias in aliases) {
+        final response = await repo.listTracks(search: alias, take: 24);
+        for (final track in response.tracks) {
+          if (_matchesAnyTerm(track, [...aliases, ...genreAliases])) {
+            termMatches[track.id] = track;
+          }
+        }
+      }
+      for (final track in termMatches.values.take(4)) {
+        found[track.id] = track;
+      }
+    }
+
+    final catalog = await repo.listTracks(take: 160);
+    for (final term in normalizedTerms) {
+      final aliases = _termAliases(term);
+      final genreAliases = _resolveGenreAliases(term, availableGenres);
+      final scored =
+          catalog.tracks
+              .where((track) => !found.containsKey(track.id))
+              .map(
+                (track) => MapEntry(
+                  track,
+                  _scoreTrack(track, [...aliases, ...genreAliases]),
+                ),
+              )
+              .where((entry) => entry.value > 0)
+              .toList()
+            ..sort((a, b) => b.value.compareTo(a.value));
+      for (final entry in scored.take(4)) {
+        found[entry.key.id] = entry.key;
+      }
+    }
+
+    if (found.length < 8) {
+      final scored =
+          catalog.tracks
+              .where((track) => !found.containsKey(track.id))
+              .map(
+                (track) => MapEntry(track, _scoreTrack(track, normalizedTerms)),
+              )
+              .where((entry) => entry.value > 0)
+              .toList()
+            ..sort((a, b) => b.value.compareTo(a.value));
+      for (final entry in scored) {
+        found[entry.key.id] = entry.key;
+        if (found.length >= 12) break;
+      }
+    }
+
+    if (found.isEmpty && normalizedTerms.isNotEmpty) {
+      for (final term in normalizedTerms) {
+        final response = await repo.listTracks(search: term, take: 4);
+        for (final track in response.tracks) {
+          found[track.id] = track;
+        }
+      }
+    }
+
+    if (found.isEmpty) {
+      final fallback = await repo.listTracks(take: 8);
+      for (final track in fallback.tracks) {
+        found[track.id] = track;
+      }
+    }
+
+    return found.values.toList(growable: false);
+  }
+
+  bool _matchesAnyTerm(Track track, List<String> terms) {
+    return _scoreTrack(track, terms) > 0;
+  }
+
+  Future<List<String>> _safeListGenres() async {
+    try {
+      return await ref.read(tracksRepositoryProvider).listGenres();
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  List<String> _resolveGenreAliases(
+    String value,
+    List<String> availableGenres,
+  ) {
+    final aliases = _termAliases(value).map(_normalizeTerm).toSet();
+    final resolved = <String>{};
+    for (final genre in availableGenres) {
+      final normalizedGenre = _normalizeTerm(genre);
+      if (normalizedGenre.isEmpty) continue;
+      if (aliases.any(
+        (alias) =>
+            normalizedGenre.contains(alias) || alias.contains(normalizedGenre),
+      )) {
+        resolved.add(genre);
+      }
+    }
+    return resolved.toList(growable: false);
+  }
+
+  List<String> _termAliases(String value) {
+    final term = _normalizeTerm(value);
+    final aliases = <String>{term};
+    if (term.contains('reguet') || term.contains('reggaet')) {
+      aliases.addAll([
+        'regueton',
+        'reguetoon',
+        'reggaeton',
+        'reggaetón',
+        'urbano',
+        'latin urban',
+        'musica urbana',
+      ]);
+    }
+    if (term.contains('bachata')) {
+      aliases.addAll(['bachata', 'bachatero']);
+    }
+    if (term.contains('salsa')) {
+      aliases.addAll(['salsa', 'salsero']);
+    }
+    if (term.contains('merengue')) {
+      aliases.addAll(['merengue']);
+    }
+    if (term.contains('cumbia')) {
+      aliases.addAll(['cumbia']);
+    }
+    return aliases.where((alias) => alias.isNotEmpty).toList(growable: false);
+  }
+
+  int _scoreTrack(Track track, List<String> terms) {
+    var score = 0;
+    final title = _normalizeTerm(track.title);
+    final artist = _normalizeTerm(track.artist);
+    final album = _normalizeTerm(track.album);
+    final genre = _normalizeTerm(track.genre ?? '');
+
+    for (final raw in terms) {
+      final term = _normalizeTerm(raw);
+      if (term.isEmpty) continue;
+      if (artist.contains(term)) score += 8;
+      if (genre.contains(term)) score += 6;
+      if (album.contains(term)) score += 3;
+      if (title.contains(term)) score += 2;
+      if (term == 'regueton' && genre.contains('reggaeton')) score += 6;
+      if (term == 'reggaeton' && genre.contains('regueton')) score += 6;
+    }
+    return score;
+  }
+
+  String _normalizeTerm(String value) {
+    return value
+        .toLowerCase()
+        .replaceAll('á', 'a')
+        .replaceAll('é', 'e')
+        .replaceAll('í', 'i')
+        .replaceAll('ó', 'o')
+        .replaceAll('ú', 'u')
+        .replaceAll('ü', 'u')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+  }
+
+  String? _cleanLibraryName(String? raw) {
+    final name = raw
+        ?.replaceAll(RegExp(r'[.?!¡¿]+$'), '')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+    if (name == null || name.length < 2) return null;
+    return name.length > 48 ? name.substring(0, 48).trim() : name;
+  }
+
   String _errorMessage(Object error) {
     if (error is DioException) {
       final data = error.response?.data;
+      if (error.response?.statusCode == 503) {
+        return 'El servicio de IA no respondio ahora. Verifica que el backend tenga salida a Anthropic e intenta nuevamente.';
+      }
       if (data is Map) {
         final message = data['message'];
         if (message is String && message.isNotEmpty) return message;
@@ -272,7 +599,7 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
                           colors: [Color(0xFF41312C), Color(0xFF1E1C1B)],
                         ),
                         border: Border.all(
-                          color: Colors.white.withOpacity(0.12),
+                          color: Colors.white.withValues(alpha: 0.12),
                         ),
                       ),
                       child: const Icon(
@@ -323,9 +650,9 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
         margin: const EdgeInsets.symmetric(horizontal: 6),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
-          color: const Color(0xFF2B3138).withOpacity(0.96),
+          color: const Color(0xFF2B3138).withValues(alpha: 0.96),
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: Colors.white.withOpacity(0.05)),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
           boxShadow: const [
             BoxShadow(
               color: Color(0x44000000),
@@ -385,6 +712,25 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
   }
 }
 
+class _LibraryRequest {
+  const _LibraryRequest({required this.name, required this.terms});
+
+  final String name;
+  final List<String> terms;
+}
+
+class _LibraryCreationResult {
+  const _LibraryCreationResult({
+    required this.name,
+    required this.addedCount,
+    required this.message,
+  });
+
+  final String name;
+  final int addedCount;
+  final String message;
+}
+
 class _MessageBubble extends StatelessWidget {
   const _MessageBubble({required this.message, required this.onApply});
 
@@ -417,7 +763,7 @@ class _MessageBubble extends StatelessWidget {
             decoration: BoxDecoration(
               color: message.isUser
                   ? const Color(0xFF2A2F36)
-                  : _AiChatScreenState._cardSoft.withOpacity(0.98),
+                  : _AiChatScreenState._cardSoft.withValues(alpha: 0.98),
               borderRadius: BorderRadius.only(
                 topLeft: const Radius.circular(28),
                 topRight: const Radius.circular(28),
@@ -495,7 +841,7 @@ class _MessageBubble extends StatelessWidget {
                               vertical: 8,
                             ),
                             decoration: BoxDecoration(
-                              color: Colors.black.withOpacity(0.24),
+                              color: Colors.black.withValues(alpha: 0.24),
                               borderRadius: BorderRadius.circular(999),
                             ),
                             child: Text(
@@ -534,7 +880,7 @@ class _MessageBubble extends StatelessWidget {
             style: theme.textTheme.labelSmall?.copyWith(
               color: message.isUser
                   ? Colors.white54
-                  : _AiChatScreenState._lightBlue.withOpacity(0.9),
+                  : _AiChatScreenState._lightBlue.withValues(alpha: 0.9),
               letterSpacing: 1,
               fontWeight: FontWeight.w700,
             ),

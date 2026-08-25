@@ -52,7 +52,7 @@ class ArtistDetailScreen extends ConsumerWidget {
           child: tracksAsync.when(
             loading: () =>
                 Center(child: CircularProgressIndicator(color: colors.primary)),
-            error: (_, __) => _ArtistMessage(
+            error: (_, _) => _ArtistMessage(
               message: 'No se pudo cargar el artista.',
               onRetry: () => ref.invalidate(tracksListProvider(query)),
             ),
@@ -110,7 +110,7 @@ class ArtistDetailScreen extends ConsumerWidget {
                                   cacheWidth: 320,
                                   cacheHeight: 320,
                                   filterQuality: FilterQuality.medium,
-                                  errorBuilder: (_, __, ___) =>
+                                  errorBuilder: (_, _, _) =>
                                       const _ArtistFallback(),
                                 )
                               : const _ArtistFallback(),
@@ -142,9 +142,22 @@ class ArtistDetailScreen extends ConsumerWidget {
                     const SizedBox(height: 18),
                     Center(
                       child: OutlinedButton.icon(
-                        onPressed: () => ref
-                            .read(followedArtistsProvider.notifier)
-                            .toggle(artist),
+                        onPressed: () async {
+                          try {
+                            await ref
+                                .read(followedArtistsProvider.notifier)
+                                .toggle(artist);
+                          } catch (_) {
+                            if (!context.mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'No se pudo actualizar el seguimiento.',
+                                ),
+                              ),
+                            );
+                          }
+                        },
                         style: OutlinedButton.styleFrom(
                           foregroundColor: isFollowing ? _bgDark : _accentCyan,
                           backgroundColor: isFollowing
@@ -213,7 +226,7 @@ class ArtistDetailScreen extends ConsumerWidget {
                         itemCount: tracks.length,
                         shrinkWrap: true,
                         physics: const NeverScrollableScrollPhysics(),
-                        separatorBuilder: (_, __) => const SizedBox(height: 12),
+                        separatorBuilder: (_, _) => const SizedBox(height: 12),
                         itemBuilder: (context, index) {
                           return _ArtistTrackTile(
                             track: tracks[index],
@@ -250,9 +263,9 @@ class _ArtistTrackTile extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: ArtistDetailScreen._card.withOpacity(0.9),
+          color: ArtistDetailScreen._card.withValues(alpha: 0.9),
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: Colors.white.withOpacity(0.05)),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
         ),
         child: Row(
           children: [
@@ -268,7 +281,7 @@ class _ArtistTrackTile extends StatelessWidget {
                         cacheWidth: 112,
                         cacheHeight: 112,
                         filterQuality: FilterQuality.low,
-                        errorBuilder: (_, __, ___) => const _ArtistFallback(),
+                        errorBuilder: (_, _, _) => const _ArtistFallback(),
                       )
                     : const _ArtistFallback(),
               ),

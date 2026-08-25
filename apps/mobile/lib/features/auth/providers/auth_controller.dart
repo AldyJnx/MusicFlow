@@ -3,17 +3,18 @@ import 'package:musicflow_mobile/core/providers/providers.dart';
 import 'package:musicflow_mobile/shared/models/user.dart';
 
 class AuthState {
-  const AuthState({
-    this.user,
-    this.isInitializing = true,
-  });
+  const AuthState({this.user, this.isInitializing = true});
 
   final AuthUser? user;
   final bool isInitializing;
 
   bool get isAuthenticated => user != null;
 
-  AuthState copyWith({AuthUser? user, bool? isInitializing, bool clearUser = false}) {
+  AuthState copyWith({
+    AuthUser? user,
+    bool? isInitializing,
+    bool clearUser = false,
+  }) {
     return AuthState(
       user: clearUser ? null : (user ?? this.user),
       isInitializing: isInitializing ?? this.isInitializing,
@@ -47,11 +48,23 @@ class AuthController extends StateNotifier<AuthState> {
   Future<void> login(String email, String password) async {
     final repo = _ref.read(authRepositoryProvider);
     final session = await repo.login(email: email, password: password);
-    await _ref.read(tokenStorageProvider).saveTokens(
+    await _ref
+        .read(tokenStorageProvider)
+        .saveTokens(
           accessToken: session.accessToken,
           refreshToken: session.refreshToken,
         );
     state = AuthState(user: session.user, isInitializing: false);
+  }
+
+  Future<void> refreshCurrentUser() async {
+    if (!state.isAuthenticated) return;
+    try {
+      final user = await _ref.read(authRepositoryProvider).me();
+      state = state.copyWith(user: user, isInitializing: false);
+    } catch (_) {
+      // Keep the current session if a background refresh fails.
+    }
   }
 
   Future<void> register(String email, String username, String password) async {
@@ -61,7 +74,9 @@ class AuthController extends StateNotifier<AuthState> {
       username: username,
       password: password,
     );
-    await _ref.read(tokenStorageProvider).saveTokens(
+    await _ref
+        .read(tokenStorageProvider)
+        .saveTokens(
           accessToken: session.accessToken,
           refreshToken: session.refreshToken,
         );
@@ -78,14 +93,10 @@ class AuthController extends StateNotifier<AuthState> {
     state = state.copyWith(clearUser: true, isInitializing: false);
   }
 
-  Future<void> updateProfile({
-    String? username,
-    String? password,
-  }) async {
-    final user = await _ref.read(authRepositoryProvider).updateProfile(
-          username: username,
-          password: password,
-        );
+  Future<void> updateProfile({String? username, String? password}) async {
+    final user = await _ref
+        .read(authRepositoryProvider)
+        .updateProfile(username: username, password: password);
     state = state.copyWith(user: user, isInitializing: false);
   }
 
@@ -96,7 +107,8 @@ class AuthController extends StateNotifier<AuthState> {
   }
 }
 
-final authControllerProvider =
-    StateNotifierProvider<AuthController, AuthState>((ref) {
-  return AuthController(ref);
-});
+final authControllerProvider = StateNotifierProvider<AuthController, AuthState>(
+  (ref) {
+    return AuthController(ref);
+  },
+);

@@ -11,12 +11,35 @@ class CatalogArtist with _$CatalogArtist {
     required String name,
     required String slug,
     String? imageUrl,
+    @Default(<String>[]) List<String> genres,
     @Default(0) int albumCount,
     @Default(0) int trackCount,
   }) = _CatalogArtist;
 
   factory CatalogArtist.fromJson(Map<String, dynamic> json) =>
       _$CatalogArtistFromJson(json);
+}
+
+class CatalogArtistPage {
+  const CatalogArtistPage({
+    required this.items,
+    required this.total,
+    this.nextOffset,
+  });
+
+  final List<CatalogArtist> items;
+  final int total;
+  final int? nextOffset;
+
+  factory CatalogArtistPage.fromJson(Map<String, dynamic> json) {
+    return CatalogArtistPage(
+      items: (json['items'] as List<dynamic>? ?? const [])
+          .map((item) => CatalogArtist.fromJson(item as Map<String, dynamic>))
+          .toList(growable: false),
+      total: (json['total'] as num?)?.toInt() ?? 0,
+      nextOffset: (json['nextOffset'] as num?)?.toInt(),
+    );
+  }
 }
 
 /// A lightweight track shape returned inside catalog reads (lyrics stripped).

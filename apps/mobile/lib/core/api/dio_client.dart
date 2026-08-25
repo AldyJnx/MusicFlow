@@ -4,13 +4,15 @@ import 'package:musicflow_mobile/core/storage/token_storage.dart';
 
 class DioClient {
   DioClient({required TokenStorage tokenStorage})
-      : _tokenStorage = tokenStorage,
-        _dio = Dio(BaseOptions(
+    : _tokenStorage = tokenStorage,
+      _dio = Dio(
+        BaseOptions(
           baseUrl: AppConfig.apiBaseUrl,
           connectTimeout: const Duration(seconds: 10),
           receiveTimeout: const Duration(seconds: 30),
           contentType: 'application/json',
-        )) {
+        ),
+      ) {
     _dio.interceptors.add(_AuthInterceptor(this));
   }
 
@@ -90,7 +92,8 @@ class _AuthInterceptor extends Interceptor {
     final response = err.response;
     final original = err.requestOptions;
 
-    final canRetry = response?.statusCode == 401 &&
+    final canRetry =
+        response?.statusCode == 401 &&
         original.extra['_retried'] != true &&
         original.extra['skipAuth'] != true;
 

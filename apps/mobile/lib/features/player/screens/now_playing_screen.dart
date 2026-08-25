@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:musicflow_mobile/app/routes.dart';
+import 'package:musicflow_mobile/core/cast/cast_device_picker.dart';
 import 'package:musicflow_mobile/core/cast/cast_service.dart';
 import 'package:musicflow_mobile/core/providers/providers.dart';
 import 'package:musicflow_mobile/core/theme/musicflow_theme.dart';
@@ -78,6 +79,39 @@ class NowPlayingScreen extends ConsumerWidget {
                         IconButton(
                           onPressed: track == null
                               ? null
+                              : () async {
+                                  if (!CastService.instance.isAvailable) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text(
+                                          'Configura CAST_RECEIVER_APP_ID para usar Google Cast.',
+                                        ),
+                                      ),
+                                    );
+                                    return;
+                                  }
+                                  try {
+                                    await showCastDevicePicker(context);
+                                  } catch (_) {
+                                    if (!context.mounted) return;
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text(
+                                          'No se pudo abrir Google Cast.',
+                                        ),
+                                      ),
+                                    );
+                                  }
+                                },
+                          icon: const Icon(Icons.cast_rounded),
+                          color: colors.primary,
+                          disabledColor: Colors.white24,
+                          iconSize: 27,
+                          tooltip: 'Transmitir a un dispositivo',
+                        ),
+                        IconButton(
+                          onPressed: track == null
+                              ? null
                               : () => context.push(AppRoutes.temporalSegments),
                           icon: const Icon(Icons.timeline_rounded),
                           color: colors.primary,
@@ -112,7 +146,7 @@ class NowPlayingScreen extends ConsumerWidget {
                             ? Image.network(
                                 track.coverArt!,
                                 fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) =>
+                                errorBuilder: (_, _, _) =>
                                     const _ExpandedCoverFallback(),
                               )
                             : const _ExpandedCoverFallback(),
@@ -133,13 +167,26 @@ class NowPlayingScreen extends ConsumerWidget {
                   ),
                 ),
                 const SizedBox(height: 8),
-                Text(
-                  track?.artist ?? 'MusicFlow',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    color: colors.secondary,
-                    fontWeight: FontWeight.w700,
+                InkWell(
+                  onTap: track == null
+                      ? null
+                      : () =>
+                            context.push(AppRoutes.artistDetail(track.artist)),
+                  borderRadius: BorderRadius.circular(999),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
+                    child: Text(
+                      track?.artist ?? 'MusicFlow',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        color: colors.secondary,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 22),
@@ -169,7 +216,7 @@ class NowPlayingScreen extends ConsumerWidget {
                   data: SliderTheme.of(context).copyWith(
                     trackHeight: 5,
                     activeTrackColor: colors.primary,
-                    inactiveTrackColor: Colors.white.withOpacity(0.12),
+                    inactiveTrackColor: Colors.white.withValues(alpha: 0.12),
                     thumbColor: Colors.white,
                     overlayColor: colors.primary.withValues(alpha: 0.15),
                   ),
@@ -256,13 +303,7 @@ class NowPlayingScreen extends ConsumerWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    _CircleActionButton(
-                      icon: Icons.cast_rounded,
-                      color: colors.primary,
-                      onPressed: track == null
-                          ? null
-                          : () => _openCastPicker(context),
-                    ),
+                    const SizedBox.square(dimension: 48),
                     _CircleActionButton(
                       icon: Icons.mic_external_on_rounded,
                       color: colors.primary,
@@ -284,14 +325,6 @@ class NowPlayingScreen extends ConsumerWidget {
     final minutes = duration.inMinutes;
     final seconds = duration.inSeconds.remainder(60);
     return '$minutes:${seconds.toString().padLeft(2, '0')}';
-  }
-
-  Future<void> _openCastPicker(BuildContext context) async {
-    final result = await const CastService().openCastPicker();
-    if (!context.mounted) return;
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(result.message)));
   }
 
   Future<void> _toggleFavorite(
@@ -435,8 +468,8 @@ class _CircleActionButton extends StatelessWidget {
       onPressed: onPressed,
       style: IconButton.styleFrom(
         fixedSize: const Size(52, 52),
-        backgroundColor: Colors.white.withOpacity(0.08),
-        disabledBackgroundColor: Colors.white.withOpacity(0.04),
+        backgroundColor: Colors.white.withValues(alpha: 0.08),
+        disabledBackgroundColor: Colors.white.withValues(alpha: 0.04),
       ),
       icon: Icon(icon, color: color),
     );

@@ -1,7 +1,10 @@
 abstract final class AppRoutes {
   // Auth
+  static const String bootstrap = '/bootstrap';
   static const String login = '/login';
   static const String register = '/register';
+  static const String headphonesTip = '/headphones-tip';
+  static const String artistOnboarding = '/onboarding/artists';
 
   // Client
   static const String home = '/';
@@ -26,6 +29,7 @@ abstract final class AppRoutes {
   static const String paymentMethods = '/profile/payment-methods';
   static const String settings = '/settings';
   static const String themes = '/settings/themes';
+  static const String artistPreferences = '/settings/artists';
   static const String premium = '/premium';
   static const String nowPlaying = '/now-playing';
   static const String lyrics = '/lyrics';

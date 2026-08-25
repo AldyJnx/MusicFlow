@@ -64,16 +64,24 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     final password = _passwordController.text;
 
     if (username.length < 3 || username.length > 30) {
-      setState(() => _message = 'El usuario debe tener entre 3 y 30 caracteres.');
+      setState(
+        () => _message = 'El usuario debe tener entre 3 y 30 caracteres.',
+      );
       return;
     }
     if (!RegExp(r'^[a-zA-Z0-9_-]+$').hasMatch(username)) {
-      setState(() => _message = 'El usuario solo permite letras, numeros, guion y guion bajo.');
+      setState(
+        () => _message =
+            'El usuario solo permite letras, numeros, guion y guion bajo.',
+      );
       return;
     }
     if (password.isNotEmpty &&
         !RegExp(r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)').hasMatch(password)) {
-      setState(() => _message = 'La nueva contrasena debe incluir mayuscula, minuscula y numero.');
+      setState(
+        () => _message =
+            'La nueva contrasena debe incluir mayuscula, minuscula y numero.',
+      );
       return;
     }
 
@@ -83,7 +91,9 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     });
 
     try {
-      await ref.read(authControllerProvider.notifier).updateProfile(
+      await ref
+          .read(authControllerProvider.notifier)
+          .updateProfile(
             username: username == _initialUsername ? null : username,
             password: password.isEmpty ? null : password,
           );
@@ -96,7 +106,9 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     } on DioException catch (e) {
       final data = e.response?.data;
       final raw = data is Map ? data['message'] : null;
-      setState(() => _message = raw?.toString() ?? 'No se pudo actualizar el perfil.');
+      setState(
+        () => _message = raw?.toString() ?? 'No se pudo actualizar el perfil.',
+      );
     } catch (_) {
       setState(() => _message = 'No se pudo actualizar el perfil.');
     } finally {
@@ -124,10 +136,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text(
-              'Eliminar',
-              style: TextStyle(color: _dangerText),
-            ),
+            child: const Text('Eliminar', style: TextStyle(color: _dangerText)),
           ),
         ],
       ),
@@ -170,9 +179,16 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                 children: [
                   IconButton(
                     onPressed: () => Navigator.of(context).maybePop(),
-                    icon: const Icon(Icons.arrow_back_ios_new_rounded, color: _text, size: 22),
+                    icon: const Icon(
+                      Icons.arrow_back_ios_new_rounded,
+                      color: _text,
+                      size: 22,
+                    ),
                     padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                    constraints: const BoxConstraints(
+                      minWidth: 36,
+                      minHeight: 36,
+                    ),
                   ),
                   const SizedBox(width: 6),
                   const Expanded(
@@ -194,13 +210,19 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                     child: TextButton(
                       onPressed: _hasChanges && !_isSaving ? _save : null,
                       style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 10),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 22,
+                          vertical: 10,
+                        ),
                         foregroundColor: const Color(0xFF07111B),
                         disabledForegroundColor: const Color(0xFF97A0B0),
                       ),
                       child: Text(
                         _isSaving ? 'Guardando...' : 'Guardar',
-                        style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 15,
+                        ),
                       ),
                     ),
                   ),
@@ -247,9 +269,12 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                       obscureText: !_showPassword,
                       onChanged: (_) => setState(() {}),
                       trailing: IconButton(
-                        onPressed: () => setState(() => _showPassword = !_showPassword),
+                        onPressed: () =>
+                            setState(() => _showPassword = !_showPassword),
                         icon: Icon(
-                          _showPassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                          _showPassword
+                              ? Icons.visibility_off_outlined
+                              : Icons.visibility_outlined,
                           color: _muted,
                         ),
                       ),
@@ -259,18 +284,28 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                       Text(
                         _message!,
                         textAlign: TextAlign.center,
-                        style: const TextStyle(color: _cyanSoft, fontWeight: FontWeight.w700),
+                        style: const TextStyle(
+                          color: _cyanSoft,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ],
                     const SizedBox(height: 32),
-                    Container(height: 1, width: double.infinity, color: _divider),
+                    Container(
+                      height: 1,
+                      width: double.infinity,
+                      color: _divider,
+                    ),
                     const SizedBox(height: 24),
                     InkWell(
                       onTap: _isDeleting ? null : _confirmDeleteAccount,
                       borderRadius: BorderRadius.circular(999),
                       child: Container(
                         width: double.infinity,
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 18,
+                        ),
                         decoration: BoxDecoration(
                           color: _dangerBg,
                           borderRadius: BorderRadius.circular(999),
@@ -279,10 +314,16 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Icon(Icons.disabled_by_default_rounded, color: _dangerText, size: 20),
+                            const Icon(
+                              Icons.disabled_by_default_rounded,
+                              color: _dangerText,
+                              size: 20,
+                            ),
                             const SizedBox(width: 10),
                             Text(
-                              _isDeleting ? 'Eliminando cuenta...' : 'Eliminar cuenta',
+                              _isDeleting
+                                  ? 'Eliminando cuenta...'
+                                  : 'Eliminar cuenta',
                               style: const TextStyle(
                                 color: _dangerText,
                                 fontSize: 18,
@@ -329,7 +370,10 @@ class _Avatar extends StatelessWidget {
           height: 126,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            border: Border.all(color: _EditProfileScreenState._cyanSoft, width: 4),
+            border: Border.all(
+              color: _EditProfileScreenState._cyanSoft,
+              width: 4,
+            ),
             boxShadow: const [
               BoxShadow(
                 color: Color(0x3300CFFF),
@@ -343,7 +387,7 @@ class _Avatar extends StatelessWidget {
               ? Image.network(
                   avatar!,
                   fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => const _AvatarFallback(),
+                  errorBuilder: (_, _, _) => const _AvatarFallback(),
                 )
               : const _AvatarFallback(),
         ),
@@ -358,7 +402,11 @@ class _Avatar extends StatelessWidget {
               shape: BoxShape.circle,
               border: Border.all(color: _EditProfileScreenState._bg, width: 3),
             ),
-            child: const Icon(Icons.photo_camera_outlined, color: _EditProfileScreenState._bg, size: 22),
+            child: const Icon(
+              Icons.photo_camera_outlined,
+              color: _EditProfileScreenState._bg,
+              size: 22,
+            ),
           ),
         ),
       ],
@@ -416,7 +464,9 @@ class _ProfileField extends StatelessWidget {
         const SizedBox(height: 12),
         Container(
           decoration: BoxDecoration(
-            color: readOnly ? _EditProfileScreenState._field.withOpacity(0.55) : _EditProfileScreenState._field,
+            color: readOnly
+                ? _EditProfileScreenState._field.withValues(alpha: 0.55)
+                : _EditProfileScreenState._field,
             borderRadius: BorderRadius.circular(24),
             border: Border.all(color: _EditProfileScreenState._fieldBorder),
           ),
@@ -427,13 +477,18 @@ class _ProfileField extends StatelessWidget {
             readOnly: readOnly,
             onChanged: onChanged,
             style: TextStyle(
-              color: readOnly ? _EditProfileScreenState._muted : _EditProfileScreenState._text,
+              color: readOnly
+                  ? _EditProfileScreenState._muted
+                  : _EditProfileScreenState._text,
               fontSize: 16,
               fontWeight: FontWeight.w600,
             ),
             decoration: InputDecoration(
               border: InputBorder.none,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 18,
+                vertical: 18,
+              ),
               prefixIcon: Icon(icon, color: _EditProfileScreenState._muted),
               suffixIcon: trailing,
             ),

@@ -2,7 +2,11 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:musicflow_mobile/app/routes.dart';
+import 'package:musicflow_mobile/core/config/app_config.dart';
 import 'package:musicflow_mobile/features/ai_agent/screens/ai_chat_screen.dart';
+import 'package:musicflow_mobile/features/auth/auth_bootstrap_screen.dart';
+import 'package:musicflow_mobile/features/auth/headphones_tip_screen.dart';
+import 'package:musicflow_mobile/features/auth/artist_onboarding_screen.dart';
 import 'package:musicflow_mobile/features/auth/login_screen.dart';
 import 'package:musicflow_mobile/features/auth/providers/auth_controller.dart';
 import 'package:musicflow_mobile/features/auth/register_screen.dart';
@@ -25,36 +29,66 @@ import 'package:musicflow_mobile/features/profile/screens/payment_methods_screen
 import 'package:musicflow_mobile/features/profile/screens/profile_screen.dart';
 import 'package:musicflow_mobile/features/settings/settings_screen.dart';
 import 'package:musicflow_mobile/features/settings/theme_screen.dart';
+import 'package:musicflow_mobile/features/settings/artist_preferences_screen.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   final notifier = _AuthNotifier(ref);
 
   return GoRouter(
-    initialLocation: AppRoutes.home,
+    initialLocation: AppRoutes.bootstrap,
     refreshListenable: notifier,
     redirect: (context, state) {
       final auth = ref.read(authControllerProvider);
 
-      // While bootstrapping (reading tokens + /auth/me), don't redirect.
-      if (auth.isInitializing) return null;
+      final bootstrapping = state.matchedLocation == AppRoutes.bootstrap;
+      if (auth.isInitializing) {
+        return bootstrapping ? null : AppRoutes.bootstrap;
+      }
 
       final loggingIn =
           state.matchedLocation == AppRoutes.login ||
           state.matchedLocation == AppRoutes.register;
+      final headphonesTip = state.matchedLocation == AppRoutes.headphonesTip;
+      final artistOnboarding =
+          state.matchedLocation == AppRoutes.artistOnboarding;
 
       if (!auth.isAuthenticated && !loggingIn) {
         return AppRoutes.login;
       }
-      if (auth.isAuthenticated && loggingIn) {
-        return AppRoutes.home;
+      if (auth.isAuthenticated &&
+          auth.user?.onboardingCompletedAt == null &&
+          !artistOnboarding) {
+        return AppRoutes.artistOnboarding;
       }
+      if (auth.isAuthenticated &&
+          auth.user?.onboardingCompletedAt != null &&
+          artistOnboarding) {
+        return AppRoutes.headphonesTip;
+      }
+      if (auth.isAuthenticated && headphonesTip) return null;
+      if (auth.isAuthenticated && loggingIn) {
+        return AppRoutes.headphonesTip;
+      }
+      if (auth.isAuthenticated && bootstrapping) return AppRoutes.home;
       return null;
     },
     routes: [
+      GoRoute(
+        path: AppRoutes.bootstrap,
+        builder: (_, _) => const AuthBootstrapScreen(),
+      ),
       GoRoute(path: AppRoutes.login, builder: (_, _) => const LoginScreen()),
       GoRoute(
         path: AppRoutes.register,
         builder: (_, _) => const RegisterScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.headphonesTip,
+        builder: (_, _) => const HeadphonesTipScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.artistOnboarding,
+        builder: (_, _) => const ArtistOnboardingScreen(),
       ),
       GoRoute(
         path: AppRoutes.home,
@@ -111,6 +145,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: AppRoutes.paymentMethods,
+        redirect: (_, _) => AppConfig.billingEnabled ? null : AppRoutes.profile,
         builder: (_, _) => const PaymentMethodsScreen(),
       ),
       GoRoute(
@@ -118,6 +153,10 @@ final routerProvider = Provider<GoRouter>((ref) {
         pageBuilder: (_, state) => _instantPage(state, const SettingsScreen()),
       ),
       GoRoute(path: AppRoutes.themes, builder: (_, _) => const ThemeScreen()),
+      GoRoute(
+        path: AppRoutes.artistPreferences,
+        builder: (_, _) => const ArtistPreferencesScreen(),
+      ),
       GoRoute(
         path: AppRoutes.premium,
         builder: (_, _) => const PremiumScreen(),

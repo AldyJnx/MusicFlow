@@ -111,7 +111,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           colors: [colors.surface, colors.surfaceAlt],
                         ),
                         border: Border.all(
-                          color: Colors.white.withOpacity(0.05),
+                          color: Colors.white.withValues(alpha: 0.05),
                         ),
                         boxShadow: [
                           BoxShadow(
@@ -153,7 +153,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         color: colors.surface.withValues(alpha: 0.92),
                         borderRadius: BorderRadius.circular(30),
                         border: Border.all(
-                          color: Colors.white.withOpacity(0.04),
+                          color: Colors.white.withValues(alpha: 0.04),
                         ),
                         boxShadow: [
                           BoxShadow(
@@ -388,7 +388,7 @@ class _InputContainer extends StatelessWidget {
       decoration: BoxDecoration(
         color: _LoginScreenState._inputFill,
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: Colors.white.withOpacity(0.03)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.03)),
       ),
       child: child,
     );

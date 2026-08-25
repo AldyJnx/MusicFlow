@@ -211,6 +211,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 value: '',
                 onTap: () => context.push(AppRoutes.equalizer),
               ),
+              const SizedBox(height: 12),
+              _SettingValueTile(
+                icon: Icons.people_alt_outlined,
+                title: 'Artistas preferidos',
+                value: '',
+                onTap: () => context.push(AppRoutes.artistPreferences),
+              ),
               const SizedBox(height: 28),
               _SectionLabel(title: 'CUENTA'),
               const SizedBox(height: 14),

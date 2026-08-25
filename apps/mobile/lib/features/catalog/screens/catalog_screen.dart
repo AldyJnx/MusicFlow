@@ -30,7 +30,11 @@ class CatalogScreen extends ConsumerWidget {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [colors.gradientStart, colors.gradientEnd, colors.background],
+            colors: [
+              colors.gradientStart,
+              colors.gradientEnd,
+              colors.background,
+            ],
             stops: const [0.0, 0.28, 0.78],
           ),
         ),
@@ -38,7 +42,7 @@ class CatalogScreen extends ConsumerWidget {
           child: artistsAsync.when(
             loading: () =>
                 Center(child: CircularProgressIndicator(color: colors.primary)),
-            error: (_, __) => CatalogMessage(
+            error: (_, _) => CatalogMessage(
               message: 'No se pudo cargar el catálogo.',
               onRetry: () => ref.invalidate(catalogArtistsProvider),
             ),

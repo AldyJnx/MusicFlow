@@ -26,11 +26,7 @@ class AuthRepository {
   }) async {
     final res = await _client.dio.post<Map<String, dynamic>>(
       '/auth/register',
-      data: {
-        'email': email,
-        'username': username,
-        'password': password,
-      },
+      data: {'email': email, 'username': username, 'password': password},
       options: Options(extra: {'skipAuth': true}),
     );
     return AuthSession.fromJson(res.data!);
@@ -53,10 +49,7 @@ class AuthRepository {
     );
   }
 
-  Future<AuthUser> updateProfile({
-    String? username,
-    String? password,
-  }) async {
+  Future<AuthUser> updateProfile({String? username, String? password}) async {
     final res = await _client.dio.patch<Map<String, dynamic>>(
       '/users/me',
       data: {
@@ -69,5 +62,31 @@ class AuthRepository {
 
   Future<void> deleteAccount() async {
     await _client.dio.delete('/users/me');
+  }
+
+  Future<void> completeOnboarding(List<String> artistIds) async {
+    await _client.dio.post(
+      '/users/me/onboarding',
+      data: {'artistIds': artistIds},
+    );
+  }
+
+  Future<List<Map<String, dynamic>>> listFollowedArtists() async {
+    final res = await _client.dio.get<List<dynamic>>(
+      '/users/me/followed-artists',
+    );
+    return (res.data ?? const <dynamic>[])
+        .whereType<Map<String, dynamic>>()
+        .toList(growable: false);
+  }
+
+  Future<void> recordActivity({
+    required String timezone,
+    bool? notificationConsent,
+  }) async {
+    await _client.dio.post(
+      '/users/me/activity',
+      data: {'timezone': timezone, 'notificationConsent': ?notificationConsent},
+    );
   }
 }

@@ -16,25 +16,41 @@ class AiAgentRepository {
       '/ai/suggest',
       data: {
         'prompt': prompt,
-        if (trackId != null) 'trackId': trackId,
-        if (playlistId != null) 'playlistId': playlistId,
-        if (context != null) 'context': context,
+        'trackId': ?trackId,
+        'playlistId': ?playlistId,
+        'context': ?context,
       },
     );
     return AISuggestResponse.fromJson(res.data!);
   }
 
-  Future<void> accept(String requestId, String appliedTo, {String? appliedId}) async {
+  Future<AIAssistantResponse> assist({
+    required String prompt,
+    String? trackId,
+  }) async {
+    final res = await _client.dio.post<Map<String, dynamic>>(
+      '/ai/assistant',
+      data: {'prompt': prompt, 'trackId': ?trackId},
+    );
+    return AIAssistantResponse.fromJson(res.data!);
+  }
+
+  Future<void> accept(
+    String requestId,
+    String appliedTo, {
+    String? appliedId,
+  }) async {
     await _client.dio.post(
       '/ai/$requestId/accept',
-      data: {
-        'appliedTo': appliedTo,
-        if (appliedId != null) 'appliedId': appliedId,
-      },
+      data: {'appliedTo': appliedTo, 'appliedId': ?appliedId},
     );
   }
 
-  Future<void> provideFeedback(String requestId, String feedback, {String? comment}) async {
+  Future<void> provideFeedback(
+    String requestId,
+    String feedback, {
+    String? comment,
+  }) async {
     await _client.dio.post(
       '/ai/$requestId/feedback',
       data: {

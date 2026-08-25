@@ -12,6 +12,11 @@ _$CatalogArtistImpl _$$CatalogArtistImplFromJson(Map<String, dynamic> json) =>
       name: json['name'] as String,
       slug: json['slug'] as String,
       imageUrl: json['imageUrl'] as String?,
+      genres:
+          (json['genres'] as List<dynamic>?)
+              ?.map((e) => e as String)
+              .toList() ??
+          const <String>[],
       albumCount: (json['albumCount'] as num?)?.toInt() ?? 0,
       trackCount: (json['trackCount'] as num?)?.toInt() ?? 0,
     );
@@ -22,6 +27,7 @@ Map<String, dynamic> _$$CatalogArtistImplToJson(_$CatalogArtistImpl instance) =>
       'name': instance.name,
       'slug': instance.slug,
       'imageUrl': instance.imageUrl,
+      'genres': instance.genres,
       'albumCount': instance.albumCount,
       'trackCount': instance.trackCount,
     };

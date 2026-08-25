@@ -17,6 +17,10 @@ class MiniPlayerBar extends ConsumerWidget {
     final isPlaying = ref.watch(
       playerControllerProvider.select((state) => state.isPlaying),
     );
+    final isLooping = ref.watch(
+      playerControllerProvider.select((state) => state.isLooping),
+    );
+    final controller = ref.read(playerControllerProvider.notifier);
 
     if (track == null) {
       return const SizedBox.shrink();
@@ -119,7 +123,24 @@ class MiniPlayerBar extends ConsumerWidget {
                       ),
                     ),
                   ),
-                  const SizedBox(width: 8),
+                  _MiniControl(
+                    icon: Icons.skip_previous_rounded,
+                    tooltip: 'Anterior',
+                    onPressed: controller.previous,
+                  ),
+                  _MiniControl(
+                    icon: isLooping
+                        ? Icons.repeat_one_rounded
+                        : Icons.repeat_rounded,
+                    tooltip: 'Bucle',
+                    active: isLooping,
+                    onPressed: controller.toggleLooping,
+                  ),
+                  _MiniControl(
+                    icon: Icons.skip_next_rounded,
+                    tooltip: 'Siguiente',
+                    onPressed: controller.next,
+                  ),
                   Container(
                     width: 40,
                     height: 40,
@@ -129,9 +150,7 @@ class MiniPlayerBar extends ConsumerWidget {
                     ),
                     child: IconButton(
                       padding: EdgeInsets.zero,
-                      onPressed: () => ref
-                          .read(playerControllerProvider.notifier)
-                          .togglePlay(),
+                      onPressed: controller.togglePlay,
                       icon: Icon(
                         isPlaying
                             ? Icons.pause_rounded
@@ -146,6 +165,33 @@ class MiniPlayerBar extends ConsumerWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _MiniControl extends StatelessWidget {
+  const _MiniControl({
+    required this.icon,
+    required this.tooltip,
+    required this.onPressed,
+    this.active = false,
+  });
+
+  final IconData icon;
+  final String tooltip;
+  final Future<void> Function() onPressed;
+  final bool active;
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton(
+      onPressed: onPressed,
+      icon: Icon(icon, size: 20),
+      tooltip: tooltip,
+      color: active ? context.musicFlowColors.primary : Colors.white70,
+      constraints: const BoxConstraints.tightFor(width: 30, height: 40),
+      visualDensity: VisualDensity.compact,
+      padding: EdgeInsets.zero,
     );
   }
 }

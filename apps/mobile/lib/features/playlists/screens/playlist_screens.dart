@@ -25,7 +25,7 @@ class PlaylistScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final colors = context.musicFlowColors;
-    const tracksQuery = TracksQuery(take: 5);
+    const tracksQuery = TracksQuery(take: 30);
     final tracksAsync = ref.watch(savedTracksListProvider(tracksQuery));
     final playlistsAsync = ref.watch(playlistsProvider);
 
@@ -134,7 +134,7 @@ class PlaylistScreen extends ConsumerWidget {
                         child: CircularProgressIndicator(color: colors.primary),
                       ),
                     ),
-                    error: (_, __) => _LibraryMessage(
+                    error: (_, _) => _LibraryMessage(
                       title: 'No se pudieron cargar tus bibliotecas',
                       subtitle:
                           'Revisa la conexion con la API e intenta otra vez.',
@@ -157,8 +157,7 @@ class PlaylistScreen extends ConsumerWidget {
                         child: ListView.separated(
                           scrollDirection: Axis.horizontal,
                           itemCount: playlists.length,
-                          separatorBuilder: (_, __) =>
-                              const SizedBox(width: 12),
+                          separatorBuilder: (_, _) => const SizedBox(width: 12),
                           itemBuilder: (context, index) {
                             final playlist = playlists[index];
                             return _PlaylistCard(
@@ -188,7 +187,7 @@ class PlaylistScreen extends ConsumerWidget {
                         child: CircularProgressIndicator(color: _accentCyan),
                       ),
                     ),
-                    error: (_, __) => _LibraryMessage(
+                    error: (_, _) => _LibraryMessage(
                       title: 'No se pudo cargar tu biblioteca',
                       subtitle:
                           'Revisa la conexion con la API e intenta otra vez.',
@@ -208,20 +207,11 @@ class PlaylistScreen extends ConsumerWidget {
                         );
                       }
 
-                      return Column(
-                        children: List.generate(tracks.length, (index) {
-                          final track = tracks[index];
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 14),
-                            child: _TrackTile(
-                              index: (index + 1).toString().padLeft(2, '0'),
-                              track: track,
-                              onPlay: () => ref
-                                  .read(playerControllerProvider.notifier)
-                                  .playTrackList(tracks, startIndex: index),
-                            ),
-                          );
-                        }),
+                      return _SavedTracksPager(
+                        tracks: tracks,
+                        onPlay: (index) => ref
+                            .read(playerControllerProvider.notifier)
+                            .playTrackList(tracks, startIndex: index),
                       );
                     },
                   ),
@@ -272,6 +262,53 @@ class PlaylistScreen extends ConsumerWidget {
         const SnackBar(content: Text('No se pudo crear la biblioteca.')),
       );
     }
+  }
+}
+
+class _SavedTracksPager extends StatelessWidget {
+  const _SavedTracksPager({required this.tracks, required this.onPlay});
+
+  final List<Track> tracks;
+  final Future<void> Function(int index) onPlay;
+
+  @override
+  Widget build(BuildContext context) {
+    const pageSize = 5;
+    final pageCount = (tracks.length / pageSize).ceil();
+    final firstPageItems = tracks.length < pageSize ? tracks.length : pageSize;
+    final height = firstPageItems * 98.0;
+
+    return SizedBox(
+      height: height.clamp(112.0, 500.0),
+      child: PageView.builder(
+        padEnds: false,
+        itemCount: pageCount,
+        itemBuilder: (context, pageIndex) {
+          final start = pageIndex * pageSize;
+          final end = (start + pageSize).clamp(0, tracks.length);
+          final pageTracks = tracks.sublist(start, end);
+          return Padding(
+            padding: EdgeInsets.only(
+              right: pageIndex == pageCount - 1 ? 0 : 10,
+            ),
+            child: Column(
+              children: List.generate(pageTracks.length, (localIndex) {
+                final globalIndex = start + localIndex;
+                final track = pageTracks[localIndex];
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 14),
+                  child: _TrackTile(
+                    index: (globalIndex + 1).toString().padLeft(2, '0'),
+                    track: track,
+                    onPlay: () => onPlay(globalIndex),
+                  ),
+                );
+              }),
+            ),
+          );
+        },
+      ),
+    );
   }
 }
 
@@ -387,9 +424,9 @@ class _PlaylistCard extends StatelessWidget {
         width: 178,
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: PlaylistScreen._card.withOpacity(0.9),
+          color: PlaylistScreen._card.withValues(alpha: 0.9),
           borderRadius: BorderRadius.circular(22),
-          border: Border.all(color: Colors.white.withOpacity(0.05)),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
         ),
         child: Row(
           children: [
@@ -402,8 +439,7 @@ class _PlaylistCard extends StatelessWidget {
                     ? Image.network(
                         coverArt!,
                         fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) =>
-                            const _TrackCoverFallback(),
+                        errorBuilder: (_, _, _) => const _TrackCoverFallback(),
                       )
                     : const _TrackCoverFallback(),
               ),
@@ -456,7 +492,7 @@ class _CircleIcon extends StatelessWidget {
         width: 40,
         height: 40,
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.08),
+          color: Colors.white.withValues(alpha: 0.08),
           shape: BoxShape.circle,
         ),
         child: Icon(icon, color: Colors.white70, size: 22),
@@ -484,7 +520,7 @@ class _FilterChip extends StatelessWidget {
                   colors: [Color(0xFF1E90FF), PlaylistScreen._accentCyan],
                 )
               : null,
-          color: selected ? null : Colors.white.withOpacity(0.06),
+          color: selected ? null : Colors.white.withValues(alpha: 0.06),
         ),
         child: Text(
           label,
@@ -520,9 +556,9 @@ class _LibraryMessage extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(22, 28, 22, 26),
       decoration: BoxDecoration(
-        color: PlaylistScreen._card.withOpacity(0.92),
+        color: PlaylistScreen._card.withValues(alpha: 0.92),
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.white.withOpacity(0.05)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
       ),
       child: Column(
         children: [
@@ -597,9 +633,9 @@ class _TrackTile extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: PlaylistScreen._card.withOpacity(0.9),
+          color: PlaylistScreen._card.withValues(alpha: 0.9),
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.white.withOpacity(0.04)),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.04)),
         ),
         child: Row(
           children: [
@@ -623,8 +659,7 @@ class _TrackTile extends StatelessWidget {
                     ? Image.network(
                         track.coverArt!,
                         fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) =>
-                            const _TrackCoverFallback(),
+                        errorBuilder: (_, _, _) => const _TrackCoverFallback(),
                       )
                     : const _TrackCoverFallback(),
               ),

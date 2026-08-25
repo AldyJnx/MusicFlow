@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:musicflow_mobile/app/routes.dart';
+import 'package:musicflow_mobile/core/config/app_config.dart';
 import 'package:musicflow_mobile/core/theme/musicflow_theme.dart';
 import 'package:musicflow_mobile/core/widgets/app_bottom_navigation.dart';
 import 'package:musicflow_mobile/features/auth/providers/auth_controller.dart';
@@ -75,7 +76,7 @@ class ProfileScreen extends ConsumerWidget {
                           colors: [colors.secondary, colors.primary],
                         ),
                         border: Border.all(
-                          color: Colors.white.withOpacity(0.18),
+                          color: Colors.white.withValues(alpha: 0.18),
                         ),
                       ),
                       child: const Icon(
@@ -104,7 +105,7 @@ class ProfileScreen extends ConsumerWidget {
                           border: Border.all(
                             color: colors.primary.withValues(alpha: 0.55),
                           ),
-                          color: Colors.white.withOpacity(0.03),
+                          color: Colors.white.withValues(alpha: 0.03),
                         ),
                         child: Icon(
                           Icons.settings_rounded,
@@ -156,7 +157,9 @@ class ProfileScreen extends ConsumerWidget {
                                     child: Icon(
                                       Icons.account_circle_rounded,
                                       size: 92,
-                                      color: Colors.white.withOpacity(0.9),
+                                      color: Colors.white.withValues(
+                                        alpha: 0.9,
+                                      ),
                                     ),
                                   ),
                                 ],
@@ -304,7 +307,7 @@ class ProfileScreen extends ConsumerWidget {
                                 child: Container(
                                   width: 28,
                                   height: 40,
-                                  color: Colors.white.withOpacity(0.08),
+                                  color: Colors.white.withValues(alpha: 0.08),
                                 ),
                               ),
                             ),
@@ -356,11 +359,12 @@ class ProfileScreen extends ConsumerWidget {
                         title: 'Editar Perfil',
                         onTap: () => context.push(AppRoutes.editProfile),
                       ),
-                      _ProfileOptionTile(
-                        icon: Icons.payment_rounded,
-                        title: 'Metodos de Pago',
-                        onTap: () => context.push(AppRoutes.paymentMethods),
-                      ),
+                      if (AppConfig.billingEnabled)
+                        _ProfileOptionTile(
+                          icon: Icons.payment_rounded,
+                          title: 'Metodos de Pago',
+                          onTap: () => context.push(AppRoutes.paymentMethods),
+                        ),
                       const _ProfileOptionTile(
                         icon: Icons.verified_user_outlined,
                         title: 'Privacidad',

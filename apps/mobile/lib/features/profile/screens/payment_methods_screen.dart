@@ -33,7 +33,7 @@ class _PaymentMethodsScreenState extends State<PaymentMethodsScreen> {
                     height: 40,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: Colors.white.withOpacity(0.05),
+                      color: Colors.white.withValues(alpha: 0.05),
                     ),
                     child: IconButton(
                       onPressed: () => Navigator.of(context).maybePop(),
@@ -189,7 +189,9 @@ class _PaymentOptionCard extends StatelessWidget {
           color: _PaymentMethodsScreenState._surface,
           borderRadius: BorderRadius.circular(28),
           border: Border.all(
-            color: selected ? _PaymentMethodsScreenState._accent : Colors.transparent,
+            color: selected
+                ? _PaymentMethodsScreenState._accent
+                : Colors.transparent,
             width: 1.4,
           ),
           boxShadow: selected
@@ -225,7 +227,10 @@ class _PaymentOptionCard extends StatelessWidget {
                       if (trailingBadge != null) ...[
                         const SizedBox(width: 8),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 3,
+                          ),
                           decoration: BoxDecoration(
                             color: const Color(0xFF1F5D73),
                             borderRadius: BorderRadius.circular(999),
@@ -260,9 +265,13 @@ class _PaymentOptionCard extends StatelessWidget {
               height: 24,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: selected ? _PaymentMethodsScreenState._accent : Colors.transparent,
+                color: selected
+                    ? _PaymentMethodsScreenState._accent
+                    : Colors.transparent,
                 border: Border.all(
-                  color: selected ? _PaymentMethodsScreenState._accent : const Color(0xFF4B525F),
+                  color: selected
+                      ? _PaymentMethodsScreenState._accent
+                      : const Color(0xFF4B525F),
                   width: 1.8,
                 ),
               ),

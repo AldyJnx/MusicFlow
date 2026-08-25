@@ -115,7 +115,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     decoration: BoxDecoration(
                       color: colors.surface.withValues(alpha: 0.95),
                       borderRadius: BorderRadius.circular(30),
-                      border: Border.all(color: Colors.white.withOpacity(0.04)),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.04),
+                      ),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,

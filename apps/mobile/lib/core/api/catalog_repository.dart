@@ -14,6 +14,22 @@ class CatalogRepository {
         .toList();
   }
 
+  Future<CatalogArtistPage> listArtistsPage({
+    required int offset,
+    required int limit,
+    String query = '',
+  }) async {
+    final res = await _client.dio.get<Map<String, dynamic>>(
+      '/catalog/artists/page',
+      queryParameters: {
+        'offset': offset,
+        'limit': limit,
+        if (query.trim().isNotEmpty) 'q': query.trim(),
+      },
+    );
+    return CatalogArtistPage.fromJson(res.data!);
+  }
+
   Future<CatalogArtistDetail> getArtist(String id) async {
     final res = await _client.dio.get<Map<String, dynamic>>(
       '/catalog/artists/$id',
@@ -26,5 +42,13 @@ class CatalogRepository {
       '/catalog/albums/$id',
     );
     return CatalogAlbumDetail.fromJson(res.data!);
+  }
+
+  Future<void> followArtist(String id) async {
+    await _client.dio.post('/catalog/artists/$id/follow');
+  }
+
+  Future<void> unfollowArtist(String id) async {
+    await _client.dio.delete('/catalog/artists/$id/follow');
   }
 }

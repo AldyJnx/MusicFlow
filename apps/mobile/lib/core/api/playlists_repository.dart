@@ -47,7 +47,7 @@ class PlaylistsRepository {
       '/library/playlists/$id',
       data: {
         if (name != null && name.isNotEmpty) 'name': name,
-        if (description != null) 'description': description,
+        'description': ?description,
       },
     );
     return Playlist.fromJson(res.data!);
@@ -61,5 +61,9 @@ class PlaylistsRepository {
       '/library/playlists/$playlistId/tracks',
       data: {'trackId': trackId},
     );
+  }
+
+  Future<void> deletePlaylist(String id) async {
+    await _client.dio.delete('/library/playlists/$id');
   }
 }

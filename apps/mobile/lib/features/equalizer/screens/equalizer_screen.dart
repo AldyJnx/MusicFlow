@@ -157,9 +157,11 @@ class _EqualizerScreenState extends ConsumerState<EqualizerScreen> {
                   width: double.infinity,
                   padding: const EdgeInsets.fromLTRB(16, 22, 16, 12),
                   decoration: BoxDecoration(
-                    color: _panel.withOpacity(0.94),
+                    color: _panel.withValues(alpha: 0.94),
                     borderRadius: BorderRadius.circular(28),
-                    border: Border.all(color: Colors.white.withOpacity(0.04)),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.04),
+                    ),
                     boxShadow: const [
                       BoxShadow(
                         color: Color(0x3300CFFF),
@@ -296,14 +298,14 @@ class _ControlPill extends StatelessWidget {
       data: SliderTheme.of(context).copyWith(
         trackHeight: 4,
         activeTrackColor: _EqualizerScreenState._accent,
-        inactiveTrackColor: Colors.white.withOpacity(0.09),
+        inactiveTrackColor: Colors.white.withValues(alpha: 0.09),
         thumbColor: Colors.white,
-        overlayColor: _EqualizerScreenState._accent.withOpacity(0.12),
+        overlayColor: _EqualizerScreenState._accent.withValues(alpha: 0.12),
       ),
       child: Container(
         padding: const EdgeInsets.fromLTRB(18, 16, 14, 12),
         decoration: BoxDecoration(
-          color: _EqualizerScreenState._panel.withOpacity(0.92),
+          color: _EqualizerScreenState._panel.withValues(alpha: 0.92),
           borderRadius: BorderRadius.circular(28),
         ),
         child: Column(
@@ -376,9 +378,11 @@ class _BandSlider extends StatelessWidget {
               data: SliderTheme.of(context).copyWith(
                 trackHeight: 6,
                 activeTrackColor: _EqualizerScreenState._accent,
-                inactiveTrackColor: Colors.white.withOpacity(0.05),
+                inactiveTrackColor: Colors.white.withValues(alpha: 0.05),
                 thumbColor: Colors.white,
-                overlayColor: _EqualizerScreenState._accent.withOpacity(0.14),
+                overlayColor: _EqualizerScreenState._accent.withValues(
+                  alpha: 0.14,
+                ),
                 thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 9),
               ),
               child: Slider(value: value, onChanged: onChanged),

@@ -49,8 +49,8 @@ class MusicFlowAudioHandler extends BaseAudioHandler with SeekHandler {
   // ── Queue management ────────────────────────────────────────────────────────
 
   @override
-  Future<void> updateQueue(List<MediaItem> newQueue) async {
-    queue.add(newQueue);
+  Future<void> updateQueue(List<MediaItem> queue) async {
+    this.queue.add(queue);
   }
 
   /// Replace the entire queue and rebuild the underlying [ConcatenatingAudioSource].
@@ -102,6 +102,10 @@ class MusicFlowAudioHandler extends BaseAudioHandler with SeekHandler {
 
   Future<void> setPlayerVolume(double volume) {
     return _player.setVolume(volume.clamp(0.0, 1.0));
+  }
+
+  Future<void> setLooping(bool enabled) {
+    return _player.setLoopMode(enabled ? LoopMode.one : LoopMode.off);
   }
 
   Future<void> setEqualizerBands(List<double> bands) async {

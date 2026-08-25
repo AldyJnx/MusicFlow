@@ -47,9 +47,8 @@ class DownloadButton extends ConsumerWidget {
       constraints: BoxConstraints.tightFor(width: size + 14, height: size + 14),
       iconSize: size,
       tooltip: downloaded ? 'Descargado · quitar' : 'Descargar sin conexión',
-      onPressed: () => downloaded
-          ? controller.remove(track.id)
-          : controller.download(track),
+      onPressed: () =>
+          downloaded ? controller.remove(track.id) : controller.download(track),
       icon: Icon(
         downloaded
             ? Icons.check_circle_rounded

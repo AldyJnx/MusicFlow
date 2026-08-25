@@ -50,7 +50,7 @@ class PlaylistDetailScreen extends ConsumerWidget {
           child: playlistAsync.when(
             loading: () =>
                 Center(child: CircularProgressIndicator(color: colors.primary)),
-            error: (_, __) => _PlaylistDetailMessage(
+            error: (_, _) => _PlaylistDetailMessage(
               message: 'No se pudo cargar esta biblioteca.',
               onRetry: () => ref.invalidate(playlistDetailProvider(playlistId)),
             ),
@@ -90,6 +90,17 @@ class PlaylistDetailScreen extends ConsumerWidget {
                           icon: const Icon(Icons.edit_rounded),
                           color: _accentCyan,
                         ),
+                        IconButton(
+                          onPressed: () => _confirmDeletePlaylist(
+                            context,
+                            ref,
+                            id: playlist.id,
+                            name: playlist.name,
+                          ),
+                          icon: const Icon(Icons.delete_outline_rounded),
+                          color: const Color(0xFFFF6B7A),
+                          tooltip: 'Eliminar biblioteca',
+                        ),
                       ],
                     ),
                     const SizedBox(height: 20),
@@ -102,7 +113,7 @@ class PlaylistDetailScreen extends ConsumerWidget {
                             ? Image.network(
                                 coverArt,
                                 fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) =>
+                                errorBuilder: (_, _, _) =>
                                     const _PlaylistCoverFallback(),
                               )
                             : const _PlaylistCoverFallback(),
@@ -200,7 +211,7 @@ class PlaylistDetailScreen extends ConsumerWidget {
                         itemCount: tracks.length,
                         shrinkWrap: true,
                         physics: const NeverScrollableScrollPhysics(),
-                        separatorBuilder: (_, __) => const SizedBox(height: 12),
+                        separatorBuilder: (_, _) => const SizedBox(height: 12),
                         itemBuilder: (context, index) {
                           return _PlaylistTrackTile(
                             track: tracks[index],
@@ -287,6 +298,58 @@ class PlaylistDetailScreen extends ConsumerWidget {
           ),
         ),
       );
+  }
+
+  Future<void> _confirmDeletePlaylist(
+    BuildContext context,
+    WidgetRef ref, {
+    required String id,
+    required String name,
+  }) async {
+    final shouldDelete = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: _card,
+          title: const Text(
+            'Eliminar biblioteca',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900),
+          ),
+          content: Text(
+            '¿Estas seguro que quieres eliminar "$name"?',
+            style: const TextStyle(color: Colors.white70),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('No'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFFFF6B7A),
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Si, eliminar'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (shouldDelete != true) return;
+
+    try {
+      await ref.read(playlistsRepositoryProvider).deletePlaylist(id);
+      ref.invalidate(playlistsProvider);
+      ref.invalidate(playlistDetailProvider(id));
+      if (context.mounted) context.go(AppRoutes.playlists);
+    } catch (_) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No se pudo eliminar la biblioteca.')),
+      );
+    }
   }
 }
 
@@ -406,9 +469,9 @@ class _PlaylistTrackTile extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: PlaylistDetailScreen._card.withOpacity(0.92),
+          color: PlaylistDetailScreen._card.withValues(alpha: 0.92),
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: Colors.white.withOpacity(0.05)),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
         ),
         child: Row(
           children: [
@@ -421,7 +484,7 @@ class _PlaylistTrackTile extends StatelessWidget {
                     ? Image.network(
                         track.coverArt!,
                         fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) =>
+                        errorBuilder: (_, _, _) =>
                             const _PlaylistCoverFallback(),
                       )
                     : const _PlaylistCoverFallback(),

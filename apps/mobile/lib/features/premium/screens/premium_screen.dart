@@ -119,43 +119,6 @@ class PremiumScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 28),
-                Center(
-                  child: Container(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(999),
-                      boxShadow: [
-                        BoxShadow(
-                          color: colors.shadow.withValues(alpha: 0.32),
-                          blurRadius: 24,
-                          offset: Offset(0, 8),
-                        ),
-                      ],
-                    ),
-                    child: ElevatedButton(
-                      onPressed: () {},
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: colors.secondary,
-                        foregroundColor: colors.background,
-                        elevation: 0,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 34,
-                          vertical: 18,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(999),
-                        ),
-                      ),
-                      child: Text(
-                        'Actualizar a Premium',
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w800,
-                          color: colors.background,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 36),
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.fromLTRB(24, 26, 24, 24),
@@ -170,7 +133,7 @@ class PremiumScreen extends StatelessWidget {
                         top: 18,
                         child: Icon(
                           Icons.auto_awesome,
-                          color: _accentCyan.withOpacity(0.12),
+                          color: _accentCyan.withValues(alpha: 0.12),
                           size: 96,
                         ),
                       ),
@@ -242,8 +205,8 @@ class PremiumScreen extends StatelessWidget {
                               begin: Alignment.centerLeft,
                               end: Alignment.centerRight,
                               colors: [
-                                Colors.black.withOpacity(0.82),
-                                Colors.black.withOpacity(0.26),
+                                Colors.black.withValues(alpha: 0.82),
+                                Colors.black.withValues(alpha: 0.26),
                               ],
                             ),
                           ),
@@ -285,7 +248,7 @@ class PremiumScreen extends StatelessWidget {
                                 decoration: BoxDecoration(
                                   shape: BoxShape.circle,
                                   border: Border.all(
-                                    color: Colors.white.withOpacity(0.38),
+                                    color: Colors.white.withValues(alpha: 0.38),
                                   ),
                                 ),
                               ),
@@ -307,7 +270,7 @@ class PremiumScreen extends StatelessWidget {
                     children: [
                       Container(
                         decoration: BoxDecoration(
-                          color: _cardSoft.withOpacity(0.55),
+                          color: _cardSoft.withValues(alpha: 0.55),
                           borderRadius: const BorderRadius.vertical(
                             top: Radius.circular(28),
                           ),
@@ -335,7 +298,7 @@ class PremiumScreen extends StatelessWidget {
                             Container(
                               width: 1,
                               height: 64,
-                              color: Colors.white.withOpacity(0.05),
+                              color: Colors.white.withValues(alpha: 0.05),
                             ),
                             Expanded(
                               flex: 2,

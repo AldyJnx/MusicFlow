@@ -100,6 +100,10 @@ class EqualizerRepository {
     return EQSegment.fromJson(res.data!);
   }
 
+  Future<void> deleteSegment(String segmentId) async {
+    await _client.dio.delete<void>('/equalizer/segments/$segmentId');
+  }
+
   String _scopeValue(EQScopeType scopeType) {
     return switch (scopeType) {
       EQScopeType.global => 'GLOBAL',

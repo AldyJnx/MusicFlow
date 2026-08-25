@@ -4,22 +4,35 @@ part 'eq.freezed.dart';
 part 'eq.g.dart';
 
 enum ReverbPreset {
-  @JsonValue('NONE') none,
-  @JsonValue('SMALL_ROOM') smallRoom,
-  @JsonValue('MEDIUM_ROOM') mediumRoom,
-  @JsonValue('LARGE_ROOM') largeRoom,
-  @JsonValue('SMALL_HALL') smallHall,
-  @JsonValue('LARGE_HALL') largeHall,
-  @JsonValue('CATHEDRAL') cathedral,
-  @JsonValue('PLATE') plate,
-  @JsonValue('SPRING') spring,
+  @JsonValue('NONE')
+  none,
+  @JsonValue('SMALL_ROOM')
+  smallRoom,
+  @JsonValue('MEDIUM_ROOM')
+  mediumRoom,
+  @JsonValue('LARGE_ROOM')
+  largeRoom,
+  @JsonValue('SMALL_HALL')
+  smallHall,
+  @JsonValue('LARGE_HALL')
+  largeHall,
+  @JsonValue('CATHEDRAL')
+  cathedral,
+  @JsonValue('PLATE')
+  plate,
+  @JsonValue('SPRING')
+  spring,
 }
 
 enum EQScopeType {
-  @JsonValue('GLOBAL') global,
-  @JsonValue('PLAYLIST') playlist,
-  @JsonValue('TRACK') track,
-  @JsonValue('SEGMENT') segment,
+  @JsonValue('GLOBAL')
+  global,
+  @JsonValue('PLAYLIST')
+  playlist,
+  @JsonValue('TRACK')
+  track,
+  @JsonValue('SEGMENT')
+  segment,
 }
 
 @freezed

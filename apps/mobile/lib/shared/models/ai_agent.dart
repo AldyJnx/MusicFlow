@@ -44,3 +44,76 @@ class AISuggestResponse with _$AISuggestResponse {
   factory AISuggestResponse.fromJson(Map<String, dynamic> json) =>
       _$AISuggestResponseFromJson(json);
 }
+
+class AIAssistantResponse {
+  const AIAssistantResponse({
+    required this.requestId,
+    required this.intent,
+    required this.message,
+    this.eq,
+    this.tracks = const [],
+    this.genres = const [],
+  });
+
+  final String requestId;
+  final String intent;
+  final String message;
+  final EQSuggestion? eq;
+  final List<AIRecommendedTrack> tracks;
+  final List<String> genres;
+
+  factory AIAssistantResponse.fromJson(Map<String, dynamic> json) {
+    final tracks = json['tracks'];
+    final genres = json['genres'];
+    return AIAssistantResponse(
+      requestId: json['requestId'] as String? ?? '',
+      intent: json['intent'] as String? ?? 'reply',
+      message: json['message'] as String? ?? 'Listo.',
+      eq: json['eq'] is Map<String, dynamic>
+          ? EQSuggestion.fromJson(json['eq'] as Map<String, dynamic>)
+          : null,
+      tracks: tracks is List
+          ? tracks
+                .whereType<Map<String, dynamic>>()
+                .map(AIRecommendedTrack.fromJson)
+                .toList(growable: false)
+          : const [],
+      genres: genres is List ? genres.whereType<String>().toList() : const [],
+    );
+  }
+}
+
+class AIRecommendedTrack {
+  const AIRecommendedTrack({
+    required this.id,
+    required this.title,
+    required this.artist,
+    required this.album,
+    this.genre,
+    this.coverArt,
+    this.durationMs = 0,
+    this.fileUrlRemote,
+  });
+
+  final String id;
+  final String title;
+  final String artist;
+  final String album;
+  final String? genre;
+  final String? coverArt;
+  final int durationMs;
+  final String? fileUrlRemote;
+
+  factory AIRecommendedTrack.fromJson(Map<String, dynamic> json) {
+    return AIRecommendedTrack(
+      id: json['id'] as String? ?? '',
+      title: json['title'] as String? ?? 'Cancion',
+      artist: json['artist'] as String? ?? '',
+      album: json['album'] as String? ?? '',
+      genre: json['genre'] as String?,
+      coverArt: json['coverArt'] as String?,
+      durationMs: json['durationMs'] as int? ?? 0,
+      fileUrlRemote: json['fileUrlRemote'] as String?,
+    );
+  }
+}
