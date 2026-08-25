@@ -7,3 +7,8 @@ export const STATS_JOBS = {
 } as const;
 
 export type StatsJobName = (typeof STATS_JOBS)[keyof typeof STATS_JOBS];
+
+export const NOTIFICATIONS_QUEUE = "notifications";
+export const NOTIFICATIONS_JOBS = {
+  REENGAGEMENT: "reengagement",
+} as const;

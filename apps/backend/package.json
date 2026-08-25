@@ -8,10 +8,11 @@
   "scripts": {
     "build": "nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
-    "start": "nest start",
+    "start": "node dist/src/main.js",
+    "start:nest": "nest start",
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
-    "start:prod": "node dist/main",
+    "start:prod": "node dist/src/main.js",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
     "typecheck": "tsc --noEmit",
     "test": "jest",
@@ -47,19 +48,23 @@
     "@nestjs/swagger": "^7.2.0",
     "@nestjs/throttler": "^5.1.0",
     "@prisma/client": "^5.8.0",
+    "@sentry/nestjs": "^10.70.0",
     "bcryptjs": "^2.4.3",
     "bullmq": "^5.7.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.1",
+    "firebase-admin": "^14.2.0",
     "handlebars": "^4.7.8",
+    "helmet": "^8.3.0",
+    "ioredis": "^6.0.0",
     "lodash": "^4.18.1",
     "music-metadata": "^7.14.0",
     "nodemailer": "^8.0.5",
     "passport": "^0.7.0",
+    "passport-google-oauth20": "^2.0.0",
     "passport-jwt": "^4.0.1",
     "reflect-metadata": "^0.2.1",
     "rxjs": "^7.8.1",
-    "stripe": "^22.2.0",
     "uuid": "^9.0.1"
   },
   "devDependencies": {
@@ -72,6 +77,7 @@
     "@types/multer": "^1.4.11",
     "@types/node": "^25.9.1",
     "@types/nodemailer": "^7.0.0",
+    "@types/passport-google-oauth20": "^2.0.17",
     "@types/passport-jwt": "^4.0.0",
     "@types/supertest": "^6.0.2",
     "@types/uuid": "^9.0.7",
@@ -100,7 +106,12 @@
     "rootDir": "src",
     "testRegex": ".*\\.spec\\.ts$",
     "transform": {
-      "^.+\\.(t|j)s$": "ts-jest"
+      "^.+\\.ts$": [
+        "ts-jest",
+        {
+          "diagnostics": false
+        }
+      ]
     },
     "collectCoverageFrom": [
       "**/*.(t|j)s"

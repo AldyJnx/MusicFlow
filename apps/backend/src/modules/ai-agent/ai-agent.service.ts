@@ -7,7 +7,8 @@ import {
   ServiceUnavailableException,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import Anthropic from "@anthropic-ai/sdk";
+import { existsSync, readFileSync } from "fs";
+import { resolve } from "path";
 import { PrismaService } from "@/prisma/prisma.service";
 import { AIAppliedTo, AIFeedback } from "@prisma/client";
 import { SegmentsService } from "@/modules/equalizer/segments.service";
@@ -86,6 +87,17 @@ interface AssistantResult extends AssistantParse {
   tokensOutput: number;
   costUsd: number;
   modelUsed: string;
+}
+
+interface AnthropicMessageResponse {
+  model: string;
+  content: { type: string; text?: string }[];
+  usage: {
+    input_tokens?: number;
+    output_tokens?: number;
+    cache_creation_input_tokens?: number;
+    cache_read_input_tokens?: number;
+  };
 }
 
 const VALID_REVERB_PRESETS = new Set([
@@ -229,7 +241,7 @@ intent rules:
 @Injectable()
 export class AiAgentService {
   private readonly logger = new Logger(AiAgentService.name);
-  private readonly anthropic: Anthropic | null;
+  private readonly anthropicApiKey: string | null;
   private readonly model: string;
 
   constructor(
@@ -241,11 +253,11 @@ export class AiAgentService {
       "ANTHROPIC_MODEL",
       "claude-haiku-4-5-20251001",
     );
-    const apiKey = this.configService.get<string>("ANTHROPIC_API_KEY");
+    const apiKey = this.readAnthropicApiKey();
     if (apiKey && apiKey !== "your-anthropic-api-key") {
-      this.anthropic = new Anthropic({ apiKey });
+      this.anthropicApiKey = apiKey;
     } else {
-      this.anthropic = null;
+      this.anthropicApiKey = null;
       this.logger.warn(
         "ANTHROPIC_API_KEY not set — AI agent will use mock suggestions.",
       );
@@ -280,7 +292,7 @@ export class AiAgentService {
       }
     }
 
-    const result = this.anthropic
+    const result = this.anthropicApiKey
       ? await this.callAgent(data.prompt, context)
       : await this.mockSuggestion(data.prompt, context);
 
@@ -328,7 +340,7 @@ export class AiAgentService {
       data.trackId ? this.loadTrackContext(userId, data.trackId) : null,
     ]);
 
-    const result = this.anthropic
+    const result = this.anthropicApiKey
       ? await this.callAssistant(data.prompt, taste, candidates, trackCtx)
       : this.mockAssist(data.prompt, taste, candidates);
 
@@ -557,7 +569,7 @@ export class AiAgentService {
       durationMs: track.durationMs,
     };
 
-    const result = this.anthropic
+    const result = this.anthropicApiKey
       ? await this.callAgentForSegments(trackInfo)
       : await this.mockDetectSegments(trackInfo);
 
@@ -679,33 +691,113 @@ export class AiAgentService {
 
   // ============ AI provider call ============
 
+  private readAnthropicApiKey(): string | null {
+    const fromConfig = this.normalizeEnvValue(
+      this.configService.get<string>("ANTHROPIC_API_KEY"),
+    );
+    if (fromConfig) return fromConfig;
+
+    const fromProcess = this.normalizeEnvValue(process.env.ANTHROPIC_API_KEY);
+    if (fromProcess) return fromProcess;
+
+    return this.readEnvFileValue("ANTHROPIC_API_KEY");
+  }
+
+  private readEnvFileValue(name: string): string | null {
+    const paths = [
+      resolve(process.cwd(), "apps/backend/.env"),
+      resolve(process.cwd(), ".env"),
+    ];
+
+    for (const filePath of paths) {
+      if (!existsSync(filePath)) continue;
+      const lines = readFileSync(filePath, "utf8").split(/\r?\n/);
+      for (const line of lines) {
+        const match = line.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)\s*$/);
+        if (!match || match[1] !== name) continue;
+        return this.normalizeEnvValue(match[2]);
+      }
+    }
+
+    return null;
+  }
+
+  private normalizeEnvValue(value: string | undefined | null): string | null {
+    if (!value) return null;
+    let normalized = value.trim();
+    if (
+      (normalized.startsWith('"') && normalized.endsWith('"')) ||
+      (normalized.startsWith("'") && normalized.endsWith("'"))
+    ) {
+      normalized = normalized.slice(1, -1).trim();
+    }
+    return normalized || null;
+  }
+
+  private async createAnthropicMessage(
+    systemPrompt: string,
+    userMessage: string,
+    maxTokens: number,
+  ): Promise<AnthropicMessageResponse> {
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "x-api-key": this.anthropicApiKey ?? "",
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        model: this.model,
+        max_tokens: maxTokens,
+        system: systemPrompt,
+        messages: [{ role: "user", content: userMessage }],
+      }),
+    });
+
+    const bodyText = await response.text();
+    let body: unknown;
+    try {
+      body = bodyText ? JSON.parse(bodyText) : {};
+    } catch {
+      body = { raw: bodyText };
+    }
+
+    if (!response.ok) {
+      const message =
+        body && typeof body === "object" && "error" in body
+          ? JSON.stringify((body as { error: unknown }).error)
+          : bodyText;
+      throw new Error(
+        `Anthropic API error ${response.status}: ${message.slice(0, 500)}`,
+      );
+    }
+
+    return body as AnthropicMessageResponse;
+  }
+
   private async callAgent(
     prompt: string,
     context: Record<string, unknown>,
   ): Promise<SuggestionResult> {
-    if (!this.anthropic) {
+    if (!this.anthropicApiKey) {
       throw new ServiceUnavailableException("AI agent not configured");
     }
 
     const userMessage = this.buildUserMessage(prompt, context);
 
     try {
-      const response = await this.anthropic.messages.create({
-        model: this.model,
-        max_tokens: 1024,
-        system: [
-          {
-            type: "text",
-            text: SYSTEM_PROMPT,
-            // Cache the system prompt — it's stable across requests.
-            cache_control: { type: "ephemeral" },
-          },
-        ],
-        messages: [{ role: "user", content: userMessage }],
-      });
+      const response = await this.createAnthropicMessage(
+        SYSTEM_PROMPT,
+        userMessage,
+        1024,
+      );
 
       const textBlock = response.content.find((c) => c.type === "text");
-      if (!textBlock || textBlock.type !== "text") {
+      if (
+        !textBlock ||
+        textBlock.type !== "text" ||
+        typeof textBlock.text !== "string"
+      ) {
         throw new Error("AI provider returned no text content");
       }
 
@@ -751,7 +843,7 @@ export class AiAgentService {
     costUsd: number;
     modelUsed: string;
   }> {
-    if (!this.anthropic) {
+    if (!this.anthropicApiKey) {
       throw new ServiceUnavailableException("AI agent not configured");
     }
 
@@ -767,21 +859,18 @@ export class AiAgentService {
     lines.push(`- Duration: ${track.durationMs}ms`);
 
     try {
-      const response = await this.anthropic.messages.create({
-        model: this.model,
-        max_tokens: 1500,
-        system: [
-          {
-            type: "text",
-            text: SEGMENT_DETECTION_PROMPT,
-            cache_control: { type: "ephemeral" },
-          },
-        ],
-        messages: [{ role: "user", content: lines.join("\n") }],
-      });
+      const response = await this.createAnthropicMessage(
+        SEGMENT_DETECTION_PROMPT,
+        lines.join("\n"),
+        1500,
+      );
 
       const textBlock = response.content.find((c) => c.type === "text");
-      if (!textBlock || textBlock.type !== "text") {
+      if (
+        !textBlock ||
+        textBlock.type !== "text" ||
+        typeof textBlock.text !== "string"
+      ) {
         throw new Error("AI provider returned no text content");
       }
 
@@ -872,7 +961,7 @@ export class AiAgentService {
       genre: string | null;
     } | null,
   ): Promise<AssistantResult> {
-    if (!this.anthropic) {
+    if (!this.anthropicApiKey) {
       throw new ServiceUnavailableException("AI agent not configured");
     }
 
@@ -884,21 +973,18 @@ export class AiAgentService {
     );
 
     try {
-      const response = await this.anthropic.messages.create({
-        model: this.model,
-        max_tokens: 1024,
-        system: [
-          {
-            type: "text",
-            text: ASSISTANT_PROMPT,
-            cache_control: { type: "ephemeral" },
-          },
-        ],
-        messages: [{ role: "user", content: userMessage }],
-      });
+      const response = await this.createAnthropicMessage(
+        ASSISTANT_PROMPT,
+        userMessage,
+        1024,
+      );
 
       const textBlock = response.content.find((c) => c.type === "text");
-      if (!textBlock || textBlock.type !== "text") {
+      if (
+        !textBlock ||
+        textBlock.type !== "text" ||
+        typeof textBlock.text !== "string"
+      ) {
         throw new Error("AI provider returned no text content");
       }
 

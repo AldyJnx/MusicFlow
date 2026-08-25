@@ -36,8 +36,6 @@ const REQUIRED = [
   "R2_ACCESS_KEY",
   "R2_SECRET_ACCESS_KEY",
   "R2_BUCKET_IMAGES",
-  "R2_BUCKET_LYRICS",
-  "R2_BUCKET_ARTIST_IMAGES",
   "R2_PUBLIC_IMAGES_URL",
 ];
 for (const k of REQUIRED) {
@@ -45,6 +43,18 @@ for (const k of REQUIRED) {
     console.error(`Missing env var ${k}`);
     process.exit(1);
   }
+}
+
+// Keep compatibility with the original environment name used by MusicFlow.
+// The lyrics bucket has a stable R2 name, but may be overridden per deploy.
+const lyricsBucket = process.env.R2_BUCKET_LYRICS ?? "music-flow-songs-lyrics";
+const artistImagesBucket: string =
+  process.env.R2_BUCKET_ARTIST_IMAGES ??
+  process.env.R2_BUCKET_IMAGES_ARTIST ??
+  "";
+if (!artistImagesBucket) {
+  console.error("Missing env var R2_BUCKET_ARTIST_IMAGES or R2_BUCKET_IMAGES_ARTIST");
+  process.exit(1);
 }
 
 const s3 = new S3Client({
@@ -106,17 +116,26 @@ async function main() {
   console.log(`Catalog tracks: ${tracks.length}`);
 
   // ── 1) LYRICS ──────────────────────────────────────────────────────────────
-  const lyricKeys = await listAll(process.env.R2_BUCKET_LYRICS!);
+  const lyricKeys = await listAll(lyricsBucket);
+  const trackIds = new Set(tracks.map((track) => track.id));
   const lyricsByKey = new Map<string, string>();
+  const lyricsByTrackId = new Map<string, string>();
   for (const k of lyricKeys) {
+    const possibleTrackId = k.replace(/\.(lrc|txt)$/i, "");
+    if (trackIds.has(possibleTrackId) && !lyricsByTrackId.has(possibleTrackId)) {
+      lyricsByTrackId.set(possibleTrackId, k);
+    }
     const mk = lyricsMatchKey(k);
     if (mk && !lyricsByKey.has(mk)) lyricsByKey.set(mk, k);
   }
+  console.log(
+    `Lyrics bucket: ${lyricKeys.length} objects, ${lyricsByKey.size} named matches, ${lyricsByTrackId.size} ID matches.`,
+  );
   let lyricsSet = 0;
   let lyricsMiss = 0;
   for (const t of tracks) {
     const mk = norm(t.artist) + "|" + norm(t.title);
-    const fileKey = lyricsByKey.get(mk);
+    const fileKey = lyricsByTrackId.get(t.id) ?? lyricsByKey.get(mk);
     if (!fileKey) {
       lyricsMiss++;
       continue;
@@ -124,7 +143,7 @@ async function main() {
     if (t.lyricsLrc) continue; // already populated
     const obj = await s3.send(
       new GetObjectCommand({
-        Bucket: process.env.R2_BUCKET_LYRICS!,
+        Bucket: lyricsBucket,
         Key: fileKey,
       }),
     );
@@ -139,7 +158,7 @@ async function main() {
   console.log(`Lyrics: ${lyricsSet} set, ${lyricsMiss} without a match.`);
 
   // ── 2) ARTIST IMAGES ────────────────────────────────────────────────────────
-  const imgKeys = await listAll(process.env.R2_BUCKET_ARTIST_IMAGES!);
+  const imgKeys = await listAll(artistImagesBucket);
   // norm(name-from-filename) → public URL (after copying into images bucket).
   const imgByNorm = new Map<string, string>();
   for (const key of imgKeys) {
@@ -150,7 +169,7 @@ async function main() {
         new CopyObjectCommand({
           Bucket: process.env.R2_BUCKET_IMAGES!,
           CopySource: encodeURI(
-            `${process.env.R2_BUCKET_ARTIST_IMAGES}/${key}`,
+            `${artistImagesBucket}/${key}`,
           ),
           Key: destKey,
           ContentType: "image/webp",

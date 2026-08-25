@@ -6,9 +6,11 @@ import {
   UseGuards,
   HttpCode,
   HttpStatus,
+  Req,
   Res,
 } from "@nestjs/common";
-import { Response } from "express";
+import { Request, Response } from "express";
+import { ConfigService } from "@nestjs/config";
 import {
   ApiTags,
   ApiOperation,
@@ -21,13 +23,22 @@ import { LoginDto } from "./dto/login.dto";
 import { RefreshTokenDto } from "./dto/refresh-token.dto";
 import { ForgotPasswordDto } from "./dto/forgot-password.dto";
 import { ResetPasswordDto } from "./dto/reset-password.dto";
+import { ExchangeGoogleTicketDto } from "./dto/exchange-google-ticket.dto";
 import { JwtAuthGuard } from "@/common/guards/jwt-auth.guard";
 import { CurrentUser } from "@/common/decorators/current-user.decorator";
+import {
+  GoogleOAuthCallbackGuard,
+  GoogleOAuthStartGuard,
+} from "./guards/google-oauth.guard";
+import { GoogleIdentity } from "./strategies/google.strategy";
 
 @ApiTags("auth")
 @Controller("auth")
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly config: ConfigService,
+  ) {}
 
   @Post("register")
   @ApiOperation({ summary: "Register a new user" })
@@ -44,6 +55,34 @@ export class AuthController {
   @ApiResponse({ status: 401, description: "Invalid credentials" })
   async login(@Body() dto: LoginDto) {
     return this.authService.login(dto);
+  }
+
+  @Get("google")
+  @UseGuards(GoogleOAuthStartGuard)
+  @ApiOperation({ summary: "Start Google OAuth sign-in" })
+  googleLogin() {
+    // Passport owns the redirect to Google.
+  }
+
+  @Get("google/callback")
+  @UseGuards(GoogleOAuthCallbackGuard)
+  @ApiOperation({ summary: "Google OAuth callback" })
+  async googleCallback(
+    @Req() request: Request & { user: GoogleIdentity },
+    @Res() response: Response,
+  ) {
+    const ticket = await this.authService.createGoogleLoginTicket(request.user);
+    const appUrl = this.config.get<string>("APP_URL", "http://localhost:5173");
+    const callbackUrl = new URL("/auth/google/callback", appUrl);
+    callbackUrl.searchParams.set("ticket", ticket);
+    response.redirect(callbackUrl.toString());
+  }
+
+  @Post("google/exchange")
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: "Exchange one-time Google sign-in ticket for JWTs" })
+  async exchangeGoogleTicket(@Body() dto: ExchangeGoogleTicketDto) {
+    return this.authService.exchangeGoogleLoginTicket(dto.ticket);
   }
 
   @Post("refresh")

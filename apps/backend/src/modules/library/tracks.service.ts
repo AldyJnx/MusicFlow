@@ -21,6 +21,24 @@ function uniqueKeys(keys: string[]): string[] {
   return [...new Set(keys.map((key) => key.trim()).filter(Boolean))];
 }
 
+type PageParams = {
+  query?: string;
+  offset?: number | string;
+  limit?: number | string;
+};
+
+function normalizePage(params: PageParams) {
+  const parsedOffset = Number(params.offset ?? 0);
+  const parsedLimit = Number(params.limit ?? 6);
+  const offset = Number.isFinite(parsedOffset)
+    ? Math.max(0, Math.trunc(parsedOffset))
+    : 0;
+  const limit = Number.isFinite(parsedLimit)
+    ? Math.min(24, Math.max(1, Math.trunc(parsedLimit)))
+    : 6;
+  return { offset, limit, query: params.query?.trim() ?? "" };
+}
+
 @Injectable()
 export class TracksService {
   private readonly logger = new Logger(TracksService.name);
@@ -316,6 +334,51 @@ export class TracksService {
       .sort((a, b) => a.name.localeCompare(b.name));
   }
 
+  async getArtistsPage(userId: string, params: PageParams) {
+    const { offset, limit, query } = normalizePage(params);
+    const searchFilter = query
+      ? Prisma.sql`AND "artist" ILIKE ${`%${query}%`}`
+      : Prisma.empty;
+
+    const rows = await this.prisma.$queryRaw<
+      Array<{
+        name: string;
+        imageUrl: string | null;
+        total: number;
+      }>
+    >(Prisma.sql`
+      WITH visible_artists AS (
+        SELECT
+          "artist" AS "name",
+          MAX("artist_image") FILTER (WHERE "artist_image" IS NOT NULL) AS "imageUrl"
+        FROM "tracks"
+        WHERE ("user_id" = ${userId} OR "is_catalog" = TRUE)
+          AND BTRIM("artist") <> ''
+          ${searchFilter}
+        GROUP BY "artist"
+      )
+      SELECT
+        "name",
+        "imageUrl",
+        COUNT(*) OVER()::int AS "total"
+      FROM visible_artists
+      ORDER BY LOWER("name") ASC, "name" ASC
+      OFFSET ${offset}
+      LIMIT ${limit}
+    `);
+
+    const total = rows[0]?.total ?? 0;
+    const items = rows.map((row) => ({
+      name: row.name,
+      imageUrl: row.imageUrl,
+    }));
+    return {
+      items,
+      total,
+      nextOffset: offset + items.length < total ? offset + items.length : null,
+    };
+  }
+
   async getAlbums(userId: string, artist?: string) {
     const where: Prisma.TrackWhereInput = {
       OR: [{ userId }, { isCatalog: true }],
@@ -330,6 +393,65 @@ export class TracksService {
     });
 
     return tracks;
+  }
+
+  async getAlbumsPage(userId: string, params: PageParams) {
+    const { offset, limit, query } = normalizePage(params);
+    const searchFilter = query
+      ? Prisma.sql`AND (
+          "album" ILIKE ${`%${query}%`}
+          OR "album_artist" ILIKE ${`%${query}%`}
+        )`
+      : Prisma.empty;
+
+    const rows = await this.prisma.$queryRaw<
+      Array<{
+        albumId: string | null;
+        album: string;
+        albumArtist: string | null;
+        coverArt: string | null;
+        total: number;
+      }>
+    >(Prisma.sql`
+      WITH visible_albums AS (
+        SELECT
+          (ARRAY_AGG("album_id" ORDER BY ("album_id" IS NULL), "updated_at" DESC))[1] AS "albumId",
+          "album",
+          NULLIF("album_artist", '') AS "albumArtist",
+          (ARRAY_AGG(
+            "cover_art"
+            ORDER BY ("cover_art" IS NULL) ASC, "updated_at" DESC
+          ))[1] AS "coverArt"
+        FROM "tracks"
+        WHERE ("user_id" = ${userId} OR "is_catalog" = TRUE)
+          AND BTRIM("album") <> ''
+          ${searchFilter}
+        GROUP BY "album", "album_artist"
+      )
+      SELECT
+        "album",
+        "albumId",
+        "albumArtist",
+        "coverArt",
+        COUNT(*) OVER()::int AS "total"
+      FROM visible_albums
+      ORDER BY LOWER("album") ASC, LOWER(COALESCE("albumArtist", '')) ASC
+      OFFSET ${offset}
+      LIMIT ${limit}
+    `);
+
+    const total = rows[0]?.total ?? 0;
+    const items = rows.map((row) => ({
+      album: row.album,
+      albumId: row.albumId,
+      albumArtist: row.albumArtist,
+      coverArt: row.coverArt,
+    }));
+    return {
+      items,
+      total,
+      nextOffset: offset + items.length < total ? offset + items.length : null,
+    };
   }
 
   async getGenres(userId: string) {

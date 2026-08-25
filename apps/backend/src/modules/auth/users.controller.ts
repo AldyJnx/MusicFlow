@@ -25,6 +25,8 @@ import { UpdateUserDto } from "./dto/update-user.dto";
 import { StorageService } from "@/modules/storage/storage.service";
 import { JwtAuthGuard } from "@/common/guards/jwt-auth.guard";
 import { CurrentUser } from "@/common/decorators/current-user.decorator";
+import { CompleteOnboardingDto } from "./dto/complete-onboarding.dto";
+import { RecordActivityDto } from "./dto/record-activity.dto";
 
 @ApiTags("users")
 @Controller("users")
@@ -42,6 +44,34 @@ export class UsersController {
   @ApiResponse({ status: 401, description: "Unauthorized" })
   async getProfile(@CurrentUser() user: { id: string }) {
     return this.usersService.findById(user.id);
+  }
+
+  @Post("me/onboarding")
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: "Complete artist onboarding, including skip" })
+  completeOnboarding(
+    @CurrentUser("id") userId: string,
+    @Body() dto: CompleteOnboardingDto,
+  ) {
+    return this.usersService.completeOnboarding(userId, dto.artistIds);
+  }
+
+  @Get("me/followed-artists")
+  @ApiOperation({ summary: "List artists followed by the current user" })
+  followedArtists(@CurrentUser("id") userId: string) {
+    return this.usersService.listFollowedArtists(userId);
+  }
+
+  @Post("me/activity")
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: "Report foreground activity and notification consent",
+  })
+  recordActivity(
+    @CurrentUser("id") userId: string,
+    @Body() dto: RecordActivityDto,
+  ) {
+    return this.usersService.recordActivity(userId, dto);
   }
 
   @Patch("me")
@@ -122,10 +152,10 @@ export class UsersController {
 
   @Delete("me")
   @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: "Deactivate current user account" })
-  @ApiResponse({ status: 204, description: "Account deactivated" })
+  @ApiOperation({ summary: "Permanently delete current user account" })
+  @ApiResponse({ status: 204, description: "Account deleted" })
   @ApiResponse({ status: 401, description: "Unauthorized" })
-  async deactivateAccount(@CurrentUser() user: { id: string }) {
-    await this.usersService.deactivate(user.id);
+  async deleteAccount(@CurrentUser() user: { id: string }) {
+    await this.usersService.deleteAccount(user.id);
   }
 }

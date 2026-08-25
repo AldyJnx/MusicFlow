@@ -77,6 +77,24 @@ export class TracksController {
     return this.tracksService.getArtists(userId);
   }
 
+  @Get("artists/page")
+  @ApiOperation({ summary: "Get a paginated page of visible artists" })
+  @ApiQuery({ name: "q", required: false })
+  @ApiQuery({ name: "offset", required: false, type: Number })
+  @ApiQuery({ name: "limit", required: false, type: Number })
+  async getArtistsPage(
+    @CurrentUser("id") userId: string,
+    @Query("q") query?: string,
+    @Query("offset") offset?: number,
+    @Query("limit") limit?: number,
+  ) {
+    return this.tracksService.getArtistsPage(userId, {
+      query,
+      offset,
+      limit,
+    });
+  }
+
   @Get("albums")
   @ApiOperation({ summary: "Get all albums" })
   @ApiQuery({ name: "artist", required: false })
@@ -85,6 +103,24 @@ export class TracksController {
     @Query("artist") artist?: string,
   ) {
     return this.tracksService.getAlbums(userId, artist);
+  }
+
+  @Get("albums/page")
+  @ApiOperation({ summary: "Get a paginated page of visible albums" })
+  @ApiQuery({ name: "q", required: false })
+  @ApiQuery({ name: "offset", required: false, type: Number })
+  @ApiQuery({ name: "limit", required: false, type: Number })
+  async getAlbumsPage(
+    @CurrentUser("id") userId: string,
+    @Query("q") query?: string,
+    @Query("offset") offset?: number,
+    @Query("limit") limit?: number,
+  ) {
+    return this.tracksService.getAlbumsPage(userId, {
+      query,
+      offset,
+      limit,
+    });
   }
 
   @Get("genres")

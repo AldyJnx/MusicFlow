@@ -5,6 +5,7 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  Optional,
 } from "@nestjs/common";
 import { TrackSource, SyncStatus } from "@prisma/client";
 
@@ -23,6 +24,7 @@ import type {
   UpdateArtistDto,
   UpdateLyricsDto,
 } from "./catalog.dto";
+import { RecommendationCacheService } from "@/modules/recommendations/recommendation-cache.service";
 
 /** Trim, drop empties, de-dupe (case-insensitive), cap to 12 genre tags. */
 function normalizeGenres(genres: string[] | undefined): string[] {
@@ -73,6 +75,8 @@ export class CatalogService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly storage: StorageService,
+    @Optional()
+    private readonly recommendationCache?: RecommendationCacheService,
   ) {}
 
   /**
@@ -302,6 +306,120 @@ export class CatalogService {
     }));
   }
 
+  /**
+   * Albums stay "new" for fourteen weeks from their creation date. The
+   * ordering deliberately uses createdAt rather than updatedAt so an artwork
+   * correction cannot make an old album look newly released again.
+   */
+  async listRecentAlbums(requestedLimit = 10) {
+    const limit = Math.min(
+      Math.max(Number.isFinite(requestedLimit) ? requestedLimit : 10, 1),
+      24,
+    );
+    const fourteenWeeksAgo = new Date(Date.now() - 14 * 7 * 86_400_000);
+    const albums = await this.prisma.album.findMany({
+      where: {
+        createdAt: { gte: fourteenWeeksAgo },
+        tracks: {
+          some: { isCatalog: true, fileUrlRemote: { not: null } },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+      take: limit,
+      include: {
+        artist: { select: { id: true, name: true, imageUrl: true } },
+        tracks: {
+          where: { isCatalog: true, fileUrlRemote: { not: null } },
+          orderBy: [{ albumOrder: "asc" }, { title: "asc" }],
+          select: trackCard,
+        },
+      },
+    });
+
+    return albums.map((album) => ({
+      id: album.id,
+      title: album.title,
+      coverArt: album.coverArt,
+      year: album.year,
+      createdAt: album.createdAt,
+      artist: album.artist,
+      trackCount: album.tracks.length,
+      tracks: album.tracks,
+    }));
+  }
+
+  /**
+   * Tracks that are accelerating now rather than merely having the most
+   * lifetime plays. We compare the last 72 hours with the preceding week,
+   * normalized by each window's duration. A small volume factor keeps a
+   * single isolated play from outranking a genuine short-lived spike.
+   */
+  async listTrendingTracks(requestedLimit = 5) {
+    const limit = Math.min(
+      Math.max(Number.isFinite(requestedLimit) ? requestedLimit : 5, 1),
+      12,
+    );
+    const now = new Date();
+    const recentStart = new Date(now.getTime() - 3 * 86_400_000);
+    const baselineStart = new Date(now.getTime() - 10 * 86_400_000);
+
+    const [recentRows, baselineRows] = await Promise.all([
+      this.prisma.playHistory.groupBy({
+        by: ["trackId"],
+        where: { playedAt: { gte: recentStart } },
+        _count: { trackId: true },
+        orderBy: { _count: { trackId: "desc" } },
+        take: 250,
+      }),
+      this.prisma.playHistory.groupBy({
+        by: ["trackId"],
+        where: { playedAt: { gte: baselineStart, lt: recentStart } },
+        _count: { trackId: true },
+        orderBy: { _count: { trackId: "desc" } },
+        take: 250,
+      }),
+    ]);
+
+    const recentByTrack = new Map(
+      recentRows.map((row) => [row.trackId, row._count.trackId]),
+    );
+    const baselineByTrack = new Map(
+      baselineRows.map((row) => [row.trackId, row._count.trackId]),
+    );
+    const candidateIds = recentRows
+      .filter((row) => row._count.trackId >= 2)
+      .map((row) => row.trackId);
+    if (candidateIds.length === 0) return [];
+
+    const tracks = await this.prisma.track.findMany({
+      where: {
+        id: { in: candidateIds },
+        isCatalog: true,
+        fileUrlRemote: { not: null },
+      },
+      select: trackCard,
+    });
+
+    return tracks
+      .map((track) => {
+        const recent = recentByTrack.get(track.id) ?? 0;
+        const baseline = baselineByTrack.get(track.id) ?? 0;
+        const recentPerDay = recent / 3;
+        const baselinePerDay = baseline / 7;
+        const acceleration = recentPerDay / Math.max(0.15, baselinePerDay);
+        const trendScore = acceleration * Math.log2(recent + 1);
+        return { track, recentPlays: recent, trendScore };
+      })
+      .sort(
+        (a, b) =>
+          b.trendScore - a.trendScore ||
+          b.recentPlays - a.recentPlays ||
+          a.track.id.localeCompare(b.track.id),
+      )
+      .slice(0, limit)
+      .map(({ track }) => track);
+  }
+
   /** Distinct genres present on catalog tracks — used as picker suggestions. */
   async getGenres(): Promise<string[]> {
     const rows = await this.prisma.track.findMany({
@@ -350,6 +468,72 @@ export class CatalogService {
       })),
       tracks: artist.tracks,
     };
+  }
+
+  async listArtistsPage({
+    query,
+    offset,
+    limit,
+  }: {
+    query?: string;
+    offset: number;
+    limit: number;
+  }) {
+    const take = Math.min(Math.max(Number.isFinite(limit) ? limit : 6, 1), 24);
+    const skip = Math.max(Number.isFinite(offset) ? offset : 0, 0);
+    const search = query?.trim();
+    const where = search
+      ? { name: { contains: search, mode: "insensitive" as const } }
+      : undefined;
+    const [artists, total] = await this.prisma.$transaction([
+      this.prisma.artist.findMany({
+        where,
+        orderBy: { name: "asc" },
+        skip,
+        take,
+        include: { _count: { select: { albums: true, tracks: true } } },
+      }),
+      this.prisma.artist.count({ where }),
+    ]);
+    return {
+      items: artists.map((artist) => ({
+        id: artist.id,
+        name: artist.name,
+        slug: artist.slug,
+        imageUrl: artist.imageUrl,
+        genres: artist.genres,
+        albumCount: artist._count.albums,
+        trackCount: artist._count.tracks,
+      })),
+      total,
+      nextOffset: skip + artists.length < total ? skip + artists.length : null,
+    };
+  }
+
+  async followArtist(userId: string, artistId: string) {
+    const artist = await this.prisma.artist.findUnique({
+      where: { id: artistId },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        imageUrl: true,
+        genres: true,
+      },
+    });
+    if (!artist) throw new NotFoundException("Artist not found");
+    const follow = await this.prisma.artistFollow.upsert({
+      where: { userId_artistId: { userId, artistId } },
+      create: { userId, artistId, source: "MANUAL" },
+      update: {},
+    });
+    await this.recommendationCache?.invalidate(userId);
+    return { ...artist, followedAt: follow.createdAt };
+  }
+
+  async unfollowArtist(userId: string, artistId: string): Promise<void> {
+    await this.prisma.artistFollow.deleteMany({ where: { userId, artistId } });
+    await this.recommendationCache?.invalidate(userId);
   }
 
   async getAlbum(id: string) {

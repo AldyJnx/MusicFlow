@@ -12,6 +12,7 @@ import { PrismaService } from "@/prisma/prisma.service";
 import { MailService } from "@/modules/mail/mail.service";
 import { RegisterDto } from "./dto/register.dto";
 import { LoginDto } from "./dto/login.dto";
+import { GoogleIdentity } from "./strategies/google.strategy";
 
 export interface JwtPayload {
   sub: string;
@@ -32,6 +33,7 @@ export interface SafeUser {
   role: string;
   isPremium: boolean;
   avatar: string | null;
+  onboardingCompletedAt: Date | null;
 }
 
 export interface AuthSession extends AuthTokens {
@@ -39,6 +41,7 @@ export interface AuthSession extends AuthTokens {
 }
 
 const DEMO_PREMIUM_EMAILS = new Set(["maspintorobertofernando@gmail.com"]);
+const GOOGLE_TICKET_TTL_MS = 60_000;
 
 function isDemoPremiumEmail(email: string): boolean {
   return DEMO_PREMIUM_EMAILS.has(email.trim().toLowerCase());
@@ -51,6 +54,7 @@ function toSafeUser(user: {
   role: string;
   isPremium: boolean;
   avatar: string | null;
+  onboardingCompletedAt: Date | null;
 }): SafeUser {
   return {
     id: user.id,
@@ -59,6 +63,7 @@ function toSafeUser(user: {
     role: user.role,
     isPremium: user.isPremium,
     avatar: user.avatar,
+    onboardingCompletedAt: user.onboardingCompletedAt,
   };
 }
 
@@ -135,7 +140,11 @@ export class AuthService {
     this.prisma.user
       .update({
         where: { id: sessionUser.id },
-        data: { lastLogin: new Date() },
+        data: {
+          lastLogin: new Date(),
+          lastActiveAt: new Date(),
+          reengagementNotifiedAt: null,
+        },
       })
       .catch(() => {});
 
@@ -143,6 +152,55 @@ export class AuthService {
       ...this.generateTokens(sessionUser),
       user: toSafeUser(sessionUser),
     };
+  }
+
+  /**
+   * Resolves a verified Google identity to a local account, then stores an
+   * opaque one-time code. The browser exchanges that code for the same JWT
+   * session issued by password login, so tokens never travel in a URL.
+   */
+  async createGoogleLoginTicket(identity: GoogleIdentity): Promise<string> {
+    const user = await this.findOrCreateGoogleUser(identity);
+    const ticket = crypto.randomBytes(32).toString("base64url");
+
+    await this.prisma.oAuthLoginTicket.create({
+      data: {
+        id: ticket,
+        userId: user.id,
+        expiresAt: new Date(Date.now() + GOOGLE_TICKET_TTL_MS),
+      },
+    });
+
+    return ticket;
+  }
+
+  async exchangeGoogleLoginTicket(ticketId: string): Promise<AuthSession> {
+    const now = new Date();
+    const user = await this.prisma.$transaction(async (tx) => {
+      const ticket = await tx.oAuthLoginTicket.findUnique({
+        where: { id: ticketId },
+        include: { user: true },
+      });
+
+      if (!ticket || ticket.consumedAt || ticket.expiresAt <= now) {
+        throw new UnauthorizedException("Invalid or expired Google sign-in");
+      }
+      if (!ticket.user.isActive) {
+        throw new UnauthorizedException("Account is deactivated");
+      }
+
+      const consumed = await tx.oAuthLoginTicket.updateMany({
+        where: { id: ticketId, consumedAt: null, expiresAt: { gt: now } },
+        data: { consumedAt: now },
+      });
+      if (consumed.count !== 1) {
+        throw new UnauthorizedException("Google sign-in has already been used");
+      }
+
+      return ticket.user;
+    });
+
+    return { ...this.generateTokens(user), user: toSafeUser(user) };
   }
 
   async refreshTokens(refreshToken: string): Promise<AuthTokens> {
@@ -177,6 +235,7 @@ export class AuthService {
         isPremium: true,
         isActive: true,
         createdAt: true,
+        onboardingCompletedAt: true,
       },
     });
 
@@ -260,6 +319,67 @@ export class AuthService {
     });
 
     return { message: "Password reset successful" };
+  }
+
+  private async findOrCreateGoogleUser(identity: GoogleIdentity) {
+    const existing = await this.prisma.user.findUnique({
+      where: { email: identity.email },
+    });
+
+    if (existing) {
+      if (!existing.isActive) {
+        throw new UnauthorizedException("Account is deactivated");
+      }
+      return this.prisma.user.update({
+        where: { id: existing.id },
+        data: {
+          avatar: existing.avatar ?? identity.avatar,
+          lastLogin: new Date(),
+          lastActiveAt: new Date(),
+          reengagementNotifiedAt: null,
+        },
+      });
+    }
+
+    const localPart = identity.email.split("@")[0] ?? "musicflow";
+    const normalized = localPart
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-zA-Z0-9_-]/g, "")
+      .slice(0, 20);
+    const baseUsername = normalized || "musicflow";
+    const password = await bcrypt.hash(
+      crypto.randomBytes(32).toString("hex"),
+      10,
+    );
+
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      const username = `${baseUsername}-${crypto.randomBytes(3).toString("hex")}`;
+      try {
+        return await this.prisma.user.create({
+          data: {
+            email: identity.email,
+            username,
+            password,
+            avatar: identity.avatar,
+            isPremium: isDemoPremiumEmail(identity.email),
+            lastLogin: new Date(),
+            lastActiveAt: new Date(),
+            preferences: { create: {} },
+          },
+        });
+      } catch (error) {
+        // A concurrent signup for the same email is safe to resolve by using
+        // the account that won the race; username collisions simply retry.
+        const user = await this.prisma.user.findUnique({
+          where: { email: identity.email },
+        });
+        if (user) return user;
+        if (attempt === 4) throw error;
+      }
+    }
+
+    throw new UnauthorizedException("Unable to create Google account");
   }
 
   private generateTokens(user: {

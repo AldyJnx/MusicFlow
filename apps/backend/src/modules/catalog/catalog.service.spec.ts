@@ -25,6 +25,9 @@ describe("CatalogService", () => {
       update: jest.Mock;
       updateMany: jest.Mock;
     };
+    playHistory: {
+      groupBy: jest.Mock;
+    };
     $transaction: jest.Mock;
   };
 
@@ -49,6 +52,9 @@ describe("CatalogService", () => {
         findMany: jest.fn(),
         update: jest.fn(),
         updateMany: jest.fn(),
+      },
+      playHistory: {
+        groupBy: jest.fn(),
       },
       $transaction: jest.fn(),
     };
@@ -80,6 +86,37 @@ describe("CatalogService", () => {
           trackCount: 12,
         },
       ]);
+    });
+  });
+
+  describe("listTrendingTracks", () => {
+    it("ranks songs by recent acceleration, not their lifetime volume", async () => {
+      prisma.playHistory.groupBy
+        .mockResolvedValueOnce([
+          { trackId: "surging", _count: { trackId: 8 } },
+          { trackId: "steady", _count: { trackId: 12 } },
+        ])
+        .mockResolvedValueOnce([
+          { trackId: "surging", _count: { trackId: 1 } },
+          { trackId: "steady", _count: { trackId: 30 } },
+        ]);
+      prisma.track.findMany.mockResolvedValue([
+        { id: "steady", title: "Steady" },
+        { id: "surging", title: "Surging" },
+      ]);
+
+      const result = await service.listTrendingTracks(2);
+
+      expect(result.map((track) => track.id)).toEqual(["surging", "steady"]);
+      expect(prisma.playHistory.groupBy).toHaveBeenCalledTimes(2);
+      expect(prisma.track.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            isCatalog: true,
+            fileUrlRemote: { not: null },
+          }),
+        }),
+      );
     });
   });
 

@@ -1,13 +1,17 @@
-import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
-import { PrismaClient } from '@prisma/client';
+import { Injectable, OnModuleDestroy, OnModuleInit } from "@nestjs/common";
+import { PrismaClient } from "@prisma/client";
 
 @Injectable()
-export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
+export class PrismaService
+  extends PrismaClient
+  implements OnModuleInit, OnModuleDestroy
+{
   constructor() {
     super({
-      log: process.env.NODE_ENV === 'development'
-        ? ['query', 'info', 'warn', 'error']
-        : ['error'],
+      log:
+        process.env.PRISMA_QUERY_LOGS === "true"
+          ? ["query", "warn", "error"]
+          : ["warn", "error"],
     });
   }
 
@@ -20,19 +24,25 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
   }
 
   async cleanDatabase() {
-    if (process.env.NODE_ENV !== 'test') {
-      throw new Error('cleanDatabase is only allowed in test environment');
+    if (process.env.NODE_ENV !== "test") {
+      throw new Error("cleanDatabase is only allowed in test environment");
     }
 
     const models = Reflect.ownKeys(this).filter(
-      (key) => typeof key === 'string' && !key.startsWith('_') && !key.startsWith('$'),
+      (key) =>
+        typeof key === "string" && !key.startsWith("_") && !key.startsWith("$"),
     );
 
     return Promise.all(
       models.map((model) => {
-        if (typeof this[model as keyof this] === 'object' && this[model as keyof this] !== null) {
-          const modelObj = this[model as keyof this] as { deleteMany?: () => Promise<unknown> };
-          if (typeof modelObj.deleteMany === 'function') {
+        if (
+          typeof this[model as keyof this] === "object" &&
+          this[model as keyof this] !== null
+        ) {
+          const modelObj = this[model as keyof this] as {
+            deleteMany?: () => Promise<unknown>;
+          };
+          if (typeof modelObj.deleteMany === "function") {
             return modelObj.deleteMany();
           }
         }

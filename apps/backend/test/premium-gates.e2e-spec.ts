@@ -71,9 +71,8 @@ describe("Premium gates + quotas (e2e)", () => {
   beforeAll(async () => {
     process.env.JWT_SECRET = "test-secret";
     process.env.JWT_REFRESH_SECRET = "test-refresh-secret";
-    // Stripe stays unset → BillingService logs a warn and returns 503 for
-    // checkout. The premium guard and quota service don't touch Stripe so
-    // these specs run without it.
+    // Checkout remains disabled. Premium guards and quota behavior can be
+    // exercised independently by these specs.
 
     const module: TestingModule = await Test.createTestingModule({
       imports: [

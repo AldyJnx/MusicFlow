@@ -1,6 +1,8 @@
 import { Module } from "@nestjs/common";
+import { APP_FILTER, APP_GUARD } from "@nestjs/core";
 import { ConfigModule } from "@nestjs/config";
-import { ThrottlerModule } from "@nestjs/throttler";
+import { ThrottlerGuard, ThrottlerModule } from "@nestjs/throttler";
+import { SentryGlobalFilter, SentryModule } from "@sentry/nestjs/setup";
 import { existsSync } from "fs";
 import { resolve } from "path";
 
@@ -22,8 +24,14 @@ import { SyncModule } from "./modules/sync/sync.module";
 import { PreferencesModule } from "./modules/preferences/preferences.module";
 import { AdminModule } from "./modules/admin/admin.module";
 import { BillingModule } from "./modules/billing/billing.module";
+import { RecommendationsModule } from "./modules/recommendations/recommendations.module";
 
+const environment = process.env.NODE_ENV ?? "development";
 const envFilePath = [
+  resolve(process.cwd(), `apps/backend/.env.${environment}.local`),
+  resolve(process.cwd(), `apps/backend/.env.${environment}`),
+  resolve(process.cwd(), `.env.${environment}.local`),
+  resolve(process.cwd(), `.env.${environment}`),
   resolve(process.cwd(), "apps/backend/.env.local"),
   resolve(process.cwd(), "apps/backend/.env"),
   resolve(process.cwd(), ".env.local"),
@@ -37,6 +45,7 @@ const envFilePath = [
       isGlobal: true,
       envFilePath,
     }),
+    SentryModule.forRoot(),
 
     // Rate limiting
     ThrottlerModule.forRoot([
@@ -51,6 +60,9 @@ const envFilePath = [
 
     // Storage (S3/MinIO)
     StorageModule,
+
+    // Personalized ranking and its shared Redis cache.
+    RecommendationsModule,
 
     // Background jobs (BullMQ + Redis)
     QueueModule,
@@ -71,5 +83,9 @@ const envFilePath = [
     BillingModule,
   ],
   controllers: [HealthController],
+  providers: [
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
+    { provide: APP_FILTER, useClass: SentryGlobalFilter },
+  ],
 })
 export class AppModule {}

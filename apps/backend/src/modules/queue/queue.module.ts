@@ -7,6 +7,10 @@ import { AnalyticsModule } from "../analytics/analytics.module";
 import { StatsProcessor } from "./stats.processor";
 import { StatsScheduler } from "./stats.scheduler";
 import { STATS_QUEUE } from "./queue.constants";
+import { NOTIFICATIONS_QUEUE } from "./queue.constants";
+import { NotificationsModule } from "../notifications/notifications.module";
+import { ReengagementScheduler } from "./reengagement.scheduler";
+import { ReengagementProcessor } from "./reengagement.processor";
 
 @Global()
 @Module({
@@ -34,9 +38,16 @@ import { STATS_QUEUE } from "./queue.constants";
       },
     }),
     BullModule.registerQueue({ name: STATS_QUEUE }),
+    BullModule.registerQueue({ name: NOTIFICATIONS_QUEUE }),
     AnalyticsModule,
+    NotificationsModule,
   ],
-  providers: [StatsProcessor, StatsScheduler],
+  providers: [
+    StatsProcessor,
+    StatsScheduler,
+    ReengagementProcessor,
+    ReengagementScheduler,
+  ],
   exports: [BullModule],
 })
 export class QueueModule {}

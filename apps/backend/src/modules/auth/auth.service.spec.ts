@@ -12,7 +12,11 @@ import { MailService } from "@/modules/mail/mail.service";
 
 describe("AuthService", () => {
   let service: AuthService;
-  let prisma: { user: Record<string, jest.Mock> };
+  let prisma: {
+    user: Record<string, jest.Mock>;
+    oAuthLoginTicket: Record<string, jest.Mock>;
+    $transaction: jest.Mock;
+  };
   let mail: { sendPasswordReset: jest.Mock };
 
   beforeEach(async () => {
@@ -23,7 +27,17 @@ describe("AuthService", () => {
         create: jest.fn(),
         update: jest.fn(),
       },
+      oAuthLoginTicket: {
+        create: jest.fn(),
+        findUnique: jest.fn(),
+        updateMany: jest.fn(),
+      },
+      $transaction: jest.fn(),
     };
+    prisma.$transaction.mockImplementation(
+      async (callback: (transaction: typeof prisma) => unknown) =>
+        callback(prisma),
+    );
     // login() stamps lastLogin via a fire-and-forget update(...).catch(...),
     // so the mock must return a thenable by default or .catch() throws.
     prisma.user.update.mockResolvedValue({});
@@ -165,6 +179,59 @@ describe("AuthService", () => {
       prisma.user.findUnique.mockResolvedValue(null);
       await service.forgotPassword("nobody@x.com");
       expect(mail.sendPasswordReset).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("Google OAuth tickets", () => {
+    const googleUser = {
+      id: "google-user",
+      email: "music@google.com",
+      username: "music",
+      password: "not-used",
+      role: "CLIENT",
+      isPremium: false,
+      avatar: null,
+      isActive: true,
+      onboardingCompletedAt: null,
+    };
+
+    it("creates a short-lived ticket for an existing verified Google user", async () => {
+      prisma.user.findUnique.mockResolvedValue(googleUser);
+      prisma.user.update.mockResolvedValue(googleUser);
+      prisma.oAuthLoginTicket.create.mockResolvedValue({});
+
+      const ticket = await service.createGoogleLoginTicket({
+        email: googleUser.email,
+        displayName: "Music",
+        avatar: null,
+      });
+
+      expect(ticket).toEqual(expect.any(String));
+      expect(prisma.oAuthLoginTicket.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ userId: googleUser.id }),
+        }),
+      );
+    });
+
+    it("exchanges a valid ticket once for the standard JWT session", async () => {
+      prisma.oAuthLoginTicket.findUnique.mockResolvedValue({
+        id: "valid-ticket",
+        consumedAt: null,
+        expiresAt: new Date(Date.now() + 60_000),
+        user: googleUser,
+      });
+      prisma.oAuthLoginTicket.updateMany.mockResolvedValue({ count: 1 });
+
+      const session = await service.exchangeGoogleLoginTicket("valid-ticket");
+
+      expect(session.user.email).toBe(googleUser.email);
+      expect(session.accessToken).toBe("fake-jwt");
+      expect(prisma.oAuthLoginTicket.updateMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ consumedAt: expect.any(Date) }),
+        }),
+      );
     });
   });
 });

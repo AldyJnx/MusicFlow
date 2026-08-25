@@ -1,6 +1,6 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '@/prisma/prisma.service';
-import { CreateDeviceDto } from './dto/create-device.dto';
+import { Injectable, NotFoundException } from "@nestjs/common";
+import { PrismaService } from "@/prisma/prisma.service";
+import { CreateDeviceDto } from "./dto/create-device.dto";
 
 @Injectable()
 export class DevicesService {
@@ -9,17 +9,36 @@ export class DevicesService {
   async findAll(userId: string) {
     return this.prisma.device.findMany({
       where: { userId },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
     });
   }
 
   async create(userId: string, dto: CreateDeviceDto) {
+    if (dto.fcmToken) {
+      const existing = await this.prisma.device.findFirst({
+        where: { fcmToken: dto.fcmToken },
+        select: { id: true },
+      });
+      if (existing) {
+        return this.prisma.device.update({
+          where: { id: existing.id },
+          data: {
+            userId,
+            deviceType: dto.deviceType,
+            deviceName: dto.deviceName,
+            timezone: dto.timezone ?? "UTC",
+            isActive: true,
+          },
+        });
+      }
+    }
     return this.prisma.device.create({
       data: {
         userId,
         deviceType: dto.deviceType,
         deviceName: dto.deviceName,
         fcmToken: dto.fcmToken,
+        timezone: dto.timezone ?? "UTC",
       },
     });
   }
@@ -30,7 +49,7 @@ export class DevicesService {
     });
 
     if (!device) {
-      throw new NotFoundException('Device not found');
+      throw new NotFoundException("Device not found");
     }
 
     return this.prisma.device.update({
@@ -52,7 +71,7 @@ export class DevicesService {
     });
 
     if (!device) {
-      throw new NotFoundException('Device not found');
+      throw new NotFoundException("Device not found");
     }
 
     return this.prisma.device.delete({

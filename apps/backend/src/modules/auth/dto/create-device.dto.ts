@@ -1,6 +1,6 @@
-import { IsString, IsEnum, IsOptional, MaxLength } from 'class-validator';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { DeviceType } from '@prisma/client';
+import { IsString, IsEnum, IsOptional, MaxLength } from "class-validator";
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import { DeviceType } from "@prisma/client";
 
 export class CreateDeviceDto {
   @ApiProperty({ enum: DeviceType })
@@ -16,4 +16,10 @@ export class CreateDeviceDto {
   @IsOptional()
   @IsString()
   fcmToken?: string;
+
+  @ApiPropertyOptional({ example: "America/Lima" })
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  timezone?: string;
 }

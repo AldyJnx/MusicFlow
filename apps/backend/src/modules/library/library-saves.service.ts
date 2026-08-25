@@ -2,13 +2,19 @@ import {
   Injectable,
   NotFoundException,
   ConflictException,
+  Optional,
 } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "@/prisma/prisma.service";
+import { RecommendationCacheService } from "@/modules/recommendations/recommendation-cache.service";
 
 @Injectable()
 export class LibrarySavesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Optional()
+    private readonly recommendationCache?: RecommendationCacheService,
+  ) {}
 
   /**
    * Add a track to the user's "Liked Songs". The track must be visible to the
@@ -38,6 +44,7 @@ export class LibrarySavesService {
       const row = await this.prisma.userLibrarySave.create({
         data: { userId, trackId },
       });
+      await this.recommendationCache?.invalidate(userId);
       return { trackId: row.trackId, savedAt: row.savedAt, implicit: false };
     } catch (err) {
       if (
@@ -79,6 +86,7 @@ export class LibrarySavesService {
     await this.prisma.userLibrarySave.deleteMany({
       where: { userId, trackId },
     });
+    await this.recommendationCache?.invalidate(userId);
   }
 
   /**

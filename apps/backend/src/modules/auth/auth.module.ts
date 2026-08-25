@@ -7,6 +7,11 @@ import { UsersController } from "./users.controller";
 import { DevicesController } from "./devices.controller";
 import { AuthService } from "./auth.service";
 import { JwtStrategy } from "./strategies/jwt.strategy";
+import { GoogleStrategy } from "./strategies/google.strategy";
+import {
+  GoogleOAuthCallbackGuard,
+  GoogleOAuthStartGuard,
+} from "./guards/google-oauth.guard";
 import { UsersService } from "./users.service";
 import { DevicesService } from "./devices.service";
 
@@ -24,7 +29,15 @@ import { DevicesService } from "./devices.service";
     }),
   ],
   controllers: [AuthController, UsersController, DevicesController],
-  providers: [AuthService, JwtStrategy, UsersService, DevicesService],
+  providers: [
+    AuthService,
+    JwtStrategy,
+    GoogleStrategy,
+    GoogleOAuthStartGuard,
+    GoogleOAuthCallbackGuard,
+    UsersService,
+    DevicesService,
+  ],
   exports: [AuthService, UsersService],
 })
 export class AuthModule {}

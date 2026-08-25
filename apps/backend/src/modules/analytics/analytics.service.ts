@@ -1,10 +1,14 @@
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "@/prisma/prisma.service";
 import { PlayDevice, StatsPeriod, Track, Prisma } from "@prisma/client";
+import { RecommendationCacheService } from "@/modules/recommendations/recommendation-cache.service";
 
 @Injectable()
 export class AnalyticsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly recommendationCache: RecommendationCacheService,
+  ) {}
 
   async recordPlay(
     userId: string,
@@ -17,7 +21,7 @@ export class AnalyticsService {
       eqConfigUsedId?: string;
     },
   ) {
-    return this.prisma.playHistory.create({
+    const play = await this.prisma.playHistory.create({
       data: {
         userId,
         trackId: data.trackId,
@@ -29,6 +33,18 @@ export class AnalyticsService {
         eqConfigUsedId: data.eqConfigUsedId,
       },
     });
+    await Promise.all([
+      this.prisma.user.update({
+        where: { id: userId },
+        data: { lastActiveAt: new Date(), reengagementNotifiedAt: null },
+      }),
+      this.prisma.recommendationImpression.updateMany({
+        where: { userId, trackId: data.trackId, playedAt: null },
+        data: { playedAt: new Date() },
+      }),
+      this.recommendationCache.invalidate(userId),
+    ]);
+    return play;
   }
 
   async getPlayHistory(

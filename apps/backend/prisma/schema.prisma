@@ -30,37 +30,60 @@ model User {
   isPremium Boolean  @default(false) @map("is_premium")
   isActive  Boolean  @default(true) @map("is_active")
 
-  // Stripe customer ID — set when the user first completes a checkout so
-  // future webhooks (downgrades, refunds) can be matched back to the user.
+  // Legacy billing customer ID retained until the future Subscription model
+  // replaces it through a non-destructive migration.
   stripeCustomerId String? @unique @map("stripe_customer_id")
 
   // Password reset
   passwordResetToken   String?   @map("password_reset_token")
   passwordResetExpires DateTime? @map("password_reset_expires")
 
-  createdAt DateTime  @default(now()) @map("created_at")
-  updatedAt DateTime  @updatedAt @map("updated_at")
+  createdAt              DateTime  @default(now()) @map("created_at")
+  updatedAt              DateTime  @updatedAt @map("updated_at")
   // Last successful login — drives DAU/WAU/MAU on the admin dashboard.
   // Null until the user logs in for the first time.
-  lastLogin DateTime? @map("last_login")
+  lastLogin              DateTime? @map("last_login")
+  onboardingCompletedAt  DateTime? @map("onboarding_completed_at")
+  lastActiveAt           DateTime? @map("last_active_at")
+  reengagementNotifiedAt DateTime? @map("reengagement_notified_at")
+  notificationConsent    Boolean   @default(false) @map("notification_consent")
+  timezone               String    @default("UTC")
 
   // Relations
-  devices       Device[]
-  tracks        Track[]
-  playlists     Playlist[]
-  eqPresets     EQPreset[]
-  eqConfigs     EQConfig[]
-  eqSegments    EQSegment[]
-  aiRequests    AIRequest[]
-  playHistory   PlayHistory[]
-  listeningStats ListeningStats[]
-  syncLogs      SyncLog[]
-  conflictLogs  ConflictLog[]
-  preferences   UserPreferences?
-  librarySaves  UserLibrarySave[]
+  devices                   Device[]
+  tracks                    Track[]
+  playlists                 Playlist[]
+  eqPresets                 EQPreset[]
+  eqConfigs                 EQConfig[]
+  eqSegments                EQSegment[]
+  aiRequests                AIRequest[]
+  playHistory               PlayHistory[]
+  listeningStats            ListeningStats[]
+  syncLogs                  SyncLog[]
+  conflictLogs              ConflictLog[]
+  preferences               UserPreferences?
+  librarySaves              UserLibrarySave[]
+  artistFollows             ArtistFollow[]
+  recommendationImpressions RecommendationImpression[]
+  oauthLoginTickets         OAuthLoginTicket[]
 
   @@index([email, role])
   @@map("users")
+}
+
+/// Short-lived, single-use codes exchanged by the web client after a provider
+/// callback. They prevent access and refresh tokens from being put in URLs.
+model OAuthLoginTicket {
+  id        String    @id
+  userId    String    @map("user_id")
+  expiresAt DateTime  @map("expires_at")
+  consumedAt DateTime? @map("consumed_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([expiresAt])
+  @@map("oauth_login_tickets")
 }
 
 enum DeviceType {
@@ -79,6 +102,7 @@ model Device {
   deviceName String     @map("device_name")
   lastSyncAt DateTime?  @map("last_sync_at")
   fcmToken   String?    @map("fcm_token")
+  timezone   String     @default("UTC")
   isActive   Boolean    @default(true) @map("is_active")
   createdAt  DateTime   @default(now()) @map("created_at")
 
@@ -106,35 +130,35 @@ enum SyncStatus {
 }
 
 model Track {
-  id        String @id @default(uuid())
-  userId    String @map("user_id")
+  id     String @id @default(uuid())
+  userId String @map("user_id")
 
   // Metadata
   title       String
   artist      String
-  album       String   @default("")
-  albumArtist String   @default("") @map("album_artist")
-  genre       String   @default("")
+  album       String @default("")
+  albumArtist String @default("") @map("album_artist")
+  genre       String @default("")
   year        Int?
-  trackNumber Int?     @map("track_number")
-  discNumber  Int?     @map("disc_number")
-  composer    String   @default("")
-  comment     String   @default("")
-  durationMs  Int      @map("duration_ms")
+  trackNumber Int?   @map("track_number")
+  discNumber  Int?   @map("disc_number")
+  composer    String @default("")
+  comment     String @default("")
+  durationMs  Int    @map("duration_ms")
 
   // Files
-  filePathLocal  String?  @map("file_path_local")
-  fileUrlRemote  String?  @map("file_url_remote")
-  fileHash       String   @map("file_hash")
-  fileSizeBytes  BigInt?  @map("file_size_bytes")
-  codec          String   @default("")
-  bitrate        Int?
-  sampleRate     Int?     @map("sample_rate")
-  coverArt       String?  @map("cover_art")
+  filePathLocal String? @map("file_path_local")
+  fileUrlRemote String? @map("file_url_remote")
+  fileHash      String  @map("file_hash")
+  fileSizeBytes BigInt? @map("file_size_bytes")
+  codec         String  @default("")
+  bitrate       Int?
+  sampleRate    Int?    @map("sample_rate")
+  coverArt      String? @map("cover_art")
   // Public URL of the artist's image (served from the images bucket under
   // `artists/`). Denormalised onto the track so artist lists/pages can show a
   // real photo without a separate Artist table.
-  artistImage    String?  @map("artist_image")
+  artistImage   String? @map("artist_image")
 
   // Pre-computed waveform peaks for fast client-side rendering. Shape:
   // { v: 1, n: 2000, peaks: number[] }  // normalized -1..1 max-per-bucket
@@ -145,7 +169,7 @@ model Track {
   // `lyricsLrc` holds the raw .lrc file with `[mm:ss.xx] line` markers; when
   // present, the client highlights the active line based on the playhead.
   // `lyricsText` holds plain text as a fallback (no time sync).
-  lyricsLrc  String? @map("lyrics_lrc")  @db.Text
+  lyricsLrc  String? @map("lyrics_lrc") @db.Text
   lyricsText String? @map("lyrics_text") @db.Text
 
   // Catalog visibility. When `isCatalog` is true the track is published in
@@ -165,20 +189,21 @@ model Track {
   // Catalog relations (admin-curated). The string `artist`/`album` columns
   // above are kept for local files and as a display fallback; these FKs are
   // the source of truth for the online catalog and its admin-managed ordering.
-  artistId   String?  @map("artist_id")
-  artistRef  Artist?  @relation(fields: [artistId], references: [id], onDelete: SetNull)
-  albumId    String?  @map("album_id")
-  albumRef   Album?   @relation(fields: [albumId], references: [id], onDelete: SetNull)
+  artistId   String? @map("artist_id")
+  artistRef  Artist? @relation(fields: [artistId], references: [id], onDelete: SetNull)
+  albumId    String? @map("album_id")
+  albumRef   Album?  @relation(fields: [albumId], references: [id], onDelete: SetNull)
   // Position of the track within its album (admin-orderable).
-  albumOrder Int?     @map("album_order")
+  albumOrder Int?    @map("album_order")
 
   // Relations
-  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  playlistTracks PlaylistTrack[]
-  segments       EQSegment[]
-  aiRequests     AIRequest[]
-  playHistory    PlayHistory[]
-  librarySaves   UserLibrarySave[]
+  user                      User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  playlistTracks            PlaylistTrack[]
+  segments                  EQSegment[]
+  aiRequests                AIRequest[]
+  playHistory               PlayHistory[]
+  librarySaves              UserLibrarySave[]
+  recommendationImpressions RecommendationImpression[]
 
   @@unique([userId, fileHash])
   @@index([artist])
@@ -206,10 +231,47 @@ model Artist {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  albums Album[]
-  tracks Track[]
+  albums    Album[]
+  tracks    Track[]
+  followers ArtistFollow[]
 
   @@map("artists")
+}
+
+enum ArtistFollowSource {
+  ONBOARDING
+  MANUAL
+}
+
+model ArtistFollow {
+  userId    String             @map("user_id")
+  artistId  String             @map("artist_id")
+  source    ArtistFollowSource @default(MANUAL)
+  createdAt DateTime           @default(now()) @map("created_at")
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  artist Artist @relation(fields: [artistId], references: [id], onDelete: Cascade)
+
+  @@id([userId, artistId])
+  @@index([artistId])
+  @@map("artist_follows")
+}
+
+model RecommendationImpression {
+  id       String    @id @default(uuid())
+  userId   String    @map("user_id")
+  trackId  String    @map("track_id")
+  score    Float
+  reason   String?
+  shownAt  DateTime  @default(now()) @map("shown_at")
+  playedAt DateTime? @map("played_at")
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  track Track @relation(fields: [trackId], references: [id], onDelete: Cascade)
+
+  @@index([userId, shownAt(sort: Desc)])
+  @@index([trackId, shownAt(sort: Desc)])
+  @@map("recommendation_impressions")
 }
 
 /// Admin-curated album. Belongs to one artist; holds an ordered set of tracks.
@@ -231,13 +293,13 @@ model Album {
 }
 
 model Playlist {
-  id          String  @id @default(uuid())
-  userId      String  @map("user_id")
+  id          String   @id @default(uuid())
+  userId      String   @map("user_id")
   name        String
-  description String  @default("")
-  coverArt    String? @map("cover_art")
-  isPublic    Boolean @default(false) @map("is_public")
-  shareToken  String? @unique @map("share_token")
+  description String   @default("")
+  coverArt    String?  @map("cover_art")
+  isPublic    Boolean  @default(false) @map("is_public")
+  shareToken  String?  @unique @map("share_token")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
@@ -311,11 +373,11 @@ model EQPreset {
   // Values: -15 to +15 dB
   bands Json @default("[]")
 
-  bassBoost    Int          @default(0) @map("bass_boost")     // 0-100
-  virtualizer  Int          @default(0)                        // 0-100
-  loudness     Int          @default(0)                        // 0-100
+  bassBoost    Int          @default(0) @map("bass_boost") // 0-100
+  virtualizer  Int          @default(0) // 0-100
+  loudness     Int          @default(0) // 0-100
   reverbPreset ReverbPreset @default(NONE) @map("reverb_preset")
-  reverbAmount Int          @default(0) @map("reverb_amount")  // 0-100
+  reverbAmount Int          @default(0) @map("reverb_amount") // 0-100
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -336,10 +398,10 @@ enum EQScopeType {
 }
 
 model EQConfig {
-  id       String      @id @default(uuid())
-  userId   String      @map("user_id")
+  id        String      @id @default(uuid())
+  userId    String      @map("user_id")
   scopeType EQScopeType @map("scope_type")
-  scopeId  String?     @map("scope_id")
+  scopeId   String?     @map("scope_id")
 
   presetId String? @map("preset_id")
 
@@ -356,8 +418,8 @@ model EQConfig {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   // Relations
-  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  preset      EQPreset?    @relation(fields: [presetId], references: [id], onDelete: SetNull)
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  preset      EQPreset?     @relation(fields: [presetId], references: [id], onDelete: SetNull)
   segment     EQSegment?
   playHistory PlayHistory[]
 
@@ -373,21 +435,21 @@ enum EQSegmentCreatedBy {
 }
 
 model EQSegment {
-  id           String   @id @default(uuid())
-  trackId      String   @map("track_id")
-  userId       String   @map("user_id")
-  eqConfigId   String   @unique @map("eq_config_id")
+  id         String @id @default(uuid())
+  trackId    String @map("track_id")
+  userId     String @map("user_id")
+  eqConfigId String @unique @map("eq_config_id")
 
-  label        String   @default("")
-  startMs      Int      @map("start_ms")
-  endMs        Int      @map("end_ms")
-  transitionMs Int      @default(500) @map("transition_ms")
+  label        String @default("")
+  startMs      Int    @map("start_ms")
+  endMs        Int    @map("end_ms")
+  transitionMs Int    @default(500) @map("transition_ms")
 
-  createdBy    EQSegmentCreatedBy @default(MANUAL) @map("created_by")
-  aiRequestId  String?            @map("ai_request_id")
+  createdBy   EQSegmentCreatedBy @default(MANUAL) @map("created_by")
+  aiRequestId String?            @map("ai_request_id")
 
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   // Relations
   track     Track      @relation(fields: [trackId], references: [id], onDelete: Cascade)
@@ -443,9 +505,9 @@ model AIRequest {
   createdAt DateTime @default(now()) @map("created_at")
 
   // Relations
-  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  track     Track?      @relation(fields: [trackId], references: [id], onDelete: SetNull)
-  segments  EQSegment[]
+  user     User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  track    Track?      @relation(fields: [trackId], references: [id], onDelete: SetNull)
+  segments EQSegment[]
 
   @@index([userId, createdAt(sort: Desc)])
   @@index([feedback, createdAt(sort: Desc)])
@@ -594,9 +656,9 @@ model UserPreferences {
   userId String @id @map("user_id")
 
   // Visual theme
-  theme                  String  @default("dark_default")
-  dynamicThemeEnabled    Boolean @default(false) @map("dynamic_theme_enabled")
-  dynamicThemeIntensity  Int     @default(50) @map("dynamic_theme_intensity")
+  theme                 String  @default("dark_default")
+  dynamicThemeEnabled   Boolean @default(false) @map("dynamic_theme_enabled")
+  dynamicThemeIntensity Int     @default(50) @map("dynamic_theme_intensity")
 
   // Layouts
   playerLayout   PlayerLayout  @default(STANDARD) @map("player_layout")
@@ -617,13 +679,13 @@ model UserPreferences {
   sleepTimerFadeOut    Boolean @default(true) @map("sleep_timer_fade_out")
 
   // Scrobbling
-  lastfmUsername   String  @default("") @map("lastfm_username")
-  lastfmSessionKey String  @default("") @map("lastfm_session_key")
-  scrobbleEnabled  Boolean @default(false) @map("scrobble_enabled")
-  scrobbleThreshold Int    @default(50) @map("scrobble_threshold")
+  lastfmUsername    String  @default("") @map("lastfm_username")
+  lastfmSessionKey  String  @default("") @map("lastfm_session_key")
+  scrobbleEnabled   Boolean @default(false) @map("scrobble_enabled")
+  scrobbleThreshold Int     @default(50) @map("scrobble_threshold")
 
   // Lyrics
-  lyricsFontSize  Int     @default(16) @map("lyrics_font_size")
+  lyricsFontSize   Int     @default(16) @map("lyrics_font_size")
   lyricsAutoScroll Boolean @default(true) @map("lyrics_auto_scroll")
 
   updatedAt DateTime @updatedAt @map("updated_at")
