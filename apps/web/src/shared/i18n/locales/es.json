@@ -336,6 +336,13 @@
       "duration": "Duración"
     },
     "catalogBadge": "Catálogo",
+    "catalogCount_one": "{{count}} canción en el catálogo",
+    "catalogCount_other": "{{count}} canciones en el catálogo",
+    "savedCount_one": "{{count}} canción guardada",
+    "savedCount_other": "{{count}} canciones guardadas",
+    "eqCustomBadge": "EQ propio",
+    "eqSegments_one": "{{count}} segmento",
+    "eqSegments_other": "{{count}} segmentos",
     "loadError": "No pudimos cargar tu biblioteca. Intenta de nuevo.",
     "retry": "Reintentar",
     "empty": "Tu biblioteca está vacía."

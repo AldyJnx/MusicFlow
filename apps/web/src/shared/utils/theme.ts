@@ -96,7 +96,9 @@ export const APP_THEMES: AppTheme[] = [
       secondary: "#0e1a18",
       ctaStart: "#22e58a",
       ctaEnd: "#10b981",
-      accent: "#22e58a",
+      // Distinct from primary so the accent tier (AI sparkle, segment chips)
+      // reads as its own level in the CTA hierarchy.
+      accent: "#38bdf8",
     },
   },
   {
@@ -120,7 +122,7 @@ export const APP_THEMES: AppTheme[] = [
       secondary: "#13282d",
       ctaStart: "#5eead4",
       ctaEnd: "#2dd4bf",
-      accent: "#5eead4",
+      accent: "#f472b6",
     },
   },
   {
@@ -144,7 +146,7 @@ export const APP_THEMES: AppTheme[] = [
       secondary: "#1f1714",
       ctaStart: "#fb923c",
       ctaEnd: "#f97316",
-      accent: "#fb923c",
+      accent: "#f472b6",
     },
   },
   {
@@ -168,7 +170,7 @@ export const APP_THEMES: AppTheme[] = [
       secondary: "#ede9fe",
       ctaStart: "#a78bfa",
       ctaEnd: "#7c3aed",
-      accent: "#8b5cf6",
+      accent: "#be185d",
     },
   },
   {
@@ -185,14 +187,16 @@ export const APP_THEMES: AppTheme[] = [
       surface: "#121922",
       surfaceAlt: "#18222e",
       text: "#e6f6f8",
-      muted: "#7a8a9a",
+      // Lifted from #7a8a9a: that sat at exactly 4.5:1 on surface-alt — no
+      // headroom for AA. This clears ~5.2:1.
+      muted: "#8494a4",
       border: "#1c2734",
       primary: "#1db9c3",
       primaryContrast: "#041417",
       secondary: "#0e2429",
       ctaStart: "#22d3ee",
       ctaEnd: "#0e7490",
-      accent: "#1db9c3",
+      accent: "#a78bfa",
     },
   },
   {

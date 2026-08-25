@@ -1,5 +1,4 @@
 import {
-  BarChart3,
   ChevronLeft,
   ChevronRight,
   Download,
@@ -14,6 +13,7 @@ import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate } from "react-router-dom";
 
 import { listPlaylists, type Playlist } from "../../../shared/api/playlists";
+import { usePlayerStore } from "../../stores/playStore";
 
 interface ClientSidebarProps {
   collapsed?: boolean;
@@ -46,11 +46,12 @@ type NavItem = {
   match: string[];
 };
 
-/** Three animated EQ bars — the pretesis logo mark. */
-function LogoMark() {
+/** Three EQ bars — the pretesis logo mark. Animates only while audio is
+ *  actually playing so an idle app doesn't repaint forever. */
+function LogoMark({ playing }: { playing: boolean }) {
   return (
     <div
-      className="flex h-8 w-8 flex-none items-center justify-center rounded-[10px] shadow-[0_8px_22px_-6px_var(--color-primary)]"
+      className="flex h-8 w-8 flex-none items-center justify-center rounded-xl shadow-[0_8px_22px_-6px_var(--color-primary)]"
       style={{
         background:
           "linear-gradient(140deg,var(--color-primary),var(--color-accent))",
@@ -65,6 +66,7 @@ function LogoMark() {
               height: i === 0 ? "6px" : i === 1 ? "13px" : "9px",
               transformOrigin: "bottom",
               animation: `eqbar ${[1, 0.8, 1.1][i]}s ease-in-out infinite ${[0, 0.15, 0.3][i]}s`,
+              animationPlayState: playing ? "running" : "paused",
             }}
           />
         ))}
@@ -81,6 +83,7 @@ export default function ClientSidebar({
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { pathname } = useLocation();
+  const isPlaying = usePlayerStore((s) => s.isPlaying);
 
   const playlistsQ = useQuery({
     queryKey: ["playlists"],
@@ -95,12 +98,6 @@ export default function ClientSidebar({
       icon: <Home className="h-[18px] w-[18px]" strokeWidth={2.2} />,
       to: "/inicio",
       match: ["/inicio"],
-    },
-    {
-      label: t("sidebar.charts", { defaultValue: "Charts" }),
-      icon: <BarChart3 className="h-[18px] w-[18px]" strokeWidth={2.2} />,
-      to: "/library",
-      match: ["/charts"],
     },
     {
       label: t("sidebar.library", { defaultValue: "Biblioteca" }),
@@ -141,7 +138,7 @@ export default function ClientSidebar({
           onClick={onToggleCollapse}
           title={t("sidebar.menu", { defaultValue: "Menú" })}
         >
-          <LogoMark />
+          <LogoMark playing={isPlaying} />
         </button>
         {!collapsed ? (
           <span
@@ -156,7 +153,7 @@ export default function ClientSidebar({
             type="button"
             onClick={onToggleCollapse}
             title={t("sidebar.collapse", { defaultValue: "Plegar menú" })}
-            className="flex h-7 w-7 flex-none items-center justify-center rounded-lg border border-[var(--color-line)] bg-white/[0.03] text-[var(--color-muted)] transition hover:text-[var(--color-text)]"
+            className="flex h-8 w-8 flex-none items-center justify-center rounded-lg border border-[var(--color-line)] bg-white/[0.03] text-[var(--color-muted)] transition hover:text-[var(--color-text)]"
           >
             <ChevronLeft className="h-4 w-4" strokeWidth={2} />
           </button>
@@ -167,7 +164,7 @@ export default function ClientSidebar({
       {!collapsed ? (
         <span
           className="px-2.5 pb-2 pt-1 text-[var(--color-muted)]"
-          style={{ font: "700 9.5px var(--font-mono)", letterSpacing: ".18em" }}
+          style={{ font: "700 11px var(--font-mono)", letterSpacing: ".18em" }}
         >
           {t("sidebar.menuLabel", { defaultValue: "MENÚ" })}
         </span>
@@ -180,7 +177,7 @@ export default function ClientSidebar({
             type="button"
             onClick={() => navigate(n.to)}
             title={n.label}
-            className={`flex items-center gap-[11px] rounded-[10px] text-[13.5px] transition ${
+            className={`flex items-center gap-[11px] rounded-xl text-[13.5px] transition ${
               collapsed ? "justify-center py-2.5" : "px-2.5 py-2.5"
             } ${
               active
@@ -218,7 +215,7 @@ export default function ClientSidebar({
           <span
             className="text-[var(--color-muted)]"
             style={{
-              font: "700 9.5px var(--font-mono)",
+              font: "700 11px var(--font-mono)",
               letterSpacing: ".18em",
             }}
           >
@@ -230,7 +227,7 @@ export default function ClientSidebar({
             type="button"
             onClick={onOpenImport}
             title={t("sidebar.import", { defaultValue: "Importar" })}
-            className="flex h-6 w-6 items-center justify-center rounded-full text-[var(--color-muted)] transition hover:bg-white/[0.06] hover:text-[var(--color-text)]"
+            className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--color-muted)] transition hover:bg-white/[0.06] hover:text-[var(--color-text)]"
           >
             <Plus className="h-4 w-4" strokeWidth={2.4} />
           </button>
@@ -240,7 +237,7 @@ export default function ClientSidebar({
       <div className="-mx-1 flex min-h-0 flex-1 flex-col gap-[3px] overflow-y-auto overflow-x-hidden px-1">
         {playlists.length === 0 ? (
           !collapsed ? (
-            <p className="px-2.5 py-2 text-[11.5px] text-[var(--color-muted)]">
+            <p className="px-2.5 py-2 text-xs text-[var(--color-muted)]">
               {t("sidebar.noPlaylists", {
                 defaultValue: "Aún no tenés playlists",
               })}
@@ -253,7 +250,7 @@ export default function ClientSidebar({
               type="button"
               onClick={() => navigate(`/playlists/${p.id}`)}
               title={p.name}
-              className={`flex items-center gap-2.5 rounded-[9px] py-[5px] transition hover:bg-white/[0.05] ${
+              className={`flex items-center gap-2.5 rounded-lg py-[5px] transition hover:bg-white/[0.05] ${
                 collapsed ? "justify-center px-0" : "px-2"
               }`}
             >
@@ -270,7 +267,7 @@ export default function ClientSidebar({
                 ) : null}
               </span>
               {!collapsed ? (
-                <span className="truncate text-[12.5px] font-semibold text-[var(--color-muted)]">
+                <span className="truncate text-[13px] font-semibold text-[var(--color-muted)]">
                   {p.name}
                 </span>
               ) : null}
