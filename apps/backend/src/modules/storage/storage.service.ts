@@ -1,16 +1,21 @@
-import { Injectable, BadRequestException } from "@nestjs/common";
+import {
+  Injectable,
+  BadRequestException,
+  ConflictException,
+} from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import {
   S3Client,
   PutObjectCommand,
   DeleteObjectCommand,
   GetObjectCommand,
+  HeadObjectCommand,
   S3ServiceException,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { v4 as uuidv4 } from "uuid";
 
-export type StorageBucket = "audio" | "images" | "lyrics";
+export type StorageBucket = "audio" | "images" | "artistImages" | "lyrics";
 
 export interface UploadResult {
   key: string;
@@ -23,7 +28,14 @@ interface BucketConfig {
   publicBase: string;
 }
 
-const IMAGE_MIME_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp"];
+const IMAGE_MIME_TYPES = [
+  "image/jpeg",
+  "image/jpg",
+  "image/png",
+  "image/gif",
+  "image/webp",
+  "image/avif",
+];
 const AUDIO_MIME_TYPES = [
   "audio/mpeg",
   "audio/mp4",
@@ -35,9 +47,84 @@ const AUDIO_MIME_TYPES = [
   "audio/aac",
   "audio/webm",
 ];
+const CATALOG_AUDIO_MIME_TYPES = [
+  "audio/wav",
+  "audio/x-wav",
+  "audio/flac",
+  "audio/x-flac",
+];
 
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5 MB
 const MAX_AUDIO_SIZE = 100 * 1024 * 1024; // 100 MB
+
+function catalogKeyPart(value: string, label: string): string {
+  const cleaned = value
+    .replace(/[\\/:*?"<>|\u0000-\u001F]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!cleaned) {
+    throw new BadRequestException(`El nombre de ${label} no es válido.`);
+  }
+  return cleaned.slice(0, 180);
+}
+
+function catalogAssetExtension(
+  extension: string,
+  allowedExtensions: readonly string[],
+  label: string,
+): string {
+  const ext = extension.toLowerCase().replace(/^\./, "");
+  if (!allowedExtensions.includes(ext)) {
+    throw new BadRequestException(
+      `El ${label} debe ser ${allowedExtensions
+        .map((value) => value.toUpperCase())
+        .join(" o ")}.`,
+    );
+  }
+  return ext;
+}
+
+/** Build the exact root-level key required by the public audio bucket. */
+export function buildCatalogAudioKey(
+  artistName: string,
+  trackTitle: string,
+  extension: string,
+): string {
+  const ext = catalogAssetExtension(extension, ["wav", "flac"], "audio");
+  const artist = catalogKeyPart(artistName, "artista");
+  const title = catalogKeyPart(trackTitle, "canción");
+  return `${artist} - ${title}.${ext}`;
+}
+
+/** Root-level R2 key for a canonical artist portrait. */
+export function buildArtistImageKey(
+  artistName: string,
+  extension: string,
+): string {
+  const ext = catalogAssetExtension(extension, ["webp", "avif"], "imagen");
+  return `${catalogKeyPart(artistName, "artista")}.${ext}`;
+}
+
+/** Root-level R2 key for an album cover. */
+export function buildAlbumCoverKey(
+  albumTitle: string,
+  artistName: string,
+  extension: string,
+): string {
+  const ext = catalogAssetExtension(extension, ["webp", "avif"], "imagen");
+  return `${catalogKeyPart(albumTitle, "álbum")} - ${catalogKeyPart(
+    artistName,
+    "artista",
+  )}.${ext}`;
+}
+
+/** Root-level R2 key for synchronized lyrics. */
+export function buildLyricsKey(artistName: string, trackTitle: string): string {
+  return `${catalogKeyPart(artistName, "artista")} - ${catalogKeyPart(
+    trackTitle,
+    "canción",
+  )}.lrc`;
+}
 
 @Injectable()
 export class StorageService {
@@ -90,6 +177,16 @@ export class StorageService {
         publicBase:
           this.configService.get<string>("R2_PUBLIC_IMAGES_URL") ?? endpoint,
       },
+      artistImages: {
+        name:
+          this.configService.get<string>("R2_BUCKET_ARTIST_IMAGES") ||
+          this.configService.get<string>("R2_BUCKET_IMAGES_ARTIST") ||
+          "music-flow-artist-image",
+        publicBase:
+          this.configService.get<string>("R2_PUBLIC_ARTIST_IMAGES_URL") ||
+          this.configService.get<string>("R2_PUBLIC_IMAGES_URL") ||
+          endpoint,
+      },
       // Lyrics are served by the backend (not loaded by the browser), so this
       // bucket needs no public URL — publicBase is only used to build the
       // archive's reference URL.
@@ -98,7 +195,7 @@ export class StorageService {
           this.configService.get<string>("R2_BUCKET_LYRICS") ??
           "music-flow-songs-lyrics",
         publicBase:
-          this.configService.get<string>("R2_PUBLIC_LYRICS_URL") ?? endpoint,
+          this.configService.get<string>("R2_PUBLIC_LYRICS_URL")?.trim() ?? "",
       },
     };
   }
@@ -111,35 +208,154 @@ export class StorageService {
     return this.upload("images", file, folder);
   }
 
+  async uploadArtistImage(
+    file: Express.Multer.File,
+    artistName: string,
+  ): Promise<UploadResult> {
+    this.validate(file, IMAGE_MIME_TYPES, MAX_IMAGE_SIZE, "image");
+    const ext = file.originalname.split(".").pop() ?? "";
+    const key = buildArtistImageKey(artistName, ext);
+    return this.putCanonical("artistImages", file, key);
+  }
+
+  async uploadAlbumCover(
+    file: Express.Multer.File,
+    albumTitle: string,
+    artistName: string,
+  ): Promise<UploadResult> {
+    this.validate(file, IMAGE_MIME_TYPES, MAX_IMAGE_SIZE, "image");
+    const ext = file.originalname.split(".").pop() ?? "";
+    const key = buildAlbumCoverKey(albumTitle, artistName, ext);
+    return this.putCanonical("images", file, key);
+  }
+
   async uploadAudio(
     file: Express.Multer.File,
     folder = "tracks",
   ): Promise<UploadResult> {
+    if (folder === "catalog" || folder.startsWith("catalog/")) {
+      throw new BadRequestException(
+        "La música de catálogo debe subirse con uploadCatalogAudio.",
+      );
+    }
     this.validate(file, AUDIO_MIME_TYPES, MAX_AUDIO_SIZE, "audio");
     return this.upload("audio", file, folder);
   }
 
   /**
-   * Persist a track's lyrics (.lrc) to the lyrics bucket. Keyed by track id so
-   * re-saving overwrites in place. The DB stays the read source; this keeps a
-   * durable, synced copy in object storage.
+   * Catalog masters are deliberately addressable in R2 as
+   * "Artist - Song.wav|flac". Unlike private uploads, there is no generated
+   * UUID and an existing object is rejected instead of silently overwritten.
    */
-  async uploadLyrics(trackId: string, lrc: string): Promise<UploadResult> {
-    const { name, publicBase } = this.buckets.lyrics;
-    const key = `${trackId}.lrc`;
+  async uploadCatalogAudio(
+    file: Express.Multer.File,
+    artistName: string,
+    trackTitle: string,
+  ): Promise<UploadResult> {
+    this.validate(file, CATALOG_AUDIO_MIME_TYPES, MAX_AUDIO_SIZE, "audio");
+    const ext = file.originalname.split(".").pop()?.toLowerCase();
+    if (ext !== "wav" && ext !== "flac") {
+      throw new BadRequestException(
+        "El catálogo solo acepta archivos WAV o FLAC.",
+      );
+    }
+
+    const key = buildCatalogAudioKey(artistName, trackTitle, ext);
+    const displayName = key.replace(/\.(wav|flac)$/i, "");
+    const { name, publicBase } = this.buckets.audio;
+
+    try {
+      await this.s3.send(new HeadObjectCommand({ Bucket: name, Key: key }));
+      throw new ConflictException(
+        `Ya existe una canción en R2 con el nombre "${displayName}".`,
+      );
+    } catch (error) {
+      if (error instanceof ConflictException) throw error;
+      if (
+        !(error instanceof S3ServiceException) &&
+        (error as { name?: string })?.name !== "NotFound" &&
+        (error as { $metadata?: { httpStatusCode?: number } })?.$metadata
+          ?.httpStatusCode !== 404
+      ) {
+        throw error;
+      }
+    }
+
     await this.s3.send(
       new PutObjectCommand({
         Bucket: name,
         Key: key,
-        Body: lrc,
-        ContentType: "text/plain; charset=utf-8",
+        Body: file.buffer,
+        ContentType: file.mimetype,
       }),
     );
     return {
       key,
-      url: `${publicBase.replace(/\/+$/, "")}/${key}`,
+      url: `${publicBase.replace(/\/+$/, "")}/${encodeURI(key)}`,
       bucket: name,
     };
+  }
+
+  /** Replaces a catalog master at its deterministic R2 key. */
+  async replaceCatalogAudio(
+    file: Express.Multer.File,
+    artistName: string,
+    trackTitle: string,
+  ): Promise<UploadResult> {
+    this.validate(file, CATALOG_AUDIO_MIME_TYPES, MAX_AUDIO_SIZE, "audio");
+    const ext = file.originalname.split(".").pop()?.toLowerCase();
+    if (ext !== "wav" && ext !== "flac") {
+      throw new BadRequestException(
+        "El catálogo solo acepta archivos WAV o FLAC.",
+      );
+    }
+    return this.putCanonical(
+      "audio",
+      file,
+      buildCatalogAudioKey(artistName, trackTitle, ext),
+    );
+  }
+
+  /**
+   * Persist lyrics under the canonical `Artist - Song.lrc` key. Re-saving a
+   * track deliberately replaces that same public object without UUIDs.
+   */
+  async uploadLyrics(
+    artistName: string,
+    trackTitle: string,
+    lrc: string,
+  ): Promise<UploadResult> {
+    const key = buildLyricsKey(artistName, trackTitle);
+    return this.putCanonical(
+      "lyrics",
+      {
+        buffer: Buffer.from(lrc, "utf-8"),
+        mimetype: "text/plain; charset=utf-8",
+      } as Express.Multer.File,
+      key,
+    );
+  }
+
+  /**
+   * Removes the canonical lyric object, or the explicitly linked object when
+   * an administrator selected an existing R2 URL.  DeleteObject is idempotent
+   * in R2, so this also safely clears an object that was removed manually.
+   */
+  async deleteLyrics(
+    artistName: string,
+    trackTitle: string,
+    linkedLyricsUrl?: string | null,
+  ): Promise<void> {
+    const linkedKey = linkedLyricsUrl
+      ? this.extractKeyFromUrl(linkedLyricsUrl)
+      : null;
+    const key = linkedKey ?? buildLyricsKey(artistName, trackTitle);
+
+    if (!key.toLowerCase().endsWith(".lrc") || key.includes("..")) {
+      throw new BadRequestException("La clave de la letra no es válida.");
+    }
+
+    await this.delete("lyrics", key);
   }
 
   /** @deprecated Use uploadImage / uploadAudio for clarity. */
@@ -199,6 +415,16 @@ export class StorageService {
     }
   }
 
+  /**
+   * Public URL for a known object key. A bucket without a public domain returns
+   * null so callers can use a temporary signed URL instead of a broken URL.
+   */
+  getPublicObjectUrl(bucket: StorageBucket, key: string): string | null {
+    const { publicBase } = this.buckets[bucket];
+    if (!publicBase) return null;
+    return `${publicBase.replace(/\/+$/, "")}/${encodeURI(key)}`;
+  }
+
   /** @deprecated Use getSignedDownloadUrl. */
   async getSignedUrl(key: string, expiresIn = 3600): Promise<string> {
     return this.getSignedDownloadUrl("images", key, expiresIn);
@@ -230,7 +456,18 @@ export class StorageService {
     const ext = file.originalname.includes(".")
       ? file.originalname.split(".").pop()!.toLowerCase()
       : "bin";
-    const key = `${folder}/${uuidv4()}.${ext}`;
+    // Catalog audio is intentionally searchable in R2 by its original title.
+    // Private uploads remain under their user-scoped prefix. The UUID suffix
+    // keeps repeated titles from overwriting an existing object.
+    const catalogFileName = file.originalname
+      .replace(/\.[^.]+$/, "")
+      .replace(/[\\/:*?"<>|]/g, "-")
+      .trim()
+      .slice(0, 180);
+    const key =
+      folder === "catalog" && catalogFileName
+        ? `${catalogFileName}-${uuidv4()}.${ext}`
+        : `${folder}/${uuidv4()}.${ext}`;
 
     await this.s3.send(
       new PutObjectCommand({
@@ -244,7 +481,29 @@ export class StorageService {
 
     return {
       key,
-      url: `${publicBase.replace(/\/+$/, "")}/${key}`,
+      url: `${publicBase.replace(/\/+$/, "")}/${encodeURI(key)}`,
+      bucket: name,
+    };
+  }
+
+  /** Canonical catalogue objects intentionally have no generated folders or UUIDs. */
+  private async putCanonical(
+    bucket: StorageBucket,
+    file: Pick<Express.Multer.File, "buffer" | "mimetype">,
+    key: string,
+  ): Promise<UploadResult> {
+    const { name, publicBase } = this.buckets[bucket];
+    await this.s3.send(
+      new PutObjectCommand({
+        Bucket: name,
+        Key: key,
+        Body: file.buffer,
+        ContentType: file.mimetype,
+      }),
+    );
+    return {
+      key,
+      url: `${publicBase.replace(/\/+$/, "")}/${encodeURI(key)}`,
       bucket: name,
     };
   }

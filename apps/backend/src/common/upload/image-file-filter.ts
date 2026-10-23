@@ -1,16 +1,11 @@
 import { BadRequestException } from "@nestjs/common";
 
-const ALLOWED_IMAGE_MIMES = new Set([
-  "image/jpeg",
-  "image/png",
-  "image/gif",
-  "image/webp",
-]);
-const ALLOWED_IMAGE_EXTS = new Set(["jpg", "jpeg", "png", "gif", "webp"]);
+const ALLOWED_IMAGE_MIMES = new Set(["image/webp", "image/avif"]);
+const ALLOWED_IMAGE_EXTS = new Set(["webp", "avif"]);
 
 /**
- * Multer fileFilter for cover/artwork uploads. Requires a real image mime AND a
- * matching extension before Multer buffers the file (same hardening as audio).
+ * Multer fileFilter for catalog artwork. The service additionally verifies the
+ * decoded file dimensions, because MIME data alone is client-controlled.
  */
 export function imageFileFilter(
   _req: unknown,

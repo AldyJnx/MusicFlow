@@ -1,5 +1,5 @@
 import { Test, TestingModule } from "@nestjs/testing";
-import { INestApplication, ValidationPipe } from "@nestjs/common";
+import { Global, INestApplication, Module, ValidationPipe } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
 import * as request from "supertest";
 import * as bcrypt from "bcryptjs";
@@ -7,8 +7,8 @@ import * as bcrypt from "bcryptjs";
 import { AuthModule } from "@/modules/auth/auth.module";
 import { PrismaService } from "@/prisma/prisma.service";
 import { PrismaModule } from "@/prisma/prisma.module";
-import { MailModule } from "@/modules/mail/mail.module";
-import { StorageModule } from "@/modules/storage/storage.module";
+import { MailService } from "@/modules/mail/mail.service";
+import { StorageService } from "@/modules/storage/storage.service";
 
 /**
  * E2E smoke tests for /api/auth — uses an in-memory mock of PrismaService.
@@ -41,6 +41,33 @@ interface UpdateArg {
   where: { id: string };
   data: Record<string, unknown>;
 }
+
+// AuthModule gets MailService through the application's global mail module.
+// Recreate just that contract here so the e2e suite stays hermetic and does
+// not start Nodemailer/Handlebars native resources.
+@Global()
+@Module({
+  providers: [
+    {
+      provide: MailService,
+      useValue: { sendPasswordReset: jest.fn(), sendVerifyEmail: jest.fn() },
+    },
+  ],
+  exports: [MailService],
+})
+class TestMailModule {}
+
+@Global()
+@Module({
+  providers: [
+    {
+      provide: StorageService,
+      useValue: { uploadImage: jest.fn(), delete: jest.fn() },
+    },
+  ],
+  exports: [StorageService],
+})
+class TestStorageModule {}
 
 describe("Auth (e2e)", () => {
   let app: INestApplication;
@@ -96,8 +123,8 @@ describe("Auth (e2e)", () => {
       imports: [
         ConfigModule.forRoot({ isGlobal: true }),
         PrismaModule,
-        StorageModule,
-        MailModule,
+        TestMailModule,
+        TestStorageModule,
         AuthModule,
       ],
     })
@@ -112,7 +139,7 @@ describe("Auth (e2e)", () => {
   });
 
   afterAll(async () => {
-    await app.close();
+    await app?.close();
   });
 
   beforeEach(() => {

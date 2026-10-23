@@ -81,4 +81,57 @@ describe("RecommendationsService", () => {
     expect(result).toEqual(cached);
     expect(prisma.track.findMany).not.toHaveBeenCalled();
   });
+
+  it("fills the requested rail when the catalogue has fewer than three artists", async () => {
+    const now = new Date("2026-08-16T12:00:00.000Z");
+    const candidate = (id: string) => ({
+      id,
+      userId: "catalog-owner",
+      title: `Track ${id}`,
+      artist: "Artist A",
+      album: "Album",
+      genre: "Pop",
+      durationMs: 180000,
+      coverArt: null,
+      artistImage: null,
+      fileUrlRemote: `https://audio.test/${id}.wav`,
+      artistId: "artist-a",
+      source: "SYNCED",
+      syncStatus: "SYNCED",
+      createdAt: now,
+      updatedAt: now,
+    });
+    const prisma = {
+      track: {
+        findMany: jest
+          .fn()
+          .mockResolvedValue([
+            candidate("a1"),
+            candidate("a2"),
+            candidate("a3"),
+          ]),
+      },
+      artistFollow: { findMany: jest.fn().mockResolvedValue([]) },
+      playHistory: {
+        findMany: jest.fn().mockResolvedValue([]),
+        groupBy: jest.fn().mockResolvedValue([]),
+      },
+      userLibrarySave: { findMany: jest.fn().mockResolvedValue([]) },
+      recommendationImpression: {
+        findMany: jest.fn().mockResolvedValue([]),
+        createMany: jest.fn().mockResolvedValue({ count: 3 }),
+      },
+    } as unknown as PrismaService;
+    const cache = {
+      get: jest.fn().mockResolvedValue(null),
+      set: jest.fn().mockResolvedValue(undefined),
+    } as unknown as RecommendationCacheService;
+
+    const result = await new RecommendationsService(prisma, cache).home(
+      "user-1",
+      3,
+    );
+
+    expect(result.tracks).toHaveLength(3);
+  });
 });

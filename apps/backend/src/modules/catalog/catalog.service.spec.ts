@@ -1,6 +1,6 @@
 import { BadRequestException, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "@/prisma/prisma.service";
-import { CatalogService } from "./catalog.service";
+import { CatalogService, parseCatalogUploadMetadata } from "./catalog.service";
 
 describe("CatalogService", () => {
   let service: CatalogService;
@@ -20,13 +20,25 @@ describe("CatalogService", () => {
       delete: jest.Mock;
     };
     track: {
+      findFirst: jest.Mock;
       findUnique: jest.Mock;
+      findUniqueOrThrow: jest.Mock;
       findMany: jest.Mock;
+      create: jest.Mock;
+      count: jest.Mock;
       update: jest.Mock;
       updateMany: jest.Mock;
     };
+    trackFeaturedArtist: {
+      deleteMany: jest.Mock;
+      createMany: jest.Mock;
+    };
     playHistory: {
       groupBy: jest.Mock;
+    };
+    deletedCatalogArtist: {
+      deleteMany: jest.Mock;
+      upsert: jest.Mock;
     };
     $transaction: jest.Mock;
   };
@@ -48,20 +60,247 @@ describe("CatalogService", () => {
         delete: jest.fn(),
       },
       track: {
+        findFirst: jest.fn(),
         findUnique: jest.fn(),
+        findUniqueOrThrow: jest.fn(),
         findMany: jest.fn(),
+        create: jest.fn(),
+        count: jest.fn(),
         update: jest.fn(),
         updateMany: jest.fn(),
+      },
+      trackFeaturedArtist: {
+        deleteMany: jest.fn(),
+        createMany: jest.fn(),
       },
       playHistory: {
         groupBy: jest.fn(),
       },
-      $transaction: jest.fn(),
+      deletedCatalogArtist: {
+        deleteMany: jest.fn(),
+        upsert: jest.fn(),
+      },
+      $transaction: jest.fn(async (operation) =>
+        typeof operation === "function"
+          ? operation(prisma)
+          : Promise.all(operation),
+      ),
     };
     const storage = {
       uploadAudio: jest.fn(),
+      uploadCatalogAudio: jest.fn(),
+      uploadArtistImage: jest.fn(),
+      uploadLyrics: jest.fn(),
+      deleteLyrics: jest.fn(),
     } as unknown as import("@/modules/storage/storage.service").StorageService;
     service = new CatalogService(prisma as unknown as PrismaService, storage);
+  });
+
+  describe("parseCatalogUploadMetadata", () => {
+    it("stores a featuring upload under the main artist, title and credits", () => {
+      expect(
+        parseCatalogUploadMetadata(
+          "Sean Paul ft. Dua Lipa - No Lie",
+          "Sean Paul",
+        ),
+      ).toEqual({
+        title: "No Lie",
+        featuredArtistNames: ["Dua Lipa"],
+      });
+    });
+
+    it("preserves every hyphen-separated featuring credit before the title", () => {
+      expect(
+        parseCatalogUploadMetadata(
+          "The Weeknd ft. JENNIE - Lily Rose Depp - One Of The Girls",
+          "The Weeknd",
+        ),
+      ).toEqual({
+        title: "One Of The Girls",
+        featuredArtistNames: ["JENNIE", "Lily Rose Depp"],
+      });
+    });
+
+    it("uses the final hyphen-separated part as the title for any number of collaborators", () => {
+      expect(
+        parseCatalogUploadMetadata(
+          "Fernando Mas ft. Dua Lipa - Katy Perry - Hora de Amar",
+          "Fernando Mas",
+        ),
+      ).toEqual({
+        title: "Hora de Amar",
+        featuredArtistNames: ["Dua Lipa", "Katy Perry"],
+      });
+    });
+
+    it("matches every selected artist by normalized identity, not a hard-coded name", () => {
+      expect(
+        parseCatalogUploadMetadata(
+          "50Cent FEAT. The Game - Hate It Or Love It",
+          "50 Cent",
+        ),
+      ).toEqual({
+        title: "Hate It Or Love It",
+        featuredArtistNames: ["The Game"],
+      });
+    });
+
+    it("removes only the selected artist prefix from a regular upload", () => {
+      expect(parseCatalogUploadMetadata("50Cent - Wanksta", "50Cent")).toEqual({
+        title: "Wanksta",
+        featuredArtistNames: [],
+      });
+    });
+  });
+
+  describe("uploadArtistImageFromCloudflare", () => {
+    it("links an existing R2 URL without uploading a duplicate image", async () => {
+      prisma.artist.findUnique.mockResolvedValue({ id: "artist-1" });
+      prisma.artist.update.mockReturnValue("artist-update");
+      prisma.track.updateMany.mockReturnValue("tracks-update");
+      prisma.$transaction.mockResolvedValue([]);
+
+      await expect(
+        service.uploadArtistImageFromCloudflare(
+          "artist-1",
+          "https://images.example.r2.dev/The%20Black%20Eyed%20Peas.webp",
+        ),
+      ).resolves.toEqual({
+        imageUrl:
+          "https://images.example.r2.dev/The%20Black%20Eyed%20Peas.webp",
+      });
+
+      expect(prisma.$transaction).toHaveBeenCalledWith([
+        "artist-update",
+        "tracks-update",
+      ]);
+      expect(
+        (
+          service as unknown as {
+            storage: { uploadArtistImage: jest.Mock };
+          }
+        ).storage.uploadArtistImage,
+      ).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("removeArtistImage", () => {
+    it("clears the artist and catalog-track image references without deleting R2", async () => {
+      prisma.artist.findUnique.mockResolvedValue({ id: "artist-1" });
+      prisma.artist.update.mockReturnValue("artist-update");
+      prisma.track.updateMany.mockReturnValue("tracks-update");
+      prisma.$transaction.mockResolvedValue([]);
+
+      await expect(service.removeArtistImage("artist-1")).resolves.toEqual({
+        imageUrl: null,
+      });
+
+      expect(prisma.$transaction).toHaveBeenCalledWith([
+        "artist-update",
+        "tracks-update",
+      ]);
+      expect(prisma.artist.update).toHaveBeenCalledWith({
+        where: { id: "artist-1" },
+        data: { imageUrl: null },
+      });
+      expect(prisma.track.updateMany).toHaveBeenCalledWith({
+        where: { artistId: "artist-1" },
+        data: { artistImage: null },
+      });
+    });
+  });
+
+  describe("uploadCatalogTrack", () => {
+    it("writes the canonical R2 key without repeating the primary artist", async () => {
+      const storage = (
+        service as unknown as {
+          storage: { uploadCatalogAudio: jest.Mock };
+        }
+      ).storage;
+      storage.uploadCatalogAudio.mockResolvedValue({
+        url: "https://audio.example/Sean%20Paul%20-%20When%20You%20Gonna%20Give%20It%20UpTo%20Me%20(feat.%20Keyshia%20Cole).wav",
+      });
+      prisma.track.findUnique.mockResolvedValue(null);
+      prisma.artist.findUnique.mockResolvedValue({
+        id: "sean-paul",
+        name: "Sean Paul",
+        imageUrl: null,
+      });
+      prisma.track.create.mockResolvedValue({
+        id: "track-1",
+        title: "When You Gonna Give It UpTo Me",
+      });
+      prisma.artist.findMany.mockResolvedValue([]);
+      prisma.trackFeaturedArtist.deleteMany.mockReturnValue("remove-credits");
+      prisma.trackFeaturedArtist.createMany.mockReturnValue("add-credits");
+      prisma.$transaction.mockResolvedValue([]);
+
+      await service.uploadCatalogTrack(
+        "admin-1",
+        {
+          buffer: Buffer.from("wav"),
+          mimetype: "audio/wav",
+          originalname:
+            "Sean Paul ft. Keyshia Cole - When You Gonna Give It UpTo Me.wav",
+          size: 3,
+        } as Express.Multer.File,
+        { artistId: "sean-paul" },
+      );
+
+      expect(storage.uploadCatalogAudio).toHaveBeenCalledWith(
+        expect.anything(),
+        "Sean Paul",
+        "When You Gonna Give It UpTo Me (feat. Keyshia Cole)",
+      );
+      expect(prisma.track.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            artist: "Sean Paul",
+            title: "When You Gonna Give It UpTo Me",
+          }),
+        }),
+      );
+      expect(prisma.trackFeaturedArtist.createMany).toHaveBeenCalledWith({
+        data: [
+          {
+            trackId: "track-1",
+            artistName: "Keyshia Cole",
+            artistId: null,
+            position: 0,
+          },
+        ],
+      });
+    });
+  });
+
+  describe("updateCatalogTrack", () => {
+    it("links an existing R2 WAV URL without copying it", async () => {
+      prisma.track.findFirst.mockResolvedValue({ id: "track-1" });
+      prisma.track.update.mockResolvedValue({ id: "track-1" });
+
+      await service.updateCatalogTrack("track-1", {
+        fileUrlRemote: "https://music-flow.r2.dev/Artist%20-%20Song.wav",
+      });
+
+      expect(prisma.track.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: "track-1" },
+          data: expect.objectContaining({
+            fileUrlRemote: "https://music-flow.r2.dev/Artist%20-%20Song.wav",
+          }),
+        }),
+      );
+    });
+
+    it("rejects a non-R2 or non-lossless audio URL", async () => {
+      prisma.track.findFirst.mockResolvedValue({ id: "track-1" });
+
+      await expect(
+        service.updateCatalogTrack("track-1", {
+          fileUrlRemote: "https://example.com/song.mp3",
+        }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
   });
 
   describe("listArtists", () => {
@@ -120,6 +359,52 @@ describe("CatalogService", () => {
     });
   });
 
+  describe("listFeaturedTracks", () => {
+    it("ranks all-time plays while giving each artist one carousel spot first", async () => {
+      prisma.playHistory.groupBy.mockResolvedValue([
+        { trackId: "a1", _count: { trackId: 100 } },
+        { trackId: "a2", _count: { trackId: 90 } },
+        { trackId: "b1", _count: { trackId: 80 } },
+        { trackId: "c1", _count: { trackId: 70 } },
+      ]);
+      prisma.track.findMany.mockResolvedValue([
+        { id: "a1", artist: "Artist A", artistId: "artist-a" },
+        { id: "a2", artist: "Artist A", artistId: "artist-a" },
+        { id: "b1", artist: "Artist B", artistId: "artist-b" },
+        { id: "c1", artist: "Artist C", artistId: "artist-c" },
+      ]);
+
+      const result = await service.listFeaturedTracks("popular", 3);
+
+      expect(result.mode).toBe("popular");
+      expect(result.tracks.map((track) => track.id)).toEqual([
+        "a1",
+        "b1",
+        "c1",
+      ]);
+      expect(prisma.playHistory.groupBy).toHaveBeenCalledWith(
+        expect.objectContaining({ take: 250 }),
+      );
+    });
+
+    it("falls back to newest catalog tracks when nobody has played one yet", async () => {
+      prisma.playHistory.groupBy.mockResolvedValue([]);
+      prisma.track.findMany.mockResolvedValue([
+        { id: "new", artist: "New Artist", artistId: "new-artist" },
+      ]);
+
+      const result = await service.listFeaturedTracks("popular", 3);
+
+      expect(result.mode).toBe("recent");
+      expect(result.tracks.map((track) => track.id)).toEqual(["new"]);
+      expect(prisma.track.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          orderBy: [{ createdAt: "desc" }, { id: "asc" }],
+        }),
+      );
+    });
+  });
+
   describe("getArtist", () => {
     it("maps albums/tracks and includes bio", async () => {
       prisma.artist.findUnique.mockResolvedValue({
@@ -128,6 +413,8 @@ describe("CatalogService", () => {
         slug: "queen",
         imageUrl: "u",
         bio: "the band",
+        followers: [],
+        _count: { followers: 0 },
         albums: [
           {
             id: "al1",
@@ -137,9 +424,9 @@ describe("CatalogService", () => {
             _count: { tracks: 3 },
           },
         ],
-        tracks: [{ id: "t1", title: "Bicycle Race" }],
+        tracks: [{ id: "t1", title: "Bicycle Race", artist: "Queen" }],
       });
-      const result = await service.getArtist("a1");
+      const result = await service.getArtist("a1", "u1");
       expect(result.albums).toEqual([
         { id: "al1", title: "Jazz", coverArt: "c", year: 1978, trackCount: 3 },
       ]);
@@ -149,9 +436,42 @@ describe("CatalogService", () => {
 
     it("throws NotFound when the artist is missing", async () => {
       prisma.artist.findUnique.mockResolvedValue(null);
-      await expect(service.getArtist("ghost")).rejects.toBeInstanceOf(
+      await expect(service.getArtist("ghost", "u1")).rejects.toBeInstanceOf(
         NotFoundException,
       );
+    });
+
+    it("includes tracks linked through an album even when a legacy row lacks artistId", async () => {
+      const albumTrack = {
+        id: "legacy-track",
+        title: "Missing direct relation",
+        album: "Jazz",
+        albumOrder: 1,
+      };
+      prisma.artist.findUnique.mockResolvedValue({
+        id: "a1",
+        name: "Queen",
+        slug: "queen",
+        imageUrl: "u",
+        bio: null,
+        followers: [],
+        _count: { followers: 0 },
+        albums: [
+          {
+            id: "al1",
+            title: "Jazz",
+            coverArt: "c",
+            year: 1978,
+            tracks: [albumTrack],
+            _count: { tracks: 1 },
+          },
+        ],
+        tracks: [],
+      });
+
+      const result = await service.getArtist("a1", "u1");
+
+      expect(result.tracks).toEqual([albumTrack]);
     });
   });
 
@@ -171,6 +491,13 @@ describe("CatalogService", () => {
   });
 
   describe("createArtist", () => {
+    it("rejects a featuring string instead of creating a composite profile", async () => {
+      await expect(
+        service.createArtist({ name: "Sean Paul ft. Dua Lipa" }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(prisma.artist.create).not.toHaveBeenCalled();
+    });
+
     it("slugifies the name (accents stripped, spaces hyphenated)", async () => {
       prisma.artist.findFirst.mockResolvedValue(null); // no slug clash
       prisma.artist.create.mockImplementation(({ data }) => ({
@@ -181,6 +508,7 @@ describe("CatalogService", () => {
       expect(prisma.artist.create).toHaveBeenCalledWith({
         data: {
           name: "Maná Pop",
+          normalizedName: "manapop",
           slug: "mana-pop",
           imageUrl: null,
           bio: null,
@@ -252,7 +580,11 @@ describe("CatalogService", () => {
       prisma.artist.update.mockResolvedValue({});
       await service.updateArtist("a1", { name: "Queen", bio: "x" });
       // uniqueSlug probes via findFirst — should never be called here.
-      expect(prisma.artist.findFirst).not.toHaveBeenCalled();
+      expect(prisma.artist.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { normalizedName: "queen", id: { not: "a1" } },
+        }),
+      );
       expect(prisma.artist.update).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({ slug: undefined }),
@@ -270,6 +602,19 @@ describe("CatalogService", () => {
           data: expect.objectContaining({ slug: "the-beatles" }),
         }),
       );
+    });
+
+    it("keeps the existing artist profile and its tracks when renamed", async () => {
+      prisma.artist.findUnique.mockResolvedValue({ id: "a1", name: "Maroon5" });
+      prisma.artist.findFirst.mockResolvedValue(null);
+      prisma.artist.update.mockResolvedValue({ id: "a1", name: "Maroon 5" });
+
+      await service.updateArtist("a1", { name: "Maroon 5" });
+
+      expect(prisma.track.updateMany).toHaveBeenCalledWith({
+        where: { artistId: "a1" },
+        data: { artist: "Maroon 5" },
+      });
     });
   });
 
@@ -311,7 +656,12 @@ describe("CatalogService", () => {
 
     it("detaches removed tracks and renumbers the rest in a transaction", async () => {
       prisma.album.findUnique
-        .mockResolvedValueOnce({ id: "al1", artistId: "a1" }) // existence check
+        .mockResolvedValueOnce({
+          id: "al1",
+          title: "Jazz",
+          artistId: "a1",
+          coverArt: "jazz-cover",
+        }) // existence check
         .mockResolvedValueOnce({ id: "al1", tracks: [], artist: {} }); // getAlbum
       prisma.$transaction.mockResolvedValue([]);
       prisma.track.updateMany.mockReturnValue("detach-op");
@@ -322,16 +672,28 @@ describe("CatalogService", () => {
       // Detach query excludes the kept ids.
       expect(prisma.track.updateMany).toHaveBeenCalledWith({
         where: { albumId: "al1", id: { notIn: ["t1", "t2"] } },
-        data: { albumId: null, albumOrder: null },
+        data: { albumId: null, albumOrder: null, album: "", coverArt: null },
       });
       // Each kept track is renumbered 1..n and re-linked to the artist.
       expect(prisma.track.update).toHaveBeenCalledWith({
         where: { id: "t1" },
-        data: { albumId: "al1", albumOrder: 1, artistId: "a1" },
+        data: {
+          albumId: "al1",
+          albumOrder: 1,
+          artistId: "a1",
+          album: "Jazz",
+          coverArt: "jazz-cover",
+        },
       });
       expect(prisma.track.update).toHaveBeenCalledWith({
         where: { id: "t2" },
-        data: { albumId: "al1", albumOrder: 2, artistId: "a1" },
+        data: {
+          albumId: "al1",
+          albumOrder: 2,
+          artistId: "a1",
+          album: "Jazz",
+          coverArt: "jazz-cover",
+        },
       });
       expect(prisma.$transaction).toHaveBeenCalledTimes(1);
     });
@@ -348,11 +710,16 @@ describe("CatalogService", () => {
     it("passes null albumId through to unassign, but undefined leaves it untouched", async () => {
       prisma.track.findUnique.mockResolvedValue({ id: "t1" });
       prisma.track.update.mockResolvedValue({});
+      prisma.track.findUniqueOrThrow.mockResolvedValue({});
 
       await service.assignTrack("t1", { albumId: null });
       expect(prisma.track.update).toHaveBeenCalledWith(
         expect.objectContaining({
-          data: expect.objectContaining({ albumId: null }),
+          data: expect.objectContaining({
+            albumId: null,
+            album: "",
+            coverArt: null,
+          }),
         }),
       );
 
@@ -361,6 +728,33 @@ describe("CatalogService", () => {
       expect(prisma.track.update).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({ albumId: undefined, albumOrder: 3 }),
+        }),
+      );
+    });
+
+    it("always inherits the assigned album cover", async () => {
+      prisma.track.findUnique.mockResolvedValue({ id: "t1" });
+      prisma.album.findUnique.mockResolvedValue({
+        id: "al1",
+        title: "Jazz",
+        artistId: "a1",
+        coverArt: "album-cover",
+      });
+      prisma.track.update.mockResolvedValue({});
+      prisma.track.findUniqueOrThrow.mockResolvedValue({ id: "t1" });
+
+      await service.assignTrack("t1", {
+        albumId: "al1",
+      });
+
+      expect(prisma.track.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            artistId: "a1",
+            albumId: "al1",
+            album: "Jazz",
+            coverArt: "album-cover",
+          }),
         }),
       );
     });
@@ -375,13 +769,63 @@ describe("CatalogService", () => {
     });
 
     it("returns only flags and never echoes the lyrics content", async () => {
-      prisma.track.findUnique.mockResolvedValue({ id: "t1" });
+      prisma.track.findUnique.mockResolvedValue({
+        id: "t1",
+        title: "Window Shopper",
+        artist: "50 Cent",
+        artistRef: { name: "50 Cent" },
+      });
       prisma.track.update.mockResolvedValue({});
       const result = await service.updateLyrics("t1", {
         lyricsText: "secret words",
       });
       expect(result).toEqual({ updated: true, hasLrc: false, hasText: true });
       expect(JSON.stringify(result)).not.toContain("secret words");
+      expect(
+        (
+          service as unknown as {
+            storage: { uploadLyrics: jest.Mock };
+          }
+        ).storage.uploadLyrics,
+      ).toHaveBeenCalledWith("50 Cent", "Window Shopper", "secret words");
+    });
+
+    it("links an existing Cloudflare LRC without downloading or duplicating it", async () => {
+      prisma.track.findUnique.mockResolvedValue({
+        id: "t1",
+        title: "Window Shopper",
+        artist: "50 Cent",
+        artistRef: { name: "50 Cent" },
+      });
+      prisma.track.update.mockResolvedValue({});
+      const result = await service.updateLyrics("t1", {
+        lyricsUrl:
+          "https://lyrics.example.r2.dev/50%20Cent%20-%20Window%20Shopper.lrc",
+      });
+
+      expect(result).toEqual({
+        updated: true,
+        hasLrc: true,
+        hasText: false,
+        lyricsUrl:
+          "https://lyrics.example.r2.dev/50%20Cent%20-%20Window%20Shopper.lrc",
+      });
+      expect(prisma.track.update).toHaveBeenCalledWith({
+        where: { id: "t1" },
+        data: {
+          lyricsUrl:
+            "https://lyrics.example.r2.dev/50%20Cent%20-%20Window%20Shopper.lrc",
+          lyricsLrc: null,
+          lyricsText: null,
+        },
+      });
+      expect(
+        (
+          service as unknown as {
+            storage: { uploadLyrics: jest.Mock };
+          }
+        ).storage.uploadLyrics,
+      ).not.toHaveBeenCalled();
     });
   });
 

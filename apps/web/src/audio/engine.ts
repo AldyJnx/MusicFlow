@@ -37,8 +37,9 @@ export class AudioEngine {
   private currentTrackUrl: string | null = null;
   private loadRequestId = 0;
 
-  // Hidden element used to warm the HTTP cache for the next track in the queue,
-  // so switching tracks starts almost instantly.
+  // Hidden element used to warm the connection and metadata for the next
+  // track. Catalog WAV/FLAC masters can be tens of megabytes, so it must never
+  // compete with the active song by downloading the full next file.
   private prefetchAudio: HTMLAudioElement | null = null;
   private prefetchedUrl: string | null = null;
 
@@ -98,7 +99,7 @@ export class AudioEngine {
     if (!this.prefetchAudio) {
       this.prefetchAudio = new Audio();
       this.prefetchAudio.crossOrigin = "anonymous";
-      this.prefetchAudio.preload = "auto";
+      this.prefetchAudio.preload = "metadata";
     }
     this.prefetchAudio.src = url;
     this.prefetchAudio.load();
@@ -117,15 +118,22 @@ export class AudioEngine {
     this.audio.src = url;
     this.audio.load();
     await new Promise<void>((resolve, reject) => {
-      const onLoaded = () => {
+      const timeout = window.setTimeout(() => {
+        cleanup();
+        reject(new Error("Track load timed out"));
+      }, 15_000);
+      const cleanup = () => {
+        window.clearTimeout(timeout);
         this.audio.removeEventListener("loadedmetadata", onLoaded);
         this.audio.removeEventListener("error", onError);
+      };
+      const onLoaded = () => {
+        cleanup();
         if (requestId === this.loadRequestId) resolve();
         else reject(new DOMException("Track load superseded", "AbortError"));
       };
       const onError = () => {
-        this.audio.removeEventListener("loadedmetadata", onLoaded);
-        this.audio.removeEventListener("error", onError);
+        cleanup();
         if (requestId === this.loadRequestId) {
           reject(new Error("Failed to load track"));
         } else {

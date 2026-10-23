@@ -57,6 +57,24 @@ class AuthController extends StateNotifier<AuthState> {
     state = AuthState(user: session.user, isInitializing: false);
   }
 
+  /// Completes a native Google sign-in: the platform SDK returns an ID token
+  /// and the backend exchanges it for the regular MusicFlow session.
+  Future<void> signInWithGoogle() async {
+    final idToken = await _ref
+        .read(googleSignInServiceProvider)
+        .requestIdToken();
+    final session = await _ref
+        .read(authRepositoryProvider)
+        .exchangeGoogleToken(idToken);
+    await _ref
+        .read(tokenStorageProvider)
+        .saveTokens(
+          accessToken: session.accessToken,
+          refreshToken: session.refreshToken,
+        );
+    state = AuthState(user: session.user, isInitializing: false);
+  }
+
   Future<void> refreshCurrentUser() async {
     if (!state.isAuthenticated) return;
     try {
@@ -84,6 +102,7 @@ class AuthController extends StateNotifier<AuthState> {
   }
 
   Future<void> logout() async {
+    await _ref.read(googleSignInServiceProvider).signOut();
     try {
       await _ref.read(authRepositoryProvider).logout();
     } catch (_) {

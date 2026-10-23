@@ -69,6 +69,20 @@ export class ConfigsService {
       reverbAmount?: number;
     },
   ) {
+    // A playlist/library configuration can reference a saved preset. Persist
+    // the preset's actual curve as a snapshot so resolving playback never
+    // yields the previous empty `bands: []` placeholder.
+    const preset = data.presetId
+      ? await this.prisma.eQPreset.findFirst({
+          where: {
+            id: data.presetId,
+            OR: [{ userId }, { isGlobal: true }],
+          },
+        })
+      : null;
+    if (data.presetId && !preset) {
+      throw new NotFoundException("EQ preset not found");
+    }
     const existing = await this.prisma.eQConfig.findFirst({
       where: {
         userId,
@@ -79,12 +93,13 @@ export class ConfigsService {
 
     const configData = {
       presetId: data.presetId,
-      bands: data.bands ?? [],
-      bassBoost: data.bassBoost ?? 0,
-      virtualizer: data.virtualizer ?? 0,
-      loudness: data.loudness ?? 0,
-      reverbPreset: (data.reverbPreset as ReverbPreset) ?? "NONE",
-      reverbAmount: data.reverbAmount ?? 0,
+      bands: data.bands ?? preset?.bands ?? [],
+      bassBoost: data.bassBoost ?? preset?.bassBoost ?? 0,
+      virtualizer: data.virtualizer ?? preset?.virtualizer ?? 0,
+      loudness: data.loudness ?? preset?.loudness ?? 0,
+      reverbPreset:
+        (data.reverbPreset as ReverbPreset) ?? preset?.reverbPreset ?? "NONE",
+      reverbAmount: data.reverbAmount ?? preset?.reverbAmount ?? 0,
     };
 
     if (existing) {

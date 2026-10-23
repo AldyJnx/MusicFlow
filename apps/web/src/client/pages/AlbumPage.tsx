@@ -21,13 +21,19 @@ import AnimatedList from "../../shared/ui/reactbits/AnimatedList";
 import SplitText from "../../shared/ui/reactbits/SplitText";
 import { useSavedCheckQuery } from "../../shared/hooks/useLibrarySaves";
 import { usePlayerStore, type PlayerTrack } from "../stores/playStore";
+import {
+  formatTrackArtist,
+  toPlayerFeaturedArtists,
+} from "../../shared/utils/trackArtist";
 
 function toPlayerTrack(t: CatalogTrackCard): PlayerTrack | null {
   if (!t.fileUrlRemote) return null;
   return {
     id: t.id,
     title: t.title,
-    artist: t.artist,
+    artistProfileName: t.artist,
+    artist: formatTrackArtist(t.artist, t.featuredArtists),
+    featuredArtists: toPlayerFeaturedArtists(t.featuredArtists),
     cover: t.coverArt,
     url: t.fileUrlRemote,
     durationMs: t.durationMs,

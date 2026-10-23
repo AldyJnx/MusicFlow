@@ -10,7 +10,12 @@ import { googleCast } from "../../shared/cast/googleCast";
 export interface PlayerTrack {
   id: string;
   title: string;
+  /** Canonical main artist used for profile navigation. */
+  artistProfileName?: string;
+  /** Display label; may include non-profile featuring credits. */
   artist: string;
+  /** Ordered guests. A null id represents an unregistered, non-clickable name. */
+  featuredArtists?: Array<{ artistName: string; artistId?: string | null }>;
   cover?: string | null;
   url: string;
   durationMs: number;
@@ -378,6 +383,12 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
         if (get().playbackTarget === "cast") {
           googleCast.togglePlay();
           set((state) => ({ isPlaying: !state.isPlaying }));
+          return;
+        }
+        // After a page reload Zustand restores the track metadata, but the
+        // browser audio element has no source yet. Load it before toggling.
+        if (!getAudioEngine().getStatus().durationMs) {
+          await loadAndPlay(currentTrack);
           return;
         }
         await getAudioEngine().toggle();

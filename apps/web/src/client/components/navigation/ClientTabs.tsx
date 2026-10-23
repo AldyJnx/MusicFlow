@@ -24,7 +24,7 @@ const TABS: TabSpec[] = [
   {
     to: "/library",
     labelKey: "tabs.library",
-    defaultLabel: "Biblioteca",
+    defaultLabel: "Catálogo",
     icon: <Library className="h-4 w-4" strokeWidth={2.2} />,
   },
   {

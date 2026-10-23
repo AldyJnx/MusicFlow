@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Controller,
   Delete,
   Get,
@@ -56,9 +57,23 @@ export class CatalogController {
     return this.catalog.listTrendingTracks(Number(limit ?? 5));
   }
 
+  @Get("featured")
+  @ApiQuery({ name: "mode", required: false, enum: ["popular", "recent"] })
+  @ApiQuery({ name: "limit", required: false, type: Number, example: 8 })
+  listFeaturedTracks(
+    @Query("mode") mode?: string,
+    @Query("limit") limit?: string,
+  ) {
+    if (mode && mode !== "popular" && mode !== "recent") {
+      throw new BadRequestException("mode must be popular or recent");
+    }
+    const featuredMode = mode === "recent" ? "recent" : "popular";
+    return this.catalog.listFeaturedTracks(featuredMode, Number(limit ?? 8));
+  }
+
   @Get("artists/:id")
-  getArtist(@Param("id") id: string) {
-    return this.catalog.getArtist(id);
+  getArtist(@CurrentUser("id") userId: string, @Param("id") id: string) {
+    return this.catalog.getArtist(id, userId);
   }
 
   @Post("artists/:id/follow")

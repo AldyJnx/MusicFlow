@@ -124,13 +124,20 @@ export class AnalyticsService {
   }
 
   async computeStats(userId: string, period: StatsPeriod, periodStart: Date) {
-    const plays = await this.prisma.playHistory.findMany({
-      where: {
-        userId,
-        playedAt: { gte: periodStart },
-      },
-      include: { track: true },
-    });
+    const [plays, latestFollowedArtist] = await Promise.all([
+      this.prisma.playHistory.findMany({
+        where: {
+          userId,
+          playedAt: { gte: periodStart },
+        },
+        include: { track: true },
+      }),
+      this.prisma.artistFollow.findFirst({
+        where: { userId },
+        orderBy: { createdAt: "desc" },
+        select: { artist: { select: { id: true, name: true } } },
+      }),
+    ]);
 
     const trackCounts = new Map<string, { count: number; track: Track }>();
     const artistCounts = new Map<string, number>();
@@ -187,6 +194,7 @@ export class AnalyticsService {
       totalTimeMs,
       uniqueTracks: trackCounts.size,
       uniqueArtists: artistCounts.size,
+      latestFollowedArtist: latestFollowedArtist?.artist ?? null,
       topTracks,
       topArtists,
       topAlbums,

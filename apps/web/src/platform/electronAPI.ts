@@ -18,6 +18,18 @@ interface ElectronBridge {
   platform: "desktop";
   scanMusicFolder(): Promise<ScanResult | null>;
   readMusicFile(absolutePath: string): Promise<ArrayBuffer | Uint8Array>;
+  authSession: {
+    load(): Promise<string | null>;
+    save(serializedSession: string): Promise<void>;
+    clear(): Promise<void>;
+  };
+  windowControls: {
+    minimize(): Promise<void>;
+    toggleMaximize(): Promise<boolean>;
+    close(): Promise<void>;
+    isMaximized(): Promise<boolean>;
+    onMaximizedChange(callback: (isMaximized: boolean) => void): () => void;
+  };
 }
 
 declare global {

@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import ExpandedPlayer from "../features/player/ExpandedPlayer";
 import MiniPlayer from "../features/player/MiniPlayer";
 import EqDrawer from "../features/player/EqDrawer";
@@ -11,7 +12,10 @@ import ClientSidebar from "../components/navigation/ClientSidebar";
 import AnimatedBackground from "../components/AnimatedBackground";
 import RightPanel from "../components/RightPanel";
 import AIAssistantFab from "../components/AIAssistantFab";
-import ImportModal from "../features/import/ImportModal";
+import CreateLibraryModal, {
+  EditLibraryModal,
+} from "../features/playlists/CreateLibraryModal";
+import type { Playlist } from "../../shared/api/playlists";
 import CommandPalette from "../features/command-palette/CommandPalette";
 import { usePlayerStore } from "../stores/playStore";
 import { useSegmentEngineSync } from "../../shared/hooks/useTrackSegments";
@@ -21,11 +25,15 @@ import { useRecordPlays } from "../../shared/hooks/useAnalytics";
 export default function ClientLayout({ children }: { children: ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
   const [rightCollapsed, setRightCollapsed] = useState(true);
-  const [importOpen, setImportOpen] = useState(false);
+  const [createLibraryOpen, setCreateLibraryOpen] = useState(false);
+  const [editingLibrary, setEditingLibrary] = useState<Playlist | null>(null);
+  const [deleteLibraryOpen, setDeleteLibraryOpen] = useState(false);
   const [isDesktop, setIsDesktop] = useState(
     () => window.matchMedia("(min-width: 1024px)").matches,
   );
   const navbarRef = useRef<NavbarRef>(null);
+  const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
     const media = window.matchMedia("(min-width: 1024px)");
@@ -56,7 +64,15 @@ export default function ClientLayout({ children }: { children: ReactNode }) {
         collapsed={collapsed}
         onToggleCollapse={() => setCollapsed((c) => !c)}
         onFocusSearch={() => navbarRef.current?.focusSearch()}
-        onOpenImport={() => setImportOpen(true)}
+        onOpenCreateLibrary={() => setCreateLibraryOpen(true)}
+        onEditLibrary={(playlist) => {
+          setDeleteLibraryOpen(false);
+          setEditingLibrary(playlist);
+        }}
+        onDeleteLibrary={(playlist) => {
+          setDeleteLibraryOpen(true);
+          setEditingLibrary(playlist);
+        }}
       />
       <div
         className="relative z-10 flex min-h-screen min-w-0 flex-1 flex-col transition-[margin] duration-300"
@@ -84,8 +100,24 @@ export default function ClientLayout({ children }: { children: ReactNode }) {
       <AIAssistantFab />
       <QueueDrawer />
       <UpgradeModal />
-      <ImportModal open={importOpen} onClose={() => setImportOpen(false)} />
-      <CommandPalette onOpenImport={() => setImportOpen(true)} />
+      <CreateLibraryModal
+        open={createLibraryOpen}
+        onClose={() => setCreateLibraryOpen(false)}
+      />
+      <EditLibraryModal
+        playlist={editingLibrary}
+        startDelete={deleteLibraryOpen}
+        onClose={() => {
+          setEditingLibrary(null);
+          setDeleteLibraryOpen(false);
+        }}
+        onDeleted={(playlistId) => {
+          if (location.pathname === `/playlists/${playlistId}`) {
+            navigate("/inicio", { replace: true });
+          }
+        }}
+      />
+      <CommandPalette />
     </div>
   );
 }

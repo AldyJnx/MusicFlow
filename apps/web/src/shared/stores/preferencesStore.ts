@@ -52,6 +52,16 @@ const STORAGE_KEYS = {
   tabs: "musicflow-tabs",
 } as const;
 
+// Personalization must be owned by the authenticated account, not the browser
+// origin. A browser can legitimately have an admin and a listener open at the
+// same time; shared unscoped keys made their themes overwrite each other.
+const preferenceStorage = localStorage;
+let activePreferenceOwner = "anonymous";
+
+function scopedKey(key: string): string {
+  return `${key}:${activePreferenceOwner}`;
+}
+
 const DEFAULTS: PreferencesState = {
   theme: "midnight-neon",
   language: "es",
@@ -87,7 +97,7 @@ const actions: PreferencesActions = {
   setTheme(theme) {
     updateState({ theme });
     reapplyTheme();
-    localStorage.setItem(STORAGE_KEYS.theme, theme);
+    preferenceStorage.setItem(scopedKey(STORAGE_KEYS.theme), theme);
   },
   setLanguage(language) {
     updateState({ language });
@@ -98,35 +108,35 @@ const actions: PreferencesActions = {
     updateState({ accentOverride: normalized });
     reapplyTheme();
     if (normalized) {
-      localStorage.setItem(STORAGE_KEYS.accent, normalized);
+      preferenceStorage.setItem(scopedKey(STORAGE_KEYS.accent), normalized);
     } else {
-      localStorage.removeItem(STORAGE_KEYS.accent);
+      preferenceStorage.removeItem(scopedKey(STORAGE_KEYS.accent));
     }
   },
   setDensity(density) {
     updateState({ density });
     reapplyTheme();
-    localStorage.setItem(STORAGE_KEYS.density, density);
+    preferenceStorage.setItem(scopedKey(STORAGE_KEYS.density), density);
   },
   setHeroVariant(variant) {
     updateState({ heroVariant: variant });
-    localStorage.setItem(STORAGE_KEYS.hero, variant);
+    preferenceStorage.setItem(scopedKey(STORAGE_KEYS.hero), variant);
   },
   setSidebarLayout(layout) {
     updateState({ sidebarLayout: layout });
-    localStorage.setItem(STORAGE_KEYS.sidebar, layout);
+    preferenceStorage.setItem(scopedKey(STORAGE_KEYS.sidebar), layout);
   },
   setPlayerLayout(layout) {
     updateState({ playerLayout: layout });
-    localStorage.setItem(STORAGE_KEYS.player, layout);
+    preferenceStorage.setItem(scopedKey(STORAGE_KEYS.player), layout);
   },
   setShowWave(show) {
     updateState({ showWave: show });
-    localStorage.setItem(STORAGE_KEYS.wave, show ? "1" : "0");
+    preferenceStorage.setItem(scopedKey(STORAGE_KEYS.wave), show ? "1" : "0");
   },
   setTabsLayout(layout) {
     updateState({ tabsLayout: layout });
-    localStorage.setItem(STORAGE_KEYS.tabs, layout);
+    preferenceStorage.setItem(scopedKey(STORAGE_KEYS.tabs), layout);
   },
   resetPersonalization() {
     updateState({
@@ -139,13 +149,13 @@ const actions: PreferencesActions = {
       tabsLayout: DEFAULTS.tabsLayout,
     });
     reapplyTheme();
-    localStorage.removeItem(STORAGE_KEYS.accent);
-    localStorage.removeItem(STORAGE_KEYS.density);
-    localStorage.removeItem(STORAGE_KEYS.hero);
-    localStorage.removeItem(STORAGE_KEYS.sidebar);
-    localStorage.removeItem(STORAGE_KEYS.player);
-    localStorage.removeItem(STORAGE_KEYS.wave);
-    localStorage.removeItem(STORAGE_KEYS.tabs);
+    preferenceStorage.removeItem(scopedKey(STORAGE_KEYS.accent));
+    preferenceStorage.removeItem(scopedKey(STORAGE_KEYS.density));
+    preferenceStorage.removeItem(scopedKey(STORAGE_KEYS.hero));
+    preferenceStorage.removeItem(scopedKey(STORAGE_KEYS.sidebar));
+    preferenceStorage.removeItem(scopedKey(STORAGE_KEYS.player));
+    preferenceStorage.removeItem(scopedKey(STORAGE_KEYS.wave));
+    preferenceStorage.removeItem(scopedKey(STORAGE_KEYS.tabs));
   },
 };
 
@@ -166,40 +176,44 @@ function readEnum<T extends string>(
   allowed: readonly T[],
   fallback: T,
 ): T {
-  const raw = localStorage.getItem(key);
+  const raw = preferenceStorage.getItem(key);
   return (allowed as readonly string[]).includes(raw ?? "")
     ? (raw as T)
     : fallback;
 }
 
 export function initializePreferences() {
-  const savedTheme = normalizeThemeId(localStorage.getItem(STORAGE_KEYS.theme));
+  const savedTheme = normalizeThemeId(
+    preferenceStorage.getItem(scopedKey(STORAGE_KEYS.theme)),
+  );
   const savedLang =
-    (localStorage.getItem(STORAGE_KEYS.language) as AppLanguage | null) ?? "es";
-  const savedAccent = localStorage.getItem(STORAGE_KEYS.accent);
+    (preferenceStorage.getItem(
+      scopedKey(STORAGE_KEYS.language),
+    ) as AppLanguage | null) ?? "es";
+  const savedAccent = preferenceStorage.getItem(scopedKey(STORAGE_KEYS.accent));
   const savedDensity = readEnum<AppDensity>(
-    STORAGE_KEYS.density,
+    scopedKey(STORAGE_KEYS.density),
     ["comfortable", "compact"] as const,
     DEFAULTS.density,
   );
   const savedHero = readEnum<HeroVariant>(
-    STORAGE_KEYS.hero,
+    scopedKey(STORAGE_KEYS.hero),
     ["featured-track", "featured-playlist", "off"] as const,
     DEFAULTS.heroVariant,
   );
   const savedSidebar = readEnum<SidebarLayout>(
-    STORAGE_KEYS.sidebar,
+    scopedKey(STORAGE_KEYS.sidebar),
     ["numbered", "playlists", "both"] as const,
     DEFAULTS.sidebarLayout,
   );
   const savedPlayer = readEnum<PlayerLayout>(
-    STORAGE_KEYS.player,
+    scopedKey(STORAGE_KEYS.player),
     ["compact", "expanded", "auto"] as const,
     DEFAULTS.playerLayout,
   );
-  const savedWave = localStorage.getItem(STORAGE_KEYS.wave);
+  const savedWave = preferenceStorage.getItem(scopedKey(STORAGE_KEYS.wave));
   const savedTabs = readEnum<TabsLayout>(
-    STORAGE_KEYS.tabs,
+    scopedKey(STORAGE_KEYS.tabs),
     ["full", "icons", "off"] as const,
     DEFAULTS.tabsLayout,
   );
@@ -219,7 +233,16 @@ export function initializePreferences() {
     density: state.density,
   });
   // Persist the normalized id so future reads skip the legacy alias path.
-  localStorage.setItem(STORAGE_KEYS.theme, savedTheme);
+  preferenceStorage.setItem(scopedKey(STORAGE_KEYS.theme), savedTheme);
+}
+
+/** Switches the persisted preference namespace when the authenticated account changes. */
+export function setPreferencesOwner(userId: string | null | undefined) {
+  const nextOwner = userId || "anonymous";
+  if (nextOwner === activePreferenceOwner) return;
+  activePreferenceOwner = nextOwner;
+  initializePreferences();
+  emitChange();
 }
 
 export function usePreferencesStore<T>(

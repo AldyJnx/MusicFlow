@@ -13,6 +13,7 @@ import { MailService } from "@/modules/mail/mail.service";
 import { RegisterDto } from "./dto/register.dto";
 import { LoginDto } from "./dto/login.dto";
 import { GoogleIdentity } from "./strategies/google.strategy";
+import { GoogleIdTokenVerifier } from "./google-id-token.verifier";
 
 export interface JwtPayload {
   sub: string;
@@ -74,6 +75,7 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
     private readonly mailService: MailService,
+    private readonly googleIdTokenVerifier: GoogleIdTokenVerifier,
   ) {}
 
   async register(dto: RegisterDto): Promise<AuthSession> {
@@ -199,6 +201,18 @@ export class AuthService {
 
       return ticket.user;
     });
+
+    return { ...this.generateTokens(user), user: toSafeUser(user) };
+  }
+
+  /**
+   * Signs in a native client that already performed the Google consent flow
+   * on-device. The ID token is verified against Google's public keys, so this
+   * path needs no redirect, no cookies and no one-time ticket.
+   */
+  async signInWithGoogleIdToken(idToken: string): Promise<AuthSession> {
+    const identity = await this.googleIdTokenVerifier.verify(idToken);
+    const user = await this.findOrCreateGoogleUser(identity);
 
     return { ...this.generateTokens(user), user: toSafeUser(user) };
   }
@@ -333,7 +347,9 @@ export class AuthService {
       return this.prisma.user.update({
         where: { id: existing.id },
         data: {
-          avatar: existing.avatar ?? identity.avatar,
+          // Empty strings were used by the old avatar-delete flow. Treat them
+          // like no avatar so a later Google login restores the provider photo.
+          avatar: existing.avatar?.trim() ? existing.avatar : identity.avatar,
           lastLogin: new Date(),
           lastActiveAt: new Date(),
           reengagementNotifiedAt: null,

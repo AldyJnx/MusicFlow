@@ -17,6 +17,7 @@ datasource db {
 
 enum UserRole {
   ADMIN
+  ARTIST
   CLIENT
 }
 
@@ -57,6 +58,7 @@ model User {
   eqConfigs                 EQConfig[]
   eqSegments                EQSegment[]
   aiRequests                AIRequest[]
+  catalogAiRuns             CatalogAiRun[]
   playHistory               PlayHistory[]
   listeningStats            ListeningStats[]
   syncLogs                  SyncLog[]
@@ -74,11 +76,11 @@ model User {
 /// Short-lived, single-use codes exchanged by the web client after a provider
 /// callback. They prevent access and refresh tokens from being put in URLs.
 model OAuthLoginTicket {
-  id        String    @id
-  userId    String    @map("user_id")
-  expiresAt DateTime  @map("expires_at")
+  id         String    @id
+  userId     String    @map("user_id")
+  expiresAt  DateTime  @map("expires_at")
   consumedAt DateTime? @map("consumed_at")
-  createdAt DateTime  @default(now()) @map("created_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -147,18 +149,21 @@ model Track {
   durationMs  Int    @map("duration_ms")
 
   // Files
-  filePathLocal String? @map("file_path_local")
-  fileUrlRemote String? @map("file_url_remote")
-  fileHash      String  @map("file_hash")
-  fileSizeBytes BigInt? @map("file_size_bytes")
-  codec         String  @default("")
-  bitrate       Int?
-  sampleRate    Int?    @map("sample_rate")
-  coverArt      String? @map("cover_art")
+  filePathLocal     String? @map("file_path_local")
+  fileUrlRemote     String? @map("file_url_remote")
+  // The lossless source is retained when the streaming URL is replaced with a
+  // compressed asset. This keeps catalog transcodes reversible and idempotent.
+  originalUrlRemote String? @map("original_url_remote")
+  fileHash          String  @map("file_hash")
+  fileSizeBytes     BigInt? @map("file_size_bytes")
+  codec             String  @default("")
+  bitrate           Int?
+  sampleRate        Int?    @map("sample_rate")
+  coverArt          String? @map("cover_art")
   // Public URL of the artist's image (served from the images bucket under
   // `artists/`). Denormalised onto the track so artist lists/pages can show a
   // real photo without a separate Artist table.
-  artistImage   String? @map("artist_image")
+  artistImage       String? @map("artist_image")
 
   // Pre-computed waveform peaks for fast client-side rendering. Shape:
   // { v: 1, n: 2000, peaks: number[] }  // normalized -1..1 max-per-bucket
@@ -171,6 +176,9 @@ model Track {
   // `lyricsText` holds plain text as a fallback (no time sync).
   lyricsLrc  String? @map("lyrics_lrc") @db.Text
   lyricsText String? @map("lyrics_text") @db.Text
+  // Existing Cloudflare R2 LRC selected by an administrator. This is a
+  // reference only: the object is never copied into another R2 key.
+  lyricsUrl  String? @map("lyrics_url") @db.Text
 
   // Catalog visibility. When `isCatalog` is true the track is published in
   // the global Spotify-style catalog: every authenticated user can stream it
@@ -204,6 +212,7 @@ model Track {
   playHistory               PlayHistory[]
   librarySaves              UserLibrarySave[]
   recommendationImpressions RecommendationImpression[]
+  featuredArtists           TrackFeaturedArtist[]
 
   @@unique([userId, fileHash])
   @@index([artist])
@@ -221,21 +230,32 @@ model Track {
 
 /// Admin-curated artist in the online catalog. Owns albums and tracks.
 model Artist {
-  id        String   @id @default(uuid())
-  name      String   @unique
-  slug      String   @unique
-  imageUrl  String?  @map("image_url")
-  bio       String?  @db.Text
+  id             String   @id @default(uuid())
+  name           String   @unique
+  normalizedName String   @unique @map("normalized_name")
+  slug           String   @unique
+  imageUrl       String?  @map("image_url")
+  bio            String?  @db.Text
   // An artist can be tagged with several musical genres.
-  genres    String[] @default([])
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  genres         String[] @default([])
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
 
-  albums    Album[]
-  tracks    Track[]
-  followers ArtistFollow[]
+  albums     Album[]
+  tracks     Track[]
+  followers  ArtistFollow[]
+  featuredOn TrackFeaturedArtist[] @relation("FeaturedCatalogArtist")
 
   @@map("artists")
+}
+
+/// Tombstone written by an admin deletion. R2 is an asset source, never the
+/// authority for restoring a catalog artist that an admin intentionally hid.
+model DeletedCatalogArtist {
+  normalizedName String   @id @map("normalized_name")
+  deletedAt      DateTime @default(now()) @map("deleted_at")
+
+  @@map("deleted_catalog_artists")
 }
 
 enum ArtistFollowSource {
@@ -290,6 +310,25 @@ model Album {
   @@unique([artistId, title])
   @@index([artistId])
   @@map("albums")
+}
+
+/// A guest collaborator credited on a specific catalog track. The textual
+/// credit remains available even when the guest has no Artist catalog profile.
+model TrackFeaturedArtist {
+  id         String   @id @default(uuid())
+  trackId    String   @map("track_id")
+  artistName String   @map("artist_name")
+  artistId   String?  @map("artist_id")
+  position   Int      @default(0)
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  track  Track   @relation(fields: [trackId], references: [id], onDelete: Cascade)
+  artist Artist? @relation("FeaturedCatalogArtist", fields: [artistId], references: [id], onDelete: SetNull)
+
+  @@unique([trackId, artistName])
+  @@index([artistId])
+  @@index([trackId, position])
+  @@map("track_featured_artists")
 }
 
 model Playlist {
@@ -510,8 +549,115 @@ model AIRequest {
   segments EQSegment[]
 
   @@index([userId, createdAt(sort: Desc)])
+  @@index([createdAt(sort: Desc)])
   @@index([feedback, createdAt(sort: Desc)])
   @@map("ai_requests")
+}
+
+// ===========================================
+// CATALOG AI (admin-only, NVIDIA NIM)
+// ===========================================
+
+/// Deliberately separate from `AIRequest`: that model backs the end-user
+/// player assistant, is metered by the monthly AI quota and feeds the
+/// /admin/ai/costs report. Reusing it here would make admin catalog runs
+/// consume the end-user quota and pollute those metrics.
+enum CatalogAiTask {
+  ALBUM_YEAR
+  TRACK_ALBUM_MATCH
+  MISSING_LYRICS
+  MISSING_ARTIST_IMAGE
+}
+
+enum CatalogAiFindingStatus {
+  PROPOSED
+  APPROVED
+  REJECTED
+  APPLIED
+  FAILED
+}
+
+enum CatalogAiRunStatus {
+  COMPLETED
+  PARTIAL
+  FAILED
+  UNAVAILABLE
+}
+
+enum CatalogAiConfidence {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum CatalogAiEntityType {
+  ALBUM
+  TRACK
+  ARTIST
+}
+
+model CatalogAiRun {
+  id String @id @default(uuid())
+
+  task   CatalogAiTask
+  status CatalogAiRunStatus @default(COMPLETED)
+  /// Free-tier endpoints are best effort, so the failure reason is surfaced to
+  /// the admin instead of being swallowed into a 500.
+  error  String             @default("")
+
+  modelUsed String @map("model_used")
+
+  totalItems Int @default(0) @map("total_items")
+  proposed   Int @default(0)
+  applied    Int @default(0)
+  rejected   Int @default(0)
+  failed     Int @default(0)
+
+  tokensInput    Int @default(0) @map("tokens_input")
+  tokensOutput   Int @default(0) @map("tokens_output")
+  responseTimeMs Int @default(0) @map("response_time_ms")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  actor    User               @relation(fields: [actorId], references: [id], onDelete: Cascade)
+  actorId  String             @map("actor_id")
+  findings CatalogAiFinding[]
+
+  @@index([task, createdAt(sort: Desc)])
+  @@index([actorId, createdAt(sort: Desc)])
+  @@map("catalog_ai_runs")
+}
+
+model CatalogAiFinding {
+  id String @id @default(uuid())
+
+  run    CatalogAiRun           @relation(fields: [runId], references: [id], onDelete: Cascade)
+  runId  String                 @map("run_id")
+  status CatalogAiFindingStatus @default(PROPOSED)
+
+  entityType CatalogAiEntityType @map("entity_type")
+  entityId   String              @map("entity_id")
+  /// Human-readable summary shown in the admin table.
+  label      String
+
+  currentValue  String?             @map("current_value")
+  proposedValue Json                @map("proposed_value")
+  confidence    CatalogAiConfidence @default(LOW)
+  /// Why the model proposed this, in Spanish. Shown to the admin before approving.
+  reasoning     String              @default("")
+  /// Task-specific extras (candidate index lists, per-item evidence, …).
+  payload       Json                @default("{}")
+
+  appliedAt DateTime? @map("applied_at")
+  error     String    @default("")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([runId, status])
+  @@index([entityType, entityId])
+  @@index([status, createdAt(sort: Desc)])
+  @@map("catalog_ai_findings")
 }
 
 // ===========================================

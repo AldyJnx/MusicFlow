@@ -43,6 +43,29 @@ function EqBars({ color = "var(--color-accent)" }: { color?: string }) {
   );
 }
 
+/** The same live three-bar mark used by the MusicFlow logo, sized for rows. */
+function QueueBars() {
+  return (
+    <span
+      aria-hidden="true"
+      className="ml-1 inline-flex h-3 items-end gap-[1.5px] align-middle"
+    >
+      <span
+        className="musicflow-logo-bar"
+        style={{ background: "var(--color-primary)" }}
+      />
+      <span
+        className="musicflow-logo-bar"
+        style={{ background: "var(--color-primary)" }}
+      />
+      <span
+        className="musicflow-logo-bar"
+        style={{ background: "var(--color-primary)" }}
+      />
+    </span>
+  );
+}
+
 /**
  * Persistent right panel — the pretesis queue/assistant column. Shows what's
  * playing now and what's coming up next, driven by the live player store.
@@ -71,7 +94,7 @@ export default function RightPanel({
     return (
       <div
         data-testid="right-panel"
-        className="fixed inset-y-0 right-0 z-[60] hidden h-screen w-16 flex-none flex-col items-center gap-2.5 border-l border-[var(--color-line)] bg-[rgba(8,8,16,.4)] px-0 pb-3.5 pt-[58px] backdrop-blur-[var(--glass-blur)] lg:flex"
+        className="electron-viewport-panel fixed inset-y-0 right-0 z-[60] hidden h-screen w-16 flex-none flex-col items-center gap-2.5 border-l border-[var(--color-line)] bg-[rgba(8,8,16,.4)] px-0 pb-3.5 pt-[58px] backdrop-blur-[var(--glass-blur)] lg:flex"
       >
         <button
           type="button"
@@ -136,7 +159,7 @@ export default function RightPanel({
   return (
     <aside
       data-testid="right-panel"
-      className="fixed inset-y-0 right-0 z-[60] hidden h-screen w-[322px] flex-none flex-col border-l border-[var(--color-line)] bg-[rgba(8,8,16,.4)] backdrop-blur-[var(--glass-blur)] lg:flex"
+      className="electron-viewport-panel fixed inset-y-0 right-0 z-[60] hidden h-screen w-[322px] flex-none flex-col border-l border-[var(--color-line)] bg-[rgba(8,8,16,.4)] backdrop-blur-[var(--glass-blur)] lg:flex"
     >
       <header className="flex h-[62px] flex-none items-center gap-2 border-b border-[var(--color-line)] px-3">
         <button
@@ -236,8 +259,11 @@ export default function RightPanel({
                 ) : null}
               </div>
               <div className="min-w-0 flex-1">
-                <div className="truncate text-[13px] font-bold">
-                  {trk.title}
+                <div className="flex min-w-0 items-center">
+                  <span className="truncate text-[13px] font-bold">
+                    {trk.title}
+                  </span>
+                  <QueueBars />
                 </div>
                 <div className="truncate text-[11px] font-medium text-[var(--color-muted)]">
                   {trk.artist}

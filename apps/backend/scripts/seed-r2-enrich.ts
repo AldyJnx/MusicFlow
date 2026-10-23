@@ -3,20 +3,15 @@
  *   - music-flow-songs-lyrics  ("Artist - Title.lrc") → Track.lyricsLrc
  *   - music-flow-artist-image  ("Artist_Name.webp")   → Track.artistImage
  *
- * Artist images are copied into the public images bucket under `artists/` so
- * the browser can load them directly (the same public URL covers already use).
+ * Artist images remain in their dedicated bucket. They are never copied into
+ * `music-flow-images/artists/`: the canonical object is root-level.
  * Lyrics content is stored verbatim in the DB and never logged.
  *
  * Idempotent. Run with:  pnpm --filter @musicflow/backend run seed:enrich
  */
 import { readFileSync } from "fs";
 import { join } from "path";
-import {
-  CopyObjectCommand,
-  GetObjectCommand,
-  ListObjectsV2Command,
-  S3Client,
-} from "@aws-sdk/client-s3";
+import { GetObjectCommand, ListObjectsV2Command, S3Client } from "@aws-sdk/client-s3";
 import { PrismaClient } from "@prisma/client";
 
 function loadEnv() {
@@ -48,12 +43,21 @@ for (const k of REQUIRED) {
 // Keep compatibility with the original environment name used by MusicFlow.
 // The lyrics bucket has a stable R2 name, but may be overridden per deploy.
 const lyricsBucket = process.env.R2_BUCKET_LYRICS ?? "music-flow-songs-lyrics";
+const lyricsOnly = process.argv.includes("--lyrics-only");
 const artistImagesBucket: string =
   process.env.R2_BUCKET_ARTIST_IMAGES ??
   process.env.R2_BUCKET_IMAGES_ARTIST ??
   "";
-if (!artistImagesBucket) {
+if (!artistImagesBucket && !lyricsOnly) {
   console.error("Missing env var R2_BUCKET_ARTIST_IMAGES or R2_BUCKET_IMAGES_ARTIST");
+  process.exit(1);
+}
+const artistImagesPublicBase =
+  process.env.R2_PUBLIC_ARTIST_IMAGES_URL ?? process.env.R2_PUBLIC_IMAGES_URL;
+if (!artistImagesPublicBase && !lyricsOnly) {
+  console.error(
+    "Missing env var R2_PUBLIC_ARTIST_IMAGES_URL or R2_PUBLIC_IMAGES_URL",
+  );
   process.exit(1);
 }
 
@@ -69,7 +73,9 @@ const prisma = new PrismaClient();
 
 function norm(s: string): string {
   return s
+    .normalize("NFD")
     .toLowerCase()
+    .replace(/\p{Diacritic}/gu, "")
     .replace(/[áàäâ]/g, "a")
     .replace(/[éèëê]/g, "e")
     .replace(/[íìïî]/g, "i")
@@ -100,12 +106,32 @@ async function listAll(bucket: string): Promise<string[]> {
   return keys;
 }
 
-/** Split "Artist - Title.lrc" → norm(artist)+"|"+norm(title). */
-function lyricsMatchKey(fileKey: string): string | null {
+/** Remove a trailing featured-artist credit for resilient title matching. */
+function withoutFeature(title: string): string {
+  return title
+    .replace(
+      /\s*[\[(]?\s*(?:feat(?:uring)?|ft)\.?\s*.+?\s*[\])]??\s*$/iu,
+      "",
+    )
+    .trim();
+}
+
+/** Split an LRC key into exact and no-feature catalog lookup keys. */
+function lyricsMatchKeys(fileKey: string): string[] {
   const noExt = fileKey.replace(/\.(lrc|txt)$/i, "");
   const idx = noExt.indexOf(" - ");
-  if (idx === -1) return null;
-  return norm(noExt.slice(0, idx)) + "|" + norm(noExt.slice(idx + 3));
+  if (idx === -1) return [];
+  const artist = noExt.slice(0, idx);
+  const title = noExt.slice(idx + 3);
+  const exact = `${norm(artist)}|${norm(title)}`;
+  const base = `${norm(artist)}|${norm(withoutFeature(title))}`;
+  return base === exact ? [exact] : [exact, base];
+}
+
+function trackMatchKeys(track: { artist: string; title: string }): string[] {
+  const exact = `${norm(track.artist)}|${norm(track.title)}`;
+  const base = `${norm(track.artist)}|${norm(withoutFeature(track.title))}`;
+  return base === exact ? [exact] : [exact, base];
 }
 
 async function main() {
@@ -125,22 +151,26 @@ async function main() {
     if (trackIds.has(possibleTrackId) && !lyricsByTrackId.has(possibleTrackId)) {
       lyricsByTrackId.set(possibleTrackId, k);
     }
-    const mk = lyricsMatchKey(k);
-    if (mk && !lyricsByKey.has(mk)) lyricsByKey.set(mk, k);
+    for (const mk of lyricsMatchKeys(k)) {
+      if (!lyricsByKey.has(mk)) lyricsByKey.set(mk, k);
+    }
   }
   console.log(
     `Lyrics bucket: ${lyricKeys.length} objects, ${lyricsByKey.size} named matches, ${lyricsByTrackId.size} ID matches.`,
   );
   let lyricsSet = 0;
+  let lyricsUnchanged = 0;
   let lyricsMiss = 0;
   for (const t of tracks) {
-    const mk = norm(t.artist) + "|" + norm(t.title);
-    const fileKey = lyricsByTrackId.get(t.id) ?? lyricsByKey.get(mk);
+    const fileKey =
+      lyricsByTrackId.get(t.id) ??
+      trackMatchKeys(t)
+        .map((key) => lyricsByKey.get(key))
+        .find((key): key is string => Boolean(key));
     if (!fileKey) {
       lyricsMiss++;
       continue;
     }
-    if (t.lyricsLrc) continue; // already populated
     const obj = await s3.send(
       new GetObjectCommand({
         Bucket: lyricsBucket,
@@ -149,41 +179,30 @@ async function main() {
     );
     // Stored verbatim; never logged.
     const body = await obj.Body!.transformToString("utf-8");
+    if (t.lyricsLrc === body) {
+      lyricsUnchanged++;
+      continue;
+    }
     await prisma.track.update({
       where: { id: t.id },
       data: { lyricsLrc: body },
     });
     lyricsSet++;
   }
-  console.log(`Lyrics: ${lyricsSet} set, ${lyricsMiss} without a match.`);
+  console.log(
+    `Lyrics: ${lyricsSet} synchronized, ${lyricsUnchanged} unchanged, ${lyricsMiss} without a match.`,
+  );
+
+  if (lyricsOnly) return;
 
   // ── 2) ARTIST IMAGES ────────────────────────────────────────────────────────
   const imgKeys = await listAll(artistImagesBucket);
-  // norm(name-from-filename) → public URL (after copying into images bucket).
+  // norm(name-from-filename) → its existing public artist-image URL.
   const imgByNorm = new Map<string, string>();
   for (const key of imgKeys) {
-    const name = key.replace(/\.(webp|jpg|jpeg|png)$/i, "").replace(/_/g, " ");
-    const destKey = `artists/${key}`;
-    try {
-      await s3.send(
-        new CopyObjectCommand({
-          Bucket: process.env.R2_BUCKET_IMAGES!,
-          CopySource: encodeURI(
-            `${artistImagesBucket}/${key}`,
-          ),
-          Key: destKey,
-          ContentType: "image/webp",
-          MetadataDirective: "REPLACE",
-        }),
-      );
-    } catch (e) {
-      console.warn(`  copy failed for ${key}: ${(e as Error).name}`);
-      continue;
-    }
-    imgByNorm.set(
-      norm(name),
-      publicUrl(process.env.R2_PUBLIC_IMAGES_URL!, destKey),
-    );
+    if (!/\.(webp|avif)$/i.test(key) || key.includes("/")) continue;
+    const name = key.replace(/\.(webp|avif)$/i, "").replace(/_/g, " ");
+    imgByNorm.set(norm(name), publicUrl(artistImagesPublicBase!, key));
   }
 
   // Resolve an image URL for an artist: exact → containment → manual alias.

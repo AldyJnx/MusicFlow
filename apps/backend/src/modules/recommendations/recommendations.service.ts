@@ -178,13 +178,25 @@ export class RecommendationsService {
 
     const artistCounts = new Map<string, number>();
     const selected: typeof scored = [];
+    const deferred: typeof scored = [];
     for (const candidate of scored) {
       const artistKey =
         candidate.track.artistId ?? candidate.track.artist.toLowerCase();
-      if ((artistCounts.get(artistKey) ?? 0) >= 2) continue;
+      if ((artistCounts.get(artistKey) ?? 0) >= 2) {
+        deferred.push(candidate);
+        continue;
+      }
       artistCounts.set(artistKey, (artistCounts.get(artistKey) ?? 0) + 1);
       selected.push(candidate);
       if (selected.length === limit) break;
+    }
+    // Keep the artist cap whenever possible, but do not return an unexpectedly
+    // short recommendation rail when the catalogue has few artists.
+    if (selected.length < limit) {
+      for (const candidate of deferred) {
+        selected.push(candidate);
+        if (selected.length === limit) break;
+      }
     }
 
     const generatedAt = now.toISOString();

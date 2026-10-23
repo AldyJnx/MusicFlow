@@ -16,8 +16,6 @@ class SettingsScreen extends ConsumerStatefulWidget {
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   static const Color _trackOff = Color(0xFF2C3440);
 
-  bool _wifiOnlyDownloads = false;
-
   @override
   Widget build(BuildContext context) {
     final user = ref.watch(authControllerProvider).user;
@@ -138,13 +136,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 onTap: () => context.push(AppRoutes.themes),
               ),
               const SizedBox(height: 12),
-              _SettingSwitchTile(
-                icon: Icons.wifi_rounded,
-                title: 'Descarga solo con Wi-Fi',
-                value: _wifiOnlyDownloads,
-                onChanged: (value) =>
-                    setState(() => _wifiOnlyDownloads = value),
-              ),
               const SizedBox(height: 28),
               _SectionLabel(title: 'IA Y EXPERIENCIA'),
               const SizedBox(height: 14),
@@ -183,10 +174,25 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           ),
                         ),
                         _SettingsSwitch(
-                          value: settings.aiAssistantEnabled,
-                          onChanged: (value) => ref
-                              .read(appSettingsProvider.notifier)
-                              .setAiAssistantEnabled(value),
+                          value:
+                              user?.isPremium == true &&
+                              settings.aiAssistantEnabled,
+                          enabled: user?.isPremium == true,
+                          onChanged: (value) {
+                            if (user?.isPremium != true) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'El asistente IA esta disponible con Premium.',
+                                  ),
+                                ),
+                              );
+                              return;
+                            }
+                            ref
+                                .read(appSettingsProvider.notifier)
+                                .setAiAssistantEnabled(value);
+                          },
                         ),
                       ],
                     ),
@@ -194,7 +200,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     Padding(
                       padding: const EdgeInsets.only(left: 56),
                       child: Text(
-                        'Activa el chatbot inteligente para descubrimientos musicales personalizados y soporte en tiempo real.',
+                        user?.isPremium == true
+                            ? 'Activa el chatbot inteligente para descubrimientos musicales personalizados y soporte en tiempo real.'
+                            : 'Disponible exclusivamente para cuentas Premium.',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: colors.textMuted,
                           height: 1.45,
@@ -421,23 +429,32 @@ class _LeadingIcon extends StatelessWidget {
 }
 
 class _SettingsSwitch extends StatelessWidget {
-  const _SettingsSwitch({required this.value, required this.onChanged});
+  const _SettingsSwitch({
+    required this.value,
+    required this.onChanged,
+    this.enabled = true,
+  });
 
   final bool value;
   final ValueChanged<bool> onChanged;
+  final bool enabled;
 
   @override
   Widget build(BuildContext context) {
     final colors = context.musicFlowColors;
     return GestureDetector(
-      onTap: () => onChanged(!value),
+      onTap: enabled ? () => onChanged(!value) : null,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
         width: 50,
         height: 28,
         padding: const EdgeInsets.symmetric(horizontal: 3),
         decoration: BoxDecoration(
-          color: value ? colors.primary : _SettingsScreenState._trackOff,
+          color: value
+              ? colors.primary
+              : _SettingsScreenState._trackOff.withValues(
+                  alpha: enabled ? 1 : 0.55,
+                ),
           borderRadius: BorderRadius.circular(999),
         ),
         child: Align(

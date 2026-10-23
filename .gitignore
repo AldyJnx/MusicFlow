@@ -91,6 +91,8 @@ apps/mobile/.flutter-plugins-dependencies
 # Frontend (React + Electron)
 apps/web/dist-electron/
 apps/web/dist/
+apps/web/release/
+apps/web/release-*/
 
 # Backend (NestJS)
 apps/backend/dist/
@@ -103,4 +105,3 @@ apps/backend/dist/
 .claude/
 CLAUDE.md
 claude-skills/
-.agents/

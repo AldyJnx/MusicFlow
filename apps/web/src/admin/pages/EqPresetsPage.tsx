@@ -1,7 +1,16 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
-import { Loader2, Plus, RotateCcw, Save, Trash2 } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Download,
+  Loader2,
+  Plus,
+  RotateCcw,
+  Save,
+  Trash2,
+} from "lucide-react";
 import {
   createGlobalPreset,
   deleteGlobalPreset,
@@ -9,6 +18,7 @@ import {
   REVERB_PRESETS,
   updateGlobalPreset,
 } from "../../shared/api/admin";
+import { exportExcel } from "../../shared/utils/exportExcel";
 import type {
   GlobalEqPreset,
   GlobalEqPresetPayload,
@@ -421,6 +431,7 @@ function CreatePresetCard() {
 
 export default function EqPresetsPage() {
   const { t } = useTranslation();
+  const [page, setPage] = useState(0);
   const listQ = useQuery<GlobalEqPreset[]>({
     queryKey: ["admin", "eq-presets"],
     queryFn: listGlobalPresets,
@@ -454,13 +465,66 @@ export default function EqPresetsPage() {
           </p>
         )}
 
-        {listQ.data && (
-          <div className="flex flex-col gap-3">
-            {listQ.data.map((p) => (
-              <PresetRow key={p.id} preset={p} />
-            ))}
-          </div>
-        )}
+        {listQ.data &&
+          (() => {
+            const totalPages = Math.max(1, Math.ceil(listQ.data.length / 5));
+            const safePage = Math.min(page, totalPages - 1);
+            const presets = listQ.data.slice(safePage * 5, safePage * 5 + 5);
+            return (
+              <div className="flex flex-col gap-3">
+                <div className="flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      exportExcel(
+                        "presets-ecualizador",
+                        [
+                          { label: "Nombre", value: (p) => p.name },
+                          {
+                            label: "Reverberación",
+                            value: (p) => p.reverbPreset,
+                          },
+                        ],
+                        listQ.data,
+                      )
+                    }
+                    className="inline-flex items-center gap-2 rounded-lg border border-[var(--color-border)] px-3 py-2 text-xs font-semibold hover:border-[var(--color-primary)]"
+                  >
+                    <Download className="h-4 w-4" />
+                    Exportar Excel
+                  </button>
+                </div>
+                {presets.map((p) => (
+                  <PresetRow key={p.id} preset={p} />
+                ))}
+                {listQ.data.length > 5 ? (
+                  <div className="flex items-center justify-between border-t border-[var(--color-border)] pt-3 text-xs text-[var(--color-muted)]">
+                    <span>
+                      Página {safePage + 1} de {totalPages}
+                    </span>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        disabled={safePage === 0}
+                        onClick={() => setPage(safePage - 1)}
+                        className="rounded-lg border border-[var(--color-border)] p-1.5 disabled:opacity-40"
+                      >
+                        <ChevronLeft className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        disabled={safePage >= totalPages - 1}
+                        onClick={() => setPage(safePage + 1)}
+                        className="rounded-lg border border-[var(--color-border)] p-1.5 disabled:opacity-40"
+                      >
+                        <ChevronRight className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            );
+          })()}
       </div>
     </section>
   );

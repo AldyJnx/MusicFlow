@@ -37,6 +37,17 @@ class AuthRepository {
     return AuthUser.fromJson(res.data!);
   }
 
+  /// Trades a Google ID token obtained natively by the mobile app for the same
+  /// JWT session that password login returns.
+  Future<AuthSession> exchangeGoogleToken(String idToken) async {
+    final res = await _client.dio.post<Map<String, dynamic>>(
+      '/auth/google/mobile',
+      data: {'idToken': idToken},
+      options: Options(extra: {'skipAuth': true}),
+    );
+    return AuthSession.fromJson(res.data!);
+  }
+
   Future<void> logout() async {
     await _client.dio.post('/auth/logout');
   }

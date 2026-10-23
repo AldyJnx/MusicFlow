@@ -10,11 +10,16 @@ import { useScrollReveal } from "../../shared/hooks/useScrollReveal";
 import { useHomeRecommendationsQuery } from "../../shared/hooks/useRecommendations";
 import {
   listRecentCatalogAlbums,
-  listTrendingCatalogTracks,
+  listFeaturedCatalogTracks,
+  type CatalogFeaturedMode,
   type CatalogRecentAlbum,
 } from "../../shared/api/catalog";
 import { usePlayerStore, type PlayerTrack } from "../stores/playStore";
 import type { Track } from "../../shared/api/tracks";
+import {
+  formatTrackArtist,
+  toPlayerFeaturedArtists,
+} from "../../shared/utils/trackArtist";
 
 // ─── Deterministic gradients (mirror the pretesis palette) ──────────────────
 const GRADS = [
@@ -40,7 +45,13 @@ function gradOf(seed: string): string {
 
 type PlayableTrack = Pick<
   Track,
-  "id" | "title" | "artist" | "coverArt" | "fileUrlRemote" | "durationMs"
+  | "id"
+  | "title"
+  | "artist"
+  | "featuredArtists"
+  | "coverArt"
+  | "fileUrlRemote"
+  | "durationMs"
 >;
 
 function toPlayerTrack(t: PlayableTrack): PlayerTrack | null {
@@ -48,7 +59,9 @@ function toPlayerTrack(t: PlayableTrack): PlayerTrack | null {
   return {
     id: t.id,
     title: t.title,
-    artist: t.artist,
+    artistProfileName: t.artist,
+    artist: formatTrackArtist(t.artist, t.featuredArtists),
+    featuredArtists: toPlayerFeaturedArtists(t.featuredArtists),
     cover: t.coverArt,
     url: t.fileUrlRemote,
     durationMs: t.durationMs,
@@ -95,12 +108,14 @@ function Hero({
   items,
   onPlay,
   onArtist,
-  isTrending,
+  mode,
+  onModeChange,
 }: {
   items: PlayableTrack[];
   onPlay: (t: PlayableTrack) => void;
   onArtist: (name: string) => void;
-  isTrending: boolean;
+  mode: CatalogFeaturedMode;
+  onModeChange: (mode: CatalogFeaturedMode) => void;
 }) {
   const { t } = useTranslation();
   const [idx, setIdx] = useState(0);
@@ -208,12 +223,16 @@ function Hero({
                       opacity: 0.7,
                     }}
                   >
-                    {isTrending
-                      ? t("home.trending", { defaultValue: "EN TENDENCIA" })
-                      : "DESTACADO"}
+                    {mode === "popular"
+                      ? t("home.mostPlayed", {
+                          defaultValue: "MÁS ESCUCHADO",
+                        })
+                      : t("home.recentlyAdded", {
+                          defaultValue: "RECIÉN AGREGADO",
+                        })}
                   </span>
                   <span className="text-[13px] font-semibold text-[var(--color-muted)]">
-                    {cur.artist}
+                    {formatTrackArtist(cur.artist, cur.featuredArtists)}
                   </span>
                 </div>
               </div>
@@ -267,7 +286,7 @@ function Hero({
                     letterSpacing: "-.01em",
                   }}
                 >
-                  {cur.artist}
+                  {formatTrackArtist(cur.artist, cur.featuredArtists)}
                 </span>
               </button>
             </div>
@@ -324,6 +343,33 @@ function Hero({
 
           {/* Play (bottom-right) */}
           <div className="absolute bottom-7 right-[30px] z-[2] flex items-center gap-3">
+            <div
+              className="flex rounded-full border border-[var(--color-line)] bg-[rgba(8,8,16,.55)] p-1 backdrop-blur"
+              role="group"
+              aria-label={t("home.featuredMode", {
+                defaultValue: "Orden del carrusel",
+              })}
+            >
+              {(["popular", "recent"] as const).map((option) => (
+                <button
+                  key={option}
+                  type="button"
+                  onClick={() => onModeChange(option)}
+                  aria-pressed={mode === option}
+                  className={`rounded-full px-3 py-1.5 text-[11px] font-bold transition ${
+                    mode === option
+                      ? "bg-white text-[var(--color-page)]"
+                      : "text-white/75 hover:text-white"
+                  }`}
+                >
+                  {option === "popular"
+                    ? t("home.mostPlayed", { defaultValue: "Más escuchados" })
+                    : t("home.recentlyAdded", {
+                        defaultValue: "Recientes",
+                      })}
+                </button>
+              ))}
+            </div>
             <button
               type="button"
               onClick={() => onPlay(cur)}
@@ -441,14 +487,16 @@ export default function HomePage() {
   const tracksQ = useTracksQuery({ take: 20 });
   const artistsQ = useArtistsQuery();
   const recommendationsQ = useHomeRecommendationsQuery(6);
+  const [featuredMode, setFeaturedMode] =
+    useState<CatalogFeaturedMode>("popular");
   const recentAlbumsQ = useQuery({
     queryKey: ["catalog", "albums", "recent", 10],
     queryFn: () => listRecentCatalogAlbums(10),
     staleTime: 5 * 60_000,
   });
-  const trendingQ = useQuery({
-    queryKey: ["catalog", "trending", 5],
-    queryFn: () => listTrendingCatalogTracks(5),
+  const featuredQ = useQuery({
+    queryKey: ["catalog", "featured", featuredMode, 8],
+    queryFn: () => listFeaturedCatalogTracks(featuredMode, 8),
     staleTime: 60_000,
   });
 
@@ -457,17 +505,18 @@ export default function HomePage() {
   const albums = recentAlbumsQ.data ?? [];
   const recs = recommendationsQ.data?.tracks ?? [];
 
-  const trendingItems = useMemo(
-    () => (trendingQ.data ?? []).filter((track) => track.fileUrlRemote),
-    [trendingQ.data],
+  const featuredItems = useMemo(
+    () => (featuredQ.data?.tracks ?? []).filter((track) => track.fileUrlRemote),
+    [featuredQ.data],
   );
   const heroItems = useMemo(
     () =>
-      trendingItems.length > 0
-        ? trendingItems
+      featuredItems.length > 0
+        ? featuredItems
         : tracks.filter((track) => track.fileUrlRemote).slice(0, 5),
-    [tracks, trendingItems],
+    [featuredItems, tracks],
   );
+  const resolvedFeaturedMode = featuredQ.data?.mode ?? featuredMode;
   function playFromList(list: PlayableTrack[], track: PlayableTrack) {
     const playable = list
       .map(toPlayerTrack)
@@ -503,7 +552,8 @@ export default function HomePage() {
             <Hero
               items={heroItems}
               onPlay={(tr) => playFromList(heroItems, tr)}
-              isTrending={trendingItems.length > 0}
+              mode={resolvedFeaturedMode}
+              onModeChange={setFeaturedMode}
               onArtist={(name) =>
                 navigate(`/artist/${encodeURIComponent(name)}`)
               }
@@ -517,7 +567,7 @@ export default function HomePage() {
                 title={t("home.popularArtists", {
                   defaultValue: "Artistas populares",
                 })}
-                onSeeAll={() => navigate("/library")}
+                onSeeAll={() => navigate("/library?tab=artists")}
               />
               <div className="grid gap-x-5 gap-y-6 [grid-template-columns:repeat(auto-fit,minmax(110px,1fr))]">
                 {artists.map((a) => (
@@ -684,7 +734,7 @@ function RecRow({
           {track.title}
         </div>
         <div className="truncate text-xs text-[var(--color-muted)]">
-          {track.artist}
+          {formatTrackArtist(track.artist, track.featuredArtists)}
         </div>
       </div>
     </button>

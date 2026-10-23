@@ -11,6 +11,8 @@ import 'package:musicflow_mobile/features/library/providers/tracks_providers.dar
 import 'package:musicflow_mobile/shared/models/eq.dart';
 import 'package:musicflow_mobile/shared/models/track.dart';
 
+enum PlayerRepeatMode { off, all, one }
+
 // ── PlayerState ──────────────────────────────────────────────────────────────
 
 class PlayerState {
@@ -22,7 +24,7 @@ class PlayerState {
     this.position = Duration.zero,
     this.duration = Duration.zero,
     this.currentPlaylistId,
-    this.isLooping = false,
+    this.repeatMode = PlayerRepeatMode.off,
   });
 
   final Track? currentTrack;
@@ -32,7 +34,7 @@ class PlayerState {
   final Duration position;
   final Duration duration;
   final String? currentPlaylistId;
-  final bool isLooping;
+  final PlayerRepeatMode repeatMode;
 
   PlayerState copyWith({
     Track? currentTrack,
@@ -44,7 +46,7 @@ class PlayerState {
     Duration? duration,
     String? currentPlaylistId,
     bool clearCurrentPlaylist = false,
-    bool? isLooping,
+    PlayerRepeatMode? repeatMode,
   }) {
     return PlayerState(
       currentTrack: clearCurrentTrack
@@ -58,7 +60,7 @@ class PlayerState {
       currentPlaylistId: clearCurrentPlaylist
           ? null
           : (currentPlaylistId ?? this.currentPlaylistId),
-      isLooping: isLooping ?? this.isLooping,
+      repeatMode: repeatMode ?? this.repeatMode,
     );
   }
 }
@@ -82,6 +84,7 @@ class PlayerController extends StateNotifier<PlayerState> {
   final List<StreamSubscription<dynamic>> _subs = [];
   String? _lastRecordedTrackId;
   String? _expectedMediaItemId;
+  int _queueCommandVersion = 0;
   String? _lastAppliedEqKey;
   String? _activeSegmentId;
   final Map<String, List<double>> _baseEqBandsByTrack = {};
@@ -162,6 +165,7 @@ class PlayerController extends StateNotifier<PlayerState> {
     String? playlistId,
     bool clearPlaylistContext = false,
   }) async {
+    final commandVersion = ++_queueCommandVersion;
     final selectedTrackId = tracks.isEmpty
         ? null
         : tracks[startIndex.clamp(0, tracks.length - 1)].id;
@@ -197,13 +201,16 @@ class PlayerController extends StateNotifier<PlayerState> {
     );
 
     final handler = await _handler();
-    if (state.currentTrack?.id != selectedTrack.id) {
+    if (commandVersion != _queueCommandVersion) {
       return;
     }
     final items = validTracks.map(_toMediaItem).toList();
     await handler.setQueue(items);
+    if (commandVersion != _queueCommandVersion) {
+      return;
+    }
     await handler.skipToQueueItem(clampedIndex);
-    if (state.currentTrack?.id != selectedTrack.id) {
+    if (commandVersion != _queueCommandVersion) {
       return;
     }
     await handler.play();
@@ -246,13 +253,18 @@ class PlayerController extends StateNotifier<PlayerState> {
     }
     await _recordCurrentPlay(skipped: true);
     final nextIndex = state.queueIndex + 1;
-    state = state.copyWith(
-      queueIndex: nextIndex,
-      currentTrack: state.queue[nextIndex],
-      position: Duration.zero,
-      isPlaying: true,
-    );
-    await (await _handler()).skipToNext();
+    final nextTrack = state.queue[nextIndex];
+    final commandVersion = ++_queueCommandVersion;
+    _expectedMediaItemId = nextTrack.id;
+
+    // Under repeat-one, seekToNext can retain the old looping source. Select
+    // the exact target and wait for the handler's media item to update the UI.
+    final handler = await _handler();
+    if (commandVersion != _queueCommandVersion) return;
+    await handler.skipToQueueItem(nextIndex);
+    if (commandVersion != _queueCommandVersion) return;
+    await handler.play();
+    unawaited(_syncCast(nextTrack));
   }
 
   Future<void> previous() async {
@@ -264,13 +276,15 @@ class PlayerController extends StateNotifier<PlayerState> {
     if (state.queueIndex <= 0) return;
     await _recordCurrentPlay(skipped: true);
     final previousIndex = state.queueIndex - 1;
-    state = state.copyWith(
-      queueIndex: previousIndex,
-      currentTrack: state.queue[previousIndex],
-      position: Duration.zero,
-      isPlaying: true,
-    );
-    await (await _handler()).skipToPrevious();
+    final previousTrack = state.queue[previousIndex];
+    final commandVersion = ++_queueCommandVersion;
+    _expectedMediaItemId = previousTrack.id;
+    final handler = await _handler();
+    if (commandVersion != _queueCommandVersion) return;
+    await handler.skipToQueueItem(previousIndex);
+    if (commandVersion != _queueCommandVersion) return;
+    await handler.play();
+    unawaited(_syncCast(previousTrack));
   }
 
   Future<void> seek(Duration position) async {
@@ -281,10 +295,17 @@ class PlayerController extends StateNotifier<PlayerState> {
     await (await _handler()).setPlayerVolume(volume);
   }
 
-  Future<void> toggleLooping() async {
-    final enabled = !state.isLooping;
-    state = state.copyWith(isLooping: enabled);
-    await (await _handler()).setLooping(enabled);
+  Future<void> cycleRepeatMode() async {
+    final repeatMode = switch (state.repeatMode) {
+      PlayerRepeatMode.off => PlayerRepeatMode.all,
+      PlayerRepeatMode.all => PlayerRepeatMode.one,
+      PlayerRepeatMode.one => PlayerRepeatMode.off,
+    };
+    state = state.copyWith(repeatMode: repeatMode);
+    await (await _handler()).setLoop(
+      repeatAll: repeatMode == PlayerRepeatMode.all,
+      repeatOne: repeatMode == PlayerRepeatMode.one,
+    );
   }
 
   Future<void> setEqualizerBands(List<double> bands) async {
@@ -299,8 +320,17 @@ class PlayerController extends StateNotifier<PlayerState> {
   }
 
   Future<void> setQueueIndex(int index) async {
+    if (index < 0 || index >= state.queue.length) return;
     await _recordCurrentPlay(skipped: true);
-    await (await _handler()).skipToQueueItem(index);
+    final commandVersion = ++_queueCommandVersion;
+    final selectedTrack = state.queue[index];
+    _expectedMediaItemId = selectedTrack.id;
+    final handler = await _handler();
+    if (commandVersion != _queueCommandVersion) return;
+    await handler.skipToQueueItem(index);
+    if (commandVersion != _queueCommandVersion) return;
+    await handler.play();
+    unawaited(_syncCast(selectedTrack));
   }
 
   Future<void> refreshCurrentEqualizer() async {

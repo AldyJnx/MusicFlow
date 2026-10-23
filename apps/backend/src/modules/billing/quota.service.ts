@@ -119,6 +119,19 @@ export class QuotaService {
       });
     }
   }
+
+  /** Informational count used by the subscription screen. */
+  async getSegmentUsage(user: QuotaUser): Promise<QuotaStatus> {
+    const used = await this.prisma.eQSegment.count({
+      where: { userId: user.id },
+    });
+    return {
+      used,
+      limit: Number.POSITIVE_INFINITY,
+      remaining: Number.POSITIVE_INFINITY,
+      isPremium: user.isPremium,
+    };
+  }
 }
 
 function currentMonthRange(): { start: Date; end: Date } {

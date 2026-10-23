@@ -1,11 +1,13 @@
 import {
   ChevronLeft,
   ChevronRight,
-  Download,
   Home,
   Library,
+  Pencil,
   Plus,
+  Settings,
   SlidersHorizontal,
+  Trash2,
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -13,15 +15,17 @@ import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate } from "react-router-dom";
 
 import { listPlaylists, type Playlist } from "../../../shared/api/playlists";
-import { usePlayerStore } from "../../stores/playStore";
 
 interface ClientSidebarProps {
   collapsed?: boolean;
   onToggleCollapse?: () => void;
   /** Kept for API compatibility — search now lives in the top navbar. */
   onFocusSearch?: () => void;
-  /** Opens the import modal (the small "+" by MI BIBLIOTECA). */
-  onOpenImport?: () => void;
+  /** Opens the new-library modal (the small "+" by MI BIBLIOTECA). */
+  onOpenCreateLibrary?: () => void;
+  /** Opens the rename/delete controls for a library owned by this user. */
+  onEditLibrary?: (playlist: Playlist) => void;
+  onDeleteLibrary?: (playlist: Playlist) => void;
 }
 
 const GRADS = [
@@ -46,9 +50,8 @@ type NavItem = {
   match: string[];
 };
 
-/** Three EQ bars — the pretesis logo mark. Animates only while audio is
- *  actually playing so an idle app doesn't repaint forever. */
-function LogoMark({ playing }: { playing: boolean }) {
+/** Three EQ bars — the MusicFlow logo mark, animated during playback. */
+function LogoMark() {
   return (
     <div
       className="flex h-8 w-8 flex-none items-center justify-center rounded-xl shadow-[0_8px_22px_-6px_var(--color-primary)]"
@@ -57,19 +60,10 @@ function LogoMark({ playing }: { playing: boolean }) {
           "linear-gradient(140deg,var(--color-primary),var(--color-accent))",
       }}
     >
-      <div className="flex h-3.5 items-end gap-[2px]">
-        {[0, 1, 2].map((i) => (
-          <span
-            key={i}
-            className="w-[2.5px] rounded-[2px] bg-[#0a0a14]"
-            style={{
-              height: i === 0 ? "6px" : i === 1 ? "13px" : "9px",
-              transformOrigin: "bottom",
-              animation: `eqbar ${[1, 0.8, 1.1][i]}s ease-in-out infinite ${[0, 0.15, 0.3][i]}s`,
-              animationPlayState: playing ? "running" : "paused",
-            }}
-          />
-        ))}
+      <div className="flex h-3.5 items-end gap-[2px]" aria-hidden="true">
+        <span className="musicflow-logo-bar" />
+        <span className="musicflow-logo-bar" />
+        <span className="musicflow-logo-bar" />
       </div>
     </div>
   );
@@ -78,13 +72,13 @@ function LogoMark({ playing }: { playing: boolean }) {
 export default function ClientSidebar({
   collapsed = false,
   onToggleCollapse,
-  onOpenImport,
+  onOpenCreateLibrary,
+  onEditLibrary,
+  onDeleteLibrary,
 }: ClientSidebarProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { pathname } = useLocation();
-  const isPlaying = usePlayerStore((s) => s.isPlaying);
-
   const playlistsQ = useQuery({
     queryKey: ["playlists"],
     queryFn: listPlaylists,
@@ -100,10 +94,10 @@ export default function ClientSidebar({
       match: ["/inicio"],
     },
     {
-      label: t("sidebar.library", { defaultValue: "Biblioteca" }),
+      label: t("sidebar.catalog", { defaultValue: "Catálogo" }),
       icon: <Library className="h-[18px] w-[18px]" strokeWidth={2.2} />,
       to: "/library",
-      match: ["/library", "/playlists"],
+      match: ["/library"],
     },
     {
       label: t("sidebar.studio", { defaultValue: "Estudio" }),
@@ -111,19 +105,19 @@ export default function ClientSidebar({
         <SlidersHorizontal className="h-[18px] w-[18px]" strokeWidth={2.2} />
       ),
       to: "/studio",
-      match: ["/studio", "/equalizer", "/segments", "/ai-mixer"],
+      match: ["/studio", "/equalizer", "/segments"],
     },
     {
-      label: t("sidebar.downloads", { defaultValue: "Descargas" }),
-      icon: <Download className="h-[18px] w-[18px]" strokeWidth={2.2} />,
-      to: "/downloads",
-      match: ["/downloads"],
+      label: t("sidebar.settings", { defaultValue: "Ajustes" }),
+      icon: <Settings className="h-[18px] w-[18px]" strokeWidth={2.2} />,
+      to: "/settings",
+      match: ["/settings", "/profile"],
     },
   ];
 
   return (
     <aside
-      className={`fixed inset-y-0 left-0 z-[60] hidden h-screen flex-none flex-col gap-[3px] overflow-hidden border-r border-[var(--color-line)] bg-[rgba(8,8,16,.42)] py-5 backdrop-blur-[var(--glass-blur)] transition-all duration-300 lg:flex ${
+      className={`electron-viewport-panel fixed inset-y-0 left-0 z-[60] hidden h-screen flex-none flex-col gap-[3px] overflow-hidden border-r border-[var(--color-line)] bg-[rgba(8,8,16,.42)] py-5 backdrop-blur-[var(--glass-blur)] transition-all duration-300 lg:flex ${
         collapsed ? "w-[72px] px-3" : "w-[196px] px-3.5"
       }`}
     >
@@ -138,7 +132,7 @@ export default function ClientSidebar({
           onClick={onToggleCollapse}
           title={t("sidebar.menu", { defaultValue: "Menú" })}
         >
-          <LogoMark playing={isPlaying} />
+          <LogoMark />
         </button>
         {!collapsed ? (
           <span
@@ -225,8 +219,10 @@ export default function ClientSidebar({
         {!collapsed ? (
           <button
             type="button"
-            onClick={onOpenImport}
-            title={t("sidebar.import", { defaultValue: "Importar" })}
+            onClick={onOpenCreateLibrary}
+            title={t("sidebar.createLibrary", {
+              defaultValue: "Crear biblioteca",
+            })}
             className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--color-muted)] transition hover:bg-white/[0.06] hover:text-[var(--color-text)]"
           >
             <Plus className="h-4 w-4" strokeWidth={2.4} />
@@ -245,33 +241,61 @@ export default function ClientSidebar({
           ) : null
         ) : (
           playlists.map((p) => (
-            <button
+            <div
               key={p.id}
-              type="button"
-              onClick={() => navigate(`/playlists/${p.id}`)}
-              title={p.name}
-              className={`flex items-center gap-2.5 rounded-lg py-[5px] transition hover:bg-white/[0.05] ${
-                collapsed ? "justify-center px-0" : "px-2"
+              className={`group relative flex items-center rounded-lg transition hover:bg-white/[0.05] ${
+                collapsed ? "justify-center" : ""
               }`}
             >
-              <span
-                className="h-[30px] w-[30px] flex-none overflow-hidden rounded-lg shadow-[0_3px_10px_-3px_rgba(0,0,0,.6)]"
-                style={{ background: gradOf(p.id) }}
+              <button
+                type="button"
+                onClick={() => navigate(`/playlists/${p.id}`)}
+                title={p.name}
+                className={`flex min-w-0 flex-1 items-center gap-2.5 rounded-lg py-[5px] text-left ${
+                  collapsed ? "justify-center px-0" : "px-2 pr-[54px]"
+                }`}
               >
-                {p.coverArt ? (
-                  <img
-                    src={p.coverArt}
-                    alt=""
-                    className="h-full w-full object-cover"
-                  />
-                ) : null}
-              </span>
-              {!collapsed ? (
-                <span className="truncate text-[13px] font-semibold text-[var(--color-muted)]">
-                  {p.name}
+                <span
+                  className="h-[30px] w-[30px] flex-none overflow-hidden rounded-lg shadow-[0_3px_10px_-3px_rgba(0,0,0,.6)]"
+                  style={{ background: gradOf(p.id) }}
+                >
+                  {p.coverArt ? (
+                    <img
+                      src={p.coverArt}
+                      alt=""
+                      className="h-full w-full object-cover"
+                    />
+                  ) : null}
                 </span>
+                {!collapsed ? (
+                  <span className="truncate text-[13px] font-semibold text-[var(--color-muted)]">
+                    {p.name}
+                  </span>
+                ) : null}
+              </button>
+              {!collapsed ? (
+                <div className="pointer-events-none absolute right-1.5 top-1/2 flex -translate-y-1/2 translate-x-1 items-center gap-0.5 opacity-0 transition-all duration-200 ease-out group-focus-within:pointer-events-auto group-focus-within:translate-x-0 group-focus-within:opacity-100 group-hover:pointer-events-auto group-hover:translate-x-0 group-hover:opacity-100">
+                  <button
+                    type="button"
+                    onClick={() => onEditLibrary?.(p)}
+                    title={`Editar ${p.name}`}
+                    aria-label={`Editar ${p.name}`}
+                    className="flex h-7 w-7 items-center justify-center rounded-md text-[var(--color-muted)] transition hover:bg-white/[0.09] hover:text-[var(--color-text)]"
+                  >
+                    <Pencil className="h-3.5 w-3.5" strokeWidth={2.2} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onDeleteLibrary?.(p)}
+                    title={`Eliminar ${p.name}`}
+                    aria-label={`Eliminar ${p.name}`}
+                    className="flex h-7 w-7 items-center justify-center rounded-md text-[var(--color-muted)] transition hover:bg-red-500/15 hover:text-red-400"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" strokeWidth={2.2} />
+                  </button>
+                </div>
               ) : null}
-            </button>
+            </div>
           ))
         )}
       </div>

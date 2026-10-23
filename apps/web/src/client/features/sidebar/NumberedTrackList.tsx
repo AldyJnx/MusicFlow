@@ -5,6 +5,10 @@ import { useSavedTracksQuery } from "../../../shared/hooks/useLibrarySaves";
 import { usePreferences } from "../../../shared/hooks/usePreferences";
 import { usePlayerStore, type PlayerTrack } from "../../stores/playStore";
 import type { Track } from "../../../shared/api/tracks";
+import {
+  formatTrackArtist,
+  toPlayerFeaturedArtists,
+} from "../../../shared/utils/trackArtist";
 
 type NumberedTrackListProps = {
   /** How many rows to show. The mock uses ~7, defaults match. */
@@ -16,7 +20,9 @@ function toPlayerTrack(t: Track): PlayerTrack | null {
   return {
     id: t.id,
     title: t.title,
-    artist: t.artist,
+    artistProfileName: t.artist,
+    artist: formatTrackArtist(t.artist, t.featuredArtists),
+    featuredArtists: toPlayerFeaturedArtists(t.featuredArtists),
     cover: t.coverArt,
     url: t.fileUrlRemote,
     durationMs: t.durationMs,

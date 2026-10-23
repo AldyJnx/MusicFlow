@@ -14,7 +14,7 @@ export default function HeadphonesTip() {
   useEffect(() => {
     if (!isAuthenticated) return undefined;
     const timeoutId = window.setTimeout(() => {
-      navigate("/library", { replace: true });
+      navigate("/inicio", { replace: true });
     }, DISPLAY_MS);
     return () => window.clearTimeout(timeoutId);
   }, [isAuthenticated, navigate]);

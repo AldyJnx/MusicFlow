@@ -2,6 +2,8 @@ import { Loader2, Sliders, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
+import { getAudioEngine } from "../../../audio/engine";
+import { usePlayerStore } from "../../stores/playStore";
 import {
   getConfigByScope,
   listPresets,
@@ -54,13 +56,27 @@ export default function PlaylistEQModal({
         scopeId: playlistId,
         presetId: selectedPresetId === "none" ? undefined : selectedPresetId,
       }),
-    onSuccess: () => {
+    onSuccess: (config) => {
       void qc.invalidateQueries({
         queryKey: ["eq", "config", "PLAYLIST", playlistId],
       });
       // Also force the auto-apply hook to re-resolve for any tracks the
       // player is currently going through that belong to this playlist.
       void qc.invalidateQueries({ queryKey: ["eq"] });
+      // The automatic resolver intentionally avoids reapplying on ordinary
+      // page renders. Apply a just-saved playlist config immediately when its
+      // queue is already playing, rather than waiting for the next song.
+      if (usePlayerStore.getState().currentPlaylistId === playlistId) {
+        const engine = getAudioEngine();
+        engine.equalizer.setBands(config.bands, 250);
+        engine.setEffects({
+          bassBoost: config.bassBoost,
+          virtualizer: config.virtualizer,
+          loudness: config.loudness,
+          reverbPreset: config.reverbPreset,
+          reverbAmount: config.reverbAmount,
+        });
+      }
       onClose();
     },
   });

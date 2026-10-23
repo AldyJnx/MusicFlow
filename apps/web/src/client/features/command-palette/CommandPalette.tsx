@@ -11,7 +11,6 @@ import {
   Settings,
   Sliders,
   Sparkles,
-  Upload,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
@@ -21,11 +20,10 @@ import { listPlaylists } from "../../../shared/api/playlists";
 import { listTracks, type Track } from "../../../shared/api/tracks";
 import { usePremiumGate } from "../../../shared/hooks/usePremiumGate";
 import { usePlayerStore, type PlayerTrack } from "../../stores/playStore";
-
-type CommandPaletteProps = {
-  /** Opens the import modal owned by ClientLayout. */
-  onOpenImport?: () => void;
-};
+import {
+  formatTrackArtist,
+  toPlayerFeaturedArtists,
+} from "../../../shared/utils/trackArtist";
 
 interface CommandItem {
   id: string;
@@ -47,14 +45,16 @@ function trackToPlayer(t: Track): PlayerTrack | null {
   return {
     id: t.id,
     title: t.title,
-    artist: t.artist,
+    artistProfileName: t.artist,
+    artist: formatTrackArtist(t.artist, t.featuredArtists),
+    featuredArtists: toPlayerFeaturedArtists(t.featuredArtists),
     cover: t.coverArt,
     url: t.fileUrlRemote,
     durationMs: t.durationMs,
   };
 }
 
-export default function CommandPalette({ onOpenImport }: CommandPaletteProps) {
+export default function CommandPalette() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { guard } = usePremiumGate();
@@ -188,12 +188,6 @@ export default function CommandPalette({ onOpenImport }: CommandPaletteProps) {
         icon: <ListPlus className="h-4 w-4" strokeWidth={2.1} />,
         run: () => openQueueDrawer(),
       },
-      {
-        id: "act-import",
-        label: t("sidebar.importAria", { defaultValue: "Importar canciones" }),
-        icon: <Upload className="h-4 w-4" strokeWidth={2.1} />,
-        run: () => onOpenImport?.(),
-      },
     ].filter((i) => match(i.label));
 
     // ── Playlists (filtradas localmente) ──────────────────────────────────
@@ -265,7 +259,6 @@ export default function CommandPalette({ onOpenImport }: CommandPaletteProps) {
     openEqDrawer,
     openAiPrompt,
     openQueueDrawer,
-    onOpenImport,
     guard,
     playTrack,
   ]);

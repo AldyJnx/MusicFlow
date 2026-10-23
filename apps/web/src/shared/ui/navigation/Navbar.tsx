@@ -28,6 +28,10 @@ import {
   type PlayerTrack,
 } from "../../../client/stores/playStore";
 import type { Track } from "../../api/tracks";
+import {
+  formatTrackArtist,
+  toPlayerFeaturedArtists,
+} from "../../utils/trackArtist";
 
 type NavbarProps = {
   placeholder?: string;
@@ -49,7 +53,9 @@ function toPlayerTrack(t: Track): PlayerTrack | null {
   return {
     id: t.id,
     title: t.title,
-    artist: t.artist,
+    artistProfileName: t.artist,
+    artist: formatTrackArtist(t.artist, t.featuredArtists),
+    featuredArtists: toPlayerFeaturedArtists(t.featuredArtists),
     cover: t.coverArt,
     url: t.fileUrlRemote,
     durationMs: t.durationMs,
@@ -70,6 +76,7 @@ const Navbar = forwardRef<NavbarRef, NavbarProps>(function Navbar(
   const { query, setQuery, tracks, artists, isLoading } = useGlobalSearch();
   const [focused, setFocused] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [avatarFailed, setAvatarFailed] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -105,6 +112,10 @@ const Navbar = forwardRef<NavbarRef, NavbarProps>(function Navbar(
     document.addEventListener("mousedown", onPointer);
     return () => document.removeEventListener("mousedown", onPointer);
   }, []);
+
+  useEffect(() => {
+    setAvatarFailed(false);
+  }, [user?.avatar]);
 
   const dropdownOpen = focused && query.trim().length >= 2;
 
@@ -226,7 +237,10 @@ const Navbar = forwardRef<NavbarRef, NavbarProps>(function Navbar(
                           {track.title}
                         </p>
                         <p className="truncate text-xs text-[var(--color-muted)]">
-                          {track.artist}
+                          {formatTrackArtist(
+                            track.artist,
+                            track.featuredArtists,
+                          )}
                           {track.album ? ` · ${track.album}` : ""}
                         </p>
                       </div>
@@ -289,10 +303,12 @@ const Navbar = forwardRef<NavbarRef, NavbarProps>(function Navbar(
               })}
               className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-fuchsia-500 to-violet-400 text-xs font-bold text-white transition hover:brightness-110"
             >
-              {user.avatar ? (
+              {user.avatar && !avatarFailed ? (
                 <img
                   src={user.avatar}
                   alt={user.username}
+                  referrerPolicy="no-referrer"
+                  onError={() => setAvatarFailed(true)}
                   className="h-full w-full rounded-full object-cover"
                 />
               ) : (

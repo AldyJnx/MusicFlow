@@ -1,460 +1,536 @@
-import { useState, useEffect, useCallback } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { X, RefreshCw, Search, ChevronDown, CheckCircle2 } from "lucide-react";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { useCallback, useDeferredValue, useEffect, useState } from "react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Download,
+  RefreshCw,
+  Search,
+  X,
+} from "lucide-react";
+import { Bar, Doughnut } from "react-chartjs-2";
+import {
+  BarElement,
+  ArcElement,
+  CategoryScale,
+  Chart as ChartJS,
+  Legend,
+  LinearScale,
+  Tooltip,
+} from "chart.js";
 import {
   getAiCosts,
-  getAiFeedbackStats,
-  getRecentAiRequests,
+  listAiRequests,
+  listAllAiRequests,
 } from "../../shared/api/admin";
 import type {
   AdminAIRequest,
   AICostsReport,
-  FeedbackValue,
+  AiUsageScope,
 } from "../../shared/api/admin";
+import { exportExcel } from "../../shared/utils/exportExcel";
 
-// ─── Types ───────────────────────────────────────────────────────────────────
+const PAGE_SIZE = 10;
 
-type FeedbackFilter = FeedbackValue | "ALL" | "NONE";
+const SCOPE_LABELS: Record<AiUsageScope, string> = {
+  all: "Todos",
+  user: "Usuario",
+  admin: "Admin",
+};
 
-interface EQSuggestion {
-  bands: number[];
-  bassBoost?: number;
-  virtualizer?: number;
-  loudness?: number;
-  reverbPreset?: string;
-  reverbAmount?: number;
-  explanation?: string;
-  segments?: Array<{
-    label: string;
-    startMs: number;
-    endMs: number;
-    bands: number[];
-  }>;
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  ArcElement,
+  Tooltip,
+  Legend,
+);
+
+const PERIODS = ["day", "month", "year"] as const;
+type Period = (typeof PERIODS)[number];
+
+const FULFILMENT_LABELS: Record<
+  AiUsageScope,
+  { rate: string; accepted: string; rejected: string }
+> = {
+  user: {
+    rate: "peticiones cumplidas",
+    accepted: "aceptadas",
+    rejected: "no aceptadas",
+  },
+  admin: {
+    rate: "propuestas aplicadas",
+    accepted: "aplicadas",
+    rejected: "descartadas o pendientes",
+  },
+  all: {
+    rate: "peticiones cumplidas",
+    accepted: "aceptadas",
+    rejected: "no aceptadas",
+  },
+};
+
+const PURPOSE_LABELS = {
+  GLOBAL: "Sugerencias IA",
+  PLAYLIST: "Playlists",
+  TRACK: "Canciones",
+  SEGMENT: "Segmentos",
+} as const;
+
+function formatDate(value: string) {
+  return new Intl.DateTimeFormat("es-PE", {
+    dateStyle: "short",
+    timeStyle: "short",
+  }).format(new Date(value));
 }
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
-function formatUsd(n: number, digits = 4): string {
-  if (!Number.isFinite(n)) return "$0";
-  if (n === 0) return "$0";
-  // Stretch to 6 digits for very small per-request costs.
-  const d = n < 0.01 ? Math.min(6, digits + 2) : digits;
-  return `$${n.toFixed(d)}`;
+function truncate(value: string, max = 80) {
+  return value.length > max ? `${value.slice(0, max - 1)}…` : value;
 }
 
-function formatTokens(n: number): string {
-  if (n < 1000) return String(n);
-  if (n < 1_000_000) return `${(n / 1000).toFixed(1)}k`;
-  return `${(n / 1_000_000).toFixed(2)}M`;
-}
+import { generateAiReportPdf } from "../../shared/utils/generateAiReportPdf";
 
-function CostsPanel({ report }: { report: AICostsReport }) {
-  const { totals, daily, byModel, byUser } = report;
-
-  // Cost sparkline (reuses growth pattern but on cost).
-  const maxCost = Math.max(0.0000001, ...daily.map((p) => p.cost));
-  const W = 700;
-  const H = 80;
-  const padX = 4;
-  const colW = (W - padX * 2) / Math.max(1, daily.length);
-  const barW = Math.max(2, colW * 0.7);
-
-  const maxModelCost = Math.max(0.0000001, ...byModel.map((m) => m.costUsd));
-  const maxUserCost = Math.max(0.0000001, ...byUser.map((u) => u.costUsd));
-
+function CostSummary({
+  report,
+  scope,
+  onScopeChange,
+}: {
+  report: AICostsReport;
+  scope: AiUsageScope;
+  onScopeChange: (scope: AiUsageScope) => void;
+}) {
   return (
-    <article className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-alt)] p-5">
-      <h2 className="mb-4 text-sm font-semibold uppercase tracking-widest text-[var(--color-muted)]">
-        Costos & uso IA · últimos {report.days} días
-      </h2>
+    <AICostDashboard
+      report={report}
+      scope={scope}
+      onScopeChange={onScopeChange}
+    />
+  );
+}
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-6">
-        <Kpi label="Costo total" value={formatUsd(totals.costUsd)} />
-        <Kpi
-          label="Costo / req"
-          value={formatUsd(totals.avgCostUsd)}
-          subtitle={`${totals.requests} reqs`}
-        />
-        <Kpi label="Tokens in" value={formatTokens(totals.tokensInput)} />
-        <Kpi label="Tokens out" value={formatTokens(totals.tokensOutput)} />
-        <Kpi label="Latencia avg" value={`${totals.avgLatencyMs} ms`} />
-        <Kpi
-          label="Modelos"
-          value={byModel.length}
-          subtitle={`${byUser.length} usuarios`}
-        />
-      </div>
-
-      <div className="mt-6">
-        <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-[var(--color-muted)]">
-          Costo USD por día
+export function PurposeChart({ report }: { report: AICostsReport }) {
+  if (!report.byPurpose.length) {
+    return (
+      <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-alt)] p-4">
+        <p className="text-xs font-semibold uppercase tracking-wider text-[var(--color-muted)]">
+          Usuarios por finalidad de IA
         </p>
-        {daily.length === 0 || totals.costUsd === 0 ? (
-          <p className="text-xs text-[var(--color-muted)]">
-            Aún no hay costos en este rango.
-          </p>
-        ) : (
-          <>
-            <svg
-              viewBox={`0 0 ${W} ${H}`}
-              role="img"
-              aria-label="Costo USD por día"
-              className="w-full"
-              preserveAspectRatio="none"
-            >
-              {daily.map((p, i) => {
-                const h = (p.cost / maxCost) * (H - 6);
-                const x = padX + i * colW + (colW - barW) / 2;
-                const y = H - h;
-                return (
-                  <rect
-                    key={p.date}
-                    x={x}
-                    y={y}
-                    width={barW}
-                    height={h}
-                    rx={2}
-                    className="fill-[var(--color-primary)]"
-                    opacity={p.cost === 0 ? 0.18 : 0.85}
-                  >
-                    <title>{`${p.date}: ${formatUsd(p.cost)} (${p.requests} reqs)`}</title>
-                  </rect>
-                );
-              })}
-            </svg>
-            <div className="mt-1 flex justify-between text-[10px] text-[var(--color-muted)]">
-              <span>{daily[0].date}</span>
-              <span>{daily[daily.length - 1].date}</span>
-            </div>
-          </>
-        )}
-      </div>
-
-      <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <div>
-          <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-[var(--color-muted)]">
-            Por modelo
-          </p>
-          {byModel.length === 0 ? (
-            <p className="text-xs text-[var(--color-muted)]">Sin requests.</p>
-          ) : (
-            <ul className="flex flex-col gap-2">
-              {byModel.map((m) => (
-                <li
-                  key={m.model}
-                  className="flex items-center gap-3 text-xs text-[var(--color-text)]"
-                >
-                  <span
-                    className="w-44 shrink-0 truncate font-mono text-[10px]"
-                    title={m.model}
-                  >
-                    {m.model}
-                  </span>
-                  <span className="relative h-2 flex-1 rounded-full bg-[var(--color-border)]">
-                    <span
-                      className="absolute inset-y-0 left-0 rounded-full bg-[var(--color-primary)]"
-                      style={{
-                        width: `${(m.costUsd / maxModelCost) * 100}%`,
-                      }}
-                    />
-                  </span>
-                  <span className="w-20 shrink-0 text-right font-mono tabular-nums text-[var(--color-muted)]">
-                    {formatUsd(m.costUsd)}
-                  </span>
-                  <span className="w-10 shrink-0 text-right tabular-nums text-[10px] text-[var(--color-muted)]">
-                    {m.requests}r
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-
-        <div>
-          <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-[var(--color-muted)]">
-            Top usuarios por costo
-          </p>
-          {byUser.length === 0 ? (
-            <p className="text-xs text-[var(--color-muted)]">
-              Sin usuarios con consumo.
-            </p>
-          ) : (
-            <ul className="flex flex-col gap-2">
-              {byUser.map((u) => (
-                <li
-                  key={u.userId}
-                  className="flex items-center gap-3 text-xs text-[var(--color-text)]"
-                >
-                  <a
-                    href={`/admin/users/${u.userId}`}
-                    className="w-32 shrink-0 truncate font-semibold hover:text-[var(--color-primary)] hover:underline"
-                    title={u.email}
-                  >
-                    {u.username}
-                  </a>
-                  <span className="relative h-2 flex-1 rounded-full bg-[var(--color-border)]">
-                    <span
-                      className="absolute inset-y-0 left-0 rounded-full bg-[var(--color-primary)]"
-                      style={{
-                        width: `${(u.costUsd / maxUserCost) * 100}%`,
-                      }}
-                    />
-                  </span>
-                  <span className="w-20 shrink-0 text-right font-mono tabular-nums text-[var(--color-muted)]">
-                    {formatUsd(u.costUsd)}
-                  </span>
-                  <span className="w-10 shrink-0 text-right tabular-nums text-[10px] text-[var(--color-muted)]">
-                    {u.requests}r
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      </div>
-    </article>
-  );
-}
-
-function Kpi({
-  label,
-  value,
-  subtitle,
-}: {
-  label: string;
-  value: string | number;
-  subtitle?: string;
-}) {
-  return (
-    <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-page)]/60 px-3 py-2">
-      <p className="text-[10px] font-semibold uppercase tracking-widest text-[var(--color-muted)]">
-        {label}
-      </p>
-      <p className="mt-1 text-lg font-semibold tabular-nums text-[var(--color-text)]">
-        {value}
-      </p>
-      {subtitle && (
-        <p className="text-[10px] text-[var(--color-muted)]">{subtitle}</p>
-      )}
-    </div>
-  );
-}
-
-function formatDate(iso: string): string {
-  const d = new Date(iso);
-  const dd = String(d.getDate()).padStart(2, "0");
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
-  const yy = String(d.getFullYear()).slice(2);
-  const HH = String(d.getHours()).padStart(2, "0");
-  const min = String(d.getMinutes()).padStart(2, "0");
-  return `${dd}/${mm}/${yy} ${HH}:${min}`;
-}
-
-function truncate(text: string, max: number): string {
-  return text.length > max ? text.slice(0, max) + "…" : text;
-}
-
-function parseEQ(response: unknown): EQSuggestion | null {
-  if (!response || typeof response !== "object") return null;
-  const r = response as Record<string, unknown>;
-  if (!Array.isArray(r.bands)) return null;
-  return r as unknown as EQSuggestion;
-}
-
-// ─── Sub-components ───────────────────────────────────────────────────────────
-
-function StatCard({
-  label,
-  value,
-  colorClass,
-}: {
-  label: string;
-  value: string | number;
-  colorClass?: string;
-}) {
-  return (
-    <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-alt)] p-4">
-      <p className="text-xs font-medium uppercase tracking-wider text-[var(--color-muted)]">
-        {label}
-      </p>
-      <p
-        className={`mt-1 text-2xl font-bold ${colorClass ?? "text-[var(--color-text)]"}`}
-      >
-        {value}
-      </p>
-    </div>
-  );
-}
-
-function FeedbackBadge({
-  feedback,
-  wasAccepted,
-}: {
-  feedback: FeedbackValue | null;
-  wasAccepted: boolean;
-}) {
-  if (feedback === "GOOD") {
-    return (
-      <span className="inline-flex items-center gap-1">
-        <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs font-semibold text-emerald-400">
-          👍 Good
-        </span>
-        {wasAccepted && (
-          <CheckCircle2
-            className="h-3.5 w-3.5 text-emerald-400"
-            strokeWidth={2.5}
-          />
-        )}
-      </span>
-    );
-  }
-  if (feedback === "BAD") {
-    return (
-      <span className="inline-flex items-center gap-1">
-        <span className="rounded-full bg-rose-500/15 px-2 py-0.5 text-xs font-semibold text-rose-400">
-          👎 Bad
-        </span>
-        {wasAccepted && (
-          <CheckCircle2
-            className="h-3.5 w-3.5 text-emerald-400"
-            strokeWidth={2.5}
-          />
-        )}
-      </span>
-    );
-  }
-  if (feedback === "NEUTRAL") {
-    return (
-      <span className="inline-flex items-center gap-1">
-        <span className="rounded-full bg-[var(--color-border)] px-2 py-0.5 text-xs font-semibold text-[var(--color-muted)]">
-          〰 Neutral
-        </span>
-        {wasAccepted && (
-          <CheckCircle2
-            className="h-3.5 w-3.5 text-emerald-400"
-            strokeWidth={2.5}
-          />
-        )}
-      </span>
+        <p className="mt-4 text-sm text-[var(--color-muted)]">
+          Aún no hay solicitudes de IA.
+        </p>
+      </section>
     );
   }
   return (
-    <span className="inline-flex items-center gap-1">
-      <span className="text-[var(--color-muted)]">—</span>
-      {wasAccepted && (
-        <CheckCircle2
-          className="h-3.5 w-3.5 text-emerald-400"
-          strokeWidth={2.5}
+    <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-alt)] p-4">
+      <p className="text-xs font-semibold uppercase tracking-wider text-[var(--color-muted)]">
+        Usuarios por finalidad de IA
+      </p>
+      <p className="mt-1 text-xs text-[var(--color-muted)]">
+        Usuarios únicos que usan el modelo en cada finalidad.
+      </p>
+      <div className="mt-3 h-56">
+        <Bar
+          data={{
+            labels: report.byPurpose.map(
+              (item) => PURPOSE_LABELS[item.purpose],
+            ),
+            datasets: [
+              {
+                label: "Usuarios únicos",
+                data: report.byPurpose.map((item) => item.users),
+                backgroundColor: "rgba(99, 102, 241, 0.7)",
+                borderRadius: 8,
+              },
+            ],
+          }}
+          options={{
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                callbacks: {
+                  afterLabel: (context) =>
+                    `${report.byPurpose[context.dataIndex]?.requests ?? 0} solicitudes`,
+                },
+              },
+            },
+            scales: {
+              y: { beginAtZero: true, ticks: { precision: 0 } },
+              x: { grid: { display: false } },
+            },
+          }}
         />
-      )}
-    </span>
+      </div>
+    </section>
   );
 }
 
-function SkeletonRows() {
+function PdfExportButton({ report }: { report: AICostsReport }) {
+  const [isExporting, setIsExporting] = useState(false);
+
+  async function downloadReport() {
+    setIsExporting(true);
+    try {
+      const blob = await generateAiReportPdf(report);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "reporte-estadistico-peticiones-ia-musicflow.pdf";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 0);
+    } catch (err) {
+      console.error("Error al exportar PDF:", err);
+    } finally {
+      setIsExporting(false);
+    }
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={() => void downloadReport()}
+      disabled={isExporting}
+      className="inline-flex items-center gap-2 rounded-lg border border-[var(--color-border)] px-3 py-1.5 text-xs font-semibold text-[var(--color-text)] hover:border-[var(--color-primary)] disabled:opacity-40"
+    >
+      <Download className="h-4 w-4" />
+      {isExporting ? "Generando PDF…" : "Exportar PDF"}
+    </button>
+  );
+}
+
+/** Compares the consumption of end users, administrators and both together. */
+function ScopeComparison({ report }: { report: AICostsReport }) {
+  const activeScope = report.scope ?? "all";
+  if (!report.sources) return null;
+  return (
+    <dl className="mt-4 grid gap-3 sm:grid-cols-3">
+      {(["user", "admin", "all"] as const).map((key) => {
+        const source = report.sources[key];
+        const active = activeScope === key;
+        return (
+          <div
+            key={key}
+            className={`rounded-xl border p-3 ${
+              active
+                ? "border-[var(--color-primary)] bg-[var(--color-surface)]"
+                : "border-[var(--color-border)]"
+            }`}
+          >
+            <dt className="text-xs font-semibold uppercase tracking-wider text-[var(--color-muted)]">
+              {SCOPE_LABELS[key]}
+            </dt>
+            <dd className="mt-1 text-sm font-semibold text-[var(--color-text)]">
+              {source.requests.toLocaleString("es-PE")} peticiones
+            </dd>
+            <dd className="text-xs text-[var(--color-muted)]">
+              {source.tokensInput.toLocaleString("es-PE")} entrada ·{" "}
+              {source.tokensOutput.toLocaleString("es-PE")} salida
+            </dd>
+          </div>
+        );
+      })}
+    </dl>
+  );
+}
+
+function AIActivityCharts({
+  report,
+  scope,
+  onScopeChange,
+}: {
+  report: AICostsReport;
+  scope: AiUsageScope;
+  onScopeChange: (scope: AiUsageScope) => void;
+}) {
+  const [period, setPeriod] = useState<Period>("day");
+  // An already-open admin tab can hold the pre-analytics response in cache.
+  // Treat it as an empty series until the new backend response arrives.
+  const points = report.activity?.[period] ?? [];
+  const labels = points.map((p) =>
+    new Intl.DateTimeFormat(
+      "es-PE",
+      period === "year"
+        ? { year: "numeric" }
+        : period === "month"
+          ? { month: "short", year: "numeric" }
+          : { day: "2-digit", month: "short" },
+    ).format(new Date(p.date)),
+  );
+  const fulfilled = points.reduce((sum, p) => sum + p.fulfilled, 0);
+  const unfulfilled = points.reduce((sum, p) => sum + p.unfulfilled, 0);
+  const rate =
+    fulfilled + unfulfilled
+      ? Math.round((fulfilled / (fulfilled + unfulfilled)) * 100)
+      : 0;
+  const fulfilment = FULFILMENT_LABELS[scope];
+  return (
+    <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-alt)] p-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wider text-[var(--color-muted)]">
+            Analítica de Peticiones IA
+          </p>
+          <p className="mt-1 text-xs text-[var(--color-muted)]">
+            Datos reales de tokens, volumen y aceptación. Consumo de{" "}
+            {SCOPE_LABELS[scope].toLowerCase()}.
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <PdfExportButton report={report} />
+          <div
+            className="inline-flex rounded-lg border border-[var(--color-border)] p-1"
+            role="group"
+            aria-label="Consumo por tipo de usuario"
+          >
+            {(["user", "admin", "all"] as const).map((value) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => onScopeChange(value)}
+                aria-pressed={scope === value}
+                className={`rounded-md px-3 py-1.5 text-xs font-semibold ${scope === value ? "bg-[var(--color-primary)] text-[var(--color-primary-contrast)]" : "text-[var(--color-muted)]"}`}
+              >
+                {SCOPE_LABELS[value]}
+              </button>
+            ))}
+          </div>
+          <div
+            className="inline-flex rounded-lg border border-[var(--color-border)] p-1"
+            role="group"
+            aria-label="Periodo de la analítica"
+          >
+            {PERIODS.map((value) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => setPeriod(value)}
+                className={`rounded-md px-3 py-1.5 text-xs font-semibold ${period === value ? "bg-[var(--color-primary)] text-[var(--color-primary-contrast)]" : "text-[var(--color-muted)]"}`}
+              >
+                {value === "day" ? "Día" : value === "month" ? "Mes" : "Año"}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+      {points.length === 0 ? (
+        <p className="py-10 text-center text-sm text-[var(--color-muted)]">
+          Aún no hay peticiones IA registradas.
+        </p>
+      ) : (
+        <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(260px,1fr)]">
+          <div className="h-72">
+            <Bar
+              data={{
+                labels,
+                datasets: [
+                  {
+                    label: "Tokens entrada",
+                    data: points.map((p) => p.tokensInput),
+                    backgroundColor: "rgba(99,102,241,.75)",
+                    borderRadius: 6,
+                  },
+                  {
+                    label: "Tokens salida",
+                    data: points.map((p) => p.tokensOutput),
+                    backgroundColor: "rgba(34,211,238,.75)",
+                    borderRadius: 6,
+                  },
+                  {
+                    label: "Peticiones",
+                    data: points.map((p) => p.requests),
+                    backgroundColor: "rgba(244,114,182,.7)",
+                    borderRadius: 6,
+                  },
+                ],
+              }}
+              options={{
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                  x: { grid: { display: false } },
+                  y: { beginAtZero: true },
+                },
+                plugins: { legend: { labels: { color: "#a8b0c8" } } },
+              }}
+            />
+          </div>
+          <div className="flex min-h-72 flex-col justify-center">
+            <div className="h-48">
+              <Doughnut
+                data={{
+                  labels: [
+                    FULFILMENT_LABELS[scope].accepted,
+                    FULFILMENT_LABELS[scope].rejected,
+                  ],
+                  datasets: [
+                    {
+                      data: [fulfilled, unfulfilled],
+                      backgroundColor: [
+                        "rgba(52,211,153,.8)",
+                        "rgba(251,113,133,.8)",
+                      ],
+                      borderWidth: 0,
+                    },
+                  ],
+                }}
+                options={{
+                  maintainAspectRatio: false,
+                  plugins: {
+                    legend: {
+                      position: "bottom",
+                      labels: { color: "#a8b0c8" },
+                    },
+                  },
+                }}
+              />
+            </div>
+            <p className="mt-3 text-center text-sm font-semibold">
+              {rate}% de {fulfilment.rate}
+            </p>
+            <p className="text-center text-xs text-[var(--color-muted)]">
+              {fulfilled} {fulfilment.accepted} · {unfulfilled}{" "}
+              {fulfilment.rejected}
+            </p>
+          </div>
+        </div>
+      )}
+      <ScopeComparison report={report} />
+    </section>
+  );
+}
+
+function AICostDashboard({
+  report,
+  scope,
+  onScopeChange,
+}: {
+  report: AICostsReport;
+  scope: AiUsageScope;
+  onScopeChange: (scope: AiUsageScope) => void;
+}) {
+  const modelLabels = report.byModel.map((item) => item.model);
+  const scopeSubtitle =
+    scope === "user"
+      ? "Consumo del asistente de usuarios (Claude Haiku)."
+      : scope === "admin"
+        ? "Consumo del asistente y tareas NVIDIA de administración."
+        : "Consumo acumulado de usuarios (Haiku) y administración (NVIDIA).";
+
   return (
     <>
-      {Array.from({ length: 5 }).map((_, i) => (
-        <tr key={i} className="border-b border-[var(--color-border)]">
-          {Array.from({ length: 10 }).map((__, j) => (
-            <td key={j} className="px-4 py-3">
-              <div className="h-4 animate-pulse rounded bg-[var(--color-border)]" />
-            </td>
-          ))}
-        </tr>
-      ))}
+      <AIActivityCharts
+        report={report}
+        scope={scope}
+        onScopeChange={onScopeChange}
+      />
+      <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-alt)] p-4">
+        <p className="text-xs font-semibold uppercase tracking-wider text-[var(--color-muted)]">
+          Tokens consumidos por modelo
+        </p>
+        <p className="mt-1 text-xs text-[var(--color-muted)]">
+          {scopeSubtitle}
+        </p>
+        {report.byModel.length === 0 ? (
+          <p className="py-8 text-center text-sm text-[var(--color-muted)]">
+            Aún no hay consumo registrado para{" "}
+            {SCOPE_LABELS[scope].toLowerCase()}.
+          </p>
+        ) : (
+          <div className="mt-3 h-64">
+            <Bar
+              data={{
+                labels: modelLabels,
+                datasets: [
+                  {
+                    label: "Tokens de entrada",
+                    data: report.byModel.map((item) => item.tokensInput),
+                    backgroundColor: "rgba(99,102,241,.75)",
+                    borderRadius: 6,
+                  },
+                  {
+                    label: "Tokens de salida",
+                    data: report.byModel.map((item) => item.tokensOutput),
+                    backgroundColor: "rgba(34,211,238,.75)",
+                    borderRadius: 6,
+                  },
+                ],
+              }}
+              options={{
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                  x: { grid: { display: false } },
+                  y: { beginAtZero: true },
+                },
+                plugins: {
+                  legend: { labels: { color: "#a8b0c8" } },
+                  tooltip: {
+                    callbacks: {
+                      afterBody: (items) => {
+                        const model = report.byModel[items[0]?.dataIndex ?? 0];
+                        if (!model) return "";
+                        return [
+                          `${model.requests} peticiones · ${(
+                            model.tokensInput + model.tokensOutput
+                          ).toLocaleString("es-PE")} tokens`,
+                          `(${model.tokensInput.toLocaleString("es-PE")} entrada / ${model.tokensOutput.toLocaleString("es-PE")} salida)`,
+                        ];
+                      },
+                    },
+                  },
+                },
+              }}
+            />
+          </div>
+        )}
+      </section>
     </>
   );
 }
 
-// ─── EQ Bars ─────────────────────────────────────────────────────────────────
-
-function EQBars({ bands }: { bands: number[] }) {
-  const MAX_HEIGHT = 48; // px for 15 dB
-  return (
-    <div className="flex items-end gap-0.5" style={{ height: MAX_HEIGHT + 4 }}>
-      {bands.map((gain, i) => {
-        const h = Math.max(2, (Math.abs(gain) / 15) * MAX_HEIGHT);
-        const positive = gain >= 0;
-        return (
-          <div
-            key={i}
-            title={`Band ${i + 1}: ${gain > 0 ? "+" : ""}${gain} dB`}
-            style={{
-              height: h,
-              width: 10,
-              backgroundColor: positive ? "#22d3ee" : "#f59e0b",
-              borderRadius: 2,
-            }}
-          />
-        );
-      })}
-    </div>
-  );
-}
-
-// ─── Detail Modal ─────────────────────────────────────────────────────────────
-
-function DetailModal({
+function RequestDetail({
   request,
   onClose,
 }: {
   request: AdminAIRequest;
   onClose: () => void;
 }) {
-  const eq = parseEQ(request.response);
-
-  // Close on Escape
   useEffect(() => {
-    function handler(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
-    }
-    document.addEventListener("keydown", handler);
-    return () => document.removeEventListener("keydown", handler);
+    const closeOnEscape = (event: KeyboardEvent) =>
+      event.key === "Escape" && onClose();
+    document.addEventListener("keydown", closeOnEscape);
+    return () => document.removeEventListener("keydown", closeOnEscape);
   }, [onClose]);
-
   return (
     <div
-      className="fixed inset-0 z-50 flex items-start justify-end bg-black/50 backdrop-blur-sm"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
+      className="fixed inset-0 z-50 flex justify-end bg-black/50 backdrop-blur-sm"
+      onMouseDown={(event) => event.target === event.currentTarget && onClose()}
     >
-      <aside className="relative flex h-full w-full max-w-xl flex-col overflow-y-auto bg-[var(--color-page)] shadow-2xl">
-        {/* Header */}
-        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-[var(--color-border)] bg-[var(--color-page)] px-6 py-4">
-          <h2 className="text-base font-semibold text-[var(--color-text)]">
-            Detalle del Request
-          </h2>
+      <aside className="flex h-full w-full max-w-xl flex-col overflow-y-auto bg-[var(--color-page)] shadow-2xl">
+        <header className="sticky top-0 flex items-center justify-between border-b border-[var(--color-border)] bg-[var(--color-page)] px-6 py-4">
+          <div>
+            <h2 className="text-base font-semibold text-[var(--color-text)]">
+              Detalle de solicitud
+            </h2>
+            <p className="mt-0.5 text-xs text-[var(--color-muted)]">
+              {request.user.username} · {formatDate(request.createdAt)}
+            </p>
+          </div>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-full p-1.5 text-[var(--color-muted)] transition hover:bg-[var(--color-surface-alt)] hover:text-[var(--color-text)]"
-            aria-label="Cerrar"
+            className="rounded-lg p-2 text-[var(--color-muted)] hover:bg-[var(--color-surface-alt)] hover:text-[var(--color-text)]"
+            aria-label="Cerrar detalle"
           >
             <X className="h-4 w-4" />
           </button>
-        </div>
-
-        <div className="flex flex-col gap-6 px-6 py-6">
-          {/* Meta */}
-          <div className="flex flex-wrap gap-2 text-xs text-[var(--color-muted)]">
-            <span>{formatDate(request.createdAt)}</span>
-            <span>·</span>
-            <span>
-              {request.user.username} ({request.user.email})
-            </span>
-            {request.track && (
-              <>
-                <span>·</span>
-                <span>
-                  {request.track.title} — {request.track.artist}
-                </span>
-              </>
-            )}
-          </div>
-
-          {/* Prompt */}
+        </header>
+        <div className="space-y-5 p-6">
           <section>
             <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-[var(--color-muted)]">
               Prompt
@@ -463,129 +539,23 @@ function DetailModal({
               {request.prompt}
             </pre>
           </section>
-
-          {/* Context */}
           <section>
             <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-[var(--color-muted)]">
               Contexto
             </h3>
-            <pre className="max-h-48 overflow-y-auto whitespace-pre-wrap break-all rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-alt)] p-4 text-xs text-[var(--color-muted)]">
+            <pre className="max-h-48 overflow-auto whitespace-pre-wrap break-all rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-alt)] p-4 text-xs text-[var(--color-muted)]">
               {JSON.stringify(request.context, null, 2)}
             </pre>
           </section>
-
-          {/* EQ Suggestion */}
-          {eq && (
-            <section>
-              <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-[var(--color-muted)]">
-                Sugerencia EQ
-              </h3>
-              <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-alt)] p-4">
-                {/* EQ bars */}
-                <div className="mb-4">
-                  <p className="mb-2 text-xs text-[var(--color-muted)]">
-                    Bandas (10) — Cyan = boost, Amber = cut
-                  </p>
-                  <EQBars
-                    bands={
-                      eq.bands.length === 10 ? eq.bands : Array(10).fill(0)
-                    }
-                  />
-                  <div className="mt-1 flex justify-between text-[10px] text-[var(--color-muted)]">
-                    {[
-                      "32",
-                      "64",
-                      "125",
-                      "250",
-                      "500",
-                      "1k",
-                      "2k",
-                      "4k",
-                      "8k",
-                      "16k",
-                    ].map((f) => (
-                      <span key={f}>{f}</span>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Effects summary */}
-                <div className="flex flex-wrap gap-2">
-                  {eq.bassBoost !== undefined && eq.bassBoost !== 0 && (
-                    <span className="rounded-lg bg-cyan-500/10 px-2 py-0.5 text-xs text-cyan-400">
-                      Bass Boost: {eq.bassBoost}
-                    </span>
-                  )}
-                  {eq.virtualizer !== undefined && eq.virtualizer !== 0 && (
-                    <span className="rounded-lg bg-violet-500/10 px-2 py-0.5 text-xs text-violet-400">
-                      Virtualizer: {eq.virtualizer}
-                    </span>
-                  )}
-                  {eq.loudness !== undefined && eq.loudness !== 0 && (
-                    <span className="rounded-lg bg-amber-500/10 px-2 py-0.5 text-xs text-amber-400">
-                      Loudness: {eq.loudness}
-                    </span>
-                  )}
-                  {eq.reverbPreset && (
-                    <span className="rounded-lg bg-indigo-500/10 px-2 py-0.5 text-xs text-indigo-400">
-                      Reverb: {eq.reverbPreset}{" "}
-                      {eq.reverbAmount !== undefined
-                        ? `(${eq.reverbAmount})`
-                        : ""}
-                    </span>
-                  )}
-                </div>
-
-                {/* Segments */}
-                {eq.segments && eq.segments.length > 0 && (
-                  <div className="mt-4">
-                    <p className="mb-2 text-xs font-medium text-[var(--color-muted)]">
-                      Segmentos
-                    </p>
-                    <ul className="flex flex-col gap-2">
-                      {eq.segments.map((seg, i) => (
-                        <li
-                          key={i}
-                          className="rounded-lg border border-[var(--color-border)] p-2"
-                        >
-                          <div className="flex items-center justify-between text-xs">
-                            <span className="font-semibold text-[var(--color-text)]">
-                              {seg.label}
-                            </span>
-                            <span className="text-[var(--color-muted)]">
-                              {(seg.startMs / 1000).toFixed(1)}s –{" "}
-                              {(seg.endMs / 1000).toFixed(1)}s
-                            </span>
-                          </div>
-                          {Array.isArray(seg.bands) &&
-                            seg.bands.length === 10 && (
-                              <div className="mt-2">
-                                <EQBars bands={seg.bands} />
-                              </div>
-                            )}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </div>
-            </section>
-          )}
-
-          {/* Raw response if not parseable as EQ */}
-          {!eq && request.response != null && (
-            <section>
-              <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-[var(--color-muted)]">
-                Respuesta (raw)
-              </h3>
-              <pre className="max-h-48 overflow-y-auto whitespace-pre-wrap break-all rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-alt)] p-4 text-xs text-[var(--color-muted)]">
-                {JSON.stringify(request.response, null, 2)}
-              </pre>
-            </section>
-          )}
-
-          {/* Explanation */}
-          {request.explanation && (
+          <section>
+            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-[var(--color-muted)]">
+              Respuesta
+            </h3>
+            <pre className="max-h-72 overflow-auto whitespace-pre-wrap break-all rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-alt)] p-4 text-xs text-[var(--color-muted)]">
+              {JSON.stringify(request.response, null, 2)}
+            </pre>
+          </section>
+          {request.explanation ? (
             <section>
               <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-[var(--color-muted)]">
                 Explicación
@@ -594,226 +564,143 @@ function DetailModal({
                 {request.explanation}
               </p>
             </section>
-          )}
-
-          {/* Feedback */}
-          <section>
-            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-[var(--color-muted)]">
-              Feedback
-            </h3>
-            <div className="flex items-center gap-3">
-              <FeedbackBadge
-                feedback={request.feedback}
-                wasAccepted={request.wasAccepted}
-              />
-              {request.wasAccepted && (
-                <span className="text-xs text-[var(--color-muted)]">
-                  Sugerencia aceptada
-                </span>
-              )}
-            </div>
-            {request.feedbackComment && (
-              <p className="mt-2 text-sm text-[var(--color-muted)]">
-                "{request.feedbackComment}"
-              </p>
-            )}
-          </section>
+          ) : null}
         </div>
       </aside>
     </div>
   );
 }
 
-// ─── Main Page ────────────────────────────────────────────────────────────────
-
 export default function AIRequestsPage() {
-  const [limit, setLimit] = useState(20);
-  const [feedbackFilter, setFeedbackFilter] = useState<FeedbackFilter>("ALL");
+  const [page, setPage] = useState(0);
   const [search, setSearch] = useState("");
+  const [scope, setScope] = useState<AiUsageScope>("all");
+  const [isExporting, setIsExporting] = useState(false);
+  const deferredSearch = useDeferredValue(search.trim());
   const [selected, setSelected] = useState<AdminAIRequest | null>(null);
-
-  const feedbackQ = useQuery({
-    queryKey: ["admin", "ai-feedback"],
-    queryFn: getAiFeedbackStats,
-    staleTime: 30_000,
-  });
-
+  useEffect(() => setPage(0), [deferredSearch]);
   const costsQ = useQuery({
-    queryKey: ["admin", "ai-costs", 30],
-    queryFn: () => getAiCosts(30),
+    // v3 splits the report per consumer and adds the NVIDIA catalog runs.
+    queryKey: ["admin", "ai-costs-v3", 30, scope],
+    queryFn: () => getAiCosts(30, scope),
     staleTime: 60_000,
   });
-
+  const isCurrentScopeReport = costsQ.data?.scope === scope;
+  const changeScope = useCallback((nextScope: AiUsageScope) => {
+    setScope((currentScope) =>
+      currentScope === nextScope ? currentScope : nextScope,
+    );
+  }, []);
   const requestsQ = useQuery({
-    queryKey: ["admin", "ai-requests", { limit }],
-    queryFn: () => getRecentAiRequests(limit),
+    queryKey: ["admin", "ai-requests", page, deferredSearch],
+    queryFn: () =>
+      listAiRequests({
+        skip: page * PAGE_SIZE,
+        take: PAGE_SIZE,
+        search: deferredSearch || undefined,
+      }),
+    placeholderData: keepPreviousData,
     staleTime: 30_000,
   });
+  const closeDetail = useCallback(() => setSelected(null), []);
+  const total = requestsQ.data?.total ?? 0;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const requests = requestsQ.data?.requests ?? [];
 
-  const stats = feedbackQ.data;
-  const satisfactionRate = stats?.satisfactionRate ?? 0;
-
-  const satisfactionColor =
-    satisfactionRate >= 70
-      ? "text-emerald-400"
-      : satisfactionRate >= 40
-        ? "text-amber-400"
-        : "text-rose-400";
-
-  // Client-side filtering
-  const filtered = (requestsQ.data ?? []).filter((req) => {
-    const matchFeedback =
-      feedbackFilter === "ALL"
-        ? true
-        : feedbackFilter === "NONE"
-          ? req.feedback === null
-          : req.feedback === feedbackFilter;
-
-    const q = search.toLowerCase();
-    const matchSearch =
-      q === "" ||
-      req.prompt.toLowerCase().includes(q) ||
-      req.user.email.toLowerCase().includes(q) ||
-      req.user.username.toLowerCase().includes(q);
-
-    return matchFeedback && matchSearch;
-  });
-
-  const handleClose = useCallback(() => setSelected(null), []);
-
-  const LIMIT_OPTIONS = [10, 20, 50, 100] as const;
-  const FEEDBACK_CHIPS: { label: string; value: FeedbackFilter }[] = [
-    { label: "All", value: "ALL" },
-    { label: "👍 Good", value: "GOOD" },
-    { label: "👎 Bad", value: "BAD" },
-    { label: "〰 Neutral", value: "NEUTRAL" },
-    { label: "Sin feedback", value: "NONE" },
-  ];
+  async function exportRequests() {
+    setIsExporting(true);
+    try {
+      const rows = await listAllAiRequests(deferredSearch || undefined);
+      exportExcel(
+        "analisis-peticiones-ia",
+        [
+          { label: "Fecha", value: (request) => formatDate(request.createdAt) },
+          { label: "Usuario", value: (request) => request.user.username },
+          { label: "Correo", value: (request) => request.user.email },
+          {
+            label: "Canción",
+            value: (request) =>
+              request.track
+                ? `${request.track.title} — ${request.track.artist}`
+                : "",
+          },
+          { label: "Prompt", value: (request) => request.prompt },
+          { label: "Modelo", value: (request) => request.modelUsed },
+          { label: "Tokens entrada", value: (request) => request.tokensInput },
+          { label: "Tokens salida", value: (request) => request.tokensOutput },
+          { label: "Costo USD", value: (request) => request.costUsd },
+          { label: "Tiempo ms", value: (request) => request.responseTimeMs },
+          {
+            label: "Aceptada",
+            value: (request) => (request.wasAccepted ? "Sí" : "No"),
+          },
+        ],
+        rows,
+      );
+    } finally {
+      setIsExporting(false);
+    }
+  }
 
   return (
     <>
       <section className="min-h-screen w-full bg-[var(--color-page)] px-4 py-6 text-[var(--color-text)] sm:px-6 xl:px-8">
         <div className="mx-auto flex max-w-[1400px] flex-col gap-6">
-          {/* ── Header ── */}
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight text-[var(--color-text)]">
-              Requests del Agente IA
+          <header>
+            <h1 className="text-2xl font-bold tracking-tight">
+              Solicitudes del agente IA
             </h1>
             <p className="mt-1 text-sm text-[var(--color-muted)]">
-              Auditoría de prompts, sugerencias y feedback.
+              Auditoría de prompts y sugerencias. La búsqueda y paginación se
+              procesan en el servidor.
             </p>
-          </div>
-
-          {/* ── Stats row ── */}
-          {feedbackQ.isLoading ? (
-            <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <div
-                  key={i}
-                  className="h-20 animate-pulse rounded-2xl bg-[var(--color-surface-alt)]"
-                />
-              ))}
-            </div>
-          ) : feedbackQ.isError ? (
-            <p className="text-sm text-rose-400">
-              Error cargando estadísticas.
-            </p>
-          ) : stats ? (
-            <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-              <StatCard label="Total" value={stats.total} />
-              <StatCard
-                label="Satisfacción"
-                value={`${satisfactionRate.toFixed(1)}%`}
-                colorClass={satisfactionColor}
-              />
-              <StatCard
-                label="👍 Good"
-                value={stats.good}
-                colorClass="text-emerald-400"
-              />
-              <StatCard
-                label="👎 Bad"
-                value={stats.bad}
-                colorClass="text-rose-400"
-              />
-            </div>
+          </header>
+          {costsQ.data && isCurrentScopeReport ? (
+            <CostSummary
+              key={scope}
+              report={costsQ.data}
+              scope={scope}
+              onScopeChange={changeScope}
+            />
+          ) : costsQ.isPending || !isCurrentScopeReport ? (
+            <div className="h-24 animate-pulse rounded-2xl bg-[var(--color-surface-alt)]" />
           ) : null}
-
-          {/* ── Costos / uso panel ── */}
-          {costsQ.isLoading ? (
-            <div className="h-72 animate-pulse rounded-2xl bg-[var(--color-surface-alt)]" />
-          ) : costsQ.data ? (
-            <CostsPanel report={costsQ.data} />
-          ) : null}
-
-          {/* ── Filter toolbar ── */}
-          <div className="flex flex-wrap items-center gap-3">
-            {/* Limit selector */}
-            <div className="relative">
-              <select
-                value={limit}
-                onChange={(e) => setLimit(Number(e.target.value))}
-                className="appearance-none rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-alt)] py-2 pl-3 pr-8 text-sm text-[var(--color-text)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]"
-              >
-                {LIMIT_OPTIONS.map((n) => (
-                  <option key={n} value={n}>
-                    {n} por página
-                  </option>
-                ))}
-              </select>
-              <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-muted)]" />
-            </div>
-
-            {/* Feedback chips */}
-            <div className="flex flex-wrap gap-2">
-              {FEEDBACK_CHIPS.map((chip) => (
-                <button
-                  key={chip.value}
-                  type="button"
-                  onClick={() => setFeedbackFilter(chip.value)}
-                  className={`rounded-full border px-3 py-1 text-xs font-medium transition ${
-                    feedbackFilter === chip.value
-                      ? "border-[var(--color-primary)] bg-[var(--color-primary)] text-white"
-                      : "border-[var(--color-border)] bg-[var(--color-surface-alt)] text-[var(--color-muted)] hover:border-[var(--color-primary)] hover:text-[var(--color-text)]"
-                  }`}
-                >
-                  {chip.label}
-                </button>
-              ))}
-            </div>
-
-            {/* Search */}
-            <div className="relative ml-auto">
+          <div className="flex flex-wrap justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => void exportRequests()}
+              disabled={isExporting || total === 0}
+              className="inline-flex items-center gap-2 rounded-xl border border-[var(--color-border)] px-3 py-2 text-xs font-semibold hover:border-[var(--color-primary)] disabled:opacity-40"
+            >
+              <Download className="h-4 w-4" />
+              {isExporting ? "Exportando…" : "Exportar Excel"}
+            </button>
+            <label className="relative block">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-muted)]" />
               <input
-                type="text"
-                placeholder="Buscar por prompt o usuario…"
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="w-64 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-alt)] py-2 pl-9 pr-3 text-sm text-[var(--color-text)] placeholder:text-[var(--color-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]"
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Buscar prompt o usuario…"
+                className="w-72 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-alt)] py-2 pl-9 pr-3 text-sm outline-none focus:border-[var(--color-primary)]"
               />
-            </div>
+            </label>
           </div>
-
-          {/* ── Error banner ── */}
-          {requestsQ.isError && (
+          {requestsQ.isError ? (
             <div className="flex items-center justify-between rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-400">
-              <span>Error al cargar los requests.</span>
+              <span>No se pudieron cargar las solicitudes.</span>
               <button
                 type="button"
                 onClick={() => requestsQ.refetch()}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-rose-400/30 px-3 py-1.5 text-xs font-semibold text-rose-300 transition hover:bg-rose-500/20"
+                className="inline-flex items-center gap-1 rounded-lg px-2 py-1 font-semibold"
               >
-                <RefreshCw className="h-3.5 w-3.5" />
+                <RefreshCw className="h-4 w-4" />
                 Reintentar
               </button>
             </div>
-          )}
-
-          {/* ── Table ── */}
-          <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-alt)] overflow-hidden">
+          ) : null}
+          <div className="overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-alt)]">
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[900px] border-collapse text-sm">
+              <table className="w-full min-w-[850px] text-sm">
                 <thead>
                   <tr className="border-b border-[var(--color-border)] text-left">
                     {[
@@ -825,127 +712,124 @@ export default function AIRequestsPage() {
                       "Tokens",
                       "Costo",
                       "Tiempo",
-                      "Feedback",
                       "Acciones",
-                    ].map((col) => (
+                    ].map((label) => (
                       <th
-                        key={col}
+                        key={label}
                         className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-[var(--color-muted)]"
                       >
-                        {col}
+                        {label}
                       </th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {requestsQ.isLoading ? (
-                    <SkeletonRows />
-                  ) : !requestsQ.isError && filtered.length === 0 ? (
+                  {requestsQ.isPending
+                    ? Array.from({ length: PAGE_SIZE }).map((_, index) => (
+                        <tr
+                          key={index}
+                          className="border-b border-[var(--color-border)]"
+                        >
+                          <td colSpan={9} className="px-4 py-3">
+                            <div className="h-4 animate-pulse rounded bg-[var(--color-border)]" />
+                          </td>
+                        </tr>
+                      ))
+                    : null}
+                  {!requestsQ.isPending && requests.length === 0 ? (
                     <tr>
                       <td
-                        colSpan={10}
+                        colSpan={9}
                         className="px-4 py-12 text-center text-[var(--color-muted)]"
                       >
-                        No hay requests todavía. Empieza a usar el agente IA.
+                        No hay solicitudes que coincidan.
                       </td>
                     </tr>
-                  ) : (
-                    filtered.map((req) => (
-                      <tr
-                        key={req.id}
-                        className="border-b border-[var(--color-border)] transition hover:bg-[var(--color-page)]/50"
-                      >
-                        {/* Created */}
-                        <td className="whitespace-nowrap px-4 py-3 text-xs text-[var(--color-muted)]">
-                          {formatDate(req.createdAt)}
-                        </td>
-
-                        {/* Usuario */}
-                        <td className="px-4 py-3">
-                          <p className="font-medium text-[var(--color-text)]">
-                            {req.user.username}
-                          </p>
-                          <p className="text-xs text-[var(--color-muted)]">
-                            {req.user.email}
-                          </p>
-                        </td>
-
-                        {/* Track */}
-                        <td className="px-4 py-3 text-xs text-[var(--color-muted)]">
-                          {req.track
-                            ? `${req.track.title} — ${req.track.artist}`
-                            : "—"}
-                        </td>
-
-                        {/* Prompt */}
-                        <td className="px-4 py-3">
-                          <span
-                            title={req.prompt}
-                            className="cursor-help text-[var(--color-text)]"
-                          >
-                            {truncate(req.prompt, 80)}
-                          </span>
-                        </td>
-
-                        {/* Modelo */}
-                        <td className="px-4 py-3">
-                          <span className="rounded-full border border-[var(--color-border)] px-2 py-0.5 text-[10px] font-medium text-[var(--color-muted)]">
-                            {req.modelUsed}
-                          </span>
-                        </td>
-
-                        {/* Tokens */}
-                        <td className="whitespace-nowrap px-4 py-3 text-xs text-[var(--color-muted)]">
-                          {req.tokensInput} ↑ {req.tokensOutput} ↓
-                        </td>
-
-                        {/* Costo */}
-                        <td className="whitespace-nowrap px-4 py-3 text-xs text-[var(--color-muted)]">
-                          ${Number(req.costUsd).toFixed(5)}
-                        </td>
-
-                        {/* Tiempo */}
-                        <td className="whitespace-nowrap px-4 py-3 text-xs text-[var(--color-muted)]">
-                          {req.responseTimeMs}ms
-                        </td>
-
-                        {/* Feedback */}
-                        <td className="px-4 py-3">
-                          <FeedbackBadge
-                            feedback={req.feedback}
-                            wasAccepted={req.wasAccepted}
-                          />
-                        </td>
-
-                        {/* Acciones */}
-                        <td className="px-4 py-3">
-                          <button
-                            type="button"
-                            onClick={() => setSelected(req)}
-                            className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-alt)] px-3 py-1.5 text-xs font-semibold text-[var(--color-text)] transition hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]"
-                          >
-                            Ver
-                          </button>
-                        </td>
-                      </tr>
-                    ))
-                  )}
+                  ) : null}
+                  {requests.map((request) => (
+                    <tr
+                      key={request.id}
+                      className="border-b border-[var(--color-border)] hover:bg-[var(--color-page)]/50"
+                    >
+                      <td className="whitespace-nowrap px-4 py-3 text-xs text-[var(--color-muted)]">
+                        {formatDate(request.createdAt)}
+                      </td>
+                      <td className="px-4 py-3">
+                        <p className="font-medium">{request.user.username}</p>
+                        <p className="text-xs text-[var(--color-muted)]">
+                          {request.user.email}
+                        </p>
+                      </td>
+                      <td className="px-4 py-3 text-xs text-[var(--color-muted)]">
+                        {request.track
+                          ? `${request.track.title} — ${request.track.artist}`
+                          : "—"}
+                      </td>
+                      <td className="max-w-xs px-4 py-3" title={request.prompt}>
+                        {truncate(request.prompt)}
+                      </td>
+                      <td className="px-4 py-3 text-xs">{request.modelUsed}</td>
+                      <td className="whitespace-nowrap px-4 py-3 text-xs">
+                        {request.tokensInput} ↑ {request.tokensOutput} ↓
+                      </td>
+                      <td className="px-4 py-3 text-xs">
+                        ${Number(request.costUsd).toFixed(5)}
+                      </td>
+                      <td className="px-4 py-3 text-xs">
+                        {request.responseTimeMs} ms
+                      </td>
+                      <td className="px-4 py-3">
+                        <button
+                          type="button"
+                          onClick={() => setSelected(request)}
+                          className="rounded-lg border border-[var(--color-border)] px-3 py-1.5 text-xs font-semibold hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]"
+                        >
+                          Ver
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
-
-            {/* Row count */}
-            {!requestsQ.isLoading && !requestsQ.isError && requestsQ.data && (
-              <div className="border-t border-[var(--color-border)] px-4 py-2 text-xs text-[var(--color-muted)]">
-                Mostrando {filtered.length} de {requestsQ.data.length} requests
+            <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--color-border)] px-4 py-3 text-xs text-[var(--color-muted)]">
+              <span>
+                {total === 0
+                  ? "Sin resultados"
+                  : `Mostrando ${page * PAGE_SIZE + 1}–${Math.min((page + 1) * PAGE_SIZE, total)} de ${total}`}
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPage((current) => Math.max(0, current - 1))}
+                  disabled={page === 0 || requestsQ.isFetching}
+                  className="rounded-lg border border-[var(--color-border)] p-1.5 disabled:opacity-40"
+                  aria-label="Página anterior"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </button>
+                <span>
+                  Página {page + 1} de {totalPages}
+                </span>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setPage((current) => Math.min(totalPages - 1, current + 1))
+                  }
+                  disabled={page >= totalPages - 1 || requestsQ.isFetching}
+                  className="rounded-lg border border-[var(--color-border)] p-1.5 disabled:opacity-40"
+                  aria-label="Página siguiente"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </button>
               </div>
-            )}
+            </footer>
           </div>
         </div>
       </section>
-
-      {/* ── Detail Modal ── */}
-      {selected && <DetailModal request={selected} onClose={handleClose} />}
+      {selected ? (
+        <RequestDetail request={selected} onClose={closeDetail} />
+      ) : null}
     </>
   );
 }

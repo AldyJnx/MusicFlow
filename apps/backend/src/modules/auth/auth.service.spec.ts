@@ -9,6 +9,7 @@ import { RegisterDto } from "./dto/register.dto";
 import { LoginDto } from "./dto/login.dto";
 import { PrismaService } from "@/prisma/prisma.service";
 import { MailService } from "@/modules/mail/mail.service";
+import { GoogleIdTokenVerifier } from "./google-id-token.verifier";
 
 describe("AuthService", () => {
   let service: AuthService;
@@ -18,6 +19,7 @@ describe("AuthService", () => {
     $transaction: jest.Mock;
   };
   let mail: { sendPasswordReset: jest.Mock };
+  let googleIdTokenVerifier: { verify: jest.Mock };
 
   beforeEach(async () => {
     prisma = {
@@ -42,6 +44,7 @@ describe("AuthService", () => {
     // so the mock must return a thenable by default or .catch() throws.
     prisma.user.update.mockResolvedValue({});
     mail = { sendPasswordReset: jest.fn() };
+    googleIdTokenVerifier = { verify: jest.fn() };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -63,6 +66,7 @@ describe("AuthService", () => {
           useValue: { get: jest.fn(() => "secret") },
         },
         { provide: MailService, useValue: mail },
+        { provide: GoogleIdTokenVerifier, useValue: googleIdTokenVerifier },
       ],
     }).compile();
 
@@ -214,6 +218,26 @@ describe("AuthService", () => {
       );
     });
 
+    it("restores the Google photo when a legacy account stored an empty avatar", async () => {
+      prisma.user.findUnique.mockResolvedValue({ ...googleUser, avatar: "" });
+      prisma.user.update.mockResolvedValue(googleUser);
+      prisma.oAuthLoginTicket.create.mockResolvedValue({});
+
+      await service.createGoogleLoginTicket({
+        email: googleUser.email,
+        displayName: "Music",
+        avatar: "https://lh3.googleusercontent.com/photo",
+      });
+
+      expect(prisma.user.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            avatar: "https://lh3.googleusercontent.com/photo",
+          }),
+        }),
+      );
+    });
+
     it("exchanges a valid ticket once for the standard JWT session", async () => {
       prisma.oAuthLoginTicket.findUnique.mockResolvedValue({
         id: "valid-ticket",
@@ -232,6 +256,62 @@ describe("AuthService", () => {
           data: expect.objectContaining({ consumedAt: expect.any(Date) }),
         }),
       );
+    });
+  });
+
+  describe("Google mobile ID token sign-in", () => {
+    const googleUser = {
+      id: "google-user",
+      email: "music@google.com",
+      username: "music",
+      password: "not-used",
+      role: "CLIENT",
+      isPremium: false,
+      avatar: "https://lh3.googleusercontent.com/photo",
+      isActive: true,
+      onboardingCompletedAt: null,
+    };
+
+    it("exchanges a verified ID token for the standard JWT session", async () => {
+      googleIdTokenVerifier.verify.mockResolvedValue({
+        email: googleUser.email,
+        displayName: "Music",
+        avatar: googleUser.avatar,
+      });
+      prisma.user.findUnique.mockResolvedValue(googleUser);
+      prisma.user.update.mockResolvedValue(googleUser);
+
+      const session = await service.signInWithGoogleIdToken("a.b.c");
+
+      expect(googleIdTokenVerifier.verify).toHaveBeenCalledWith("a.b.c");
+      expect(session.user.email).toBe(googleUser.email);
+      expect(session.accessToken).toBe("fake-jwt");
+    });
+
+    it("never touches the database when the token is rejected", async () => {
+      googleIdTokenVerifier.verify.mockRejectedValue(
+        new UnauthorizedException("Invalid Google ID token"),
+      );
+
+      await expect(service.signInWithGoogleIdToken("bad")).rejects.toThrow(
+        UnauthorizedException,
+      );
+      expect(prisma.user.findUnique).not.toHaveBeenCalled();
+      expect(prisma.user.create).not.toHaveBeenCalled();
+    });
+
+    it("does not consume a one-time ticket, because none is involved", async () => {
+      googleIdTokenVerifier.verify.mockResolvedValue({
+        email: googleUser.email,
+        displayName: "Music",
+        avatar: googleUser.avatar,
+      });
+      prisma.user.findUnique.mockResolvedValue(googleUser);
+      prisma.user.update.mockResolvedValue(googleUser);
+
+      await service.signInWithGoogleIdToken("a.b.c");
+
+      expect(prisma.oAuthLoginTicket.create).not.toHaveBeenCalled();
     });
   });
 });

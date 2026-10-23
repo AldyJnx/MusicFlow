@@ -18,7 +18,6 @@ import {
   RefreshCw,
   Search,
   Sparkles,
-  ThumbsUp,
   TrendingDown,
   TrendingUp,
   UserMinus,
@@ -33,6 +32,7 @@ import {
   getActiveUsers,
   getActiveUsersTrend,
   getTopActiveUsers,
+  getMusicInsights,
   listUsers,
 } from "../../shared/api/admin";
 import type {
@@ -43,8 +43,15 @@ import type {
   CatalogDistribution,
   DashboardStats,
   TopActiveUser,
+  MusicInsights,
   UserGrowth,
 } from "../../shared/api/admin";
+import {
+  CatalogChart,
+  FeedbackChart,
+  MusicRankingChart,
+  UserGrowthChart,
+} from "../components/AdminCharts";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -553,7 +560,7 @@ function DonutChart({ tracks, playlists }: DonutChartProps) {
 // Growth sparkline (real data)
 // ---------------------------------------------------------------------------
 
-function GrowthSparkline({ growth }: { growth: UserGrowth }) {
+export function GrowthSparkline({ growth }: { growth: UserGrowth }) {
   const { t } = useTranslation();
   const { series, total, days } = growth;
 
@@ -756,6 +763,35 @@ function PowerUserRow({ user }: { user: TopActiveUser }) {
         strokeWidth={2.4}
       />
     </button>
+  );
+}
+
+function RankingList({
+  title,
+  items,
+  metric,
+}: {
+  title: string;
+  items: Array<{ name: string; detail: string; value: number }>;
+  metric: string;
+}) {
+  return (
+    <article className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-alt)] p-5">
+      <h2 className="text-sm font-semibold text-[var(--color-text)]">
+        {title}
+      </h2>
+      {items.length ? (
+        <MusicRankingChart
+          labels={items.map((item) => item.name)}
+          values={items.map((item) => item.value)}
+          ariaLabel={`${title}: ${metric}`}
+        />
+      ) : (
+        <p className="py-6 text-center text-sm text-[var(--color-muted)]">
+          Aún no hay datos de escucha.
+        </p>
+      )}
+    </article>
   );
 }
 
@@ -1080,7 +1116,15 @@ export default function DashboardPage() {
   const feedbackQ = useQuery<AIFeedbackStats>({
     queryKey: ["admin", "ai-feedback"],
     queryFn: getAiFeedbackStats,
-    staleTime: 60_000,
+    // Feedback is not surfaced in the admin UX until a dedicated review flow exists.
+    enabled: false,
+    initialData: {
+      total: 0,
+      good: 0,
+      bad: 0,
+      neutral: 0,
+      satisfactionRate: 0,
+    },
   });
 
   const growthQ = useQuery<UserGrowth>({
@@ -1107,6 +1151,12 @@ export default function DashboardPage() {
     staleTime: 60_000,
   });
 
+  const musicInsightsQ = useQuery<MusicInsights>({
+    queryKey: ["admin", "dashboard", "music-insights"],
+    queryFn: getMusicInsights,
+    staleTime: 60_000,
+  });
+
   const dauTrendQ = useQuery<ActiveUsersTrend>({
     queryKey: ["admin", "dashboard", "active-users-trend", 30],
     queryFn: () => getActiveUsersTrend(30),
@@ -1125,6 +1175,7 @@ export default function DashboardPage() {
     catalogQ.dataUpdatedAt ?? 0,
     activeQ.dataUpdatedAt ?? 0,
     topUsersQ.dataUpdatedAt ?? 0,
+    musicInsightsQ.dataUpdatedAt ?? 0,
     dauTrendQ.dataUpdatedAt ?? 0,
   );
   const timeAgo = useTimeAgo(lastUpdated || null);
@@ -1135,6 +1186,7 @@ export default function DashboardPage() {
     catalogQ.isFetching ||
     activeQ.isFetching ||
     topUsersQ.isFetching ||
+    musicInsightsQ.isFetching ||
     dauTrendQ.isFetching;
 
   function refreshAll() {
@@ -1144,6 +1196,7 @@ export default function DashboardPage() {
     void catalogQ.refetch();
     void activeQ.refetch();
     void topUsersQ.refetch();
+    void musicInsightsQ.refetch();
     void dauTrendQ.refetch();
   }
 
@@ -1154,6 +1207,7 @@ export default function DashboardPage() {
     if (catalogQ.isError) void catalogQ.refetch();
     if (activeQ.isError) void activeQ.refetch();
     if (topUsersQ.isError) void topUsersQ.refetch();
+    if (musicInsightsQ.isError) void musicInsightsQ.refetch();
     if (dauTrendQ.isError) void dauTrendQ.refetch();
   }
 
@@ -1259,31 +1313,10 @@ export default function DashboardPage() {
             <StatCard
               size="hero"
               tone="accent"
-              icon={<ThumbsUp className="h-4 w-4" />}
-              label={t("admin.dashboard.aiSatisfaction")}
-              value={
-                feedbackStats.total === 0
-                  ? "—"
-                  : `${feedbackStats.satisfactionRate.toFixed(1)}%`
-              }
-              empty={
-                feedbackStats.total === 0
-                  ? t("admin.dashboard.aiNoFeedback", {
-                      defaultValue:
-                        "Aún no hay feedback registrado de los usuarios.",
-                    })
-                  : undefined
-              }
-              subtitle={
-                feedbackStats.total > 0
-                  ? t("admin.dashboard.aiSatisfactionSubtitle", {
-                      good: feedbackStats.good,
-                      bad: feedbackStats.bad,
-                      neutral: feedbackStats.neutral,
-                      total: feedbackStats.total,
-                    })
-                  : undefined
-              }
+              icon={<Sparkles className="h-4 w-4" />}
+              label="Solicitudes IA"
+              value={stats.ai.totalRequests}
+              subtitle="Solicitudes procesadas por el agente"
               href="/admin/ai"
             />
           </div>
@@ -1314,7 +1347,7 @@ export default function DashboardPage() {
                 tone="positive"
                 icon={<Activity className="h-4 w-4" />}
                 label={t("admin.dashboard.dau", {
-                  defaultValue: "DAU · últimas 24h",
+                  defaultValue: "Usuarios activos hoy (DAU)",
                 })}
                 value={activeQ.data.dau}
                 subtitle={
@@ -1332,7 +1365,7 @@ export default function DashboardPage() {
                 tone="accent"
                 icon={<CalendarDays className="h-4 w-4" />}
                 label={t("admin.dashboard.wau", {
-                  defaultValue: "WAU · 7 días",
+                  defaultValue: "Usuarios activos esta semana (WAU)",
                 })}
                 value={activeQ.data.wau}
                 subtitle={
@@ -1349,7 +1382,7 @@ export default function DashboardPage() {
                 tone="primary"
                 icon={<CalendarRange className="h-4 w-4" />}
                 label={t("admin.dashboard.mau", {
-                  defaultValue: "MAU · 30 días",
+                  defaultValue: "Usuarios activos este mes (MAU)",
                 })}
                 value={activeQ.data.mau}
                 subtitle={
@@ -1366,7 +1399,7 @@ export default function DashboardPage() {
                 tone="warning"
                 icon={<TrendingUp className="h-4 w-4" />}
                 label={t("admin.dashboard.stickiness", {
-                  defaultValue: "Stickiness · DAU/MAU",
+                  defaultValue: "Frecuencia de retorno (DAU/MAU)",
                 })}
                 value={
                   activeQ.data.mau > 0
@@ -1389,6 +1422,71 @@ export default function DashboardPage() {
         ) : null}
 
         {/* ── Power users widget ── */}
+        {!isLoading && musicInsightsQ.data ? (
+          <section
+            className="flex flex-col gap-3"
+            aria-labelledby="music-insights-title"
+          >
+            <div>
+              <h2
+                id="music-insights-title"
+                className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--color-muted)]"
+              >
+                Rendimiento musical
+              </h2>
+              <p className="mt-1 text-xs text-[var(--color-muted)]">
+                Reproducciones y seguidores acumulados del catálogo.
+              </p>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              <RankingList
+                title="Canciones más escuchadas"
+                metric="reproducciones"
+                items={musicInsightsQ.data.mostPlayed.map((track) => ({
+                  name: track.title,
+                  detail: track.artist,
+                  value: track.plays,
+                }))}
+              />
+              <RankingList
+                title="Canciones menos escuchadas"
+                metric="reproducciones"
+                items={musicInsightsQ.data.leastPlayed.map((track) => ({
+                  name: track.title,
+                  detail: track.artist,
+                  value: track.plays,
+                }))}
+              />
+              <RankingList
+                title="Artistas más escuchados"
+                metric="reproducciones"
+                items={musicInsightsQ.data.mostListenedArtists.map(
+                  (artist) => ({
+                    name: artist.name,
+                    detail: "Por reproducciones de sus canciones",
+                    value: artist.plays,
+                  }),
+                )}
+              />
+              <RankingList
+                title="Artistas más seguidos"
+                metric="seguidores"
+                items={musicInsightsQ.data.mostFollowedArtists.map(
+                  (artist) => ({
+                    name: artist.name,
+                    detail: "Seguimientos de usuarios",
+                    value: artist.followers,
+                  }),
+                )}
+              />
+            </div>
+          </section>
+        ) : musicInsightsQ.isError ? (
+          <p className="text-sm text-rose-300">
+            No se pudieron cargar las estadísticas musicales.
+          </p>
+        ) : null}
+
         {!isLoading && (
           <article
             className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-alt)] p-5"
@@ -1582,23 +1680,6 @@ export default function DashboardPage() {
                 }
               />
               <StatCard
-                tone="accent"
-                icon={<Sparkles className="h-4 w-4" />}
-                label={t("admin.dashboard.aiRequests")}
-                value={stats.ai.totalRequests}
-                subtitle={
-                  stats.users.total > 0
-                    ? t("admin.dashboard.perUser", {
-                        defaultValue: "{{n}} por usuario",
-                        n: (stats.ai.totalRequests / stats.users.total).toFixed(
-                          1,
-                        ),
-                      })
-                    : undefined
-                }
-                href="/admin/ai"
-              />
-              <StatCard
                 tone="primary"
                 icon={<HardDrive className="h-4 w-4" />}
                 label={t("admin.dashboard.storage", {
@@ -1621,7 +1702,7 @@ export default function DashboardPage() {
         {/* ── Feedback stacked bar (full-width) ── */}
         {!isLoading && feedbackStats && (
           <article
-            className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-alt)] p-5"
+            className="hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-alt)] p-5"
             aria-labelledby="feedback-chart-title"
           >
             <h2
@@ -1630,7 +1711,11 @@ export default function DashboardPage() {
             >
               {t("admin.dashboard.feedbackTitle")}
             </h2>
-            <FeedbackBar feedbackStats={feedbackStats} />
+            {feedbackStats.total > 0 ? (
+              <FeedbackChart stats={feedbackStats} />
+            ) : (
+              <FeedbackBar feedbackStats={feedbackStats} />
+            )}
           </article>
         )}
 
@@ -1651,7 +1736,7 @@ export default function DashboardPage() {
               {growthQ.isPending ? (
                 <SkeletonCard />
               ) : growth ? (
-                <GrowthSparkline growth={growth} />
+                <UserGrowthChart growth={growth} />
               ) : (
                 <p className="text-xs text-rose-300">
                   {t("admin.dashboard.growthError")}
@@ -1705,10 +1790,14 @@ export default function DashboardPage() {
                       <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-[var(--color-muted)]">
                         {t("admin.dashboard.catalogByGenre")}
                       </p>
-                      <BucketBars
-                        buckets={catalog.byGenre}
-                        emptyMessage={t("admin.dashboard.catalogNoGenres")}
-                      />
+                      {catalog.byGenre.length > 0 ? (
+                        <CatalogChart catalog={catalog} />
+                      ) : (
+                        <BucketBars
+                          buckets={catalog.byGenre}
+                          emptyMessage={t("admin.dashboard.catalogNoGenres")}
+                        />
+                      )}
                     </div>
 
                     <div>

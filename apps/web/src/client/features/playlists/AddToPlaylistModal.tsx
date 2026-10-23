@@ -9,6 +9,7 @@ import {
   listPlaylists,
   type Playlist,
 } from "../../../shared/api/playlists";
+import { showActionNotice } from "../../../shared/ui/ActionNotice";
 
 interface AddToPlaylistModalProps {
   open: boolean;
@@ -51,7 +52,15 @@ export default function AddToPlaylistModal({
     onSuccess: (_data, playlistId) => {
       void qc.invalidateQueries({ queryKey: ["playlists"] });
       setAddedTo(playlistId);
+      const playlist = listQ.data?.find((item) => item.id === playlistId);
+      showActionNotice(
+        playlist
+          ? `Canción agregada a ${playlist.name}`
+          : "Canción agregada a la playlist",
+      );
     },
+    onError: () =>
+      showActionNotice("No se pudo agregar a la playlist", "error"),
   });
 
   const create = useMutation({

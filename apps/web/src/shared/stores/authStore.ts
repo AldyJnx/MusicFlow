@@ -1,5 +1,11 @@
+import { useEffect, useState } from "react";
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import {
+  createJSONStorage,
+  persist,
+  type StateStorage,
+} from "zustand/middleware";
+import { getElectronAPI, isElectron } from "../../platform/electronAPI";
 
 export type UserRole = "ADMIN" | "ARTIST" | "CLIENT";
 
@@ -27,6 +33,22 @@ interface AuthState {
   clear: () => void;
 }
 
+const browserAuthStorage: StateStorage = {
+  getItem: (name) => sessionStorage.getItem(name),
+  setItem: (name, value) => sessionStorage.setItem(name, value),
+  removeItem: (name) => sessionStorage.removeItem(name),
+};
+
+const electronAuthStorage: StateStorage = {
+  getItem: async () => getElectronAPI()?.authSession.load() ?? null,
+  setItem: async (_name, value) => {
+    await getElectronAPI()?.authSession.save(value);
+  },
+  removeItem: async () => {
+    await getElectronAPI()?.authSession.clear();
+  },
+};
+
 export const useAuthStore = create<AuthState>()(
   persist(
     (set) => ({
@@ -53,6 +75,12 @@ export const useAuthStore = create<AuthState>()(
     }),
     {
       name: "musicflow-auth",
+      // Browsers remain isolated per tab through sessionStorage. Electron has
+      // no tabs and needs a durable encrypted store so closing the desktop app
+      // does not discard a valid authenticated session.
+      storage: createJSONStorage(() =>
+        isElectron() ? electronAuthStorage : browserAuthStorage,
+      ),
       partialize: (state) => ({
         user: state.user,
         accessToken: state.accessToken,
@@ -62,3 +90,21 @@ export const useAuthStore = create<AuthState>()(
     },
   ),
 );
+
+export function useAuthHydrated(): boolean {
+  const [hydrated, setHydrated] = useState(() =>
+    useAuthStore.persist.hasHydrated(),
+  );
+
+  useEffect(() => {
+    const unsubscribe = useAuthStore.persist.onFinishHydration(() => {
+      setHydrated(true);
+    });
+    if (useAuthStore.persist.hasHydrated()) {
+      queueMicrotask(() => setHydrated(true));
+    }
+    return unsubscribe;
+  }, []);
+
+  return hydrated;
+}

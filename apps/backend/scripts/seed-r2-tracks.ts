@@ -1,13 +1,14 @@
 /**
- * One-shot seed/sync: list R2 buckets `music-flow` (audio) + `music-flow-images`
+ * Incremental R2 sync: list `music-flow` (audio) and import only new or
+ * modified objects. It never re-probes every existing song from the admin UI.
  * (covers), parse "Artist - Title.wav" filenames, match covers by title/album
  * first and artist fallback second, fetch the first 4 KiB of each WAV to read
  * its fmt header (sampleRate + byteRate) for accurate duration, and upsert Track
  * rows for the admin user.
  *
  * Idempotent: dedupes on (userId, fileHash) where fileHash = sha256(key). When
- * a track already exists, it still refreshes catalog visibility, coverArt and
- * album if a better cover match is found.
+ * a track already exists, it refreshes only storage fields. Admin-curated
+ * artist, album and artwork relations are never inferred again from R2.
  *
  * Run with:
  *   pnpm --filter @musicflow/backend run seed:r2
@@ -235,9 +236,9 @@ function publicUrl(base: string, key: string): string {
  * Fetch the first ~4 KiB of an audio file via Range request and try to parse a
  * WAV header. Returns { durationMs, sampleRate, bitrate } or null if unparseable.
  *
- * WAV layout (RIFF): "RIFF" <size> "WAVE" "fmt " <chunkSize> <format chunk>
- * The "fmt " chunk gives sampleRate (offset 12 within chunk) and byteRate
- * (offset 16). Duration ≈ (totalSize - headerBytes) / byteRate.
+ * WAV layout is chunked.  The `data` chunk, not the object size, is the audio
+ * payload: files commonly carry INFO/LIST chunks after their audio.  Using the
+ * object size was the source of short/incorrect catalog durations.
  */
 async function probeWavDuration(
   bucket: string,
@@ -268,7 +269,26 @@ async function probeWavDuration(
         // Format chunk: <PCM tag 2><channels 2><sampleRate 4><byteRate 4>...
         const sampleRate = buf.readUInt32LE(cursor + 8 + 4);
         const byteRate = buf.readUInt32LE(cursor + 8 + 8);
-        if (byteRate > 0) {
+        let dataCursor = cursor + 8 + size + (size % 2);
+        while (dataCursor + 8 <= buf.length) {
+          const dataId = buf
+            .slice(dataCursor, dataCursor + 4)
+            .toString("ascii");
+          const dataSize = buf.readUInt32LE(dataCursor + 4);
+          if (dataId === "data" && byteRate > 0) {
+            const audioBytes = Math.min(dataSize, totalBytes);
+            const durationMs = Math.round((audioBytes / byteRate) * 1000);
+            return {
+              durationMs,
+              sampleRate,
+              bitrate: Math.round((byteRate * 8) / 1000),
+            };
+          }
+          dataCursor += 8 + dataSize + (dataSize % 2);
+        }
+        if (byteRate > 0 && totalBytes > 44) {
+          // A range can end before `data` in a metadata-heavy WAV. This is a
+          // conservative fallback until the next sync can inspect a valid WAV.
           const audioBytes = Math.max(0, totalBytes - 44);
           const durationMs = Math.round((audioBytes / byteRate) * 1000);
           return {
@@ -336,12 +356,45 @@ async function main() {
   }
   console.log("  owner =", owner.email, `(${owner.id})`);
 
-  console.log("→ Listing R2 buckets");
-  const audios = (await listAll(process.env.R2_BUCKET_AUDIO!)).filter((item) =>
-    isSeedAudioObject(item.Key),
+  console.log("→ Listing R2 audio index");
+  const allAudios = (await listAll(process.env.R2_BUCKET_AUDIO!))
+    .filter((item) => isSeedAudioObject(item.Key))
+    .sort((a, b) => a.Key.localeCompare(b.Key));
+  // R2 has no "modified since" list API. We therefore list its lightweight
+  // object index, then compare it against the local catalog before doing any
+  // object download, metadata probe or write. This makes a regular Sync R2
+  // proportional to the new files, not to the size of the entire catalog.
+  const existingR2Tracks = await prisma.track.findMany({
+    where: {
+      userId: owner.id,
+      isCatalog: true,
+      source: "SYNCED",
+    },
+    select: { fileHash: true, fileUrlRemote: true, updatedAt: true },
+  });
+  const existingByHash = new Map(
+    existingR2Tracks.map((track) => [track.fileHash, track]),
   );
-  const covers = await listAll(process.env.R2_BUCKET_IMAGES!);
-  console.log(`  audio: ${audios.length} objects · images: ${covers.length}`);
+  const audios = allAudios.filter((audio) => {
+    const existing = existingByHash.get(
+      r2FileHash(process.env.R2_BUCKET_AUDIO!, audio.Key),
+    );
+    return (
+      !existing ||
+      existing.fileUrlRemote !==
+        publicUrl(process.env.R2_PUBLIC_AUDIO_URL!, audio.Key) ||
+      (audio.LastModified != null && audio.LastModified > existing.updatedAt)
+    );
+  });
+  console.log(
+    `  audio index: ${allAudios.length} objects · ${audios.length} new or modified`,
+  );
+
+  // Covers are only needed when at least one audio object actually changes.
+  // Avoid a second full R2 listing for no-op Sync R2 requests.
+  const covers = audios.length
+    ? await listAll(process.env.R2_BUCKET_IMAGES!)
+    : [];
 
   // Build artist → covers map. Exact title/album match is preferred; the first
   // cover for an artist is only a fallback when the bucket has no better clue.
@@ -432,11 +485,18 @@ async function main() {
   ]);
 
   let created = 0,
-    skipped = 0,
+    skipped = allAudios.length - audios.length,
     refreshed = 0,
     failed = 0,
     removedFromCatalog = 0;
-  const liveFileHashes = new Set<string>();
+  const liveFileHashes = new Set(
+    allAudios.map((audio) =>
+      r2FileHash(process.env.R2_BUCKET_AUDIO!, audio.Key),
+    ),
+  );
+  // Two R2 objects can resolve to the same displayed artist/title. A key is a
+  // storage identity, not a catalog identity, so process only one of them.
+  const seenCatalogSongs = new Set<string>();
 
   for (const a of audios) {
     const metadata = resolveTrackMetadata(
@@ -445,6 +505,12 @@ async function main() {
       metadataOverrides,
     );
     const { artist, title } = metadata;
+    const catalogSongKey = `${norm(artist)}\u0000${norm(title)}`;
+    if (seenCatalogSongs.has(catalogSongKey)) {
+      skipped++;
+      continue;
+    }
+    seenCatalogSongs.add(catalogSongKey);
     const cover =
       (metadata.coverArtist && metadata.coverAlbum
         ? findCoverByArtistAlbum(
@@ -456,6 +522,14 @@ async function main() {
     const fileUrl = publicUrl(process.env.R2_PUBLIC_AUDIO_URL!, a.Key);
     const fileHash = r2FileHash(process.env.R2_BUCKET_AUDIO!, a.Key);
     liveFileHashes.add(fileHash);
+    // Probe before checking existing rows too. Older imports could preserve an
+    // implausible fallback duration because refreshes only updated storage.
+    const probe = await probeWavDuration(
+      process.env.R2_BUCKET_AUDIO!,
+      a.Key,
+      a.Size,
+    );
+    const probedDurationMs = probe?.durationMs;
 
     // Dedupe.
     const existing = await prisma.track.findUnique({
@@ -463,32 +537,37 @@ async function main() {
       select: {
         id: true,
         isCatalog: true,
-        title: true,
-        artist: true,
-        albumArtist: true,
-        coverArt: true,
-        album: true,
+        fileUrlRemote: true,
+        fileSizeBytes: true,
+        durationMs: true,
+        source: true,
+        syncStatus: true,
       },
     });
     if (existing) {
       const updateData: {
         isCatalog?: true;
-        title?: string;
-        artist?: string;
-        albumArtist?: string;
-        coverArt?: string;
-        album?: string;
+        fileUrlRemote?: string;
+        fileSizeBytes?: bigint;
+        durationMs?: number;
+        source?: "SYNCED";
+        syncStatus?: "SYNCED";
       } = {};
       if (!existing.isCatalog) updateData.isCatalog = true;
-      if (existing.title !== title) updateData.title = title;
-      if (existing.artist !== artist) updateData.artist = artist;
-      if (existing.albumArtist !== artist) updateData.albumArtist = artist;
-      if (cover?.url && existing.coverArt !== cover.url) {
-        updateData.coverArt = cover.url;
+      if (existing.fileUrlRemote !== fileUrl)
+        updateData.fileUrlRemote = fileUrl;
+      if (existing.fileSizeBytes !== BigInt(a.Size)) {
+        updateData.fileSizeBytes = BigInt(a.Size);
       }
-      if (cover?.album && (!existing.album || existing.album !== cover.album)) {
-        updateData.album = cover.album;
+      if (
+        probedDurationMs != null &&
+        probedDurationMs > 0 &&
+        existing.durationMs !== probedDurationMs
+      ) {
+        updateData.durationMs = probedDurationMs;
       }
+      if (existing.source !== "SYNCED") updateData.source = "SYNCED";
+      if (existing.syncStatus !== "SYNCED") updateData.syncStatus = "SYNCED";
       if (Object.keys(updateData).length > 0) {
         await prisma.track.update({
           where: { id: existing.id },
@@ -500,13 +579,39 @@ async function main() {
       continue;
     }
 
-    const probe = await probeWavDuration(
-      process.env.R2_BUCKET_AUDIO!,
-      a.Key,
-      a.Size,
-    );
+    // Reuse a previously-curated row even when it was imported using another
+    // R2 key. This retains the admin's album relation instead of duplicating
+    // the song or resetting it to an unassigned card.
+    const sameCatalogSong = await prisma.track.findFirst({
+      where: {
+        userId: owner.id,
+        isCatalog: true,
+        artist: { equals: artist, mode: "insensitive" },
+        title: { equals: title, mode: "insensitive" },
+      },
+      select: { id: true },
+    });
+    if (sameCatalogSong) {
+      await prisma.track.update({
+        where: { id: sameCatalogSong.id },
+        data: {
+          fileHash,
+          fileUrlRemote: fileUrl,
+          fileSizeBytes: BigInt(a.Size),
+          ...(probedDurationMs != null && probedDurationMs > 0
+            ? { durationMs: probedDurationMs }
+            : {}),
+          isCatalog: true,
+          source: "SYNCED",
+          syncStatus: "SYNCED",
+        },
+      });
+      skipped++;
+      continue;
+    }
+
     // Fallback: assume CD-quality stereo (176_400 byte/s) if probe failed.
-    const durationMs = probe?.durationMs ?? Math.round((a.Size - 44) / 176.4);
+    const durationMs = probedDurationMs ?? Math.round((a.Size - 44) / 176.4);
 
     try {
       await prisma.track.create({
@@ -540,17 +645,23 @@ async function main() {
     }
   }
 
-  const staleCatalog = await prisma.track.updateMany({
-    where: {
-      userId: owner.id,
-      isCatalog: true,
-      source: "SYNCED",
-      fileUrlRemote: { startsWith: process.env.R2_PUBLIC_AUDIO_URL! },
-      fileHash: { notIn: Array.from(liveFileHashes) },
-    },
-    data: { isCatalog: false },
-  });
-  removedFromCatalog = staleCatalog.count;
+  // The admin button syncs additions and updates only. Removing objects from
+  // R2 is a destructive maintenance operation and must not unpublish songs as
+  // a side effect of a quick UI refresh. A deliberate `--full` maintenance run
+  // retains the historical reconciliation behaviour.
+  if (process.argv.includes("--full")) {
+    const staleCatalog = await prisma.track.updateMany({
+      where: {
+        userId: owner.id,
+        isCatalog: true,
+        source: "SYNCED",
+        fileUrlRemote: { startsWith: process.env.R2_PUBLIC_AUDIO_URL! },
+        fileHash: { notIn: Array.from(liveFileHashes) },
+      },
+      data: { isCatalog: false },
+    });
+    removedFromCatalog = staleCatalog.count;
+  }
 
   console.log(
     `\nDone. created=${created} skipped=${skipped} refreshed=${refreshed} removedFromCatalog=${removedFromCatalog} failed=${failed} (covers matched=${

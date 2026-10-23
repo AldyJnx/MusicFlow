@@ -58,6 +58,7 @@ describe("Premium gates + quotas (e2e)", () => {
     track: {
       count: jest.fn(),
       findFirst: jest.fn(),
+      create: jest.fn(),
     },
     aIRequest: {
       count: jest.fn(),
@@ -116,6 +117,7 @@ describe("Premium gates + quotas (e2e)", () => {
     currentUser = FREE_USER;
     // Default to "no rows" — individual tests override.
     prismaMock.track.count.mockResolvedValue(0);
+    prismaMock.track.create.mockResolvedValue({ id: "track-created" });
     prismaMock.aIRequest.count.mockResolvedValue(0);
     prismaMock.eQPreset.count.mockResolvedValue(0);
   });
@@ -225,8 +227,6 @@ describe("Premium gates + quotas (e2e)", () => {
       currentUser = PREMIUM_USER;
       // Even a ridiculous count shouldn't trip the gate.
       prismaMock.track.count.mockResolvedValue(10_000);
-      // The service may still 400/500 for other reasons; we only assert it
-      // is NOT 403 from the quota.
       const res = await request(app.getHttpServer())
         .post("/api/library/tracks")
         .send({
@@ -236,8 +236,9 @@ describe("Premium gates + quotas (e2e)", () => {
           fileHash: "abc",
           source: "LOCAL",
           syncStatus: "PENDING",
-        });
-      expect(res.status).not.toBe(403);
+        })
+        .expect(201);
+      expect(prismaMock.track.create).toHaveBeenCalledTimes(1);
     });
   });
 

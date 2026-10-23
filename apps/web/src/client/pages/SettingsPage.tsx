@@ -3,7 +3,6 @@ import {
   AudioLines,
   CheckCircle2,
   CircleDot,
-  Globe2,
   Palette,
   SlidersHorizontal,
 } from "lucide-react";
@@ -14,7 +13,6 @@ import ClientLayout from "../layout/ClientLayout";
 import PersonalizationSection from "../features/settings/PersonalizationSection";
 import { usePreferences } from "../../shared/hooks/usePreferences";
 import { APP_THEMES } from "../../shared/utils/theme";
-import { SUPPORTED_LANGUAGES, type AppLanguage } from "../../shared/i18n";
 
 function SectionTitle({
   icon,
@@ -65,20 +63,16 @@ function Toggle({
   );
 }
 
-const LANG_FLAGS: Record<AppLanguage, string> = {
+const LANG_FLAGS = {
   es: "🇪🇸",
   en: "🇺🇸",
 };
+void LANG_FLAGS;
 
 export default function SettingsPage() {
   const [normalizeVolume, setNormalizeVolume] = useState(true);
   const [gaplessPlayback, setGaplessPlayback] = useState(true);
-  const {
-    theme: activeTheme,
-    setTheme,
-    language,
-    setLanguage,
-  } = usePreferences();
+  const { theme: activeTheme, setTheme } = usePreferences();
   const { t } = useTranslation();
 
   return (
@@ -101,46 +95,6 @@ export default function SettingsPage() {
                 defaultValue: "Ajusta tu cuenta, reproducción y ecualización",
               })}
             </p>
-          </div>
-
-          {/* Language */}
-          <div className="flex flex-col gap-5">
-            <SectionTitle
-              icon={<Globe2 className="h-4 w-4" strokeWidth={2.3} />}
-              title={t("settings.language.title")}
-              subtitle={t("settings.language.subtitle")}
-            />
-
-            <div className="grid grid-cols-2 gap-3 sm:max-w-md">
-              {SUPPORTED_LANGUAGES.map((lang) => {
-                const isActive = language === lang;
-                return (
-                  <button
-                    key={lang}
-                    type="button"
-                    onClick={() => setLanguage(lang)}
-                    className={`flex items-center gap-3 rounded-2xl border px-4 py-3 text-left transition ${
-                      isActive
-                        ? "border-[var(--color-primary)] bg-[var(--color-surface-alt)]"
-                        : "border-[var(--color-border)] bg-[var(--color-surface)] hover:border-[var(--color-primary)] hover:bg-[var(--color-surface-alt)]"
-                    }`}
-                  >
-                    <span className="text-2xl leading-none">
-                      {LANG_FLAGS[lang]}
-                    </span>
-                    <span className="flex-1 text-sm font-semibold text-[var(--color-text)]">
-                      {t(`settings.language.${lang}`)}
-                    </span>
-                    {isActive ? (
-                      <CheckCircle2
-                        className="h-4 w-4 text-[var(--color-primary)]"
-                        strokeWidth={2.5}
-                      />
-                    ) : null}
-                  </button>
-                );
-              })}
-            </div>
           </div>
 
           {/* Themes */}

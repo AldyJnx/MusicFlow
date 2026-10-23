@@ -7,12 +7,17 @@ import 'package:musicflow_mobile/core/api/dio_client.dart';
 import 'package:musicflow_mobile/core/api/equalizer_repository.dart';
 import 'package:musicflow_mobile/core/api/playlists_repository.dart';
 import 'package:musicflow_mobile/core/api/recommendations_repository.dart';
+import 'package:musicflow_mobile/core/auth/google_sign_in_service.dart';
 import 'package:musicflow_mobile/features/downloads/downloads_repository.dart';
 import 'package:musicflow_mobile/core/api/tracks_repository.dart';
 import 'package:musicflow_mobile/core/storage/token_storage.dart';
 
 final tokenStorageProvider = Provider<TokenStorage>((ref) {
   return TokenStorage();
+});
+
+final googleSignInServiceProvider = Provider<GoogleSignInService>((ref) {
+  return GoogleSignInService();
 });
 
 final dioClientProvider = Provider<DioClient>((ref) {

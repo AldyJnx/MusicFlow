@@ -292,7 +292,7 @@ export default function Register() {
 
           <div className="my-4 flex items-center gap-3 text-xs text-[#9aa6bf]">
             <span className="h-px flex-1 bg-white/10" />
-            o regÃ­strate con
+            o regístrate con
             <span className="h-px flex-1 bg-white/10" />
           </div>
 

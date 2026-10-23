@@ -23,6 +23,7 @@ export interface ListeningStats {
   totalTimeMs: number | string;
   uniqueTracks: number;
   uniqueArtists: number;
+  latestFollowedArtist: { id: string; name: string } | null;
   topTracks: Array<{
     id: string;
     count: number;

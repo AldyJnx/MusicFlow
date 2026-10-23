@@ -1,9 +1,9 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:musicflow_mobile/app/routes.dart';
-import 'package:musicflow_mobile/core/cast/cast_device_picker.dart';
-import 'package:musicflow_mobile/core/cast/cast_service.dart';
 import 'package:musicflow_mobile/core/providers/providers.dart';
 import 'package:musicflow_mobile/core/theme/musicflow_theme.dart';
 import 'package:musicflow_mobile/features/library/providers/playlists_providers.dart';
@@ -40,13 +40,20 @@ class NowPlayingScreen extends ConsumerWidget {
       backgroundColor: colors.background,
       body: Container(
         decoration: BoxDecoration(
+          image: track?.coverArt?.isNotEmpty == true
+              ? DecorationImage(
+                  image: NetworkImage(track!.coverArt!),
+                  fit: BoxFit.cover,
+                  opacity: 0.46,
+                )
+              : null,
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              colors.gradientStart,
-              colors.gradientEnd,
-              colors.background,
+              colors.gradientStart.withValues(alpha: 0.42),
+              colors.gradientEnd.withValues(alpha: 0.56),
+              colors.background.withValues(alpha: 0.9),
             ],
             stops: [0.0, 0.28, 0.78],
           ),
@@ -64,50 +71,218 @@ class NowPlayingScreen extends ConsumerWidget {
                       color: Colors.white,
                       iconSize: 34,
                     ),
-                    const Spacer(),
-                    Text(
-                      'MusicFlow',
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        color: colors.primary,
-                        fontWeight: FontWeight.w900,
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            track?.title ?? 'MusicFlow',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.titleSmall?.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          Text(
+                            track?.artist ?? 'Reproductor',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color: Colors.white60,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    const Spacer(),
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         IconButton(
-                          onPressed: track == null
+                          onPressed: player.queue.isEmpty
                               ? null
-                              : () async {
-                                  if (!CastService.instance.isAvailable) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text(
-                                          'Configura CAST_RECEIVER_APP_ID para usar Google Cast.',
+                              : () => showModalBottomSheet<void>(
+                                  context: context,
+                                  backgroundColor: colors.surface,
+                                  builder: (sheetContext) => SafeArea(
+                                    child: SizedBox(
+                                      height: 254,
+                                      child: Padding(
+                                        padding: const EdgeInsets.only(
+                                          top: 18,
+                                          bottom: 20,
+                                        ),
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Padding(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 20,
+                                                  ),
+                                              child: Text(
+                                                'Cola de canciones',
+                                                style: Theme.of(sheetContext)
+                                                    .textTheme
+                                                    .titleMedium
+                                                    ?.copyWith(
+                                                      color: Colors.white,
+                                                      fontWeight:
+                                                          FontWeight.w800,
+                                                    ),
+                                              ),
+                                            ),
+                                            const SizedBox(height: 14),
+                                            Expanded(
+                                              child: ListView.separated(
+                                                scrollDirection:
+                                                    Axis.horizontal,
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                      horizontal: 20,
+                                                    ),
+                                                itemCount: player.queue.length,
+                                                separatorBuilder: (_, _) =>
+                                                    const SizedBox(width: 12),
+                                                itemBuilder: (_, index) {
+                                                  final queued =
+                                                      player.queue[index];
+                                                  final isCurrent =
+                                                      index == player.queueIndex;
+                                                  return SizedBox(
+                                                    width: 142,
+                                                    child: Material(
+                                                      color: Colors.transparent,
+                                                      child: InkWell(
+                                                        borderRadius:
+                                                            BorderRadius.circular(
+                                                              18,
+                                                            ),
+                                                        onTap: () async {
+                                                          await controller
+                                                              .setQueueIndex(
+                                                                index,
+                                                              );
+                                                          if (sheetContext
+                                                              .mounted) {
+                                                            Navigator.of(
+                                                              sheetContext,
+                                                            ).pop();
+                                                          }
+                                                        },
+                                                        child: Ink(
+                                                          decoration: BoxDecoration(
+                                                            color: isCurrent
+                                                                ? colors.primary
+                                                                    .withValues(
+                                                                      alpha: 0.2,
+                                                                    )
+                                                                : Colors.white
+                                                                    .withValues(
+                                                                      alpha: 0.06,
+                                                                    ),
+                                                            borderRadius:
+                                                                BorderRadius.circular(
+                                                                  18,
+                                                                ),
+                                                            border: Border.all(
+                                                              color: isCurrent
+                                                                  ? colors.primary
+                                                                  : Colors.white
+                                                                      .withValues(
+                                                                        alpha:
+                                                                            0.1,
+                                                                      ),
+                                                            ),
+                                                          ),
+                                                          child: Padding(
+                                                            padding:
+                                                                const EdgeInsets.all(
+                                                                  10,
+                                                                ),
+                                                            child: Column(
+                                                              crossAxisAlignment:
+                                                                  CrossAxisAlignment
+                                                                      .start,
+                                                              children: [
+                                                                Expanded(
+                                                                  child: ClipRRect(
+                                                                    borderRadius:
+                                                                        BorderRadius.circular(
+                                                                          12,
+                                                                        ),
+                                                                    child: queued
+                                                                                .coverArt
+                                                                                ?.isNotEmpty ==
+                                                                            true
+                                                                        ? Image.network(
+                                                                            queued.coverArt!,
+                                                                            width: double.infinity,
+                                                                            fit: BoxFit.cover,
+                                                                            errorBuilder:
+                                                                                (
+                                                                                  _,
+                                                                                  _,
+                                                                                  _,
+                                                                                ) => const _QueueCoverFallback(),
+                                                                          )
+                                                                        : const _QueueCoverFallback(),
+                                                                  ),
+                                                                ),
+                                                                const SizedBox(
+                                                                  height: 8,
+                                                                ),
+                                                                Text(
+                                                                  queued.title,
+                                                                  maxLines: 1,
+                                                                  overflow:
+                                                                      TextOverflow
+                                                                          .ellipsis,
+                                                                  style: const TextStyle(
+                                                                    color: Colors
+                                                                        .white,
+                                                                    fontWeight:
+                                                                        FontWeight
+                                                                            .w800,
+                                                                  ),
+                                                                ),
+                                                                Text(
+                                                                  queued.artist,
+                                                                  maxLines: 1,
+                                                                  overflow:
+                                                                      TextOverflow
+                                                                          .ellipsis,
+                                                                  style: TextStyle(
+                                                                    color: isCurrent
+                                                                        ? colors
+                                                                            .primary
+                                                                        : Colors
+                                                                            .white60,
+                                                                    fontSize: 12,
+                                                                  ),
+                                                                ),
+                                                              ],
+                                                            ),
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  );
+                                                },
+                                              ),
+                                            ),
+                                          ],
                                         ),
                                       ),
-                                    );
-                                    return;
-                                  }
-                                  try {
-                                    await showCastDevicePicker(context);
-                                  } catch (_) {
-                                    if (!context.mounted) return;
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text(
-                                          'No se pudo abrir Google Cast.',
-                                        ),
-                                      ),
-                                    );
-                                  }
-                                },
-                          icon: const Icon(Icons.cast_rounded),
+                                    ),
+                                  ),
+                                ),
+                          icon: const Icon(Icons.queue_music_rounded),
                           color: colors.primary,
                           disabledColor: Colors.white24,
-                          iconSize: 27,
-                          tooltip: 'Transmitir a un dispositivo',
+                          tooltip: 'Cola de canciones',
                         ),
                         IconButton(
                           onPressed: track == null
@@ -135,23 +310,21 @@ class NowPlayingScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: 24),
                 Expanded(
-                  child: Center(
-                    child: AspectRatio(
-                      aspectRatio: 1,
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(34),
-                        child:
-                            track?.coverArt != null &&
-                                track!.coverArt!.isNotEmpty
-                            ? Image.network(
-                                track.coverArt!,
-                                fit: BoxFit.cover,
-                                errorBuilder: (_, _, _) =>
-                                    const _ExpandedCoverFallback(),
-                              )
-                            : const _ExpandedCoverFallback(),
-                      ),
-                    ),
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      return GestureDetector(
+                        behavior: HitTestBehavior.translucent,
+                        onHorizontalDragEnd: (details) {
+                          final velocity = details.primaryVelocity ?? 0;
+                          if (velocity <= -280 && hasNext) {
+                            controller.next();
+                          } else if (velocity >= 280 && hasPrevious) {
+                            controller.previous();
+                          }
+                        },
+                        child: const SizedBox.expand(),
+                      );
+                    },
                   ),
                 ),
                 const SizedBox(height: 28),
@@ -212,92 +385,24 @@ class NowPlayingScreen extends ConsumerWidget {
                   ],
                 ),
                 const SizedBox(height: 20),
-                SliderTheme(
-                  data: SliderTheme.of(context).copyWith(
-                    trackHeight: 5,
-                    activeTrackColor: colors.primary,
-                    inactiveTrackColor: Colors.white.withValues(alpha: 0.12),
-                    thumbColor: Colors.white,
-                    overlayColor: colors.primary.withValues(alpha: 0.15),
-                  ),
-                  child: Slider(
-                    value: progress,
-                    onChanged: track == null
-                        ? null
-                        : (value) => controller.seek(
-                            Duration(
-                              milliseconds:
-                                  (player.duration.inMilliseconds * value)
-                                      .round(),
-                            ),
+                _OrbitalPlayerControls(
+                  progress: progress,
+                  positionLabel: _formatDuration(player.position),
+                  playing: player.isPlaying,
+                  repeatMode: player.repeatMode,
+                  onSeek: track == null
+                      ? null
+                      : (value) => controller.seek(
+                          Duration(
+                            milliseconds:
+                                (player.duration.inMilliseconds * value)
+                                    .round(),
                           ),
-                  ),
-                ),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      _formatDuration(player.position),
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: Colors.white70,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    Text(
-                      _formatDuration(player.duration),
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: Colors.white70,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 26),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    IconButton(
-                      onPressed: hasPrevious ? controller.previous : null,
-                      icon: const Icon(Icons.skip_previous_rounded),
-                      color: Colors.white,
-                      disabledColor: Colors.white24,
-                      iconSize: 38,
-                    ),
-                    const SizedBox(width: 18),
-                    Container(
-                      width: 86,
-                      height: 86,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: colors.secondary,
-                        boxShadow: [
-                          BoxShadow(
-                            color: colors.shadow.withValues(alpha: 0.36),
-                            blurRadius: 26,
-                            offset: Offset(0, 10),
-                          ),
-                        ],
-                      ),
-                      child: IconButton(
-                        onPressed: controller.togglePlay,
-                        icon: Icon(
-                          player.isPlaying
-                              ? Icons.pause_rounded
-                              : Icons.play_arrow_rounded,
-                          color: colors.background,
                         ),
-                        iconSize: 44,
-                      ),
-                    ),
-                    const SizedBox(width: 18),
-                    IconButton(
-                      onPressed: hasNext ? controller.next : null,
-                      icon: const Icon(Icons.skip_next_rounded),
-                      color: Colors.white,
-                      disabledColor: Colors.white24,
-                      iconSize: 38,
-                    ),
-                  ],
+                  onPrevious: hasPrevious ? controller.previous : null,
+                  onToggle: controller.togglePlay,
+                  onNext: hasNext ? controller.next : null,
+                  onRepeat: controller.cycleRepeatMode,
                 ),
                 const SizedBox(height: 14),
                 Row(
@@ -451,6 +556,238 @@ class NowPlayingScreen extends ConsumerWidget {
   }
 }
 
+class _OrbitalPlayerControls extends StatelessWidget {
+  const _OrbitalPlayerControls({
+    required this.progress,
+    required this.positionLabel,
+    required this.playing,
+    required this.repeatMode,
+    required this.onSeek,
+    required this.onPrevious,
+    required this.onToggle,
+    required this.onNext,
+    required this.onRepeat,
+  });
+
+  final double progress;
+  final String positionLabel;
+  final bool playing;
+  final PlayerRepeatMode repeatMode;
+  final ValueChanged<double>? onSeek;
+  final VoidCallback? onPrevious;
+  final VoidCallback onToggle;
+  final VoidCallback? onNext;
+  final Future<void> Function() onRepeat;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.musicFlowColors;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final diameter = math.min(constraints.maxWidth, 340.0).toDouble();
+        final horizontalInset = (constraints.maxWidth - diameter) / 2;
+
+        void seekFromArc(Offset localPosition) {
+          if (onSeek == null) return;
+          final center = Offset(diameter / 2, diameter / 2);
+          final angle = math.atan2(
+            localPosition.dy - center.dy,
+            localPosition.dx - center.dx,
+          );
+          const startAngle = math.pi;
+          const sweepAngle = math.pi;
+          var traveled = angle - startAngle;
+          while (traveled < 0) {
+            traveled += math.pi * 2;
+          }
+          onSeek!((traveled / sweepAngle).clamp(0.0, 1.0));
+        }
+
+        return SizedBox(
+          height: diameter + 24,
+          child: Stack(
+            alignment: Alignment.topCenter,
+            children: [
+              Positioned(
+                top: 4,
+                left: horizontalInset,
+                width: diameter,
+                height: diameter,
+                child: CustomPaint(
+                  painter: _PlaybackOrbPainter(
+                    progress: progress,
+                    accent: colors.primary,
+                  ),
+                ),
+              ),
+              Positioned(
+                top: 4,
+                left: horizontalInset,
+                width: diameter,
+                height: diameter,
+                child: Semantics(
+                  label: 'Progreso de reproduccion',
+                  slider: true,
+                  value: '${(progress * 100).round()}%',
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.translucent,
+                    onTapDown: (details) => seekFromArc(details.localPosition),
+                    onPanUpdate: (details) => seekFromArc(details.localPosition),
+                  ),
+                ),
+              ),
+              Positioned(
+                top: 98,
+                child: Text(positionLabel, style: _timeStyle),
+              ),
+              Positioned(
+                top: 164,
+                left: horizontalInset + diameter * 0.12,
+                child: IconButton(
+                  onPressed: onPrevious,
+                  icon: const Icon(Icons.skip_previous_rounded),
+                  iconSize: 42,
+                  color: Colors.white,
+                  disabledColor: Colors.white24,
+                ),
+              ),
+              Positioned(
+                top: 164,
+                right: horizontalInset + diameter * 0.12,
+                child: IconButton(
+                  onPressed: onNext,
+                  icon: const Icon(Icons.skip_next_rounded),
+                  iconSize: 42,
+                  color: Colors.white,
+                  disabledColor: Colors.white24,
+                ),
+              ),
+              Positioned(
+                top: 156,
+                child: Container(
+                  width: 104,
+                  height: 104,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.white,
+                    border: Border.all(color: colors.primary, width: 9),
+                    boxShadow: [
+                      BoxShadow(
+                        color: colors.primary.withValues(alpha: 0.72),
+                        blurRadius: 30,
+                        spreadRadius: 4,
+                      ),
+                    ],
+                  ),
+                  child: IconButton(
+                    onPressed: onToggle,
+                    icon: Icon(
+                      playing ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                      color: colors.background,
+                    ),
+                    iconSize: 48,
+                  ),
+                ),
+              ),
+              Positioned(
+                top: 242,
+                left: horizontalInset + diameter * 0.15,
+                child: const Icon(Icons.shuffle_rounded, color: Colors.white54),
+              ),
+              Positioned(
+                top: 234,
+                right: horizontalInset + diameter * 0.15,
+                child: IconButton(
+                  onPressed: onRepeat,
+                  tooltip: switch (repeatMode) {
+                    PlayerRepeatMode.off => 'Repetir desactivado',
+                    PlayerRepeatMode.all => 'Repetir cola',
+                    PlayerRepeatMode.one => 'Repetir una canción',
+                  },
+                  style: IconButton.styleFrom(
+                    backgroundColor: repeatMode == PlayerRepeatMode.off
+                        ? Colors.black.withValues(alpha: 0.2)
+                        : colors.primary.withValues(alpha: 0.28),
+                  ),
+                  icon: Icon(
+                    repeatMode == PlayerRepeatMode.one
+                        ? Icons.repeat_one_rounded
+                        : Icons.repeat_rounded,
+                    color: repeatMode == PlayerRepeatMode.off
+                        ? Colors.white54
+                        : colors.primary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  static const _timeStyle = TextStyle(
+    color: Colors.white70,
+    fontWeight: FontWeight.w700,
+  );
+}
+
+class _PlaybackOrbPainter extends CustomPainter {
+  const _PlaybackOrbPainter({required this.progress, required this.accent});
+
+  final double progress;
+  final Color accent;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = size.shortestSide / 2 - 8;
+    // A fixed upper semicircle: its geometry never depends on song duration.
+    // Both endpoints remain level with the playback controls, opening upward.
+    const startAngle = math.pi;
+    const sweepAngle = math.pi;
+    final trackPaint = Paint()
+      ..color = Colors.white.withValues(alpha: 0.16)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2;
+    final progressPaint = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round
+      ..strokeWidth = 3;
+    final glowPaint = Paint()
+      ..color = accent.withValues(alpha: 0.26)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 24);
+
+    canvas.drawCircle(center, radius * 0.68, glowPaint);
+    canvas.drawArc(
+      Rect.fromCircle(center: center, radius: radius),
+      startAngle,
+      sweepAngle,
+      false,
+      trackPaint,
+    );
+    canvas.drawArc(
+      Rect.fromCircle(center: center, radius: radius),
+      startAngle,
+      sweepAngle * progress,
+      false,
+      progressPaint,
+    );
+    final thumbAngle = startAngle + sweepAngle * progress;
+    final thumbCenter = Offset(
+      center.dx + radius * math.cos(thumbAngle),
+      center.dy + radius * math.sin(thumbAngle),
+    );
+    canvas.drawCircle(thumbCenter, 5, Paint()..color = Colors.white);
+  }
+
+  @override
+  bool shouldRepaint(covariant _PlaybackOrbPainter oldDelegate) {
+    return oldDelegate.progress != progress || oldDelegate.accent != accent;
+  }
+}
+
 class _CircleActionButton extends StatelessWidget {
   const _CircleActionButton({
     required this.icon,
@@ -476,23 +813,16 @@ class _CircleActionButton extends StatelessWidget {
   }
 }
 
-class _ExpandedCoverFallback extends StatelessWidget {
-  const _ExpandedCoverFallback();
+class _QueueCoverFallback extends StatelessWidget {
+  const _QueueCoverFallback();
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF1E90FF), Color(0xFF00CFFF)],
-        ),
-      ),
-      child: const Icon(
-        Icons.music_note_rounded,
-        color: Colors.white,
-        size: 92,
+    final colors = context.musicFlowColors;
+    return ColoredBox(
+      color: colors.cardGradientStart,
+      child: Center(
+        child: Icon(Icons.music_note_rounded, color: colors.primary, size: 36),
       ),
     );
   }

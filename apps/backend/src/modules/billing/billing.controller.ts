@@ -34,19 +34,19 @@ export class BillingController {
 
   @Get("quota")
   @ApiOperation({
-    summary: "Get current quota usage across uploads, AI requests, and presets",
+    summary: "Get current AI, EQ preset, and segmentation usage",
   })
   async getQuota(@CurrentUser() user: AuthUser) {
-    const [uploads, ai, presets] = await Promise.all([
-      this.quotaService.getUploadQuota(user),
+    const [ai, presets, segments] = await Promise.all([
       this.quotaService.getAiQuota(user),
       this.quotaService.getCustomPresetQuota(user),
+      this.quotaService.getSegmentUsage(user),
     ]);
     return {
       isPremium: user.isPremium,
-      uploads: serializeQuota(uploads),
       aiRequests: serializeQuota(ai),
       customPresets: serializeQuota(presets),
+      segments: serializeQuota(segments),
     };
   }
 

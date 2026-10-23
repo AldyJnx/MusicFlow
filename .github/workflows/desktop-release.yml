@@ -1,0 +1,143 @@
+name: Desktop Release
+
+on:
+  push:
+    tags:
+      - "desktop-v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to publish, for example 1.0.0"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  release-windows:
+    name: Build and publish Windows installer
+    runs-on: windows-latest
+    outputs:
+      version: ${{ steps.version.outputs.value }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Resolve release version
+        id: version
+        shell: pwsh
+        run: |
+          $version = "${{ inputs.version }}"
+          if ([string]::IsNullOrWhiteSpace($version)) {
+            $version = "${{ github.ref_name }}" -replace '^desktop-v', ''
+          }
+          if ($version -notmatch '^\d+\.\d+\.\d+([-.][0-9A-Za-z.-]+)?$') {
+            throw "The desktop version must be valid semver: $version"
+          }
+          "value=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
+      - name: Build MusicFlow Desktop
+        run: |
+          pnpm --filter web run build
+          pnpm --filter web exec electron-builder --win --x64 --config.extraMetadata.version=${{ steps.version.outputs.value }}
+
+      - name: Publish GitHub Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: desktop-v${{ steps.version.outputs.value }}
+          RELEASE_VERSION: ${{ steps.version.outputs.value }}
+        run: |
+          $installer = Get-ChildItem "apps/web/release/MusicFlow-Setup-*.exe" | Select-Object -First 1
+          if ($null -eq $installer) {
+            throw "MusicFlow installer was not generated."
+          }
+          gh release view $env:RELEASE_TAG 2>$null
+          if ($LASTEXITCODE -eq 0) {
+            gh release upload $env:RELEASE_TAG $installer.FullName --clobber
+          } else {
+            gh release create $env:RELEASE_TAG $installer.FullName --title "MusicFlow Desktop $env:RELEASE_VERSION" --generate-notes
+          }
+
+  release-macos:
+    name: Build and publish macOS installers
+    needs: release-windows
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build MusicFlow Desktop for macOS
+        run: |
+          pnpm --filter web run build
+          pnpm --filter web exec electron-builder --mac --universal --config.extraMetadata.version=${{ needs.release-windows.outputs.version }}
+
+      - name: Upload macOS artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: desktop-v${{ needs.release-windows.outputs.version }}
+        run: |
+          gh release upload "$RELEASE_TAG" apps/web/release/*.dmg apps/web/release/*-mac.zip --clobber
+
+  release-linux:
+    name: Build and publish Linux installers
+    needs: release-windows
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build MusicFlow Desktop for Linux
+        run: |
+          pnpm --filter web run build
+          pnpm --filter web exec electron-builder --linux --x64 --config.extraMetadata.version=${{ needs.release-windows.outputs.version }}
+
+      - name: Upload Linux artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: desktop-v${{ needs.release-windows.outputs.version }}
+        run: |
+          gh release upload "$RELEASE_TAG" apps/web/release/*.AppImage apps/web/release/*.deb --clobber

@@ -37,6 +37,15 @@ class CatalogRepository {
     return CatalogArtistDetail.fromJson(res.data!);
   }
 
+  /// Reads the server-calculated audience count without duplicating catalog data
+  /// in the client. The count is refreshed after every follow action.
+  Future<int> getArtistFollowerCount(String id) async {
+    final res = await _client.dio.get<Map<String, dynamic>>(
+      '/catalog/artists/$id',
+    );
+    return (res.data?['followerCount'] as num?)?.toInt() ?? 0;
+  }
+
   Future<CatalogAlbumDetail> getAlbum(String id) async {
     final res = await _client.dio.get<Map<String, dynamic>>(
       '/catalog/albums/$id',

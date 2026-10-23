@@ -6,6 +6,8 @@ part 'user.g.dart';
 enum UserRole {
   @JsonValue('ADMIN')
   admin,
+  @JsonValue('ARTIST')
+  artist,
   @JsonValue('CLIENT')
   client,
 }

@@ -10,6 +10,7 @@ import {
   UserRound,
   Users,
 } from "lucide-react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import ClientLayout from "../../layout/ClientLayout";
@@ -20,13 +21,20 @@ import {
 import { usePlayerStore, type PlayerTrack } from "../../stores/playStore";
 import { useAuthStore } from "../../../shared/stores/authStore";
 import type { Track } from "../../../shared/api/tracks";
+import { getAvatarUrl } from "../../../shared/utils/avatar";
+import {
+  formatTrackArtist,
+  toPlayerFeaturedArtists,
+} from "../../../shared/utils/trackArtist";
 
 function toPlayerTrack(t: Track): PlayerTrack | null {
   if (!t.fileUrlRemote) return null;
   return {
     id: t.id,
     title: t.title,
-    artist: t.artist,
+    artistProfileName: t.artist,
+    artist: formatTrackArtist(t.artist, t.featuredArtists),
+    featuredArtists: toPlayerFeaturedArtists(t.featuredArtists),
     cover: t.coverArt,
     url: t.fileUrlRemote,
     durationMs: t.durationMs,
@@ -48,12 +56,19 @@ export default function ProfileSettings() {
   const recentQ = useRecentlyPlayedQuery(4);
   const playTrack = usePlayerStore((s) => s.playTrack);
   const user = useAuthStore((s) => s.user);
+  const [avatarFailed, setAvatarFailed] = useState(false);
+  const avatarUrl = getAvatarUrl(user?.avatar);
+
+  useEffect(() => {
+    setAvatarFailed(false);
+  }, [user?.avatar]);
 
   const stats = statsQ.data;
   const recent = recentQ.data ?? [];
   const loading = statsQ.isPending;
   const dash = "—";
 
+  const mostPlayedTrack = stats?.topTracks[0];
   const statCards = [
     {
       id: 1,
@@ -71,15 +86,16 @@ export default function ProfileSettings() {
     },
     {
       id: 3,
-      label: "Artistas únicos",
-      value: loading ? dash : (stats?.uniqueArtists ?? 0).toLocaleString("es"),
+      label: "Último artista seguido",
+      value: loading ? dash : (stats?.latestFollowedArtist?.name ?? dash),
       icon: Users,
       accent: "text-violet-400",
     },
     {
       id: 4,
-      label: "Canciones únicas",
-      value: loading ? dash : (stats?.uniqueTracks ?? 0).toLocaleString("es"),
+      label: "Canción más escuchada",
+      value: loading ? dash : (mostPlayedTrack?.title ?? dash),
+      detail: loading ? undefined : mostPlayedTrack?.artist,
       icon: AudioLines,
       accent: "text-emerald-400",
     },
@@ -105,7 +121,17 @@ export default function ProfileSettings() {
                       className="relative flex h-40 w-40 items-center justify-center rounded-full border border-[#23263b] bg-[#202637] text-slate-300 shadow-[0_0_0_6px_rgba(26,29,42,0.9),0_0_30px_rgba(99,102,241,0.24)]"
                       aria-label="Avatar de usuario"
                     >
-                      <UserRound className="h-16 w-16" strokeWidth={1.5} />
+                      {avatarUrl && !avatarFailed ? (
+                        <img
+                          src={avatarUrl}
+                          alt={`Foto de ${user?.username ?? "usuario"}`}
+                          referrerPolicy="no-referrer"
+                          onError={() => setAvatarFailed(true)}
+                          className="h-full w-full rounded-full object-cover"
+                        />
+                      ) : (
+                        <UserRound className="h-16 w-16" strokeWidth={1.5} />
+                      )}
                     </div>
                     <button
                       type="button"
@@ -167,6 +193,11 @@ export default function ProfileSettings() {
                       <p className="mt-4 text-3xl font-semibold tracking-tight text-white">
                         {stat.value}
                       </p>
+                      {stat.detail ? (
+                        <p className="mt-1 truncate text-sm text-slate-500">
+                          {stat.detail}
+                        </p>
+                      ) : null}
                     </article>
                   );
                 })}

@@ -86,6 +86,9 @@ export function useArtistsInfiniteQuery(
     initialPageParam: 0,
     getNextPageParam: (lastPage) => lastPage.nextOffset ?? undefined,
     staleTime: 2 * 60_000,
+    // Admin deletions must disappear as soon as the user returns to Catalog;
+    // cached pages are retained while the fresh server result replaces them.
+    refetchOnMount: "always",
     enabled: options?.enabled ?? true,
   });
 }

@@ -6,6 +6,7 @@ import { AuthController } from "./auth.controller";
 import { UsersController } from "./users.controller";
 import { DevicesController } from "./devices.controller";
 import { AuthService } from "./auth.service";
+import { GoogleIdTokenVerifier } from "./google-id-token.verifier";
 import { JwtStrategy } from "./strategies/jwt.strategy";
 import { GoogleStrategy } from "./strategies/google.strategy";
 import {
@@ -31,6 +32,7 @@ import { DevicesService } from "./devices.service";
   controllers: [AuthController, UsersController, DevicesController],
   providers: [
     AuthService,
+    GoogleIdTokenVerifier,
     JwtStrategy,
     GoogleStrategy,
     GoogleOAuthStartGuard,

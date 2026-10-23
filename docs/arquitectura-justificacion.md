@@ -1,5 +1,10 @@
 # MusicFlow — Arquitectura y Justificación Tecnológica
 
+> Actualización 2026: el cliente web usa React 19 + Vite 8 y Electron 42; el
+> móvil usa Flutter 3.41/Riverpod 2.6; el esquema PostgreSQL incluye
+> `TrackFeaturedArtist`, `CatalogAiRun` y `CatalogAiFinding`. El diagrama
+> relacional vigente está en [DATABASE.md](DATABASE.md).
+
 > Documento de apoyo para exposición. Acompaña a los diagramas en
 > [diagrams/architecture.png](diagrams/architecture.png) y [diagrams/mer.png](diagrams/mer.png).
 

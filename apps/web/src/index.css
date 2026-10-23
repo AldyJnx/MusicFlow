@@ -56,6 +56,36 @@ body {
   text-rendering: optimizeLegibility;
 }
 
+/* Electron's frameless window reserves this strip for its draggable title bar.
+   Browser and PWA layouts remain exactly as before. */
+body.electron-desktop {
+  --desktop-titlebar-height: 36px;
+  padding-top: 36px;
+}
+
+/* A sticky app header otherwise returns to viewport y=0 after scrolling and
+   ends up underneath the native window controls. */
+body.electron-desktop .sticky.top-0 {
+  top: 36px;
+}
+
+/* Sidebars and drawers use `position: fixed`, so body padding cannot move
+   them below the custom title bar. Keep their controls out of that draggable
+   strip; otherwise the title bar intercepts their first row in Electron. */
+body.electron-desktop .electron-viewport-panel,
+body.electron-desktop .electron-viewport-drawer {
+  top: var(--desktop-titlebar-height);
+  height: calc(100vh - var(--desktop-titlebar-height));
+}
+
+body.electron-desktop .electron-viewport-backdrop {
+  top: var(--desktop-titlebar-height);
+}
+
+.desktop-window-titlebar {
+  -webkit-app-region: drag;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -89,13 +119,56 @@ h3 {
   }
 }
 
+/* Each bar has an independent short, alternating transform animation. The
+   staggered phases keep the mark moving continuously without a shared restart. */
+@keyframes musicflow-logo-wave {
+  from {
+    transform: scaleY(0.34);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+
+.musicflow-logo-bar {
+  width: 2.5px;
+  border-radius: 2px;
+  background: #0a0a14;
+  transform-origin: bottom;
+  will-change: transform;
+  animation-name: musicflow-logo-wave;
+  animation-timing-function: cubic-bezier(0.45, 0, 0.55, 1);
+  animation-iteration-count: infinite;
+  animation-direction: alternate;
+}
+
+.musicflow-logo-bar:nth-child(1) {
+  height: 7px;
+  animation-duration: 420ms;
+  animation-delay: -160ms;
+}
+
+.musicflow-logo-bar:nth-child(2) {
+  height: 13px;
+  animation-duration: 600ms;
+  animation-delay: -360ms;
+}
+
+.musicflow-logo-bar:nth-child(3) {
+  height: 10px;
+  animation-duration: 500ms;
+  animation-delay: -250ms;
+}
+
 /* Kill decorative animation for users who asked for less motion. Covers the
-   infinite loops (logo EQ bars, vinyl spin, playing indicators) that inline
-   styles start unconditionally. */
+   infinite loops (vinyl spin, playing indicators, hero fades) that inline
+   styles start unconditionally. The MusicFlow logo bars keep waving — it is
+   the brand mark, so it animates regardless of the OS reduced-motion setting.
+   Drop `.musicflow-logo-bar` from the exclusion to respect reduced-motion. */
 @media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
+  *:not(.musicflow-logo-bar),
+  *:not(.musicflow-logo-bar)::before,
+  *:not(.musicflow-logo-bar)::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;

@@ -12,6 +12,7 @@ import {
   unsaveTrack,
 } from "../api/library-saves";
 import { trackKeys, TRACKS_PAGE_SIZE } from "./useTracks";
+import { showActionNotice } from "../ui/ActionNotice";
 
 export const savesKeys = {
   all: ["library", "saves"] as const,
@@ -100,6 +101,14 @@ export function useToggleSave() {
       if (saved) await unsaveTrack(trackId);
       else await saveTrack(trackId);
     },
+    onSuccess: (_data, variables) => {
+      showActionNotice(
+        variables.saved
+          ? "Canción eliminada de Favoritos"
+          : "Canción guardada en Favoritos",
+      );
+    },
+    onError: () => showActionNotice("No se pudo actualizar Favoritos", "error"),
     onSettled: () => {
       void qc.invalidateQueries({ queryKey: savesKeys.all });
       void qc.invalidateQueries({ queryKey: trackKeys.all });

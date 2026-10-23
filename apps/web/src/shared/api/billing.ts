@@ -11,9 +11,9 @@ export interface QuotaSlice {
 
 export interface BillingQuota {
   isPremium: boolean;
-  uploads: QuotaSlice;
   aiRequests: QuotaSlice;
   customPresets: QuotaSlice;
+  segments: QuotaSlice;
 }
 
 export async function getBillingQuota(): Promise<BillingQuota> {

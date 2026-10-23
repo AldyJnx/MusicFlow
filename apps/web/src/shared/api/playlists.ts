@@ -38,6 +38,17 @@ export async function createPlaylist(payload: {
   return data;
 }
 
+export async function updatePlaylist(
+  id: string,
+  payload: { name?: string; description?: string },
+): Promise<Playlist> {
+  const { data } = await api.patch<Playlist>(
+    `/library/playlists/${id}`,
+    payload,
+  );
+  return data;
+}
+
 export async function deletePlaylist(id: string): Promise<void> {
   await api.delete(`/library/playlists/${id}`);
 }

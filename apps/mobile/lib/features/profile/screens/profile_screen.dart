@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:musicflow_mobile/app/routes.dart';
+import 'package:musicflow_mobile/core/api/analytics_repository.dart';
 import 'package:musicflow_mobile/core/config/app_config.dart';
 import 'package:musicflow_mobile/core/theme/musicflow_theme.dart';
 import 'package:musicflow_mobile/core/widgets/app_bottom_navigation.dart';
@@ -31,7 +32,12 @@ class ProfileScreen extends ConsumerWidget {
     }
 
     final isPremium = user.isPremium;
-    final roleLabel = user.role == UserRole.admin ? 'Admin' : 'Cliente';
+    final roleLabel = switch (user.role) {
+      UserRole.admin => 'Admin',
+      UserRole.artist => 'Artista',
+      UserRole.client => 'Cliente',
+    };
+    final isAdmin = user.role == UserRole.admin;
     final stats = statsAsync.valueOrNull;
     final listenedMinutes = stats == null
         ? '–'
@@ -231,12 +237,12 @@ class ProfileScreen extends ConsumerWidget {
                           vertical: 6,
                         ),
                         decoration: BoxDecoration(
-                          color: user.role == UserRole.admin
+                          color: isAdmin
                               ? const Color(0x33FF8A00)
                               : const Color(0x221E90FF),
                           borderRadius: BorderRadius.circular(999),
                           border: Border.all(
-                            color: user.role == UserRole.admin
+                            color: isAdmin
                                 ? const Color(0x88FF8A00)
                                 : const Color(0x661E90FF),
                           ),
@@ -244,7 +250,7 @@ class ProfileScreen extends ConsumerWidget {
                         child: Text(
                           roleLabel,
                           style: theme.textTheme.labelMedium?.copyWith(
-                            color: user.role == UserRole.admin
+                            color: isAdmin
                                 ? const Color(0xFFFFB347)
                                 : colors.secondary,
                             fontWeight: FontWeight.w800,
@@ -330,11 +336,23 @@ class ProfileScreen extends ConsumerWidget {
                   ),
                 ),
                 const SizedBox(height: 14),
-                _ProfileMetricCard(
-                  icon: Icons.favorite_border_rounded,
-                  iconColor: colors.secondary,
-                  title: 'ARTISTA FAVORITO',
-                  value: favoriteArtist,
+                Row(
+                  children: [
+                    Expanded(
+                      child: _ProfileMetricCard(
+                        icon: Icons.favorite_border_rounded,
+                        iconColor: colors.secondary,
+                        title: 'ARTISTA FAVORITO',
+                        value: favoriteArtist,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _TopArtistsCard(
+                        artists: stats?.topArtists ?? const [],
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 28),
                 Text(
@@ -453,6 +471,59 @@ class _ProfileMetricCard extends StatelessWidget {
               fontWeight: FontWeight.w800,
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TopArtistsCard extends StatelessWidget {
+  const _TopArtistsCard({required this.artists});
+
+  final List<StatsArtist> artists;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.musicFlowColors;
+    final shown = artists.take(2).toList(growable: false);
+    return Container(
+      constraints: const BoxConstraints(minHeight: 164),
+      padding: const EdgeInsets.fromLTRB(14, 16, 12, 14),
+      decoration: BoxDecoration(
+        color: colors.surfaceAlt.withValues(alpha: 0.92),
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.bar_chart_rounded, color: Color(0xFF35D8FF)),
+          const SizedBox(height: 12),
+          Text(
+            'MÁS ESCUCHADOS',
+            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+              color: Colors.white38,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 0.65,
+            ),
+          ),
+          const SizedBox(height: 7),
+          if (shown.isEmpty)
+            const Text('Aún sin datos', style: TextStyle(color: Colors.white70))
+          else
+            ...shown.map(
+              (artist) => Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Text(
+                  artist.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
     );

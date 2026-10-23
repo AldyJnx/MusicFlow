@@ -189,7 +189,7 @@ export default function Sidebar({
           <NavLink
             key={item.path}
             to={item.path}
-            end={item.path === "/library"}
+            end={item.path === "/library" || item.path === "/admin"}
             className={({ isActive }) =>
               `group relative flex items-center transition ${
                 isActive

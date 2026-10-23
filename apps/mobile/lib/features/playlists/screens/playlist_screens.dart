@@ -88,7 +88,7 @@ class PlaylistScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Tus bibliotecas, canciones guardadas y subidas aparecen aqui.',
+                    'Tus bibliotecas y favoritos aparecen aquí.',
                     style: theme.textTheme.titleMedium?.copyWith(
                       color: Colors.white70,
                       height: 1.35,
@@ -173,7 +173,7 @@ class PlaylistScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: 28),
                   Text(
-                    'Canciones guardadas',
+                    'Favoritos',
                     style: theme.textTheme.headlineSmall?.copyWith(
                       color: Colors.white,
                       fontWeight: FontWeight.w900,
@@ -199,7 +199,7 @@ class PlaylistScreen extends ConsumerWidget {
                       final tracks = response.tracks;
                       if (tracks.isEmpty) {
                         return _LibraryMessage(
-                          title: 'Aun no tienes canciones guardadas',
+                          title: 'Aún no tienes favoritos',
                           subtitle:
                               'Toca el corazon de una cancion para agregarla a tus favoritos.',
                           actionLabel: 'Explorar canciones',

@@ -4,10 +4,17 @@ import 'package:musicflow_mobile/app/routes.dart';
 import 'package:musicflow_mobile/core/theme/musicflow_theme.dart';
 import 'package:musicflow_mobile/core/widgets/app_bottom_navigation.dart';
 import 'package:musicflow_mobile/core/widgets/mini_player_bar.dart';
+import 'package:musicflow_mobile/core/providers/providers.dart';
+import 'package:musicflow_mobile/features/catalog/providers/catalog_providers.dart';
 import 'package:musicflow_mobile/features/library/providers/followed_artists_provider.dart';
 import 'package:musicflow_mobile/features/library/providers/tracks_providers.dart';
 import 'package:musicflow_mobile/features/player/providers/player_controller.dart';
 import 'package:musicflow_mobile/shared/models/track.dart';
+
+final _artistFollowerCountProvider = FutureProvider.autoDispose
+    .family<int, String>((ref, id) {
+      return ref.watch(catalogRepositoryProvider).getArtistFollowerCount(id);
+    });
 
 class ArtistDetailScreen extends ConsumerWidget {
   const ArtistDetailScreen({required this.artist, super.key});
@@ -28,6 +35,13 @@ class ArtistDetailScreen extends ConsumerWidget {
     final isFollowing = ref.watch(
       followedArtistsProvider.select((artists) => artists.contains(artist)),
     );
+    final catalogArtists = ref.watch(catalogArtistsProvider);
+    final catalogArtist = catalogArtists.valueOrNull
+        ?.where((item) => item.name.toLowerCase() == artist.toLowerCase())
+        .firstOrNull;
+    final followerCount = catalogArtist == null
+        ? null
+        : ref.watch(_artistFollowerCountProvider(catalogArtist.id)).valueOrNull;
 
     return Scaffold(
       backgroundColor: colors.background,
@@ -132,7 +146,8 @@ class ArtistDetailScreen extends ConsumerWidget {
                     const SizedBox(height: 8),
                     Center(
                       child: Text(
-                        '${tracks.length} canciones disponibles',
+                        '${tracks.length} canciones disponibles'
+                        '${followerCount == null ? '' : ' · $followerCount seguidores'}',
                         style: theme.textTheme.titleMedium?.copyWith(
                           color: _lightBlue,
                           fontWeight: FontWeight.w700,
@@ -147,6 +162,11 @@ class ArtistDetailScreen extends ConsumerWidget {
                             await ref
                                 .read(followedArtistsProvider.notifier)
                                 .toggle(artist);
+                            if (catalogArtist != null) {
+                              ref.invalidate(
+                                _artistFollowerCountProvider(catalogArtist.id),
+                              );
+                            }
                           } catch (_) {
                             if (!context.mounted) return;
                             ScaffoldMessenger.of(context).showSnackBar(

@@ -23,6 +23,10 @@ import {
 import { usePremiumGate } from "../../shared/hooks/usePremiumGate";
 import { usePlayerStore, type PlayerTrack } from "../stores/playStore";
 import type { Track } from "../../shared/api/tracks";
+import {
+  formatTrackArtist,
+  toPlayerFeaturedArtists,
+} from "../../shared/utils/trackArtist";
 import PlaylistEQModal from "../features/equalizer/PlaylistEQModal";
 
 function toPlayerTrack(t: Track): PlayerTrack | null {
@@ -30,7 +34,9 @@ function toPlayerTrack(t: Track): PlayerTrack | null {
   return {
     id: t.id,
     title: t.title,
-    artist: t.artist,
+    artistProfileName: t.artist,
+    artist: formatTrackArtist(t.artist, t.featuredArtists),
+    featuredArtists: toPlayerFeaturedArtists(t.featuredArtists),
     cover: t.coverArt,
     url: t.fileUrlRemote,
     durationMs: t.durationMs,
@@ -115,7 +121,9 @@ export default function PlaylistDetailPage() {
     const playable = entries
       .map((e) => toPlayerTrack(e.track))
       .filter((p): p is PlayerTrack => p !== null);
-    if (playable.length > 0) void playTrackList(playable, startIndex);
+    if (playable.length > 0) {
+      void playTrackList(playable, startIndex, { playlistId: id });
+    }
   }
 
   function playFrom(trackId: string) {
@@ -123,7 +131,9 @@ export default function PlaylistDetailPage() {
       .map((e) => toPlayerTrack(e.track))
       .filter((p): p is PlayerTrack => p !== null);
     const idx = playable.findIndex((p) => p.id === trackId);
-    if (playable.length > 0) void playTrackList(playable, Math.max(0, idx));
+    if (playable.length > 0) {
+      void playTrackList(playable, Math.max(0, idx), { playlistId: id });
+    }
   }
 
   const playlist = playlistQ.data;

@@ -1,6 +1,8 @@
+import { useEffect, useState } from "react";
 import { NavLink } from "react-router-dom";
 
 import { useAuthStore } from "../../../shared/stores/authStore";
+import { getAvatarUrl } from "../../../shared/utils/avatar";
 
 function initialsOf(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -18,6 +20,12 @@ export default function ClientSidebarFooter({
   const displayName = user?.username ?? "—";
   const planLabel = user?.isPremium ? "Premium" : "Free";
   const initials = initialsOf(displayName);
+  const avatarUrl = getAvatarUrl(user?.avatar);
+  const [avatarFailed, setAvatarFailed] = useState(false);
+
+  useEffect(() => {
+    setAvatarFailed(false);
+  }, [avatarUrl]);
 
   return (
     <div className="space-y-3">
@@ -60,10 +68,12 @@ export default function ClientSidebarFooter({
         {({ isActive }) => (
           <>
             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-fuchsia-500 to-violet-400 text-xs font-semibold text-white">
-              {user?.avatar ? (
+              {avatarUrl && !avatarFailed ? (
                 <img
-                  src={user.avatar}
+                  src={avatarUrl}
                   alt={displayName}
+                  referrerPolicy="no-referrer"
+                  onError={() => setAvatarFailed(true)}
                   className="h-full w-full rounded-full object-cover"
                 />
               ) : (

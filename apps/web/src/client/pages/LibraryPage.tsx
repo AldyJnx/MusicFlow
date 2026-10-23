@@ -6,7 +6,6 @@ import {
   ListPlus,
   Music4,
   MoreHorizontal,
-  Upload,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -15,7 +14,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 
 import ClientLayout from "../layout/ClientLayout";
 import {
-  useTracksQuery,
+  useInfiniteTracksQuery,
   useAlbumsInfiniteQuery,
   useArtistsInfiniteQuery,
 } from "../../shared/hooks/useTracks";
@@ -25,9 +24,12 @@ import {
 } from "../../shared/hooks/useLibrarySaves";
 import { listGenres, type Track } from "../../shared/api/tracks";
 import { formatDuration } from "../../shared/utils/duration";
+import {
+  formatTrackArtist,
+  toPlayerFeaturedArtists,
+} from "../../shared/utils/trackArtist";
 import { usePlayerStore, type PlayerTrack } from "../stores/playStore";
 import SaveButton from "../../shared/ui/SaveButton";
-import ImportModal from "../features/import/ImportModal";
 import AddToPlaylistModal from "../features/playlists/AddToPlaylistModal";
 import PagedLibraryCarousel from "../../shared/ui/PagedLibraryCarousel";
 
@@ -125,7 +127,7 @@ function SkeletonRow() {
 
 export default function LibraryPage() {
   const { t } = useTranslation();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const initialScope: LibraryScope =
     searchParams.get("scope") === "mylibrary" ? "mylibrary" : "catalog";
@@ -137,7 +139,6 @@ export default function LibraryPage() {
         ? tabParam
         : "songs";
   const [scope, setScope] = useState<LibraryScope>(initialScope);
-  const [importOpen, setImportOpen] = useState(false);
   // Track queued for the "add to playlist" modal (null = modal closed).
   const [playlistTarget, setPlaylistTarget] = useState<Track | null>(null);
   // Row action menu (three-dots). Fixed-positioned so the table's
@@ -152,6 +153,19 @@ export default function LibraryPage() {
   const [searchInput, setSearchInput] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Albums and artists only exist in the shared catalog. Keep this derived so
+  // switching scopes cannot leave the page rendering a tab without data.
+  const effectiveTab: LibraryTab = scope === "mylibrary" ? "songs" : activeTab;
+
+  useEffect(() => {
+    if (!rowMenu) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setRowMenu(null);
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [rowMenu]);
 
   // Debounce search input by 300 ms
   useEffect(() => {
@@ -178,10 +192,10 @@ export default function LibraryPage() {
   const tracksQuery = scope === "catalog" ? catalogQuery : savedQuery;
 
   const albumsQuery = useAlbumsInfiniteQuery(debouncedSearch, {
-    enabled: scope === "catalog" && activeTab === "albums",
+    enabled: scope === "catalog" && effectiveTab === "albums",
   });
   const artistsQuery = useArtistsInfiniteQuery(debouncedSearch, {
-    enabled: scope === "catalog" && activeTab === "artists",
+    enabled: scope === "catalog" && effectiveTab === "artists",
   });
   const genresQuery = useQuery({
     queryKey: ["library", "genres"],
@@ -192,10 +206,16 @@ export default function LibraryPage() {
   });
   const genres = genresQuery.data ?? [];
 
-  const tracks = useMemo(
-    () => tracksQuery.data?.tracks ?? [],
-    [tracksQuery.data],
-  );
+  // Both catalog and saved-track hooks use the same paginated response.
+  // De-dup as a defensive measure in case a catalog row changes between pages.
+  const tracks = useMemo(() => {
+    const loaded = tracksQuery.data?.pages.flatMap((page) => page.tracks) ?? [];
+    const seen = new Set<string>();
+    return loaded.filter((track) =>
+      seen.has(track.id) ? false : (seen.add(track.id), true),
+    );
+  }, [tracksQuery.data]);
+  const totalTracks = tracksQuery.data?.pages[0]?.total ?? null;
   const albumPages = albumsQuery.data?.pages.map((page) => page.items) ?? [];
   const artistPages = artistsQuery.data?.pages.map((page) => page.items) ?? [];
   const albumTotal = albumsQuery.data?.pages[0]?.total ?? 0;
@@ -243,7 +263,9 @@ export default function LibraryPage() {
     return {
       id: t.id,
       title: t.title,
-      artist: t.artist,
+      artistProfileName: t.artist,
+      artist: formatTrackArtist(t.artist, t.featuredArtists),
+      featuredArtists: toPlayerFeaturedArtists(t.featuredArtists),
       cover: t.coverArt,
       url: t.fileUrlRemote,
       durationMs: t.durationMs,
@@ -268,7 +290,17 @@ export default function LibraryPage() {
             <div className="inline-flex rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-surface-alt)] p-1">
               <button
                 type="button"
-                onClick={() => setScope("catalog")}
+                onClick={() => {
+                  setScope("catalog");
+                  setSearchParams(
+                    (current) => {
+                      current.delete("scope");
+                      current.set("tab", activeTab);
+                      return current;
+                    },
+                    { replace: true },
+                  );
+                }}
                 className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition ${
                   scope === "catalog"
                     ? "bg-[var(--color-primary)] text-[var(--color-primary-contrast)] shadow"
@@ -283,6 +315,7 @@ export default function LibraryPage() {
                 onClick={() => {
                   setScope("mylibrary");
                   setActiveTab("songs");
+                  setSearchParams({ scope: "mylibrary" }, { replace: true });
                 }}
                 className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition ${
                   scope === "mylibrary"
@@ -296,18 +329,10 @@ export default function LibraryPage() {
                   fill={scope === "mylibrary" ? "currentColor" : "none"}
                 />
                 {t("library.scope.myLibrary", {
-                  defaultValue: "Mi biblioteca",
+                  defaultValue: "Favoritos",
                 })}
               </button>
             </div>
-            <button
-              type="button"
-              onClick={() => setImportOpen(true)}
-              className="inline-flex items-center gap-2 rounded-xl border border-[var(--color-primary)] bg-[var(--color-primary)]/10 px-4 py-2 text-sm font-semibold text-[var(--color-primary)] transition hover:bg-[var(--color-primary)]/20"
-            >
-              <Upload className="h-4 w-4" strokeWidth={2.3} />
-              {t("library.importCta", { defaultValue: "Importar canciones" })}
-            </button>
           </div>
 
           <div className="flex flex-col gap-5">
@@ -334,7 +359,10 @@ export default function LibraryPage() {
                     <button
                       key={tab}
                       type="button"
-                      onClick={() => setActiveTab(tab)}
+                      onClick={() => {
+                        setActiveTab(tab);
+                        setSearchParams({ tab }, { replace: true });
+                      }}
                       className={`relative pb-2 text-sm font-medium transition ${
                         effectiveTab === tab
                           ? "text-[var(--color-primary)]"
@@ -526,7 +554,10 @@ export default function LibraryPage() {
                               ) : null}
                             </div>
                             <p className="mt-1 truncate text-sm text-[var(--color-muted)]">
-                              {track.artist}
+                              {formatTrackArtist(
+                                track.artist,
+                                track.featuredArtists,
+                              )}
                             </p>
                           </div>
                         </div>
@@ -787,12 +818,18 @@ export default function LibraryPage() {
                     fetchNextPage={artistsQuery.fetchNextPage}
                     resetKey={`artists-${debouncedSearch}`}
                     label="Artistas"
+                    showArrowControls={false}
                     renderItem={(artist) => (
                       <ArtistTile
                         name={artist.name}
                         imageUrl={artist.imageUrl}
                         onClick={() =>
-                          navigate(`/artist/${encodeURIComponent(artist.name)}`)
+                          navigate(
+                            `/artist/${encodeURIComponent(artist.name)}`,
+                            {
+                              state: { fromLibrary: true },
+                            },
+                          )
                         }
                       />
                     )}
@@ -848,7 +885,6 @@ export default function LibraryPage() {
         </>
       ) : null}
 
-      <ImportModal open={importOpen} onClose={() => setImportOpen(false)} />
       <AddToPlaylistModal
         open={playlistTarget !== null}
         onClose={() => setPlaylistTarget(null)}

@@ -26,6 +26,12 @@ export interface Track {
   coverArt: string | null;
   /** Public URL of the artist's photo (denormalised from the artist images). */
   artistImage: string | null;
+  /** Ordered guest credits. An `artistId` is absent when no public profile exists. */
+  featuredArtists?: Array<{
+    artistName: string;
+    artistId: string | null;
+    position: number;
+  }>;
   fileUrlRemote: string | null;
   /** True when the track belongs to the public catalog (Spotify-style). */
   isCatalog: boolean;

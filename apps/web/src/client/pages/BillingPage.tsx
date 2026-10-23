@@ -1,4 +1,4 @@
-import { Crown, Sparkles, Sliders, Upload } from "lucide-react";
+import { Crown, Sparkles, Sliders, SplitSquareHorizontal } from "lucide-react";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import ClientLayout from "../layout/ClientLayout";
@@ -159,10 +159,10 @@ export default function BillingPage() {
                 <QuotaCard
                   icon={<Sparkles className="h-5 w-5" strokeWidth={2.3} />}
                   title={t("billing.cards.ai.title", {
-                    defaultValue: "Sugerencias IA",
+                    defaultValue: "Uso de IA",
                   })}
                   description={t("billing.cards.ai.description", {
-                    defaultValue: "Reseteo mensual",
+                    defaultValue: "Solicitudes de IA este mes",
                   })}
                   slice={data.aiRequests}
                   resetLabel={
@@ -178,24 +178,29 @@ export default function BillingPage() {
                   }
                 />
                 <QuotaCard
-                  icon={<Upload className="h-5 w-5" strokeWidth={2.3} />}
-                  title={t("billing.cards.uploads.title", {
-                    defaultValue: "Canciones subidas",
-                  })}
-                  description={t("billing.cards.uploads.description", {
-                    defaultValue: "Total acumulado",
-                  })}
-                  slice={data.uploads}
-                />
-                <QuotaCard
                   icon={<Sliders className="h-5 w-5" strokeWidth={2.3} />}
                   title={t("billing.cards.presets.title", {
-                    defaultValue: "Presets propios",
+                    defaultValue: "Cantidad de EQ",
                   })}
                   description={t("billing.cards.presets.description", {
-                    defaultValue: "EQ personalizados",
+                    defaultValue: "Presets propios creados",
                   })}
                   slice={data.customPresets}
+                />
+                <QuotaCard
+                  icon={
+                    <SplitSquareHorizontal
+                      className="h-5 w-5"
+                      strokeWidth={2.3}
+                    />
+                  }
+                  title={t("billing.cards.segments.title", {
+                    defaultValue: "Cantidad de segmentaciones",
+                  })}
+                  description={t("billing.cards.segments.description", {
+                    defaultValue: "Segmentos de EQ creados",
+                  })}
+                  slice={data.segments}
                 />
               </div>
 

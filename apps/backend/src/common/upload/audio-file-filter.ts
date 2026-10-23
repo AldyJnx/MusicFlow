@@ -24,6 +24,13 @@ const ALLOWED_EXTS = new Set([
   "aac",
   "opus",
 ]);
+const CATALOG_AUDIO_MIMES = new Set([
+  "audio/flac",
+  "audio/x-flac",
+  "audio/wav",
+  "audio/x-wav",
+]);
+const CATALOG_AUDIO_EXTS = new Set(["flac", "wav"]);
 
 /**
  * Multer fileFilter for audio uploads. Mitigates CVE-2025-55305-class polyglot
@@ -46,6 +53,27 @@ export function audioFileFilter(
       new BadRequestException(
         `Unsupported file type: ${mime || "unknown"} (.${ext || "unknown"})`,
       ),
+      false,
+    );
+  }
+  cb(null, true);
+}
+
+/**
+ * The public library accepts several browser-friendly formats, while the
+ * admin catalog keeps only lossless source files. Keep this restriction at
+ * the multipart boundary as well as in StorageService (defence in depth).
+ */
+export function catalogAudioFileFilter(
+  _req: unknown,
+  file: { originalname: string; mimetype: string },
+  cb: (err: Error | null, accept: boolean) => void,
+) {
+  const ext = file.originalname.split(".").pop()?.toLowerCase() ?? "";
+  const mime = (file.mimetype ?? "").toLowerCase();
+  if (!CATALOG_AUDIO_EXTS.has(ext) || !CATALOG_AUDIO_MIMES.has(mime)) {
+    return cb(
+      new BadRequestException("El catálogo solo acepta archivos WAV o FLAC."),
       false,
     );
   }

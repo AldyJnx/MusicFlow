@@ -17,8 +17,8 @@ class MiniPlayerBar extends ConsumerWidget {
     final isPlaying = ref.watch(
       playerControllerProvider.select((state) => state.isPlaying),
     );
-    final isLooping = ref.watch(
-      playerControllerProvider.select((state) => state.isLooping),
+    final repeatMode = ref.watch(
+      playerControllerProvider.select((state) => state.repeatMode),
     );
     final controller = ref.read(playerControllerProvider.notifier);
 
@@ -129,12 +129,16 @@ class MiniPlayerBar extends ConsumerWidget {
                     onPressed: controller.previous,
                   ),
                   _MiniControl(
-                    icon: isLooping
+                    icon: repeatMode == PlayerRepeatMode.one
                         ? Icons.repeat_one_rounded
                         : Icons.repeat_rounded,
-                    tooltip: 'Bucle',
-                    active: isLooping,
-                    onPressed: controller.toggleLooping,
+                    tooltip: switch (repeatMode) {
+                      PlayerRepeatMode.off => 'Repetir desactivado',
+                      PlayerRepeatMode.all => 'Repetir cola',
+                      PlayerRepeatMode.one => 'Repetir una canción',
+                    },
+                    active: repeatMode != PlayerRepeatMode.off,
+                    onPressed: controller.cycleRepeatMode,
                   ),
                   _MiniControl(
                     icon: Icons.skip_next_rounded,

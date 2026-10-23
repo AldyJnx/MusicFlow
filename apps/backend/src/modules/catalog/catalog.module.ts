@@ -7,5 +7,8 @@ import { CatalogService } from "./catalog.service";
 @Module({
   controllers: [CatalogController, CatalogAdminController],
   providers: [CatalogService],
+  // The admin catalog AI assistant must write through CatalogService so the
+  // artwork and lyrics invariants keep holding.
+  exports: [CatalogService],
 })
 export class CatalogModule {}

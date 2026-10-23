@@ -22,6 +22,10 @@ import { usePlayerStore, type PlayerTrack } from "../../stores/playStore";
 import { getAudioEngine } from "../../../audio/engine";
 import WaveformTimeline from "./WaveformTimeline";
 import type { Track } from "../../../shared/api/tracks";
+import {
+  formatTrackArtist,
+  toPlayerFeaturedArtists,
+} from "../../../shared/utils/trackArtist";
 import { listTracks } from "../../../shared/api/tracks";
 import type {
   CreateSegmentPayload,
@@ -740,11 +744,7 @@ function SegmentsContent() {
 
   function handleDelete() {
     if (!editor?.segmentId) return;
-    if (pendingDeleteId === editor.segmentId) {
-      deleteMutation.mutate(editor.segmentId);
-    } else {
-      setPendingDeleteId(editor.segmentId);
-    }
+    setPendingDeleteId(editor.segmentId);
   }
 
   /**
@@ -757,16 +757,9 @@ function SegmentsContent() {
   async function handlePreview() {
     if (!editor || !selectedTrack) return;
     setIsPreviewing(true);
+    setEditorError(null);
     try {
       const engine = getAudioEngine();
-      engine.equalizer.setBands(editor.bands, 200);
-      engine.setEffects({
-        bassBoost: editor.bassBoost,
-        virtualizer: editor.virtualizer,
-        loudness: editor.loudness,
-        reverbPreset: editor.reverbPreset,
-        reverbAmount: editor.reverbAmount,
-      });
       // If the track that's playing isn't the one we're editing, load it
       // first; otherwise just seek to where the segment begins.
       if (
@@ -776,14 +769,36 @@ function SegmentsContent() {
         const playable: PlayerTrack = {
           id: selectedTrack.id,
           title: selectedTrack.title,
-          artist: selectedTrack.artist,
+          artistProfileName: selectedTrack.artist,
+          artist: formatTrackArtist(
+            selectedTrack.artist,
+            selectedTrack.featuredArtists,
+          ),
+          featuredArtists: toPlayerFeaturedArtists(
+            selectedTrack.featuredArtists,
+          ),
           cover: selectedTrack.coverArt,
           url: selectedTrack.fileUrlRemote,
           durationMs: selectedTrack.durationMs,
         };
         await playTrack(playable);
       }
+      // Loading a different track can reset the audio graph, so apply the
+      // temporary curve after it is ready and always resume preview playback.
+      engine.equalizer.setBands(editor.bands, 200);
+      engine.setEffects({
+        bassBoost: editor.bassBoost,
+        virtualizer: editor.virtualizer,
+        loudness: editor.loudness,
+        reverbPreset: editor.reverbPreset,
+        reverbAmount: editor.reverbAmount,
+      });
       seek(editor.startMs);
+      await engine.play();
+    } catch {
+      setEditorError(
+        "No se pudo reproducir la vista previa. Verifica que la canción tenga audio disponible.",
+      );
     } finally {
       // Brief debounce so users see "Sonando…" feedback even on fast paths.
       window.setTimeout(() => setIsPreviewing(false), 600);
@@ -1035,27 +1050,49 @@ function SegmentsContent() {
         </div>
       </section>
 
-      {pendingDeleteId && !editor && (
-        <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 flex items-center gap-3 rounded-xl border border-red-500/40 bg-[var(--color-surface)] px-5 py-3 shadow-2xl">
-          <span className="text-sm text-[var(--color-text)]">
-            {t("segments.deleteConfirm")}
-          </span>
-          <button
-            type="button"
-            onClick={() => deleteMutation.mutate(pendingDeleteId)}
-            className="rounded-lg bg-red-500 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-red-600"
+      {pendingDeleteId ? (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4">
+          <div
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="delete-segment-title"
+            className="w-full max-w-sm rounded-2xl border border-red-500/40 bg-[var(--color-surface)] p-5 shadow-2xl"
           >
-            {t("segments.confirm")}
-          </button>
-          <button
-            type="button"
-            onClick={() => setPendingDeleteId(null)}
-            className="rounded-lg border border-[var(--color-border)] px-3 py-1.5 text-xs font-semibold text-[var(--color-text)] transition hover:border-[var(--color-primary)]"
-          >
-            {t("segments.cancel")}
-          </button>
+            <div className="flex items-start gap-3">
+              <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-red-400" />
+              <div>
+                <h2
+                  id="delete-segment-title"
+                  className="font-bold text-[var(--color-text)]"
+                >
+                  ¿Eliminar este segmento?
+                </h2>
+                <p className="mt-1 text-sm text-[var(--color-muted)]">
+                  Esta acción no se puede deshacer.
+                </p>
+              </div>
+            </div>
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setPendingDeleteId(null)}
+                className="rounded-lg px-3 py-2 text-sm font-semibold text-[var(--color-muted)] hover:text-[var(--color-text)]"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={() => deleteMutation.mutate(pendingDeleteId)}
+                className="inline-flex items-center gap-2 rounded-lg bg-red-500 px-3 py-2 text-sm font-bold text-white transition hover:bg-red-600 disabled:opacity-50"
+              >
+                <Trash2 className="h-4 w-4" />
+                {isDeleting ? "Eliminando…" : "Eliminar"}
+              </button>
+            </div>
+          </div>
         </div>
-      )}
+      ) : null}
 
       {editor && (
         <EditorModal
@@ -1072,12 +1109,7 @@ function SegmentsContent() {
           isSaving={isSaving}
           isDeleting={isDeleting}
           isPreviewing={isPreviewing}
-          error={
-            editorError ??
-            (pendingDeleteId === editor.segmentId
-              ? t("segments.deleteConfirm")
-              : null)
-          }
+          error={editorError}
         />
       )}
     </ClientLayout>

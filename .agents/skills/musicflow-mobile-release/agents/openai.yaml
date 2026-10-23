@@ -1,0 +1,4 @@
+interface:
+  display_name: "MusicFlow Mobile Release"
+  short_description: "Prepare Android and iOS store releases"
+  default_prompt: "Use -mobile-release to prepare and verify a MusicFlow mobile store release."

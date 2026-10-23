@@ -1,0 +1,4 @@
+interface:
+  display_name: "MusicFlow Backend Production"
+  short_description: "Harden and operate the MusicFlow API"
+  default_prompt: "Use -backend-production to audit and harden the MusicFlow NestJS backend for production."

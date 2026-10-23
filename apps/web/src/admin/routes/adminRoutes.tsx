@@ -10,6 +10,7 @@ const UserDetailPage = lazy(() => import("../pages/UserDetailPage"));
 const AIRequestsPage = lazy(() => import("../pages/AIRequestsPage"));
 const EqPresetsPage = lazy(() => import("../pages/EqPresetsPage"));
 const CatalogPage = lazy(() => import("../pages/CatalogPage"));
+const AdminSettingsPage = lazy(() => import("../pages/AdminSettingsPage"));
 
 export default function AdminRoutes() {
   return (
@@ -17,12 +18,13 @@ export default function AdminRoutes() {
       <Suspense fallback={<RouteFallback />}>
         <Routes>
           <Route element={<AdminLayout />}>
-            <Route path="/" element={<DashboardPage />} />
-            <Route path="/users" element={<UsersPage />} />
-            <Route path="/users/:id" element={<UserDetailPage />} />
-            <Route path="/ai" element={<AIRequestsPage />} />
-            <Route path="/eq-presets" element={<EqPresetsPage />} />
-            <Route path="/catalog" element={<CatalogPage />} />
+            <Route index element={<DashboardPage />} />
+            <Route path="users" element={<UsersPage />} />
+            <Route path="users/:id" element={<UserDetailPage />} />
+            <Route path="ai" element={<AIRequestsPage />} />
+            <Route path="eq-presets" element={<EqPresetsPage />} />
+            <Route path="catalog" element={<CatalogPage />} />
+            <Route path="settings" element={<AdminSettingsPage />} />
             <Route path="*" element={<Navigate to="/admin" replace />} />
           </Route>
         </Routes>

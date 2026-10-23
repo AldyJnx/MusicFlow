@@ -78,7 +78,7 @@ final recentlyPlayedTracksProvider = FutureProvider.autoDispose
 final homeRecommendationsProvider =
     FutureProvider.autoDispose<TracksListResponse>((ref) {
       _cacheFor(ref, const Duration(minutes: 10));
-      return ref.watch(recommendationsRepositoryProvider).home(limit: 6);
+      return ref.watch(recommendationsRepositoryProvider).home(limit: 8);
     });
 
 final artistsProvider = FutureProvider.autoDispose<List<String>>((ref) {

@@ -1,4 +1,5 @@
 import {
+  Heart,
   Maximize2,
   Pause,
   Play,
@@ -13,15 +14,16 @@ import {
   VolumeX,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { useNavigate } from "react-router-dom";
 
 import { usePlayerStore } from "../../stores/playStore";
 import { useTrackSegments } from "../../../shared/hooks/useTrackSegments";
-import { usePremiumGate } from "../../../shared/hooks/usePremiumGate";
-import DownloadButton from "../../../shared/ui/DownloadButton";
+import {
+  useSavedCheckQuery,
+  useToggleSave,
+} from "../../../shared/hooks/useLibrarySaves";
 import ElasticSlider from "../../../shared/ui/reactbits/ElasticSlider";
 import TimelineWithSegments from "./TimelineWithSegments";
-import GoogleCastButton from "../../../shared/ui/GoogleCastButton";
+import ArtistCredits from "./ArtistCredits";
 
 type MiniPlayerProps = {
   /** Kept for API compatibility; the bar now docks in-flow. */
@@ -47,7 +49,6 @@ function gradOf(s: string): string {
 
 export default function MiniPlayer(_: MiniPlayerProps) {
   const { t } = useTranslation();
-  const navigate = useNavigate();
   const currentTrack = usePlayerStore((s) => s.currentTrack);
   const isExpanded = usePlayerStore((s) => s.isExpanded);
   const isPlaying = usePlayerStore((s) => s.isPlaying);
@@ -68,12 +69,18 @@ export default function MiniPlayer(_: MiniPlayerProps) {
   const cycleRepeat = usePlayerStore((s) => s.cycleRepeat);
   const openEqDrawer = usePlayerStore((s) => s.openEqDrawer);
   const openAiPrompt = usePlayerStore((s) => s.openAiPrompt);
+  const savedCheck = useSavedCheckQuery(currentTrack ? [currentTrack.id] : []);
+  const toggleSave = useToggleSave();
 
   const { segments } = useTrackSegments(currentTrack?.id ?? null);
-  const { guard } = usePremiumGate();
   if (!currentTrack || isExpanded) return null;
 
   const vol = muted ? 0 : volume;
+  const isSaved = savedCheck.data?.includes(currentTrack.id) ?? false;
+
+  function toggleFavorite() {
+    toggleSave.mutate({ trackId: currentTrack!.id, saved: isSaved });
+  }
 
   return (
     <div className="sticky bottom-0 z-40 flex h-[78px] flex-none items-center gap-[18px] border-t border-[var(--color-line)] bg-[rgba(8,8,16,.62)] px-[22px] shadow-[0_-10px_40px_-20px_rgba(0,0,0,.8)] backdrop-blur-[34px]">
@@ -103,15 +110,36 @@ export default function MiniPlayer(_: MiniPlayerProps) {
             </span>
           </span>
         </button>
+        <ArtistCredits
+          track={currentTrack}
+          compact
+          className="min-w-0 flex-1 overflow-hidden text-[11.5px] font-medium text-[var(--color-muted)]"
+        />
         <button
           type="button"
-          onClick={() =>
-            navigate(`/artist/${encodeURIComponent(currentTrack.artist)}`)
+          onClick={toggleFavorite}
+          disabled={toggleSave.isPending || savedCheck.isLoading}
+          aria-pressed={isSaved}
+          title={
+            isSaved
+              ? t("player.removeFavorite", {
+                  defaultValue: "Quitar de favoritos",
+                })
+              : t("player.addFavorite", {
+                  defaultValue: "Guardar en favoritos",
+                })
           }
-          title={`Ver perfil de ${currentTrack.artist}`}
-          className="min-w-0 flex-1 truncate text-left text-[11.5px] font-medium text-[var(--color-muted)] transition hover:text-[var(--color-accent)]"
+          className={`flex h-9 w-9 flex-none items-center justify-center rounded-full transition disabled:cursor-wait disabled:opacity-60 ${
+            isSaved
+              ? "bg-rose-500/15 text-rose-400"
+              : "text-[var(--color-muted)] hover:bg-white/5 hover:text-rose-400"
+          }`}
         >
-          {currentTrack.artist}
+          <Heart
+            className="h-[18px] w-[18px]"
+            fill={isSaved ? "currentColor" : "none"}
+            strokeWidth={2.2}
+          />
         </button>
       </div>
 
@@ -211,21 +239,9 @@ export default function MiniPlayer(_: MiniPlayerProps) {
 
       {/* RIGHT — download + EQ + AI + volume + expand */}
       <div className="flex w-[340px] flex-none items-center justify-end gap-3.5">
-        <GoogleCastButton className="flex h-[34px] w-[34px] items-center justify-center rounded-[10px] border border-[var(--color-line)] bg-white/[0.03] text-[var(--color-muted)] transition hover:border-[var(--color-primary)] hover:text-[var(--color-text)] disabled:opacity-100" />
-        <DownloadButton
-          track={{
-            id: currentTrack.id,
-            title: currentTrack.title,
-            artist: currentTrack.artist,
-            durationMs: currentTrack.durationMs,
-            url: currentTrack.url,
-            cover: currentTrack.cover,
-          }}
-          size={17}
-        />
         <button
           type="button"
-          onClick={() => guard("ai", openAiPrompt)}
+          onClick={openAiPrompt}
           title={t("player.openAi", { defaultValue: "Asistente IA" })}
           className="flex h-[34px] w-[34px] items-center justify-center rounded-[10px] border border-[var(--color-line)] bg-white/[0.03] text-[var(--color-accent)] transition hover:scale-105 hover:border-[color-mix(in_srgb,var(--color-accent)_50%,transparent)]"
         >

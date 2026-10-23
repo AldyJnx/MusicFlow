@@ -70,10 +70,12 @@ function publicUrl(base: string, key: string): string {
 /** Parse "Album Name - Artist.jpg" → { album, artist } (artist is last segment). */
 function parseCoverKey(key: string): { album: string; artist: string } | null {
   const noExt = key.replace(/\.(jpe?g|png|webp)$/i, "");
-  const parts = noExt.split(/ - /);
-  if (parts.length < 2) return null;
-  const artist = parts[parts.length - 1].trim();
-  const album = parts.slice(0, -1).join(" - ").trim();
+  // R2 contains both "Album - Artist.webp" and compact names such as
+  // "10años-Bareto.webp". The final hyphen always separates the artist.
+  const splitAt = noExt.lastIndexOf("-");
+  if (splitAt <= 0 || splitAt === noExt.length - 1) return null;
+  const album = noExt.slice(0, splitAt).trim();
+  const artist = noExt.slice(splitAt + 1).trim();
   if (!artist || !album) return null;
   return { album, artist };
 }
@@ -146,14 +148,17 @@ async function main() {
     const coverUrl = publicUrl(process.env.R2_PUBLIC_IMAGES_URL!, key);
     const existing = await prisma.album.findUnique({
       where: { artistId_title: { artistId, title: parsed.album } },
-      select: { id: true },
+      select: { id: true, coverArt: true },
     });
     if (existing) {
-      await prisma.album.update({
-        where: { id: existing.id },
-        data: { coverArt: coverUrl },
-      });
-      updated++;
+      // R2 fills incomplete metadata but does not replace Admin artwork.
+      if (!existing.coverArt) {
+        await prisma.album.update({
+          where: { id: existing.id },
+          data: { coverArt: coverUrl },
+        });
+        updated++;
+      }
     } else {
       await prisma.album.create({
         data: { artistId, title: parsed.album, coverArt: coverUrl },

@@ -18,10 +18,25 @@ export interface CatalogTrackCard {
   durationMs: number;
   coverArt: string | null;
   artistImage: string | null;
+  artistId?: string | null;
   fileUrlRemote: string | null;
   trackNumber: number | null;
   albumId: string | null;
   albumOrder: number | null;
+  featuredArtists: Array<{
+    id: string;
+    artistName: string;
+    artistId: string | null;
+    position: number;
+    artist: { id: string; name: string; slug: string } | null;
+  }>;
+}
+
+export type CatalogFeaturedMode = "popular" | "recent";
+
+export interface CatalogFeaturedTracks {
+  mode: CatalogFeaturedMode;
+  tracks: CatalogTrackCard[];
 }
 
 export interface CatalogAlbumSummary {
@@ -39,6 +54,8 @@ export interface CatalogArtistDetail {
   imageUrl: string | null;
   bio: string | null;
   genres: string[];
+  followerCount: number;
+  isFollowed: boolean;
   albums: CatalogAlbumSummary[];
   tracks: CatalogTrackCard[];
 }
@@ -72,6 +89,12 @@ export interface CatalogArtistsPage {
 // ── Public reads ──────────────────────────────────────────────────────────────
 
 export async function listCatalogArtists(): Promise<CatalogArtist[]> {
+  const { data } = await api.get<CatalogArtist[]>("/admin/catalog/artists");
+  return data;
+}
+
+/** Catalog listing available to every authenticated listener. */
+export async function listPublicCatalogArtists(): Promise<CatalogArtist[]> {
   const { data } = await api.get<CatalogArtist[]>("/catalog/artists");
   return data;
 }
@@ -105,11 +128,29 @@ export async function listTrendingCatalogTracks(
   return data;
 }
 
+export async function listFeaturedCatalogTracks(
+  mode: CatalogFeaturedMode,
+  limit = 8,
+): Promise<CatalogFeaturedTracks> {
+  const { data } = await api.get<CatalogFeaturedTracks>("/catalog/featured", {
+    params: { mode, limit },
+  });
+  return data;
+}
+
 export async function getCatalogArtist(
   id: string,
 ): Promise<CatalogArtistDetail> {
   const { data } = await api.get<CatalogArtistDetail>(`/catalog/artists/${id}`);
   return data;
+}
+
+export async function followCatalogArtist(id: string): Promise<void> {
+  await api.post(`/catalog/artists/${id}/follow`);
+}
+
+export async function unfollowCatalogArtist(id: string): Promise<void> {
+  await api.delete(`/catalog/artists/${id}/follow`);
 }
 
 export async function getCatalogAlbum(id: string): Promise<CatalogAlbumDetail> {
@@ -127,7 +168,6 @@ export async function listCatalogGenres(): Promise<string[]> {
 
 export async function createArtist(payload: {
   name: string;
-  imageUrl?: string;
   bio?: string;
   genres?: string[];
 }): Promise<{ id: string }> {
@@ -142,7 +182,6 @@ export async function updateArtist(
   id: string,
   payload: {
     name?: string;
-    imageUrl?: string;
     bio?: string;
     genres?: string[];
   },
@@ -155,10 +194,14 @@ export async function deleteArtist(id: string): Promise<void> {
   await api.delete(`/admin/catalog/artists/${id}`);
 }
 
+/** Clears the artist-photo association without deleting the R2 object itself. */
+export async function removeArtistImage(id: string): Promise<void> {
+  await api.delete(`/admin/catalog/artists/${id}/image`);
+}
+
 export async function createAlbum(payload: {
   title: string;
   artistId: string;
-  coverArt?: string;
   year?: number;
 }) {
   const { data } = await api.post("/admin/catalog/albums", payload);
@@ -169,7 +212,6 @@ export async function updateAlbum(
   id: string,
   payload: {
     title?: string;
-    coverArt?: string;
     year?: number;
     artistId?: string;
   },
@@ -200,10 +242,37 @@ export async function assignTrack(
     artistId?: string | null;
     albumId?: string | null;
     albumOrder?: number | null;
-    coverArt?: string;
+    featuredArtists?: Array<{ artistName: string; artistId?: string | null }>;
   },
 ) {
   const { data } = await api.patch(`/admin/catalog/tracks/${trackId}`, payload);
+  return data;
+}
+
+export async function deleteCatalogTrack(trackId: string): Promise<void> {
+  await api.delete(`/admin/catalog/tracks/${trackId}`);
+}
+
+export async function updateCatalogTrack(
+  trackId: string,
+  payload: { title?: string; fileUrlRemote?: string },
+) {
+  const { data } = await api.patch(
+    `/admin/catalog/tracks/${trackId}/details`,
+    payload,
+  );
+  return data;
+}
+
+/** Replaces a catalog WAV/FLAC master and refreshes its technical metadata. */
+export async function replaceCatalogTrackAudio(trackId: string, file: File) {
+  const form = new FormData();
+  form.append("file", file);
+  const { data } = await api.post<CatalogTrackCard>(
+    `/admin/catalog/tracks/${trackId}/audio`,
+    form,
+    { headers: { "Content-Type": "multipart/form-data" } },
+  );
   return data;
 }
 
@@ -245,6 +314,17 @@ export function uploadArtistImage(artistId: string, file: File) {
   return uploadImage(`/admin/catalog/artists/${artistId}/image`, file);
 }
 
+export async function uploadArtistImageFromUrl(
+  artistId: string,
+  imageUrl: string,
+) {
+  const { data } = await api.post(
+    `/admin/catalog/artists/${artistId}/image-url`,
+    { imageUrl },
+  );
+  return data;
+}
+
 /** Upload an album cover (propagates to the album's uncovered tracks). */
 export function uploadAlbumCover(albumId: string, file: File) {
   return uploadImage(`/admin/catalog/albums/${albumId}/cover`, file);
@@ -258,7 +338,7 @@ export function uploadTrackCover(trackId: string, file: File) {
 /** Save lyrics for a track (LRC and/or plain text). */
 export async function updateTrackLyrics(
   trackId: string,
-  payload: { lyricsLrc?: string; lyricsText?: string },
+  payload: { lyricsLrc?: string; lyricsText?: string; lyricsUrl?: string },
 ) {
   const { data } = await api.patch(
     `/admin/catalog/tracks/${trackId}/lyrics`,
@@ -267,10 +347,18 @@ export async function updateTrackLyrics(
   return data;
 }
 
+/** Removes the lyric record and its matching object in the lyrics R2 bucket. */
+export async function deleteTrackLyrics(trackId: string): Promise<void> {
+  await api.delete(`/admin/catalog/tracks/${trackId}/lyrics`);
+}
+
 /** Fetch a track's stored lyrics (for the admin editor). */
-export async function getTrackLyrics(
-  trackId: string,
-): Promise<{ lyricsLrc: string | null; lyricsText: string | null }> {
+export async function getTrackLyrics(trackId: string): Promise<{
+  lrc: string | null;
+  text: string | null;
+  lyricsUrl: string | null;
+  hasLyrics: boolean;
+}> {
   const { data } = await api.get(`/library/tracks/${trackId}/lyrics`);
   return data;
 }

@@ -7,6 +7,7 @@ import {
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "@/prisma/prisma.service";
 import { RecommendationCacheService } from "@/modules/recommendations/recommendation-cache.service";
+import { attachEqStatus } from "./eq-status.util";
 
 @Injectable()
 export class LibrarySavesService {
@@ -133,6 +134,7 @@ export class LibrarySavesService {
         where,
         skip,
         take,
+        distinct: ["id"],
         // `id` tiebreaker keeps pagination deterministic when many rows share
         // the same updatedAt (e.g. after a bulk catalog update).
         orderBy: [{ updatedAt: "desc" }, { id: "asc" }],

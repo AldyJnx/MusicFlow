@@ -1,4 +1,5 @@
 {
   "API_BASE_URL": "http://192.168.18.32:8000/api",
-  "CAST_RECEIVER_APP_ID": "CC1AD845"
+  "CAST_RECEIVER_APP_ID": "CC1AD845",
+  "GOOGLE_WEB_CLIENT_ID": "543837527956-scf3lh11ijv1bl8j4usk89i723irmpbd.apps.googleusercontent.com"
 }

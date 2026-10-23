@@ -19,7 +19,7 @@ import {
   ApiParam,
   ApiQuery,
 } from "@nestjs/swagger";
-import { AdminService } from "./admin.service";
+import { AdminService, parseAiUsageScope } from "./admin.service";
 import {
   CreateGlobalEqPresetDto,
   UpdateGlobalEqPresetDto,
@@ -148,6 +148,19 @@ export class AdminController {
     return this.adminService.deactivateUser(userId);
   }
 
+  @Post("catalog/sync-r2")
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: "Synchronize catalog metadata from Cloudflare R2" })
+  async syncCatalogFromR2() {
+    return this.adminService.syncCatalogFromR2();
+  }
+
+  @Delete("users/:id")
+  @ApiOperation({ summary: "Permanently delete a non-admin user" })
+  async deleteUser(@Param("id") userId: string) {
+    return this.adminService.deleteUser(userId);
+  }
+
   @Get("eq-presets")
   @ApiOperation({ summary: "List all global EQ presets" })
   @ApiResponse({ status: 200, description: "Global presets retrieved" })
@@ -186,12 +199,30 @@ export class AdminController {
 
   @Get("ai/costs")
   @ApiOperation({
-    summary: "AI usage + cost breakdown (totals, daily, by model, by user)",
+    summary:
+      "AI usage + cost breakdown (totals, per origin, daily, by model, by user)",
   })
   @ApiQuery({ name: "days", required: false, type: Number })
+  @ApiQuery({ name: "scope", required: false, enum: ["all", "user", "admin"] })
   @ApiResponse({ status: 200, description: "AI cost report retrieved" })
-  async getAiCosts(@Query("days") days?: number) {
-    return this.adminService.getAiCosts(days ? Number(days) : undefined);
+  async getAiCosts(
+    @Query("days") days?: number,
+    @Query("scope") scope?: string,
+  ) {
+    return this.adminService.getAiCosts(
+      days ? Number(days) : undefined,
+      parseAiUsageScope(scope),
+    );
+  }
+
+  @Get("dashboard/music-insights")
+  @ApiOperation({
+    summary:
+      "Top and least played tracks plus artist listening and follow rankings",
+  })
+  @ApiResponse({ status: 200, description: "Music insight rankings retrieved" })
+  async getDashboardMusicInsights() {
+    return this.adminService.getMusicInsights();
   }
 
   @Get("ai/feedback")
@@ -202,10 +233,20 @@ export class AdminController {
   }
 
   @Get("ai/requests")
-  @ApiOperation({ summary: "Get recent AI requests" })
-  @ApiQuery({ name: "limit", required: false, type: Number })
-  @ApiResponse({ status: 200, description: "Recent AI requests retrieved" })
-  async getRecentAiRequests(@Query("limit") limit?: number) {
-    return this.adminService.getRecentAiRequests(limit);
+  @ApiOperation({ summary: "List AI requests with server-side pagination" })
+  @ApiQuery({ name: "skip", required: false, type: Number })
+  @ApiQuery({ name: "take", required: false, type: Number })
+  @ApiQuery({ name: "search", required: false, type: String })
+  @ApiResponse({ status: 200, description: "Paginated AI requests retrieved" })
+  async listAiRequests(
+    @Query("skip") skip?: number,
+    @Query("take") take?: number,
+    @Query("search") search?: string,
+  ) {
+    return this.adminService.listAiRequests({
+      skip: skip ? Number(skip) : undefined,
+      take: take ? Number(take) : undefined,
+      search,
+    });
   }
 }

@@ -1,6 +1,7 @@
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import {
   ChevronDown,
+  Heart,
   ListMusic,
   ListPlus,
   Mic2,
@@ -18,7 +19,7 @@ import {
   Volume2,
   VolumeX,
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 
 import { usePlayerStore } from "../../stores/playStore";
@@ -30,12 +31,15 @@ import {
   useLyrics,
 } from "../../../shared/hooks/useLyrics";
 import type { LyricsLine } from "../../../shared/utils/lrc";
-import { usePremiumGate } from "../../../shared/hooks/usePremiumGate";
+import {
+  useSavedCheckQuery,
+  useToggleSave,
+} from "../../../shared/hooks/useLibrarySaves";
 import { getAudioEngine } from "../../../audio/engine";
 import TimelineWithSegments from "./TimelineWithSegments";
 import Wave from "./Wave";
 import AddToPlaylistModal from "../playlists/AddToPlaylistModal";
-import GoogleCastButton from "../../../shared/ui/GoogleCastButton";
+import ArtistCredits from "./ArtistCredits";
 
 type ExpandedPlayerProps = {
   sidebarOffset?: number;
@@ -66,6 +70,7 @@ export default function ExpandedPlayer({
 }: ExpandedPlayerProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const { pathname } = useLocation();
 
   const currentTrack = usePlayerStore((s) => s.currentTrack);
   const isExpanded = usePlayerStore((s) => s.isExpanded);
@@ -93,11 +98,12 @@ export default function ExpandedPlayer({
   const queueLength = usePlayerStore((s) => s.queue.length);
   const queueIndex = usePlayerStore((s) => s.queueIndex);
   const upcomingCount = Math.max(0, queueLength - queueIndex - 1);
+  const savedCheck = useSavedCheckQuery(currentTrack ? [currentTrack.id] : []);
+  const toggleSave = useToggleSave();
 
   const { segments } = useTrackSegments(currentTrack?.id ?? null);
   const { showWave } = usePreferences();
   const { bands, syncFromEngine } = useEqualizer();
-  const { guard } = usePremiumGate();
   const isMuted = muted || volume === 0;
 
   const [view, setView] = useState<View>("cover");
@@ -135,6 +141,20 @@ export default function ExpandedPlayer({
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isExpanded, setExpanded]);
+
+  // The expanded player is a route overlay. Close it on navigation so the new
+  // destination (for example, Descubrir) is immediately visible.
+  const expandedPathRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!isExpanded) {
+      expandedPathRef.current = pathname;
+      return;
+    }
+    if (expandedPathRef.current && expandedPathRef.current !== pathname) {
+      setExpanded(false);
+    }
+    expandedPathRef.current = pathname;
+  }, [isExpanded, pathname, setExpanded]);
 
   useEffect(() => {
     if (!isExpanded) return undefined;
@@ -174,15 +194,25 @@ export default function ExpandedPlayer({
 
   function openSegmentsForCurrentTrack() {
     if (!currentTrack) return;
-    guard("segments", () => {
-      setExpanded(false);
-      navigate(`/segments?track=${encodeURIComponent(currentTrack.id)}`);
-    });
+    setExpanded(false);
+    navigate(`/segments?track=${encodeURIComponent(currentTrack.id)}`);
   }
 
   function tryOpenAi() {
-    guard("ai", openAiPrompt);
+    openAiPrompt();
   }
+
+  function toggleFavorite() {
+    if (!currentTrack) return;
+    toggleSave.mutate({
+      trackId: currentTrack.id,
+      saved: savedCheck.data?.includes(currentTrack.id) ?? false,
+    });
+  }
+
+  const isSaved = currentTrack
+    ? (savedCheck.data?.includes(currentTrack.id) ?? false)
+    : false;
 
   return (
     <section
@@ -238,7 +268,6 @@ export default function ExpandedPlayer({
           <p className="pointer-events-none absolute left-1/2 -translate-x-1/2 text-[11px] font-semibold uppercase tracking-[0.42em] text-white/55">
             {t("player.expandedTitle", { defaultValue: "Reproductor" })}
           </p>
-          <GoogleCastButton className="absolute right-0 z-20 inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-black/30 text-white/85 backdrop-blur transition hover:border-[var(--color-primary)] hover:text-white disabled:opacity-100" />
         </div>
 
         {/* ── Main: cover on the left, details + controls on the right.
@@ -275,17 +304,10 @@ export default function ExpandedPlayer({
             <h1 className="mt-2 truncate text-4xl font-extrabold tracking-tight text-white drop-shadow-[0_2px_16px_rgba(0,0,0,0.7)] xl:text-5xl">
               {currentTrack.title}
             </h1>
-            <button
-              type="button"
-              onClick={() =>
-                navigate(`/artist/${encodeURIComponent(currentTrack.artist)}`)
-              }
-              className="mt-2 flex max-w-full items-center gap-2 text-left text-base text-white/75 transition hover:text-[var(--color-accent)]"
-              title={`Ver perfil de ${currentTrack.artist}`}
-            >
-              <span className="truncate">{currentTrack.artist}</span>
+            <div className="mt-2 flex max-w-full items-center gap-2 text-left text-base text-white/75">
+              <ArtistCredits track={currentTrack} className="min-w-0" />
               <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--color-accent)]" />
-            </button>
+            </div>
 
             {/* Timeline */}
             <div className="mt-8">
@@ -305,6 +327,32 @@ export default function ExpandedPlayer({
 
             {/* Transport — heart, prev, play, next, repeat */}
             <div className="mt-6 flex items-center justify-center gap-5 text-white/80 sm:gap-6">
+              <button
+                type="button"
+                onClick={toggleFavorite}
+                disabled={toggleSave.isPending || savedCheck.isLoading}
+                aria-pressed={isSaved}
+                title={
+                  isSaved
+                    ? t("player.removeFavorite", {
+                        defaultValue: "Quitar de favoritos",
+                      })
+                    : t("player.addFavorite", {
+                        defaultValue: "Guardar en favoritos",
+                      })
+                }
+                className={`inline-flex h-11 w-11 items-center justify-center rounded-xl border transition disabled:cursor-wait disabled:opacity-60 ${
+                  isSaved
+                    ? "border-rose-400/50 bg-rose-500/15 text-rose-400"
+                    : "border-white/10 bg-white/5 text-white/70 hover:border-rose-400/50 hover:text-rose-400"
+                }`}
+              >
+                <Heart
+                  className="h-[19px] w-[19px]"
+                  fill={isSaved ? "currentColor" : "none"}
+                  strokeWidth={2.2}
+                />
+              </button>
               <button
                 type="button"
                 onClick={() => setAddToPlaylistOpen(true)}
@@ -513,11 +561,11 @@ export default function ExpandedPlayer({
         ref={volumeControlRef}
         data-testid="expanded-volume-control"
         className="absolute bottom-6 right-6 z-20 flex flex-col items-center gap-3"
-        onPointerEnter={() => setVolumeOpen(true)}
+        onPointerLeave={() => setVolumeOpen(false)}
         onFocusCapture={() => setVolumeOpen(true)}
       >
         {volumeOpen ? (
-          <div className="rounded-2xl border border-white/10 bg-black/50 px-3 py-4 shadow-2xl backdrop-blur-md">
+          <div className="rounded-xl border border-white/10 bg-black/50 px-2 py-2.5 shadow-2xl backdrop-blur-md">
             <VerticalVolumeSlider
               value={isMuted ? 0 : volume}
               onChange={setVolume}
@@ -527,6 +575,8 @@ export default function ExpandedPlayer({
         <button
           type="button"
           onClick={toggleMute}
+          onPointerEnter={() => setVolumeOpen(true)}
+          onFocus={() => setVolumeOpen(true)}
           className="inline-flex h-12 w-12 items-center justify-center rounded-full border border-white/15 bg-black/40 text-white/85 backdrop-blur transition hover:border-[var(--color-primary)] hover:text-white"
           aria-label={isMuted ? t("player.unmute") : t("player.mute")}
           title={t("player.volume")}
@@ -631,8 +681,9 @@ function CoverArt({
 
 /**
  * "Lyrics" view — karaoke-style. The active line is large + bright, past
- * lines fade, upcoming lines hint at what's next. Auto-scroll keeps the
- * active line centered. Click any line to seek there.
+ * lines fade, upcoming lines hint at what's next. It keeps a static context
+ * window around the active line, avoiding an inner scrollbar or auto-scroll.
+ * Click any visible synced line to seek there.
  */
 const LyricsKaraoke = memo(function LyricsKaraoke({
   trackId,
@@ -646,23 +697,20 @@ const LyricsKaraoke = memo(function LyricsKaraoke({
   const { t } = useTranslation();
   const { mode, lines, plainText, isLoading } = useLyrics(trackId);
   const currentLineIndex = useCurrentLyricsLineIndex(lines);
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const activeRef = useRef<HTMLButtonElement | null>(null);
-
-  useEffect(() => {
-    if (mode !== "synced" || currentLineIndex < 0) return;
-    const container = containerRef.current;
-    const activeLine = activeRef.current;
-    if (!container || !activeLine) return;
-
-    // scrollIntoView() also scrolls page ancestors. Center only the lyrics
-    // panel so changing line never moves the route underneath the player.
-    const nextTop =
-      activeLine.offsetTop -
-      container.clientHeight / 2 +
-      activeLine.clientHeight / 2;
-    container.scrollTo({ top: Math.max(0, nextTop), behavior: "smooth" });
-  }, [mode, currentLineIndex]);
+  const visibleLines = useMemo(() => {
+    const windowSize = 7;
+    if (lines.length <= windowSize) {
+      return lines.map((line, index) => ({ line, index }));
+    }
+    const focusIndex = Math.max(0, currentLineIndex);
+    const start = Math.min(
+      Math.max(0, focusIndex - Math.floor(windowSize / 2)),
+      lines.length - windowSize,
+    );
+    return lines
+      .slice(start, start + windowSize)
+      .map((line, offset) => ({ line, index: start + offset }));
+  }, [currentLineIndex, lines]);
 
   if (isLoading) {
     return (
@@ -687,27 +735,20 @@ const LyricsKaraoke = memo(function LyricsKaraoke({
 
   if (mode === "plain") {
     return (
-      <div
-        ref={containerRef}
-        className="mx-auto h-full min-h-0 w-full max-w-[460px] overflow-y-auto overscroll-contain px-4 text-center text-2xl font-medium leading-[1.6] text-white/80 [scrollbar-gutter:stable]"
-      >
+      <div className="mx-auto max-h-[58vh] w-full max-w-[460px] overflow-hidden px-4 text-center text-2xl font-medium leading-[1.6] text-white/80">
         <pre className="whitespace-pre-wrap font-sans">{plainText}</pre>
       </div>
     );
   }
 
   return (
-    <div
-      ref={containerRef}
-      className="mx-auto flex h-full min-h-0 w-full max-w-[460px] flex-col overflow-y-auto overscroll-contain px-4 py-8 [scrollbar-gutter:stable]"
-    >
-      {lines.map((line, i) => {
-        const isActive = i === currentLineIndex;
-        const isPast = i < currentLineIndex;
+    <div className="mx-auto flex h-full min-h-0 w-full max-w-[460px] flex-col justify-center overflow-hidden px-4 py-8">
+      {visibleLines.map(({ line, index }) => {
+        const isActive = index === currentLineIndex;
+        const isPast = index < currentLineIndex;
         return (
           <button
-            key={`${line.timeMs}-${i}`}
-            ref={isActive ? activeRef : undefined}
+            key={`${line.timeMs}-${index}`}
             type="button"
             onClick={() => seek(line.timeMs)}
             className={`w-full rounded-lg px-2 py-3 text-left transition ${
@@ -719,7 +760,7 @@ const LyricsKaraoke = memo(function LyricsKaraoke({
             }`}
           >
             {style === "glow" && isActive ? (
-              <GlowLyricsLine line={line} nextLine={lines[i + 1]} />
+              <GlowLyricsLine line={line} nextLine={lines[index + 1]} />
             ) : (
               line.text || "♪"
             )}
@@ -857,15 +898,15 @@ function VerticalVolumeSlider({
         }}
         onPointerUp={() => setDragging(false)}
         onPointerCancel={() => setDragging(false)}
-        className="relative h-36 w-5 cursor-pointer touch-none rounded-full bg-white/15 outline-none ring-[var(--color-primary)] focus-visible:ring-2"
+        className="relative h-28 w-1.5 cursor-pointer touch-none rounded-full bg-white/15 outline-none ring-[var(--color-primary)] focus-visible:ring-2"
       >
         <span
           className="absolute bottom-0 left-0 w-full rounded-full bg-[var(--color-primary)]"
           style={{ height: `${percentage}%` }}
         />
         <span
-          className="absolute left-1/2 h-4 w-4 -translate-x-1/2 rounded-full border-2 border-white bg-[var(--color-primary)] shadow-[0_2px_10px_rgba(0,0,0,0.45)]"
-          style={{ bottom: `calc(${percentage}% - 8px)` }}
+          className="absolute left-1/2 h-3.5 w-3.5 -translate-x-1/2 rounded-full border-2 border-white bg-[var(--color-primary)] shadow-[0_2px_10px_rgba(0,0,0,0.45)]"
+          style={{ bottom: `calc(${percentage}% - 7px)` }}
         />
       </div>
     </div>

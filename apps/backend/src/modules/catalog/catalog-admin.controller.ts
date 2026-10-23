@@ -18,7 +18,7 @@ import { ApiConsumes, ApiTags } from "@nestjs/swagger";
 import { JwtAuthGuard } from "@/common/guards/jwt-auth.guard";
 import { RolesGuard } from "@/common/guards/roles.guard";
 import { Roles } from "@/common/decorators/roles.decorator";
-import { audioFileFilter } from "@/common/upload/audio-file-filter";
+import { catalogAudioFileFilter } from "@/common/upload/audio-file-filter";
 import { imageFileFilter } from "@/common/upload/image-file-filter";
 import {
   CurrentUser,
@@ -32,6 +32,8 @@ import {
   ReorderAlbumDto,
   UpdateAlbumDto,
   UpdateArtistDto,
+  ArtistImageUrlDto,
+  UpdateCatalogTrackDto,
   UpdateLyricsDto,
 } from "./catalog.dto";
 
@@ -43,6 +45,11 @@ export class CatalogAdminController {
   constructor(private readonly catalog: CatalogService) {}
 
   // Artists
+  @Get("artists")
+  listArtistsIncludingIncomplete() {
+    return this.catalog.listArtists(true);
+  }
+
   @Post("artists")
   createArtist(@Body() dto: CreateArtistDto) {
     return this.catalog.createArtist(dto);
@@ -96,6 +103,19 @@ export class CatalogAdminController {
     return this.catalog.uploadArtistImage(id, file);
   }
 
+  @Post("artists/:id/image-url")
+  uploadArtistImageFromUrl(
+    @Param("id") id: string,
+    @Body() dto: ArtistImageUrlDto,
+  ) {
+    return this.catalog.uploadArtistImageFromCloudflare(id, dto.imageUrl);
+  }
+
+  @Delete("artists/:id/image")
+  removeArtistImage(@Param("id") id: string) {
+    return this.catalog.removeArtistImage(id);
+  }
+
   @Post("albums/:id/cover")
   @UseInterceptors(
     FileInterceptor("file", {
@@ -134,7 +154,7 @@ export class CatalogAdminController {
     FileInterceptor("file", {
       // High-quality formats (WAV/FLAC) are large; allow up to the storage cap.
       limits: { fileSize: 100 * 1024 * 1024 },
-      fileFilter: audioFileFilter,
+      fileFilter: catalogAudioFileFilter,
     }),
   )
   @ApiConsumes("multipart/form-data")
@@ -163,8 +183,39 @@ export class CatalogAdminController {
     return this.catalog.assignTrack(id, dto);
   }
 
+  @Delete("tracks/:id")
+  deleteTrack(@Param("id") id: string) {
+    return this.catalog.deleteCatalogTrack(id);
+  }
+
+  @Patch("tracks/:id/details")
+  updateTrack(@Param("id") id: string, @Body() dto: UpdateCatalogTrackDto) {
+    return this.catalog.updateCatalogTrack(id, dto);
+  }
+
+  @Post("tracks/:id/audio")
+  @UseInterceptors(
+    FileInterceptor("file", {
+      limits: { fileSize: 100 * 1024 * 1024 },
+      fileFilter: catalogAudioFileFilter,
+    }),
+  )
+  @ApiConsumes("multipart/form-data")
+  replaceTrackAudio(
+    @Param("id") id: string,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    if (!file) throw new BadRequestException("Missing file");
+    return this.catalog.replaceCatalogTrackAudio(id, file);
+  }
+
   @Patch("tracks/:id/lyrics")
   updateLyrics(@Param("id") id: string, @Body() dto: UpdateLyricsDto) {
     return this.catalog.updateLyrics(id, dto);
+  }
+
+  @Delete("tracks/:id/lyrics")
+  deleteLyrics(@Param("id") id: string) {
+    return this.catalog.deleteLyrics(id);
   }
 }

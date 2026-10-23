@@ -4,18 +4,23 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import {
   Search,
-  MoreHorizontal,
   ChevronLeft,
   ChevronRight,
+  Download,
   Loader2,
+  Pencil,
+  Trash2,
+  Ban,
 } from "lucide-react";
 import {
   listUsers,
   updateUserRole,
   updateUserPremium,
   deactivateUser,
+  deleteUser,
 } from "../../shared/api/admin";
 import type { AdminUser, UserRole } from "../../shared/api/admin";
+import { exportExcel } from "../../shared/utils/exportExcel";
 
 const PAGE_SIZE = 50;
 
@@ -72,65 +77,6 @@ function SkeletonRow() {
 }
 
 // ─── Popover for actions ────────────────────────────────────────────────────────
-function ActionsPopover({
-  user,
-  onDeactivate,
-  isPending,
-}: {
-  user: AdminUser;
-  onDeactivate: () => void;
-  isPending: boolean;
-}) {
-  const { t } = useTranslation();
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    function handleClick(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [open]);
-
-  if (!user.isActive) return null;
-
-  return (
-    <div ref={ref} className="relative inline-block">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        className="rounded-lg p-1.5 text-[var(--color-muted)] transition hover:bg-[var(--color-border)] hover:text-[var(--color-text)]"
-        aria-label={t("admin.users.actions")}
-      >
-        <MoreHorizontal className="h-4 w-4" />
-      </button>
-
-      {open && (
-        <div className="absolute right-0 z-50 mt-1 w-40 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-alt)] py-1 shadow-lg">
-          <button
-            type="button"
-            disabled={isPending}
-            onClick={() => {
-              setOpen(false);
-              onDeactivate();
-            }}
-            className="flex w-full items-center gap-2 px-4 py-2 text-sm text-rose-400 transition hover:bg-[var(--color-border)] disabled:opacity-50"
-          >
-            {isPending ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            ) : null}
-            {t("admin.users.deactivate")}
-          </button>
-        </div>
-      )}
-    </div>
-  );
-}
-
 // ─── UserRow ───────────────────────────────────────────────────────────────────
 function UserRow({
   user,
@@ -138,12 +84,14 @@ function UserRow({
   onRoleChange,
   onPremiumToggle,
   onDeactivate,
+  onDelete,
 }: {
   user: AdminUser;
   mutatingUserId: string | null;
   onRoleChange: (userId: string, role: UserRole) => void;
   onPremiumToggle: (userId: string, current: boolean) => void;
   onDeactivate: (userId: string) => void;
+  onDelete: (userId: string) => void;
 }) {
   const { t } = useTranslation();
   const isThisUserMutating = mutatingUserId === user.id;
@@ -164,6 +112,14 @@ function UserRow({
     );
     if (!confirmed) return;
     onDeactivate(user.id);
+  }
+  function handleDelete() {
+    if (
+      window.confirm(
+        `¿Eliminar definitivamente a ${user.username}? Esta acción no se puede deshacer.`,
+      )
+    )
+      onDelete(user.id);
   }
 
   return (
@@ -250,11 +206,33 @@ function UserRow({
 
       {/* Acciones */}
       <td className="px-4 py-3 text-right">
-        <ActionsPopover
-          user={user}
-          onDeactivate={handleDeactivate}
-          isPending={isThisUserMutating}
-        />
+        <div className="flex justify-end gap-1">
+          <Link
+            to={`/admin/users/${user.id}?edit=1`}
+            title="Editar usuario"
+            className="rounded-lg p-2 text-[var(--color-muted)] hover:bg-[var(--color-border)] hover:text-[var(--color-primary)]"
+          >
+            <Pencil className="h-4 w-4" />
+          </Link>
+          <button
+            type="button"
+            title="Restringir usuario"
+            disabled={!user.isActive || isThisUserMutating}
+            onClick={handleDeactivate}
+            className="rounded-lg p-2 text-amber-400 hover:bg-amber-400/10 disabled:opacity-40"
+          >
+            <Ban className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            title="Eliminar usuario"
+            disabled={user.role === "ADMIN" || isThisUserMutating}
+            onClick={handleDelete}
+            className="rounded-lg p-2 text-rose-400 hover:bg-rose-400/10 disabled:opacity-40"
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+        </div>
       </td>
     </tr>
   );
@@ -348,6 +326,13 @@ export default function UsersPage() {
     onSuccess: () => invalidateAll(),
     onError: () => showError(t("admin.users.errorDeactivate")),
   });
+  const deleteMutation = useMutation({
+    mutationFn: (userId: string) => deleteUser(userId),
+    onMutate: (userId) => setMutatingUserId(userId),
+    onSettled: () => setMutatingUserId(null),
+    onSuccess: () => invalidateAll(),
+    onError: () => showError("No se pudo eliminar el usuario."),
+  });
 
   function handleRoleChange(userId: string, role: UserRole) {
     if (mutatingUserId !== null) return;
@@ -362,6 +347,10 @@ export default function UsersPage() {
   function handleDeactivate(userId: string) {
     if (mutatingUserId !== null) return;
     deactivateMutation.mutate(userId);
+  }
+  function handleDelete(userId: string) {
+    if (mutatingUserId !== null) return;
+    deleteMutation.mutate(userId);
   }
 
   const canGoPrev = skip > 0;
@@ -398,6 +387,38 @@ export default function UsersPage() {
               className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-alt)] py-2 pl-9 pr-4 text-sm text-[var(--color-text)] placeholder:text-[var(--color-muted)] focus:border-[var(--color-primary)] focus:outline-none"
             />
           </div>
+
+          <button
+            type="button"
+            onClick={() =>
+              exportExcel(
+                "usuarios",
+                [
+                  { label: "Usuario", value: (user) => user.username },
+                  { label: "Correo", value: (user) => user.email },
+                  { label: "Rol", value: (user) => user.role },
+                  {
+                    label: "Premium",
+                    value: (user) => (user.isPremium ? "Sí" : "No"),
+                  },
+                  {
+                    label: "Estado",
+                    value: (user) => (user.isActive ? "Activo" : "Restringido"),
+                  },
+                  {
+                    label: "Creado",
+                    value: (user) => formatDate(user.createdAt),
+                  },
+                ],
+                users,
+              )
+            }
+            disabled={!users.length}
+            className="inline-flex items-center gap-2 rounded-lg border border-[var(--color-border)] px-3 py-2 text-xs font-semibold hover:border-[var(--color-primary)] disabled:opacity-40"
+          >
+            <Download className="h-4 w-4" />
+            Exportar Excel
+          </button>
 
           {/* Pagination */}
           <div className="flex items-center gap-2 text-sm text-[var(--color-muted)]">
@@ -495,6 +516,7 @@ export default function UsersPage() {
                       onRoleChange={handleRoleChange}
                       onPremiumToggle={handlePremiumToggle}
                       onDeactivate={handleDeactivate}
+                      onDelete={handleDelete}
                     />
                   ))
                 )}

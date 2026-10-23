@@ -9,7 +9,7 @@ import {
   Smartphone,
   Sparkles,
 } from "lucide-react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 import {
   deactivateUser,
   getUserDetail,
@@ -109,6 +109,8 @@ function SkeletonBlock() {
 export default function UserDetailPage() {
   const { t } = useTranslation();
   const { id } = useParams<{ id: string }>();
+  const [searchParams] = useSearchParams();
+  const isEditing = searchParams.get("edit") === "1";
   const qc = useQueryClient();
 
   const detailQ = useQuery<AdminUserDetail>({
@@ -234,7 +236,7 @@ export default function UserDetailPage() {
                   {t("admin.userDetail.role")}
                   <select
                     value={detailQ.data.user.role}
-                    disabled={roleM.isPending}
+                    disabled={!isEditing || roleM.isPending}
                     onChange={(e) =>
                       roleM.mutate(e.currentTarget.value as UserRole)
                     }
@@ -250,7 +252,7 @@ export default function UserDetailPage() {
                   <input
                     type="checkbox"
                     checked={detailQ.data.user.isPremium}
-                    disabled={premiumM.isPending}
+                    disabled={!isEditing || premiumM.isPending}
                     onChange={(e) => premiumM.mutate(e.currentTarget.checked)}
                     className="h-4 w-4 accent-[var(--color-primary)]"
                   />

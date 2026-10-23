@@ -33,7 +33,7 @@ export default function Login() {
           ? "/admin"
           : data.user.role === "ARTIST"
             ? "/artist-dashboard"
-            : "/headphones-tip",
+            : "/inicio",
       );
     },
   });
@@ -74,7 +74,7 @@ export default function Login() {
             ? "/admin"
             : persistedUser.role === "ARTIST"
               ? "/artist-dashboard"
-              : "/library"
+              : "/inicio"
         }
         replace
       />

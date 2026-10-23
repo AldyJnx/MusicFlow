@@ -1,0 +1,4 @@
+interface:
+  display_name: "MusicFlow Flutter Performance"
+  short_description: "Profile and optimize MusicFlow mobile"
+  default_prompt: "Use -flutter-performance to profile and optimize MusicFlow mobile without regressing audio playback."

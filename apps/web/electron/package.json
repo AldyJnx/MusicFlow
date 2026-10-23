@@ -1,0 +1,10 @@
+{
+  "name": "musicflow-desktop",
+  "version": "0.0.0",
+  "description": "MusicFlow Desktop",
+  "author": "MusicFlow",
+  "main": "main.cjs",
+  "dependencies": {
+    "musicflow-desktop-runtime": "file:runtime"
+  }
+}

@@ -32,9 +32,8 @@ export const sidebarAdmin: SidebarItem[] = [
     iconKey: "stats",
   },
   {
-    label: "Back to client",
-    labelKey: "admin.nav.backToClient",
-    path: "/library",
+    label: "Configuración",
+    path: "/admin/settings",
     iconKey: "settings",
   },
 ];

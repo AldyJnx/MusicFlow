@@ -9,6 +9,7 @@ describe("QuotaService", () => {
     track: { count: jest.Mock };
     aIRequest: { count: jest.Mock };
     eQPreset: { count: jest.Mock };
+    eQSegment: { count: jest.Mock };
   };
 
   const freeUser = { id: "u1", isPremium: false };
@@ -19,6 +20,7 @@ describe("QuotaService", () => {
       track: { count: jest.fn() },
       aIRequest: { count: jest.fn() },
       eQPreset: { count: jest.fn() },
+      eQSegment: { count: jest.fn() },
     };
     service = new QuotaService(prisma as unknown as PrismaService);
   });
@@ -141,6 +143,20 @@ describe("QuotaService", () => {
       await expect(
         service.assertCustomPresetQuota(freeUser),
       ).rejects.toBeInstanceOf(ForbiddenException);
+    });
+  });
+
+  describe("segment usage", () => {
+    it("counts only segmentations created by the current user", async () => {
+      prisma.eQSegment.count.mockResolvedValue(4);
+
+      const usage = await service.getSegmentUsage(freeUser);
+
+      expect(usage.used).toBe(4);
+      expect(usage.limit).toBe(Number.POSITIVE_INFINITY);
+      expect(prisma.eQSegment.count).toHaveBeenCalledWith({
+        where: { userId: freeUser.id },
+      });
     });
   });
 });

@@ -38,10 +38,17 @@ class MusicFlowAudioHandler extends BaseAudioHandler with SeekHandler {
     // Forward current index → mediaItem.
     _player.currentIndexStream.listen(_onCurrentIndexChanged);
 
-    // Forward position with a slight throttle to avoid flooding.
+    // Lyrics use this clock to fill each word progressively. A 60 ms cadence
+    // keeps the visual interpolation continuous while avoiding a rebuild per
+    // audio frame across the rest of the application.
     _player.positionStream
-        .throttleTime(const Duration(milliseconds: 200))
+        .throttleTime(const Duration(milliseconds: 60))
         .listen(_onPositionChanged);
+
+    // Catalog metadata can be stale after an R2 import. The playback engine is
+    // authoritative once it has decoded the source, so publish that duration
+    // to the UI and media controls instead of showing an implausible value.
+    _player.durationStream.whereType<Duration>().listen(_onDurationChanged);
 
     _player.androidAudioSessionIdStream.listen(_onAudioSessionChanged);
   }
@@ -104,8 +111,31 @@ class MusicFlowAudioHandler extends BaseAudioHandler with SeekHandler {
     return _player.setVolume(volume.clamp(0.0, 1.0));
   }
 
-  Future<void> setLooping(bool enabled) {
-    return _player.setLoopMode(enabled ? LoopMode.one : LoopMode.off);
+  /// Maps the app-level repeat flags onto just_audio's [LoopMode].
+  ///
+  /// Named `setLoop` because [BaseAudioHandler.setRepeatMode] is reserved for
+  /// the `AudioServiceRepeatMode` contract used by the platform controls.
+  Future<void> setLoop({
+    required bool repeatAll,
+    required bool repeatOne,
+  }) {
+    final mode = repeatOne
+        ? LoopMode.one
+        : (repeatAll ? LoopMode.all : LoopMode.off);
+    return _player.setLoopMode(mode);
+  }
+
+  @override
+  Future<void> setRepeatMode(AudioServiceRepeatMode repeatMode) {
+    return switch (repeatMode) {
+      AudioServiceRepeatMode.one => setLoop(repeatAll: true, repeatOne: true),
+      AudioServiceRepeatMode.all ||
+      AudioServiceRepeatMode.group => setLoop(
+        repeatAll: true,
+        repeatOne: false,
+      ),
+      _ => setLoop(repeatAll: false, repeatOne: false),
+    };
   }
 
   Future<void> setEqualizerBands(List<double> bands) async {
@@ -159,6 +189,15 @@ class MusicFlowAudioHandler extends BaseAudioHandler with SeekHandler {
 
   void _onPositionChanged(Duration position) {
     playbackState.add(playbackState.value.copyWith(updatePosition: position));
+  }
+
+  void _onDurationChanged(Duration duration) {
+    if (duration <= Duration.zero) return;
+    final index = _player.currentIndex;
+    if (index == null || index < 0 || index >= queue.value.length) return;
+    final item = queue.value[index];
+    if (item.duration == duration) return;
+    mediaItem.add(item.copyWith(duration: duration));
   }
 
   Future<void> _onAudioSessionChanged(int? audioSessionId) async {

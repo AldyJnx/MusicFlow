@@ -24,6 +24,7 @@ import { RefreshTokenDto } from "./dto/refresh-token.dto";
 import { ForgotPasswordDto } from "./dto/forgot-password.dto";
 import { ResetPasswordDto } from "./dto/reset-password.dto";
 import { ExchangeGoogleTicketDto } from "./dto/exchange-google-ticket.dto";
+import { GoogleMobileSignInDto } from "./dto/google-mobile-sign-in.dto";
 import { JwtAuthGuard } from "@/common/guards/jwt-auth.guard";
 import { CurrentUser } from "@/common/decorators/current-user.decorator";
 import {
@@ -83,6 +84,21 @@ export class AuthController {
   @ApiOperation({ summary: "Exchange one-time Google sign-in ticket for JWTs" })
   async exchangeGoogleTicket(@Body() dto: ExchangeGoogleTicketDto) {
     return this.authService.exchangeGoogleLoginTicket(dto.ticket);
+  }
+
+  @Post("google/mobile")
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: "Sign in with a Google ID token issued by the native mobile SDK",
+  })
+  @ApiResponse({ status: 200, description: "Login successful" })
+  @ApiResponse({ status: 401, description: "Invalid Google ID token" })
+  @ApiResponse({
+    status: 503,
+    description: "Google sign-in is not configured",
+  })
+  async googleMobileSignIn(@Body() dto: GoogleMobileSignInDto) {
+    return this.authService.signInWithGoogleIdToken(dto.idToken);
   }
 
   @Post("refresh")

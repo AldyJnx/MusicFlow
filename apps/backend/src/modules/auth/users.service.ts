@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   ConflictException,
+  Optional,
 } from "@nestjs/common";
 import * as bcrypt from "bcryptjs";
 import { PrismaService } from "@/prisma/prisma.service";
@@ -12,7 +13,8 @@ import { RecommendationCacheService } from "@/modules/recommendations/recommenda
 export class UsersService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly recommendationCache: RecommendationCacheService,
+    @Optional()
+    private readonly recommendationCache?: RecommendationCacheService,
   ) {}
 
   async findById(id: string) {
@@ -65,7 +67,7 @@ export class UsersService {
     const updateData: Record<string, unknown> = {};
 
     if (dto.username) updateData.username = dto.username;
-    if (dto.avatar) updateData.avatar = dto.avatar;
+    if (dto.avatar !== undefined) updateData.avatar = dto.avatar;
 
     if (dto.password) {
       updateData.password = await bcrypt.hash(dto.password, 10);
@@ -125,7 +127,7 @@ export class UsersService {
         },
       }),
     ]);
-    await this.recommendationCache.invalidate(userId);
+    await this.recommendationCache?.invalidate(userId);
     return { completedAt, selectedArtistCount: uniqueArtistIds.length };
   }
 

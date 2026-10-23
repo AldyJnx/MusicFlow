@@ -31,7 +31,11 @@ Map<String, dynamic> _$$AuthUserImplToJson(
   'onboardingCompletedAt': instance.onboardingCompletedAt?.toIso8601String(),
 };
 
-const _$UserRoleEnumMap = {UserRole.admin: 'ADMIN', UserRole.client: 'CLIENT'};
+const _$UserRoleEnumMap = {
+  UserRole.admin: 'ADMIN',
+  UserRole.artist: 'ARTIST',
+  UserRole.client: 'CLIENT',
+};
 
 _$AuthSessionImpl _$$AuthSessionImplFromJson(Map<String, dynamic> json) =>
     _$AuthSessionImpl(

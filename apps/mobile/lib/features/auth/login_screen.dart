@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:musicflow_mobile/core/auth/google_sign_in_service.dart';
 import 'package:musicflow_mobile/core/config/app_config.dart';
 import 'package:musicflow_mobile/core/theme/musicflow_theme.dart';
 import 'package:musicflow_mobile/features/auth/providers/auth_controller.dart';
@@ -16,13 +17,19 @@ class LoginScreen extends ConsumerStatefulWidget {
 class _LoginScreenState extends ConsumerState<LoginScreen> {
   static const Color _inputFill = Color(0xFF182733);
 
+  // Official "Sign in with Google" button colours.
+  static const Color _googleButtonBackground = Color(0xFFFFFFFF);
+  static const Color _googleButtonForeground = Color(0xFF1F1F1F);
+
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
 
   bool _obscurePassword = true;
   bool _isLoading = false;
-  String? _errorMessage;
+  bool _isGoogleLoading = false;
+
+  bool get _isBusy => _isLoading || _isGoogleLoading;
 
   @override
   void dispose() {
@@ -31,12 +38,46 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     super.dispose();
   }
 
+  /// Turns a transport failure into a message the user can act on.
+  String _messageForDioException(DioException e) {
+    final data = e.response?.data;
+    if (e.response == null) {
+      return 'No se pudo conectar con la API en ${AppConfig.apiBaseUrl}. '
+          'Verifica que el backend esté activo.';
+    }
+    if (e.response?.statusCode == 503) {
+      return 'El inicio de sesión con Google aún no está habilitado en el '
+          'servidor.';
+    }
+    if (data is Map && data['message'] != null) {
+      final raw = data['message'];
+      return raw is List ? raw.join(', ') : raw.toString();
+    }
+    return 'Credenciales inválidas';
+  }
+
+  Future<void> _showLoginError(String message) {
+    if (!mounted) return Future.value();
+    return showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('No se pudo iniciar sesión'),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Entendido'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _submit() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
     setState(() {
       _isLoading = true;
-      _errorMessage = null;
     });
 
     try {
@@ -45,29 +86,46 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           .login(_emailController.text.trim(), _passwordController.text);
       // Success: GoRouter redirect handles navigation automatically.
     } on DioException catch (e) {
-      final data = e.response?.data;
-      String message;
-      if (e.response == null) {
-        message =
-            'No se pudo conectar con la API en ${AppConfig.apiBaseUrl}. Verifica que el backend esté activo y que tu teléfono esté en la misma red Wi-Fi.';
-      } else if (data is Map && data['message'] != null) {
-        final raw = data['message'];
-        message = raw is List ? raw.join(', ') : raw.toString();
-      } else {
-        message = 'Credenciales inválidas';
-      }
-      if (mounted) {
-        setState(() => _errorMessage = message);
-      }
+      await _showLoginError(_messageForDioException(e));
     } catch (_) {
-      if (mounted) {
-        setState(
-          () => _errorMessage = 'No pudimos iniciar sesión, intenta de nuevo.',
-        );
-      }
+      await _showLoginError('No pudimos iniciar sesión, intenta de nuevo.');
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  Future<void> _submitGoogle() async {
+    setState(() {
+      _isGoogleLoading = true;
+    });
+
+    try {
+      await ref.read(authControllerProvider.notifier).signInWithGoogle();
+      // Success: GoRouter redirect handles navigation automatically.
+    } on GoogleSignInCancelled {
+      // Android Credential Manager can also surface some OAuth setup failures
+      // as cancellation after account selection, so make the outcome visible.
+      await _showLoginError(
+        'El inicio con Google fue cancelado. Si seleccionaste una cuenta, '
+        'revisa la configuración OAuth de Android.',
+      );
+    } on GoogleSignInUnavailable {
+      await _showLoginError(
+        'Google no está disponible en este dispositivo o en esta compilación.',
+      );
+    } on GoogleSignInFailure catch (error) {
+      await _showLoginError(error.message);
+    } on DioException catch (e) {
+      await _showLoginError(_messageForDioException(e));
+    } catch (_) {
+      await _showLoginError(
+        'No pudimos iniciar sesión con Google, intenta de nuevo.',
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isGoogleLoading = false);
       }
     }
   }
@@ -245,31 +303,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               ),
                             ),
                           ),
-                          if (_errorMessage != null) ...[
-                            const SizedBox(height: 8),
-                            Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 14,
-                                vertical: 10,
-                              ),
-                              decoration: BoxDecoration(
-                                color: const Color(0x22FF5A5F),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Text(
-                                _errorMessage!,
-                                style: theme.textTheme.bodyMedium?.copyWith(
-                                  color: const Color(0xFFFF8A8D),
-                                ),
-                              ),
-                            ),
-                          ],
                           const SizedBox(height: 18),
                           SizedBox(
                             width: double.infinity,
                             child: ElevatedButton(
-                              onPressed: _isLoading ? null : _submit,
+                              onPressed: _isBusy ? null : _submit,
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: colors.secondary,
                                 foregroundColor: colors.background,
@@ -301,6 +339,83 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                     ),
                             ),
                           ),
+                          if (AppConfig.isGoogleSignInConfigured) ...[
+                            const SizedBox(height: 18),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Divider(
+                                    color: Colors.white.withValues(alpha: 0.12),
+                                  ),
+                                ),
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                  ),
+                                  child: Text(
+                                    'o',
+                                    style: theme.textTheme.bodyMedium?.copyWith(
+                                      color: Colors.white38,
+                                    ),
+                                  ),
+                                ),
+                                Expanded(
+                                  child: Divider(
+                                    color: Colors.white.withValues(alpha: 0.12),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 18),
+                            SizedBox(
+                              width: double.infinity,
+                              child: OutlinedButton.icon(
+                                onPressed: _isBusy ? null : _submitGoogle,
+                                style: OutlinedButton.styleFrom(
+                                  backgroundColor: _googleButtonBackground,
+                                  foregroundColor: _googleButtonForeground,
+                                  disabledBackgroundColor:
+                                      _googleButtonBackground.withValues(
+                                        alpha: 0.6,
+                                      ),
+                                  disabledForegroundColor:
+                                      _googleButtonForeground.withValues(
+                                        alpha: 0.5,
+                                      ),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 18,
+                                  ),
+                                  side: BorderSide(
+                                    color: Colors.white.withValues(alpha: 0.2),
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(999),
+                                  ),
+                                ),
+                                icon: const Icon(
+                                  Icons.g_mobiledata_rounded,
+                                  size: 28,
+                                ),
+                                label: _isGoogleLoading
+                                    ? const SizedBox(
+                                        width: 20,
+                                        height: 20,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2.2,
+                                          color: _googleButtonForeground,
+                                        ),
+                                      )
+                                    : Text(
+                                        'Continuar con Google',
+                                        style: theme.textTheme.titleMedium
+                                            ?.copyWith(
+                                              color: _googleButtonForeground,
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                      ),
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                     ),

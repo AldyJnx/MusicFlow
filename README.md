@@ -1,5 +1,43 @@
 # MusicFlow
 
+<p align="center"><img src="apps/web/src/assets/Logo_Music_Flow.webp" alt="MusicFlow" width="150"></p>
+<p align="center"><strong>Tu música, tus reglas</strong></p>
+<p align="center">Creado por <strong>Aldy Montoya</strong> y <strong>Fernando Mas</strong></p>
+
+MusicFlow es un reproductor musical multiplataforma con biblioteca, catálogo,
+letras sincronizadas, ecualización por segmentos, sincronización entre
+dispositivos y asistentes IA separados para usuario y administración.
+
+## Base de datos
+
+El backend usa PostgreSQL 16, administrado en desarrollo por Docker
+(\`musicflow-db\`) y conectado mediante Prisma. PostgreSQL es la fuente
+autoritativa porque el catálogo y la biblioteca tienen relaciones fuertes,
+restricciones y transacciones: \`Artist\`–\`Album\`–\`Track\`, featuring,
+playlists, EQ, historial, sincronización y auditoría de IA.
+
+\`\`\`mermaid
+erDiagram
+User ||--o{ Device : owns
+Artist ||--o{ Album : releases
+Artist ||--o{ Track : performs
+Album ||--o{ Track : contains
+Track ||--o{ TrackFeaturedArtist : features
+Artist ||--o{ TrackFeaturedArtist : collaborates
+User ||--o{ Playlist : creates
+Playlist ||--o{ PlaylistTrack : orders
+User ||--o{ EQPreset : owns
+EQPreset ||--o{ EQConfig : configures
+EQConfig ||--o{ EQSegment : segments
+User ||--o{ AIRequest : sends
+CatalogAiRun ||--o{ CatalogAiFinding : reports
+\`\`\`
+
+MongoDB no fue elegido porque obligaría a mantener referencias manualmente;
+Firebase acoplaría datos, auth y almacenamiento; MySQL es válido, pero
+PostgreSQL ofrece mejores tipos JSONB y herramientas analíticas relacionales.
+Consulta el detalle de columnas en [docs/DATABASE.md](docs/DATABASE.md).
+
 Plataforma multiplataforma de reproducción musical con ecualización granular asistida por IA.
 
 ## Visión del Producto

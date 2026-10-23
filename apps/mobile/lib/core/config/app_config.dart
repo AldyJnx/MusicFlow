@@ -9,7 +9,7 @@ class AppConfig {
   // --dart-define=API_BASE_URL=http://10.0.2.2:8000/api
   static const String apiBaseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'http://192.168.18.32:8000/api',
+    defaultValue: 'http://10.0.2.2:8000/api',
   );
 
   // Store billing is intentionally disabled until Google Play Billing and
@@ -46,10 +46,24 @@ class AppConfig {
     if (_configuredCastReceiverAppId.isNotEmpty) {
       return _configuredCastReceiverAppId;
     }
-    return kDebugMode
-        ? _debugCastReceiverAppId
-        : _productionCastReceiverAppId;
+    return kDebugMode ? _debugCastReceiverAppId : _productionCastReceiverAppId;
   }
 
   static bool get isCastConfigured => castReceiverAppId.isNotEmpty;
+
+  // Web OAuth client ID of the MusicFlow Google Cloud project. It is a public
+  // identifier, so it is safe to ship inside the binary. Google issues the ID
+  // token of a native sign-in with this value as its `aud`, which is why the
+  // backend allow-lists it as GOOGLE_MOBILE_AUDIENCES.
+  static const String googleWebClientId = String.fromEnvironment(
+    'GOOGLE_WEB_CLIENT_ID',
+    // OAuth client IDs identify an application; they are not secrets. Keeping
+    // this checked-in value makes the native button and token flow work in
+    // debug *and release* when an IDE does not forward development.json.
+    // Deployments can still override it with GOOGLE_WEB_CLIENT_ID.
+    defaultValue:
+        '543837527956-scf3lh11ijv1bl8j4usk89i723irmpbd.apps.googleusercontent.com',
+  );
+
+  static bool get isGoogleSignInConfigured => googleWebClientId.isNotEmpty;
 }

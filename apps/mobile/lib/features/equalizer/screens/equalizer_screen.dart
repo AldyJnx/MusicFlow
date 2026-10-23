@@ -24,7 +24,6 @@ class _EqualizerScreenState extends ConsumerState<EqualizerScreen> {
   static const double _maxDb = 15;
 
   double _volume = 0.82;
-  double _balance = 0.5;
   List<double> _bands = List<double>.filled(10, 0);
   Timer? _saveDebounce;
   String? _loadedTrackId;
@@ -139,13 +138,10 @@ class _EqualizerScreenState extends ConsumerState<EqualizerScreen> {
                     ),
                     const SizedBox(width: 12),
                     Expanded(
-                      child: _ControlPill(
-                        label: 'BALANCE',
-                        valueLabel: _balanceLabel,
-                        child: Slider(
-                          value: _balance,
-                          onChanged: (value) =>
-                              setState(() => _balance = value),
+                      child: _ResetControl(
+                        onPressed: () => _setBands(
+                          List<double>.filled(10, 0),
+                          persist: true,
                         ),
                       ),
                     ),
@@ -273,11 +269,33 @@ class _EqualizerScreenState extends ConsumerState<EqualizerScreen> {
     final sign = db > 0 ? '+' : '';
     return '$sign${db.round()}dB';
   }
+}
 
-  String get _balanceLabel {
-    if (_balance < 0.42) return 'L';
-    if (_balance > 0.58) return 'R';
-    return 'L/R';
+class _ResetControl extends StatelessWidget {
+  const _ResetControl({required this.onPressed});
+
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 106,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: _EqualizerScreenState._panel.withValues(alpha: 0.92),
+        borderRadius: BorderRadius.circular(28),
+      ),
+      child: OutlinedButton.icon(
+        onPressed: onPressed,
+        icon: const Icon(Icons.restart_alt_rounded),
+        label: const Text('Reset'),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: _EqualizerScreenState._accent,
+          side: const BorderSide(color: _EqualizerScreenState._accent),
+          textStyle: const TextStyle(fontWeight: FontWeight.w800),
+        ),
+      ),
+    );
   }
 }
 

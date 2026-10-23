@@ -234,107 +234,35 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     const SizedBox(height: 24),
                   ] else ...[
                     const SizedBox(height: 24),
-                    // Hero card
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(22),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(28),
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [
-                            colors.cardGradientEnd,
-                            colors.cardGradientStart,
-                          ],
+                    SizedBox(
+                      height: 258,
+                      child: carouselTracksAsync.when(
+                        loading: () => Center(
+                          child: CircularProgressIndicator(
+                            color: colors.primary,
+                          ),
                         ),
-                        border: Border.all(color: colors.border),
-                        boxShadow: [
-                          BoxShadow(
-                            color: colors.shadow.withValues(alpha: 0.24),
-                            blurRadius: 24,
-                            offset: Offset(0, 10),
-                          ),
-                        ],
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 6,
-                            ),
-                            decoration: BoxDecoration(
-                              color: colors.primary.withValues(alpha: 0.14),
-                              borderRadius: BorderRadius.circular(999),
-                            ),
-                            child: Text(
-                              'Playlist del dia',
-                              style: theme.textTheme.labelLarge?.copyWith(
-                                color: colors.secondary,
-                                fontWeight: FontWeight.w700,
+                        error: (_, _) => const _SongsLoadMessage(
+                          message: 'No se pudo cargar el destacado semanal.',
+                        ),
+                        data: (response) => _WeeklyFeaturedCarousel(
+                          tracks: response.tracks
+                              .take(8)
+                              .toList(growable: false),
+                          onPlay: (index) => ref
+                              .read(playerControllerProvider.notifier)
+                              .playTrackList(
+                                response.tracks,
+                                startIndex: index,
                               ),
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            'MusicFlow Mix',
-                            style: theme.textTheme.headlineMedium?.copyWith(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                          const SizedBox(height: 10),
-                          Text(
-                            'Una mezcla perfecta para empezar con ritmo, enfoque y un toque futurista.',
-                            style: theme.textTheme.bodyLarge?.copyWith(
-                              color: Colors.white70,
-                              height: 1.4,
-                            ),
-                          ),
-                          const SizedBox(height: 22),
-                          Row(
-                            children: [
-                              ElevatedButton.icon(
-                                onPressed: () {},
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: colors.secondary,
-                                  foregroundColor: Colors.white,
-                                  elevation: 0,
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 18,
-                                    vertical: 14,
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(16),
-                                  ),
-                                ),
-                                icon: const Icon(Icons.play_arrow_rounded),
-                                label: const Text('Reproducir'),
-                              ),
-                              const SizedBox(width: 12),
-                              Container(
-                                padding: const EdgeInsets.all(12),
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withValues(alpha: 0.08),
-                                  borderRadius: BorderRadius.circular(14),
-                                ),
-                                child: Icon(
-                                  Icons.auto_awesome_rounded,
-                                  color: colors.primary,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
+                        ),
                       ),
                     ),
                     const SizedBox(height: 28),
                   ],
                   // Songs from API
                   _SectionHeader(
-                    title: 'Canciones',
+                    title: 'Recomendado para ti',
                     onSeeAll: () => _openPlaylistScreen(context),
                   ),
                   const SizedBox(height: 16),
@@ -461,59 +389,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         );
                       },
                     ),
-                  const SizedBox(height: 8),
-                  // AI recommendations promo
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(18),
-                    decoration: BoxDecoration(
-                      color: HomeScreen._cardSoft.withValues(alpha: 0.72),
-                      borderRadius: BorderRadius.circular(22),
-                      border: Border.all(
-                        color: HomeScreen._lightBlue.withValues(alpha: 0.15),
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: HomeScreen._accentCyan.withValues(
-                              alpha: 0.1,
-                            ),
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                          child: const Icon(
-                            Icons.auto_awesome_rounded,
-                            color: HomeScreen._accentCyan,
-                          ),
-                        ),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Recomendaciones con IA',
-                                style: theme.textTheme.titleSmall?.copyWith(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                'Pronto podras descubrir mezclas personalizadas segun tu mood.',
-                                style: theme.textTheme.bodySmall?.copyWith(
-                                  color: Colors.white60,
-                                  height: 1.35,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
                 ],
               ),
             ),
@@ -525,13 +400,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   Widget _withAiBubble(BuildContext context, Widget child) {
     final assistantEnabled = ref.watch(appSettingsProvider).aiAssistantEnabled;
+    final isPremium =
+        ref.watch(authControllerProvider).user?.isPremium ?? false;
 
     return LayoutBuilder(
       builder: (context, constraints) {
         return Stack(
           children: [
             Positioned.fill(child: child),
-            if (assistantEnabled)
+            if (isPremium && assistantEnabled)
               FloatingAIBubble(
                 boundsSize: constraints.biggest,
                 onTap: () => context.push(AppRoutes.aiAgent),
@@ -1167,6 +1044,148 @@ class _SongsLoadMessage extends StatelessWidget {
           ],
         ],
       ),
+    );
+  }
+}
+
+class _WeeklyFeaturedCarousel extends StatefulWidget {
+  const _WeeklyFeaturedCarousel({required this.tracks, required this.onPlay});
+
+  final List<Track> tracks;
+  final Future<void> Function(int index) onPlay;
+
+  @override
+  State<_WeeklyFeaturedCarousel> createState() =>
+      _WeeklyFeaturedCarouselState();
+}
+
+class _WeeklyFeaturedCarouselState extends State<_WeeklyFeaturedCarousel> {
+  final PageController _controller = PageController(viewportFraction: 0.93);
+  Timer? _timer;
+  int _index = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer.periodic(const Duration(seconds: 5), (_) {
+      if (!mounted || widget.tracks.length < 2) return;
+      _index = (_index + 1) % widget.tracks.length;
+      _controller.animateToPage(
+        _index,
+        duration: const Duration(milliseconds: 420),
+        curve: Curves.easeOutCubic,
+      );
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.musicFlowColors;
+    if (widget.tracks.isEmpty) {
+      return const _SongsLoadMessage(
+        message: 'Aún no hay destacados esta semana.',
+      );
+    }
+    return Column(
+      children: [
+        Expanded(
+          child: PageView.builder(
+            controller: _controller,
+            itemCount: widget.tracks.length,
+            onPageChanged: (value) => setState(() => _index = value),
+            itemBuilder: (context, index) {
+              final track = widget.tracks[index];
+              return Padding(
+                padding: const EdgeInsets.only(right: 10),
+                child: Container(
+                  padding: const EdgeInsets.all(18),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(28),
+                    gradient: LinearGradient(
+                      colors: [
+                        colors.cardGradientEnd,
+                        colors.cardGradientStart,
+                      ],
+                    ),
+                    image: track.coverArt?.isNotEmpty == true
+                        ? DecorationImage(
+                            image: NetworkImage(track.coverArt!),
+                            fit: BoxFit.cover,
+                            opacity: 0.24,
+                          )
+                        : null,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'DESTACADO DE LA SEMANA',
+                        style: Theme.of(context).textTheme.labelMedium
+                            ?.copyWith(
+                              color: colors.primary,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 1.1,
+                            ),
+                      ),
+                      const Spacer(),
+                      Text(
+                        track.title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.headlineSmall
+                            ?.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w900,
+                            ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        track.artist,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      FilledButton.icon(
+                        onPressed: () => widget.onPlay(index),
+                        icon: const Icon(Icons.play_arrow_rounded),
+                        label: const Text('Reproducir'),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: 10),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: List.generate(
+            widget.tracks.length,
+            (index) => AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              margin: const EdgeInsets.symmetric(horizontal: 3),
+              width: _index == index ? 18 : 6,
+              height: 6,
+              decoration: BoxDecoration(
+                color: _index == index ? colors.primary : Colors.white24,
+                borderRadius: BorderRadius.circular(99),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

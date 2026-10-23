@@ -17,6 +17,7 @@ type PagedLibraryCarouselProps<T> = {
   fetchNextPage: () => Promise<unknown>;
   resetKey: string;
   label: string;
+  showArrowControls?: boolean;
 };
 
 const PAGE_SIZE = 6;
@@ -31,6 +32,7 @@ export default function PagedLibraryCarousel<T>({
   fetchNextPage,
   resetKey,
   label,
+  showArrowControls = true,
 }: PagedLibraryCarouselProps<T>) {
   const viewportRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef({ active: false, moved: false, x: 0, scrollLeft: 0 });
@@ -98,6 +100,17 @@ export default function PagedLibraryCarousel<T>({
   return (
     <section aria-label={label} className="min-w-0">
       <div className="relative">
+        {showArrowControls ? (
+          <button
+            type="button"
+            aria-label="Página anterior"
+            onClick={() => void goToPage(currentPage - 1)}
+            disabled={currentPage === 0}
+            className="absolute left-2 top-1/2 z-10 -translate-y-1/2 rounded-full border border-[var(--color-border)] bg-[var(--color-surface)]/90 px-3 py-2 text-sm text-[var(--color-text)] shadow transition hover:border-[var(--color-primary)] disabled:pointer-events-none disabled:opacity-35"
+          >
+            ‹
+          </button>
+        ) : null}
         <div
           ref={viewportRef}
           data-testid="library-carousel-viewport"
@@ -153,9 +166,11 @@ export default function PagedLibraryCarousel<T>({
             <div
               key={`${resetKey}-${pageIndex}`}
               className="min-w-full snap-start px-8 py-1"
-              aria-label={`${label}, página ${pageIndex + 1} de ${totalPages}`}
             >
-              <div className="mx-auto grid w-full max-w-[780px] grid-cols-3 gap-3">
+              <div
+                aria-label={`${label}, página ${pageIndex + 1} de ${totalPages}`}
+                className="mx-auto grid w-full max-w-[780px] grid-cols-3 gap-3"
+              >
                 {page.map((item) => (
                   <div key={getKey(item)} className="min-w-0">
                     {renderItem(item)}
@@ -165,6 +180,17 @@ export default function PagedLibraryCarousel<T>({
             </div>
           ))}
         </div>
+        {showArrowControls ? (
+          <button
+            type="button"
+            aria-label="Página siguiente"
+            onClick={() => void goToPage(currentPage + 1)}
+            disabled={currentPage >= totalPages - 1}
+            className="absolute right-2 top-1/2 z-10 -translate-y-1/2 rounded-full border border-[var(--color-border)] bg-[var(--color-surface)]/90 px-3 py-2 text-sm text-[var(--color-text)] shadow transition hover:border-[var(--color-primary)] disabled:pointer-events-none disabled:opacity-35"
+          >
+            ›
+          </button>
+        ) : null}
       </div>
 
       {totalPages > 1 ? (

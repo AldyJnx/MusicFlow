@@ -7,7 +7,7 @@ import {
   idbPut,
   type DownloadMeta,
 } from "../offline/downloadsDb";
-import { getTrackLyrics } from "../api/catalog";
+import { getTrackLyrics } from "../api/tracks";
 
 export interface DownloadableTrack {
   id: string;
@@ -91,8 +91,8 @@ export const useDownloadsStore = create<DownloadsState>((set, get) => ({
       let lyricsText: string | null = null;
       try {
         const ly = await getTrackLyrics(track.id);
-        lyricsLrc = ly.lyricsLrc ?? null;
-        lyricsText = ly.lyricsText ?? null;
+        lyricsLrc = ly.lrc ?? null;
+        lyricsText = ly.text ?? null;
       } catch {
         /* ignore lyrics failures */
       }

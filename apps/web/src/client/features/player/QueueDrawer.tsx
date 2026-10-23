@@ -13,6 +13,28 @@ import { useTranslation } from "react-i18next";
 import { usePlayerStore, type PlayerTrack } from "../../stores/playStore";
 import AddToPlaylistModal from "../playlists/AddToPlaylistModal";
 
+function QueueBars() {
+  return (
+    <span
+      aria-hidden="true"
+      className="ml-1 inline-flex h-3 items-end gap-[1.5px] align-middle"
+    >
+      <span
+        className="musicflow-logo-bar"
+        style={{ background: "var(--color-primary)" }}
+      />
+      <span
+        className="musicflow-logo-bar"
+        style={{ background: "var(--color-primary)" }}
+      />
+      <span
+        className="musicflow-logo-bar"
+        style={{ background: "var(--color-primary)" }}
+      />
+    </span>
+  );
+}
+
 /**
  * Side panel showing what's queued up next. Mounted at the layout level
  * (always available) and revealed via `openQueueDrawer`. Lets the user:
@@ -67,13 +89,13 @@ export default function QueueDrawer() {
       <div
         aria-hidden="true"
         onClick={close}
-        className="fixed inset-0 z-[60] bg-black/40 backdrop-blur-sm"
+        className="electron-viewport-backdrop fixed inset-0 z-[60] bg-black/40 backdrop-blur-sm"
       />
       <aside
         role="dialog"
         aria-modal="true"
         aria-label={t("queue.title", { defaultValue: "Cola de reproducción" })}
-        className="fixed bottom-0 right-0 top-0 z-[61] flex w-full max-w-md flex-col border-l border-white/10 bg-[var(--color-page)] text-[var(--color-text)] shadow-[0_0_60px_rgba(0,0,0,0.5)]"
+        className="electron-viewport-drawer fixed bottom-0 right-0 top-0 z-[61] flex w-full max-w-md flex-col border-l border-white/10 bg-[var(--color-page)] text-[var(--color-text)] shadow-[0_0_60px_rgba(0,0,0,0.5)]"
       >
         {/* Header */}
         <header className="flex items-center justify-between gap-3 border-b border-[var(--color-border)] px-6 py-5">
@@ -192,8 +214,9 @@ export default function QueueDrawer() {
                             <div className="h-9 w-9 shrink-0 rounded bg-[var(--color-surface-alt)]" />
                           )}
                           <div className="min-w-0 flex-1">
-                            <p className="truncate text-xs font-semibold text-[var(--color-text)]">
-                              {track.title}
+                            <p className="flex min-w-0 items-center text-xs font-semibold text-[var(--color-text)]">
+                              <span className="truncate">{track.title}</span>
+                              <QueueBars />
                             </p>
                             <p className="truncate text-[10px] text-[var(--color-muted)]">
                               {track.artist}

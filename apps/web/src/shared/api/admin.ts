@@ -211,19 +211,44 @@ export interface GlobalEqPresetPayload {
   reverbAmount?: number;
 }
 
+/**
+ * Consumer whose AI usage is being reported. End users and admins have a very
+ * different consumption, so the report can be split or merged.
+ */
+export type AiUsageScope = "all" | "user" | "admin";
+
+/** Origin of a model inside the report. */
+export type AiUsageOrigin = "USERS" | "ADMINS";
+
+export interface AiUsageSummary {
+  requests: number;
+  costUsd: number;
+  tokensInput: number;
+  tokensOutput: number;
+  avgLatencyMs: number;
+}
+
 export interface AICostsReport {
   days: number;
-  totals: {
-    requests: number;
-    costUsd: number;
-    tokensInput: number;
-    tokensOutput: number;
-    avgCostUsd: number;
-    avgLatencyMs: number;
-  };
+  scope: AiUsageScope;
+  totals: AiUsageSummary & { avgCostUsd: number };
+  /** Same totals split by consumer, so the three views can be compared. */
+  sources: Record<AiUsageScope, AiUsageSummary>;
   daily: { date: string; cost: number; requests: number }[];
+  activity: Record<
+    "day" | "month" | "year",
+    {
+      date: string;
+      requests: number;
+      tokensInput: number;
+      tokensOutput: number;
+      fulfilled: number;
+      unfulfilled: number;
+    }[]
+  >;
   byModel: {
     model: string;
+    origin: AiUsageOrigin;
     requests: number;
     costUsd: number;
     tokensInput: number;
@@ -236,14 +261,11 @@ export interface AICostsReport {
     requests: number;
     costUsd: number;
   }[];
-}
-
-export interface AIFeedbackStats {
-  total: number;
-  good: number;
-  bad: number;
-  neutral: number;
-  satisfactionRate: number;
+  byPurpose: {
+    purpose: AppliedTo | "GLOBAL";
+    users: number;
+    requests: number;
+  }[];
 }
 
 export interface AdminAIRequest {
@@ -257,8 +279,6 @@ export interface AdminAIRequest {
   appliedTo: AppliedTo | null;
   appliedId: string | null;
   wasAccepted: boolean;
-  feedback: FeedbackValue | null;
-  feedbackComment: string | null;
   tokensInput: number;
   tokensOutput: number;
   costUsd: string | number;
@@ -267,6 +287,49 @@ export interface AdminAIRequest {
   createdAt: string;
   user: { email: string; username: string };
   track: { title: string; artist: string } | null;
+}
+
+export interface MusicInsights {
+  mostPlayed: Array<{
+    id: string;
+    title: string;
+    artist: string;
+    coverArt: string | null;
+    plays: number;
+  }>;
+  leastPlayed: Array<{
+    id: string;
+    title: string;
+    artist: string;
+    coverArt: string | null;
+    plays: number;
+  }>;
+  mostListenedArtists: Array<{
+    name: string;
+    imageUrl: string | null;
+    plays: number;
+  }>;
+  mostFollowedArtists: Array<{
+    id: string;
+    name: string;
+    imageUrl: string | null;
+    followers: number;
+  }>;
+}
+
+export interface AIFeedbackStats {
+  total: number;
+  good: number;
+  bad: number;
+  neutral: number;
+  satisfactionRate: number;
+}
+
+export interface AdminAIRequestsResponse {
+  requests: AdminAIRequest[];
+  total: number;
+  skip: number;
+  take: number;
 }
 
 export async function getDashboardStats(): Promise<DashboardStats> {
@@ -375,10 +438,58 @@ export async function getActiveUsersTrend(
   return data;
 }
 
-export async function getAiCosts(days = 30): Promise<AICostsReport> {
+export async function getAiCosts(
+  days = 30,
+  scope: AiUsageScope = "all",
+): Promise<AICostsReport> {
   const { data } = await api.get<AICostsReport>("/admin/ai/costs", {
-    params: { days },
+    params: { days, scope },
   });
+  return data;
+}
+
+export async function listAiRequests(params: {
+  skip?: number;
+  take?: number;
+  search?: string;
+}): Promise<AdminAIRequestsResponse> {
+  const { data } = await api.get<AdminAIRequestsResponse>(
+    "/admin/ai/requests",
+    {
+      params,
+    },
+  );
+  return data;
+}
+
+/** Fetches every matching request in bounded parallel pages for an Excel export. */
+export async function listAllAiRequests(
+  search?: string,
+): Promise<AdminAIRequest[]> {
+  const first = await listAiRequests({ skip: 0, take: 50, search });
+  const pages = Math.ceil(first.total / first.take);
+  if (pages <= 1) return first.requests;
+
+  const remaining = await Promise.all(
+    Array.from({ length: pages - 1 }, (_, index) =>
+      listAiRequests({
+        skip: (index + 1) * first.take,
+        take: first.take,
+        search,
+      }),
+    ),
+  );
+  return [...first.requests, ...remaining.flatMap((page) => page.requests)];
+}
+
+export async function deleteUser(userId: string) {
+  await api.delete(`/admin/users/${userId}`);
+}
+
+export async function getMusicInsights(): Promise<MusicInsights> {
+  const { data } = await api.get<MusicInsights>(
+    "/admin/dashboard/music-insights",
+  );
   return data;
 }
 
@@ -387,11 +498,50 @@ export async function getAiFeedbackStats(): Promise<AIFeedbackStats> {
   return data;
 }
 
-export async function getRecentAiRequests(
-  limit = 20,
-): Promise<AdminAIRequest[]> {
-  const { data } = await api.get<AdminAIRequest[]>("/admin/ai/requests", {
-    params: { limit },
-  });
+export type CatalogSyncResult = {
+  completed: boolean;
+  output: string;
+  summary: {
+    tracks: {
+      created: number;
+      skipped: number;
+      refreshed: number;
+      removedFromCatalog: number;
+    } | null;
+    albums: { created: number; updated: number } | null;
+    lyrics: {
+      synchronized: number;
+      unchanged: number;
+      unmatched: number;
+    } | null;
+    integrity: {
+      artistImagesMissing: number;
+      albumsIncomplete: number;
+      trackCoverMismatches: number;
+      trackCoversRepaired: number;
+      duplicateArtists: number;
+      featuredCreditsLinked: number;
+    } | null;
+  };
+};
+
+export async function syncCatalogFromR2(): Promise<CatalogSyncResult> {
+  const { data } = await api.post<CatalogSyncResult>("/admin/catalog/sync-r2");
+  return data;
+}
+
+export interface CatalogAiAssistantReply {
+  answer: string;
+  model: string;
+}
+
+/** Admin-only, read-only NVIDIA catalog assistant. */
+export async function askCatalogAiAssistant(
+  question: string,
+): Promise<CatalogAiAssistantReply> {
+  const { data } = await api.post<CatalogAiAssistantReply>(
+    "/admin/catalog-ai/assistant",
+    { question },
+  );
   return data;
 }

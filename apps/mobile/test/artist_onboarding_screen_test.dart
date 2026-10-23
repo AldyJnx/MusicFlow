@@ -26,6 +26,12 @@ void main() {
       ProviderScope(
         overrides: [
           catalogArtistsProvider.overrideWith((ref) async => artists),
+          catalogArtistsPageProvider.overrideWith(
+            (ref, request) async => CatalogArtistPage(
+              items: request.page == 0 ? artists : const [],
+              total: artists.length,
+            ),
+          ),
         ],
         child: MaterialApp(
           theme: MusicFlowTheme.fromPalette(
@@ -35,7 +41,11 @@ void main() {
         ),
       ),
     );
-    await tester.pumpAndSettle();
+    // The screen contains an indeterminate progress indicator while providers
+    // resolve, so advance a bounded number of frames instead of waiting for
+    // every animation in the tree to stop.
+    await tester.pump();
+    await tester.pump();
 
     for (var index = 0; index < 6; index += 1) {
       await tester.tap(find.text('Artist $index'));

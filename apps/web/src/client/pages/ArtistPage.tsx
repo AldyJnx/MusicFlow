@@ -1,5 +1,6 @@
 import {
   ArrowLeft,
+  Check,
   Disc3,
   Eye,
   ListMusic,
@@ -8,9 +9,11 @@ import {
   Play,
   Sliders,
   Sparkles,
+  UserPlus,
+  Users,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router-dom";
 import type { TFunction } from "i18next";
@@ -19,7 +22,9 @@ import ClientLayout from "../layout/ClientLayout";
 import { useTracksQuery } from "../../shared/hooks/useTracks";
 import {
   getCatalogArtist,
-  listCatalogArtists,
+  listPublicCatalogArtists,
+  followCatalogArtist,
+  unfollowCatalogArtist,
   type CatalogAlbumSummary,
   type CatalogTrackCard,
 } from "../../shared/api/catalog";
@@ -32,17 +37,31 @@ import { usePremiumGate } from "../../shared/hooks/usePremiumGate";
 import { formatDurationLong } from "../../shared/utils/duration";
 import { usePlayerStore, type PlayerTrack } from "../stores/playStore";
 import type { Track } from "../../shared/api/tracks";
+import {
+  formatTrackArtist,
+  toPlayerFeaturedArtists,
+} from "../../shared/utils/trackArtist";
 
 function toPlayerTrack(t: Track): PlayerTrack | null {
   if (!t.fileUrlRemote) return null;
   return {
     id: t.id,
     title: t.title,
-    artist: t.artist,
+    artistProfileName: t.artist,
+    artist: formatTrackArtist(t.artist, t.featuredArtists),
+    featuredArtists: toPlayerFeaturedArtists(t.featuredArtists),
     cover: t.coverArt,
     url: t.fileUrlRemote,
     durationMs: t.durationMs,
   };
+}
+
+function normalizeArtistName(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLocaleLowerCase();
 }
 
 /**
@@ -64,22 +83,39 @@ export default function ArtistPage() {
   const currentTrackId = usePlayerStore((s) => s.currentTrack?.id ?? null);
   const isPlaying = usePlayerStore((s) => s.isPlaying);
   const { guard } = usePremiumGate();
+  const queryClient = useQueryClient();
   const playRequestRef = useRef(0);
+  const [followNotice, setFollowNotice] = useState<string | null>(null);
 
   const tracksQ = useTracksQuery({ artist: artistName, take: 100 });
-  const tracks = useMemo(() => tracksQ.data?.tracks ?? [], [tracksQ.data]);
+  // Keep the artist page stable even if an old database import contains the
+  // same catalog song twice.  The backend performs the same normalization;
+  // this is a final UI safeguard while clients refresh their cached data.
+  const tracks = useMemo(() => {
+    const seen = new Set<string>();
+    return (tracksQ.data?.tracks ?? []).filter((track) => {
+      const key = `${track.artist.trim().toLocaleLowerCase()}\u0000${track.title
+        .trim()
+        .toLocaleLowerCase()}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [tracksQ.data]);
 
   // Resolve the catalog artist (by name) to surface admin-curated albums.
   const catalogArtistsQ = useQuery({
     queryKey: ["catalog", "artists"],
-    queryFn: listCatalogArtists,
+    queryFn: listPublicCatalogArtists,
     staleTime: 10 * 60_000,
     gcTime: 15 * 60_000,
   });
   const catalogArtistId = useMemo(
     () =>
-      (catalogArtistsQ.data ?? []).find((a) => a.name === artistName)?.id ??
-      null,
+      (catalogArtistsQ.data ?? []).find(
+        (artist) =>
+          normalizeArtistName(artist.name) === normalizeArtistName(artistName),
+      )?.id ?? null,
     [catalogArtistsQ.data, artistName],
   );
   const catalogArtistQ = useQuery({
@@ -88,7 +124,70 @@ export default function ArtistPage() {
     enabled: !!catalogArtistId,
     staleTime: 10 * 60_000,
     gcTime: 15 * 60_000,
+    // Followers may change from another open session. Keep this small,
+    // page-scoped poll in addition to BroadcastChannel below.
+    refetchInterval: 5_000,
   });
+  const followerCount = Number(catalogArtistQ.data?.followerCount ?? 0);
+  const isFollowed = catalogArtistQ.data?.isFollowed === true;
+  const followMutation = useMutation({
+    mutationFn: async () => {
+      if (!catalogArtistId) return;
+      if (isFollowed) {
+        await unfollowCatalogArtist(catalogArtistId);
+      } else {
+        await followCatalogArtist(catalogArtistId);
+      }
+    },
+    onSuccess: () => {
+      const nextFollowed = !isFollowed;
+      // Update the active page without waiting for a round-trip refetch.
+      queryClient.setQueryData(
+        ["catalog", "artist", catalogArtistId],
+        (previous: typeof catalogArtistQ.data) =>
+          previous
+            ? {
+                ...previous,
+                isFollowed: nextFollowed,
+                followerCount: Math.max(
+                  0,
+                  Number(previous.followerCount ?? 0) + (nextFollowed ? 1 : -1),
+                ),
+              }
+            : previous,
+      );
+      setFollowNotice(
+        isFollowed ? "Dejaste de seguir al artista" : "Seguir con éxito",
+      );
+      window.setTimeout(() => setFollowNotice(null), 2200);
+      if (typeof BroadcastChannel !== "undefined") {
+        const channel = new BroadcastChannel("musicflow:artist-follows");
+        channel.postMessage({
+          artistId: catalogArtistId,
+        });
+        channel.close();
+      }
+      return queryClient.invalidateQueries({
+        queryKey: ["catalog", "artist", catalogArtistId],
+      });
+    },
+    onError: () => {
+      setFollowNotice("No se pudo actualizar el seguimiento");
+      window.setTimeout(() => setFollowNotice(null), 2800);
+    },
+  });
+  useEffect(() => {
+    if (!catalogArtistId || typeof BroadcastChannel === "undefined") return;
+    const channel = new BroadcastChannel("musicflow:artist-follows");
+    channel.onmessage = (event: MessageEvent<{ artistId?: string }>) => {
+      if (event.data.artistId === catalogArtistId) {
+        void queryClient.invalidateQueries({
+          queryKey: ["catalog", "artist", catalogArtistId],
+        });
+      }
+    };
+    return () => channel.close();
+  }, [catalogArtistId, queryClient]);
   // Albums with no tracks assigned yet would land the user on an empty page —
   // keep them out of the grid until they have content.
   const albums = useMemo(
@@ -235,6 +334,18 @@ export default function ArtistPage() {
 
   return (
     <ClientLayout>
+      {followNotice ? (
+        <div
+          role="status"
+          className="fixed left-1/2 top-7 z-[100] flex -translate-x-1/2 animate-[fadeIn_.2s_ease-out] items-center gap-2 rounded-2xl border border-emerald-400/45 bg-[linear-gradient(135deg,rgba(16,185,129,.25),rgba(8,8,16,.92))] px-5 py-3 text-sm font-semibold text-emerald-50 shadow-[0_18px_45px_rgba(0,0,0,.45)] backdrop-blur-xl"
+        >
+          <Check
+            className="h-4 w-4 rounded-full bg-emerald-400 p-0.5 text-emerald-950"
+            strokeWidth={3}
+          />
+          {followNotice}
+        </div>
+      ) : null}
       <section className="min-h-screen w-full text-[var(--color-text)]">
         {/* Hero — artist art + name + CTAs */}
         <header className="relative h-[320px] w-full overflow-hidden">
@@ -301,6 +412,12 @@ export default function ArtistPage() {
                     count: tracks.length,
                   })}
                 </p>
+                {catalogArtistQ.data ? (
+                  <p className="inline-flex items-center gap-1.5 text-sm text-[var(--color-muted)]">
+                    <Users className="h-3.5 w-3.5" />
+                    {followerCount.toLocaleString("es-PE")} seguidores
+                  </p>
+                ) : null}
               </div>
             </div>
 
@@ -319,6 +436,21 @@ export default function ArtistPage() {
                 />
                 {t("artist.playAll", { defaultValue: "Reproducir todo" })}
               </button>
+              {catalogArtistQ.data ? (
+                <button
+                  type="button"
+                  onClick={() => followMutation.mutate()}
+                  disabled={followMutation.isPending}
+                  className={`inline-flex items-center gap-2 rounded-full border-2 px-5 py-3 text-xs font-bold uppercase tracking-wider transition disabled:cursor-wait disabled:opacity-60 ${
+                    isFollowed
+                      ? "border-[var(--color-success)] bg-[var(--color-success)]/10 text-[var(--color-success)]"
+                      : "border-[var(--color-primary)] text-[var(--color-primary)] hover:bg-[var(--color-primary)]/10"
+                  }`}
+                >
+                  <UserPlus className="h-3.5 w-3.5" strokeWidth={2.5} />
+                  {isFollowed ? "Siguiendo" : "Seguir"}
+                </button>
+              ) : null}
               {/* Outline primary — secondary config action. */}
               <button
                 type="button"

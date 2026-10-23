@@ -1,5 +1,10 @@
 # MusicFlow — Stack Tecnológico y Justificación de Librerías
 
+> Estado actualizado: octubre de 2026. Las versiones exactas se mantienen en
+> los manifiestos de cada entorno.
+
+[![NestJS](https://img.shields.io/badge/NestJS-10-E0234E?logo=nestjs&logoColor=white)](https://nestjs.com) [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&logoColor=white)](https://postgresql.org) [![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=111)](https://react.dev) [![Flutter](https://img.shields.io/badge/Flutter-3.41-02569B?logo=flutter&logoColor=white)](https://flutter.dev) [![Electron](https://img.shields.io/badge/Electron-42-47848F?logo=electron&logoColor=white)](https://electronjs.org)
+
 > **Documento de referencia** que explica **por qué** cada tecnología y librería fue elegida.
 > No es una lista de dependencias — para eso ver `package.json` / `pubspec.yaml`.
 > **Versión:** 1.0 · **Fecha:** Junio 2026
