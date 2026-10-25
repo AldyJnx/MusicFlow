@@ -32,6 +32,13 @@
   FlowIA a estático restablece su desplazamiento a la posición inicial y la
   categoría heredada `People & Blogs` ya no aparece como filtro musical.
 
+- **Reapertura 2026-10-25 (reproductor expandido):** el cierre preventivo al
+  navegar se evaluaba cada vez que cambiaba `isExpanded`, incluso sin cambiar
+  de ruta. Al pulsar el mini-reproductor, el estado se abría y el efecto lo
+  cerraba de inmediato. El layout ahora compara la ruta actual con la anterior
+  y solo cierra el reproductor cuando existe una navegación real fuera de
+  `/now-playing`.
+
 ### Navbar y cola superpuestos por la barra de título de Electron
 
 - **Identificador:** BUG-2026-036

@@ -39,6 +39,7 @@ export default function ClientLayout({ children }: { children: ReactNode }) {
   const { sidebarPosition, queuePosition, lyricsScale } = usePreferences();
   const isExpanded = usePlayerStore((state) => state.isExpanded);
   const setExpanded = usePlayerStore((state) => state.setExpanded);
+  const previousPathnameRef = useRef(location.pathname);
 
   useEffect(() => {
     const media = window.matchMedia("(min-width: 1024px)");
@@ -49,7 +50,9 @@ export default function ClientLayout({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    if (location.pathname !== "/now-playing" && isExpanded) {
+    const didNavigate = previousPathnameRef.current !== location.pathname;
+    previousPathnameRef.current = location.pathname;
+    if (didNavigate && location.pathname !== "/now-playing" && isExpanded) {
       setExpanded(false);
     }
   }, [isExpanded, location.pathname, setExpanded]);
