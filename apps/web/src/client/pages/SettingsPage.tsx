@@ -46,13 +46,14 @@ function Toggle({
   return (
     <button
       type="button"
+      disabled
       aria-pressed={enabled}
       onClick={onToggle}
       className={`relative inline-flex h-7 w-12 items-center rounded-full border transition ${
         enabled
           ? "border-[var(--color-primary)] bg-[var(--color-primary)]"
           : "border-[var(--color-border)] bg-[var(--color-surface-alt)]"
-      }`}
+      } disabled:cursor-not-allowed disabled:opacity-45`}
     >
       <span
         className={`h-5 w-5 rounded-full bg-white shadow-sm transition ${
@@ -94,6 +95,12 @@ export default function SettingsPage() {
               {t("settings.subtitle", {
                 defaultValue: "Ajusta tu cuenta, reproducción y ecualización",
               })}
+            </p>
+            <p className="mt-2 max-w-2xl text-xs text-[var(--color-muted)]">
+              Temas, colores y personalización se aplican y se guardan. Las
+              opciones de normalización, crossfade y configuración del motor se
+              muestran como próximamente porque todavía no están conectadas al
+              motor de audio.
             </p>
           </div>
 
@@ -170,7 +177,7 @@ export default function SettingsPage() {
             <div className="flex flex-col gap-4">
               <SectionTitle
                 icon={<AudioLines className="h-4 w-4" strokeWidth={2.3} />}
-                title={t("settings.audio.title")}
+                title={`${t("settings.audio.title")} · próximamente`}
               />
 
               <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
@@ -210,7 +217,7 @@ export default function SettingsPage() {
             <div className="flex flex-col gap-4">
               <SectionTitle
                 icon={<CircleDot className="h-4 w-4" strokeWidth={2.3} />}
-                title={t("settings.playback.title")}
+                title={`${t("settings.playback.title")} · próximamente`}
               />
 
               <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
@@ -268,14 +275,16 @@ export default function SettingsPage() {
               <div className="mt-6 flex flex-wrap gap-3">
                 <button
                   type="button"
-                  className="rounded-xl bg-[linear-gradient(180deg,var(--color-cta-start)_0%,var(--color-cta-end)_100%)] px-5 py-3 text-sm font-semibold text-white shadow-[0_10px_24px_rgba(0,0,0,0.28)] transition hover:brightness-110"
+                  disabled
+                  className="rounded-xl bg-[linear-gradient(180deg,var(--color-cta-start)_0%,var(--color-cta-end)_100%)] px-5 py-3 text-sm font-semibold text-white shadow-[0_10px_24px_rgba(0,0,0,0.28)] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-45"
                 >
                   {t("settings.engine.configure")}
                 </button>
 
                 <button
                   type="button"
-                  className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-alt)] px-5 py-3 text-sm font-semibold text-[var(--color-text)] transition hover:border-[var(--color-primary)] hover:bg-[var(--color-secondary)]"
+                  disabled
+                  className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-alt)] px-5 py-3 text-sm font-semibold text-[var(--color-text)] transition hover:border-[var(--color-primary)] hover:bg-[var(--color-secondary)] disabled:cursor-not-allowed disabled:opacity-45"
                 >
                   {t("settings.engine.reset")}
                 </button>

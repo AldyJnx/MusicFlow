@@ -216,7 +216,7 @@ export default function ExpandedPlayer({
 
   return (
     <section
-      className="fixed bottom-0 top-0 z-50 overflow-hidden overscroll-none"
+      className="electron-viewport-player fixed bottom-0 top-0 z-50 overflow-hidden overscroll-none"
       style={{ left: `${sidebarOffset}px`, right: `${rightPanelOffset}px` }}
       role="dialog"
       aria-label={t("player.expandedTitle", { defaultValue: "Reproductor" })}

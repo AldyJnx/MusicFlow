@@ -48,7 +48,7 @@ function QueueBars() {
   return (
     <span
       aria-hidden="true"
-      className="ml-1 inline-flex h-3 items-end gap-[1.5px] align-middle"
+      className="queue-track-bars ml-1 inline-flex h-3 items-end gap-[1.5px] align-middle"
     >
       <span
         className="musicflow-logo-bar"

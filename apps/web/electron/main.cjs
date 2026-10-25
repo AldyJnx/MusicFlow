@@ -72,6 +72,8 @@ function createWindow() {
     mainWindow = new BrowserWindow({
         width: 1440,
         height: 900,
+        center: true,
+        show: false,
         minWidth: 1200,
         minHeight: 760,
         backgroundColor: '#090914',
@@ -91,6 +93,13 @@ function createWindow() {
         mainWindow.setIcon(appIcon)
     }
     installZoomShortcuts(mainWindow)
+
+    // Always open as a centered, windowed desktop app. Do not inherit a
+    // maximized/full-screen state from the previous Electron process.
+    mainWindow.setSize(1440, 900)
+    mainWindow.center()
+    mainWindow.unmaximize()
+    mainWindow.once('ready-to-show', () => mainWindow?.show())
 
     const sendWindowState = () => {
         mainWindow?.webContents.send('window:maximized-changed', mainWindow.isMaximized())

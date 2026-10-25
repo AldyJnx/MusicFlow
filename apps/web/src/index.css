@@ -78,6 +78,11 @@ body.electron-desktop .electron-viewport-drawer {
   height: calc(100vh - var(--desktop-titlebar-height));
 }
 
+body.electron-desktop .electron-viewport-player {
+  top: var(--desktop-titlebar-height);
+  height: calc(100vh - var(--desktop-titlebar-height));
+}
+
 body.electron-desktop .electron-viewport-backdrop {
   top: var(--desktop-titlebar-height);
 }
@@ -158,6 +163,14 @@ h3 {
   height: 10px;
   animation-duration: 500ms;
   animation-delay: -250ms;
+}
+
+/* Queue rows show a quiet marker. Only the now-playing row uses EqBars, so
+   upcoming tracks do not look as if they are currently playing. */
+.queue-track-bars .musicflow-logo-bar {
+  animation: none;
+  transform: scaleY(0.72);
+  opacity: 0.72;
 }
 
 /* Kill decorative animation for users who asked for less motion. Covers the

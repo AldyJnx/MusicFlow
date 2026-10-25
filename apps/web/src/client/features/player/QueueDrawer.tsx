@@ -17,7 +17,7 @@ function QueueBars() {
   return (
     <span
       aria-hidden="true"
-      className="ml-1 inline-flex h-3 items-end gap-[1.5px] align-middle"
+      className="queue-track-bars ml-1 inline-flex h-3 items-end gap-[1.5px] align-middle"
     >
       <span
         className="musicflow-logo-bar"
@@ -31,6 +31,27 @@ function QueueBars() {
         className="musicflow-logo-bar"
         style={{ background: "var(--color-primary)" }}
       />
+    </span>
+  );
+}
+
+function EqBars() {
+  return (
+    <span
+      className="inline-flex h-4 items-end gap-[2px] text-[var(--color-accent)]"
+      aria-label="Reproduciendo"
+    >
+      {[".7s", ".9s 0.2s", "1.1s 0.1s"].map((animation, index) => (
+        <span
+          key={index}
+          className="w-[2.5px] rounded-[2px] bg-current"
+          style={{
+            height: "100%",
+            transformOrigin: "bottom",
+            animation: `eqbar ${animation} ease-in-out infinite`,
+          }}
+        />
+      ))}
     </span>
   );
 }
@@ -139,6 +160,7 @@ export default function QueueDrawer() {
                   {currentTrack.artist}
                 </p>
               </div>
+              <EqBars />
               <button
                 type="button"
                 onClick={() => setPlaylistTarget(currentTrack)}
