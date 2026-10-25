@@ -39,6 +39,15 @@
   y solo cierra el reproductor cuando existe una navegación real fuera de
   `/now-playing`.
 
+- **Reapertura 2026-10-25 (controles de cliente):** los espacios libres del
+  mini-reproductor no tenían un destino de clic, los controles del carrusel se
+  encontraban dentro de una capa con `pointer-events: none` y la eliminación de
+  una biblioteca no mostraba una confirmación inequívoca ni resultado exitoso.
+  El contenedor del mini-reproductor ahora abre la vista expandida cuando el
+  clic no procede de un control; las flechas e indicadores del carrusel reciben
+  eventos de puntero; y la biblioteca usa un diálogo Sí/No seguido del aviso
+  “Eliminado con éxito”.
+
 ### Navbar y cola superpuestos por la barra de título de Electron
 
 - **Identificador:** BUG-2026-036

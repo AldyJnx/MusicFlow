@@ -30,6 +30,7 @@ export default function ClientLayout({ children }: { children: ReactNode }) {
   const [createLibraryOpen, setCreateLibraryOpen] = useState(false);
   const [editingLibrary, setEditingLibrary] = useState<Playlist | null>(null);
   const [deleteLibraryOpen, setDeleteLibraryOpen] = useState(false);
+  const [libraryNotice, setLibraryNotice] = useState<string | null>(null);
   const [isDesktop, setIsDesktop] = useState(
     () => window.matchMedia("(min-width: 1024px)").matches,
   );
@@ -56,6 +57,12 @@ export default function ClientLayout({ children }: { children: ReactNode }) {
       setExpanded(false);
     }
   }, [isExpanded, location.pathname, setExpanded]);
+
+  useEffect(() => {
+    if (!libraryNotice) return;
+    const timeout = window.setTimeout(() => setLibraryNotice(null), 3_500);
+    return () => window.clearTimeout(timeout);
+  }, [libraryNotice]);
 
   const sidebarWidth = isDesktop ? (collapsed ? 72 : 196) : 0;
   const rightPanelWidth = isDesktop ? (rightCollapsed ? 64 : 322) : 0;
@@ -208,12 +215,21 @@ export default function ClientLayout({ children }: { children: ReactNode }) {
           setDeleteLibraryOpen(false);
         }}
         onDeleted={(playlistId) => {
+          setLibraryNotice("Eliminado con éxito");
           if (location.pathname === `/playlists/${playlistId}`) {
             navigate("/inicio", { replace: true });
           }
         }}
       />
       <CommandPalette />
+      {libraryNotice ? (
+        <div
+          role="status"
+          className="fixed bottom-24 left-1/2 z-[100] -translate-x-1/2 rounded-xl border border-[var(--color-success)]/50 bg-[var(--color-surface)] px-4 py-3 text-sm font-semibold text-[var(--color-text)] shadow-xl"
+        >
+          {libraryNotice}
+        </div>
+      ) : null}
     </div>
   );
 }

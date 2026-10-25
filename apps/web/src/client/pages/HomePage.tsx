@@ -300,7 +300,7 @@ function Hero({
                 onClick={() => go(-1)}
                 data-testid="home-hero-previous"
                 aria-label={t("home.scrollLeft", { defaultValue: "Anterior" })}
-                className="absolute left-[18px] top-1/2 z-[2] flex h-[38px] w-[38px] -translate-y-1/2 items-center justify-center rounded-full border border-[var(--color-line)] bg-[rgba(8,8,16,.5)] text-white backdrop-blur-[14px] transition hover:bg-[rgba(8,8,16,.8)] active:scale-90"
+                className="pointer-events-auto absolute left-[18px] top-1/2 z-[2] flex h-[38px] w-[38px] -translate-y-1/2 items-center justify-center rounded-full border border-[var(--color-line)] bg-[rgba(8,8,16,.5)] text-white backdrop-blur-[14px] transition hover:bg-[rgba(8,8,16,.8)] active:scale-90"
               >
                 <ChevronLeft className="h-[18px] w-[18px]" strokeWidth={2.4} />
               </button>
@@ -311,13 +311,13 @@ function Hero({
                 aria-label={t("home.scrollRight", {
                   defaultValue: "Siguiente",
                 })}
-                className="absolute right-[18px] top-1/2 z-[2] flex h-[38px] w-[38px] -translate-y-1/2 items-center justify-center rounded-full border border-[var(--color-line)] bg-[rgba(8,8,16,.5)] text-white backdrop-blur-[14px] transition hover:bg-[rgba(8,8,16,.8)] active:scale-90"
+                className="pointer-events-auto absolute right-[18px] top-1/2 z-[2] flex h-[38px] w-[38px] -translate-y-1/2 items-center justify-center rounded-full border border-[var(--color-line)] bg-[rgba(8,8,16,.5)] text-white backdrop-blur-[14px] transition hover:bg-[rgba(8,8,16,.8)] active:scale-90"
               >
                 <ChevronRight className="h-[18px] w-[18px]" strokeWidth={2.4} />
               </button>
 
               {/* Dots */}
-              <div className="absolute bottom-6 left-[38px] z-[2] flex gap-[7px]">
+              <div className="pointer-events-auto absolute bottom-6 left-[38px] z-[2] flex gap-[7px]">
                 {items.map((it, i) => (
                   <button
                     key={it.id}

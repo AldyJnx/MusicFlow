@@ -138,6 +138,62 @@ function EditLibraryDialog({
   const trimmedName = name.trim();
   const nameChanged = trimmedName !== playlist.name.trim();
 
+  if (confirmingDelete) {
+    return (
+      <div
+        className="fixed inset-0 z-[90] flex items-center justify-center bg-black/60 p-4"
+        onClick={onClose}
+        role="presentation"
+      >
+        <section
+          className="w-full max-w-md rounded-2xl border border-[var(--color-line)] bg-[var(--color-surface)] p-6 shadow-2xl"
+          onClick={(event) => event.stopPropagation()}
+          role="alertdialog"
+          aria-modal="true"
+          aria-labelledby="delete-library-title"
+          aria-describedby="delete-library-description"
+        >
+          <h2
+            id="delete-library-title"
+            className="text-lg font-bold text-[var(--color-text)]"
+          >
+            Eliminar biblioteca
+          </h2>
+          <p
+            id="delete-library-description"
+            className="mt-2 text-sm leading-6 text-[var(--color-muted)]"
+          >
+            ¿Estás seguro de que deseas eliminar “{playlist.name}”? Esta acción
+            no se puede deshacer.
+          </p>
+          {remove.isError ? (
+            <p className="mt-3 text-sm text-red-400">
+              No se pudo eliminar la biblioteca. Inténtalo de nuevo.
+            </p>
+          ) : null}
+          <div className="mt-6 flex justify-end gap-3">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={remove.isPending}
+              className="rounded-lg px-3 py-2 text-sm font-semibold text-[var(--color-muted)] transition hover:bg-white/5 hover:text-[var(--color-text)] disabled:opacity-50"
+            >
+              No
+            </button>
+            <button
+              type="button"
+              onClick={() => remove.mutate()}
+              disabled={remove.isPending}
+              className="rounded-lg bg-red-500 px-3 py-2 text-sm font-semibold text-white transition hover:bg-red-400 disabled:cursor-wait disabled:opacity-50"
+            >
+              {remove.isPending ? "Eliminando…" : "Sí, eliminar"}
+            </button>
+          </div>
+        </section>
+      </div>
+    );
+  }
+
   return (
     <div
       className="fixed inset-0 z-[90] flex items-center justify-center bg-black/60 p-4"
@@ -169,27 +225,13 @@ function EditLibraryDialog({
           </p>
         ) : null}
         <div className="mt-5 flex items-center justify-between gap-3">
-          {confirmingDelete ? (
-            <div className="flex items-center gap-2 text-sm text-[var(--color-muted)]">
-              <span>¿Eliminar esta biblioteca?</span>
-              <button
-                type="button"
-                onClick={() => remove.mutate()}
-                disabled={remove.isPending}
-                className="rounded-lg bg-red-500 px-3 py-2 font-semibold text-white disabled:opacity-50"
-              >
-                Eliminar
-              </button>
-            </div>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setConfirmingDelete(true)}
-              className="rounded-lg px-2 py-2 text-sm font-semibold text-red-400 transition hover:bg-red-500/10"
-            >
-              Eliminar biblioteca
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={() => setConfirmingDelete(true)}
+            className="rounded-lg px-2 py-2 text-sm font-semibold text-red-400 transition hover:bg-red-500/10"
+          >
+            Eliminar biblioteca
+          </button>
           <div className="ml-auto flex gap-2">
             <button type="button" onClick={onClose} className="px-2 py-2">
               Cancelar

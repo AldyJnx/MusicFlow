@@ -83,7 +83,21 @@ export default function MiniPlayer(_: MiniPlayerProps) {
   }
 
   return (
-    <div className="sticky bottom-0 z-40 flex h-[78px] flex-none items-center gap-[18px] border-t border-[var(--color-line)] bg-[rgba(8,8,16,.62)] px-[22px] shadow-[0_-10px_40px_-20px_rgba(0,0,0,.8)] backdrop-blur-[34px]">
+    <div
+      className="sticky bottom-0 z-40 flex h-[78px] flex-none items-center gap-[18px] border-t border-[var(--color-line)] bg-[rgba(8,8,16,.62)] px-[22px] shadow-[0_-10px_40px_-20px_rgba(0,0,0,.8)] backdrop-blur-[34px]"
+      onClick={(event) => {
+        const target = event.target as Element;
+        if (
+          target.closest(
+            "button, a, input, [role='slider'], [data-player-interactive]",
+          )
+        ) {
+          return;
+        }
+        toggleExpanded();
+      }}
+      role="presentation"
+    >
       {/* LEFT — cover + title + like */}
       <div className="flex w-[300px] min-w-0 flex-none items-center gap-3">
         <button
@@ -220,7 +234,7 @@ export default function MiniPlayer(_: MiniPlayerProps) {
         >
           {formatMs(positionMs)}
         </span>
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0 flex-1" data-player-interactive>
           <TimelineWithSegments
             positionMs={positionMs}
             durationMs={durationMs}
