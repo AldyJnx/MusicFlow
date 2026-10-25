@@ -22,6 +22,16 @@
   Electron pendiente de comprobación final tras el empaquetado.
 - **Estado:** corregido; verificación de empaquetado pendiente.
 
+- **Actualización 2026-10-25:** los gestos de tres dedos de algunos trackpads
+  Windows se informan como `app-command` y no como `wheel`, por lo que no
+  llegaban al renderer. Electron ahora convierte `browser-backward`,
+  `browser-forward` y los comandos multimedia en la misma señal de pista. El
+  renderer escucha el desplazamiento horizontal en fase de captura y reduce el
+  umbral para trackpads de alta precisión; Safari conserva una ruta `gestureend`.
+  La escala de letra se aplicó también al panel de letras alternativo. Cambiar
+  FlowIA a estático restablece su desplazamiento a la posición inicial y la
+  categoría heredada `People & Blogs` ya no aparece como filtro musical.
+
 ### Navbar y cola superpuestos por la barra de título de Electron
 
 - **Identificador:** BUG-2026-036

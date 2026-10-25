@@ -10,6 +10,7 @@ import {
 import { usePlayerStore } from "../../stores/playStore";
 import { getTrackLyrics } from "../../../shared/api/tracks";
 import LyricsEditor from "./LyricsEditor";
+import { usePreferences } from "../../../shared/hooks/usePreferences";
 
 type LyricsPanelProps = {
   trackId: string | null;
@@ -28,6 +29,7 @@ export default function LyricsPanel({ trackId }: LyricsPanelProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const activeRef = useRef<HTMLButtonElement>(null);
   const [editorOpen, setEditorOpen] = useState(false);
+  const { lyricsScale } = usePreferences();
 
   // Pull the raw payload so the editor can seed its textarea with the same
   // content the user already uploaded (avoids forcing them to re-type).
@@ -104,7 +106,10 @@ export default function LyricsPanel({ trackId }: LyricsPanelProps) {
             ) : null}
           </div>
         ) : mode === "plain" ? (
-          <pre className="whitespace-pre-wrap font-sans text-base leading-9 text-[var(--color-text)]/80">
+          <pre
+            className="whitespace-pre-wrap font-sans leading-9 text-[var(--color-text)]/80"
+            style={{ fontSize: `${1 * lyricsScale}rem` }}
+          >
             {plainText}
           </pre>
         ) : (
@@ -120,11 +125,14 @@ export default function LyricsPanel({ trackId }: LyricsPanelProps) {
                   onClick={() => seek(line.timeMs)}
                   className={`block w-full rounded-lg px-3 py-1.5 text-center transition ${
                     isActive
-                      ? "text-2xl font-semibold text-[var(--color-primary)]"
+                      ? "font-semibold text-[var(--color-primary)]"
                       : isPast
-                        ? "text-base font-medium text-[var(--color-muted)]/70 hover:text-[var(--color-text)]"
-                        : "text-base font-medium text-[var(--color-text)]/55 hover:text-[var(--color-text)]"
+                        ? "font-medium text-[var(--color-muted)]/70 hover:text-[var(--color-text)]"
+                        : "font-medium text-[var(--color-text)]/55 hover:text-[var(--color-text)]"
                   }`}
+                  style={{
+                    fontSize: `${(isActive ? 1.5 : 1) * lyricsScale}rem`,
+                  }}
                 >
                   {line.text || "♪"}
                 </button>

@@ -26,6 +26,7 @@ interface ClientSidebarProps {
   /** Opens the rename/delete controls for a library owned by this user. */
   onEditLibrary?: (playlist: Playlist) => void;
   onDeleteLibrary?: (playlist: Playlist) => void;
+  onNavigate?: () => void;
   position?: "left" | "right";
   offset?: number;
 }
@@ -77,6 +78,7 @@ export default function ClientSidebar({
   onOpenCreateLibrary,
   onEditLibrary,
   onDeleteLibrary,
+  onNavigate,
   position = "left",
   offset = 0,
 }: ClientSidebarProps) {
@@ -180,7 +182,10 @@ export default function ClientSidebar({
           <button
             key={n.label}
             type="button"
-            onClick={() => navigate(n.to)}
+            onClick={() => {
+              onNavigate?.();
+              navigate(n.to);
+            }}
             title={n.label}
             className={`flex items-center gap-[11px] rounded-xl text-[13.5px] transition ${
               collapsed ? "justify-center py-2.5" : "px-2.5 py-2.5"
@@ -266,7 +271,10 @@ export default function ClientSidebar({
             >
               <button
                 type="button"
-                onClick={() => navigate(`/playlists/${p.id}`)}
+                onClick={() => {
+                  onNavigate?.();
+                  navigate(`/playlists/${p.id}`);
+                }}
                 title={p.name}
                 className={`flex min-w-0 flex-1 items-center gap-2.5 rounded-lg py-[5px] text-left ${
                   collapsed ? "justify-center px-0" : "px-2 pr-[54px]"

@@ -1,7 +1,7 @@
 import { Music } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useTranslation } from "react-i18next";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { usePlayerStore } from "../stores/playStore";
 import BorderGlow from "../../shared/ui/reactbits/BorderGlow";
@@ -24,6 +24,12 @@ export default function AIAssistantFab() {
   const { assistantEnabled, assistantMode } = usePreferences();
   const [drag, setDrag] = useState({ x: 0, y: 0 });
   const [dragging, setDragging] = useState(false);
+
+  useEffect(() => {
+    if (assistantMode !== "static") return;
+    setDragging(false);
+    setDrag({ x: 0, y: 0 });
+  }, [assistantMode]);
 
   // The mini-player is a 78px sticky bar shown only while a track plays and the
   // player isn't expanded — lift the FAB above it so they never collide.

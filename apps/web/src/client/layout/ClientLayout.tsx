@@ -37,6 +37,8 @@ export default function ClientLayout({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
   const location = useLocation();
   const { sidebarPosition, queuePosition, lyricsScale } = usePreferences();
+  const isExpanded = usePlayerStore((state) => state.isExpanded);
+  const setExpanded = usePlayerStore((state) => state.setExpanded);
 
   useEffect(() => {
     const media = window.matchMedia("(min-width: 1024px)");
@@ -45,6 +47,12 @@ export default function ClientLayout({ children }: { children: ReactNode }) {
     media.addEventListener("change", updateViewport);
     return () => media.removeEventListener("change", updateViewport);
   }, []);
+
+  useEffect(() => {
+    if (location.pathname !== "/now-playing" && isExpanded) {
+      setExpanded(false);
+    }
+  }, [isExpanded, location.pathname, setExpanded]);
 
   const sidebarWidth = isDesktop ? (collapsed ? 72 : 196) : 0;
   const rightPanelWidth = isDesktop ? (rightCollapsed ? 64 : 322) : 0;
@@ -82,7 +90,7 @@ export default function ClientLayout({ children }: { children: ReactNode }) {
     const handleWheel = (event: WheelEvent) => {
       if (
         Math.abs(event.deltaX) < Math.abs(event.deltaY) * 1.35 ||
-        Math.abs(event.deltaX) < 8
+        Math.abs(event.deltaX) < 2
       )
         return;
       accumulated += event.deltaX;
@@ -90,15 +98,33 @@ export default function ClientLayout({ children }: { children: ReactNode }) {
       resetTimer = window.setTimeout(() => {
         accumulated = 0;
       }, 420);
-      if (Math.abs(accumulated) < 90) return;
+      if (Math.abs(accumulated) < 30) return;
       navigateTrack(accumulated < 0 ? "next" : "previous");
     };
-    window.addEventListener("wheel", handleWheel, { passive: true });
+    const handleGestureEnd = (event: Event) => {
+      const gesture = event as Event & { direction?: string };
+      if (gesture.direction === "left") navigateTrack("next");
+      if (gesture.direction === "right") navigateTrack("previous");
+    };
+    window.addEventListener("wheel", handleWheel, {
+      capture: true,
+      passive: true,
+    });
+    window.addEventListener(
+      "gestureend",
+      handleGestureEnd as EventListener,
+      true,
+    );
     const unsubscribe = getElectronAPI()?.onSwipe?.((direction) =>
       navigateTrack(direction === "left" ? "next" : "previous"),
     );
     return () => {
-      window.removeEventListener("wheel", handleWheel);
+      window.removeEventListener("wheel", handleWheel, true);
+      window.removeEventListener(
+        "gestureend",
+        handleGestureEnd as EventListener,
+        true,
+      );
       window.clearTimeout(resetTimer);
       unsubscribe?.();
     };
@@ -131,6 +157,7 @@ export default function ClientLayout({ children }: { children: ReactNode }) {
           setDeleteLibraryOpen(true);
           setEditingLibrary(playlist);
         }}
+        onNavigate={() => setExpanded(false)}
         position={sidebarPosition}
         offset={sidebarOffset}
       />

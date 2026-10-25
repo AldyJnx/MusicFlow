@@ -204,7 +204,17 @@ export default function LibraryPage() {
     gcTime: 15 * 60_000,
     enabled: scope === "catalog" && effectiveTab === "songs",
   });
-  const genres = genresQuery.data ?? [];
+  // "People & Blogs" is a legacy non-music category. It must not be offered
+  // as a MusicFlow catalog filter even if an old backend record still returns it.
+  const genres = (genresQuery.data ?? []).filter(
+    (genre) => genre.trim().toLocaleLowerCase() !== "people & blogs",
+  );
+
+  useEffect(() => {
+    if (activeGenre?.trim().toLocaleLowerCase() === "people & blogs") {
+      setActiveGenre(null);
+    }
+  }, [activeGenre]);
 
   // Both catalog and saved-track hooks use the same paginated response.
   // De-dup as a defensive measure in case a catalog row changes between pages.
