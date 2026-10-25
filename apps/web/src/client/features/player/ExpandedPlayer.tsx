@@ -102,7 +102,7 @@ export default function ExpandedPlayer({
   const toggleSave = useToggleSave();
 
   const { segments } = useTrackSegments(currentTrack?.id ?? null);
-  const { showWave } = usePreferences();
+  const { showWave, lyricsScale } = usePreferences();
   const { bands, syncFromEngine } = useEqualizer();
   const isMuted = muted || volume === 0;
 
@@ -288,6 +288,7 @@ export default function ExpandedPlayer({
                 trackId={currentTrack.id}
                 seek={seek}
                 style={lyricsStyle}
+                scale={lyricsScale}
               />
             )}
           </div>
@@ -689,10 +690,12 @@ const LyricsKaraoke = memo(function LyricsKaraoke({
   trackId,
   seek,
   style,
+  scale,
 }: {
   trackId: string | null;
   seek: (ms: number) => void;
   style: LyricsStyle;
+  scale: number;
 }) {
   const { t } = useTranslation();
   const { mode, lines, plainText, isLoading } = useLyrics(trackId);
@@ -735,7 +738,10 @@ const LyricsKaraoke = memo(function LyricsKaraoke({
 
   if (mode === "plain") {
     return (
-      <div className="mx-auto max-h-[58vh] w-full max-w-[460px] overflow-hidden px-4 text-center text-2xl font-medium leading-[1.6] text-white/80">
+      <div
+        className="mx-auto max-h-[58vh] w-full max-w-[460px] overflow-hidden px-4 text-center font-medium leading-[1.6] text-white/80"
+        style={{ fontSize: `${1.5 * scale}rem` }}
+      >
         <pre className="whitespace-pre-wrap font-sans">{plainText}</pre>
       </div>
     );
@@ -753,11 +759,12 @@ const LyricsKaraoke = memo(function LyricsKaraoke({
             onClick={() => seek(line.timeMs)}
             className={`w-full rounded-lg px-2 py-3 text-left transition ${
               isActive
-                ? "text-3xl font-bold leading-tight text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.6)]"
+                ? "font-bold leading-tight text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.6)]"
                 : isPast
-                  ? "text-lg font-semibold leading-snug text-white/40 [text-shadow:0_0_16px_rgba(255,255,255,0.08)] hover:text-white/70"
-                  : "text-lg font-semibold leading-snug text-white/30 [filter:blur(0.25px)] [text-shadow:0_0_18px_rgba(255,255,255,0.12)] hover:text-white/70"
+                  ? "font-semibold leading-snug text-white/40 [text-shadow:0_0_16px_rgba(255,255,255,0.08)] hover:text-white/70"
+                  : "font-semibold leading-snug text-white/30 [filter:blur(0.25px)] [text-shadow:0_0_18px_rgba(255,255,255,0.12)] hover:text-white/70"
             }`}
+            style={{ fontSize: `${(isActive ? 1.875 : 1.125) * scale}rem` }}
           >
             {style === "glow" && isActive ? (
               <GlowLyricsLine line={line} nextLine={lines[index + 1]} />

@@ -27,6 +27,26 @@ export function usePreferences() {
   const resetPersonalization = usePreferencesStore(
     (store) => store.resetPersonalization,
   );
+  const sidebarPosition = usePreferencesStore((store) => store.sidebarPosition);
+  const setSidebarPosition = usePreferencesStore(
+    (store) => store.setSidebarPosition,
+  );
+  const queuePosition = usePreferencesStore((store) => store.queuePosition);
+  const setQueuePosition = usePreferencesStore(
+    (store) => store.setQueuePosition,
+  );
+  const lyricsScale = usePreferencesStore((store) => store.lyricsScale);
+  const setLyricsScale = usePreferencesStore((store) => store.setLyricsScale);
+  const assistantEnabled = usePreferencesStore(
+    (store) => store.assistantEnabled,
+  );
+  const setAssistantEnabled = usePreferencesStore(
+    (store) => store.setAssistantEnabled,
+  );
+  const assistantMode = usePreferencesStore((store) => store.assistantMode);
+  const setAssistantMode = usePreferencesStore(
+    (store) => store.setAssistantMode,
+  );
 
   return {
     theme,
@@ -48,5 +68,15 @@ export function usePreferences() {
     tabsLayout,
     setTabsLayout,
     resetPersonalization,
+    sidebarPosition,
+    setSidebarPosition,
+    queuePosition,
+    setQueuePosition,
+    lyricsScale,
+    setLyricsScale,
+    assistantEnabled,
+    setAssistantEnabled,
+    assistantMode,
+    setAssistantMode,
   };
 }

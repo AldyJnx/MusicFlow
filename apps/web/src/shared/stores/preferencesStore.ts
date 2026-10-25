@@ -12,6 +12,8 @@ export type HeroVariant = "featured-track" | "featured-playlist" | "off";
 export type SidebarLayout = "numbered" | "playlists" | "both";
 export type PlayerLayout = "compact" | "expanded" | "auto";
 export type TabsLayout = "full" | "icons" | "off";
+export type DockPosition = "left" | "right";
+export type AssistantMode = "static" | "draggable";
 
 type PreferencesState = {
   theme: AppThemeId;
@@ -23,6 +25,11 @@ type PreferencesState = {
   playerLayout: PlayerLayout;
   showWave: boolean;
   tabsLayout: TabsLayout;
+  sidebarPosition: DockPosition;
+  queuePosition: DockPosition;
+  lyricsScale: number;
+  assistantEnabled: boolean;
+  assistantMode: AssistantMode;
 };
 
 type PreferencesActions = {
@@ -36,6 +43,11 @@ type PreferencesActions = {
   setShowWave: (show: boolean) => void;
   setTabsLayout: (layout: TabsLayout) => void;
   resetPersonalization: () => void;
+  setSidebarPosition: (position: DockPosition) => void;
+  setQueuePosition: (position: DockPosition) => void;
+  setLyricsScale: (scale: number) => void;
+  setAssistantEnabled: (enabled: boolean) => void;
+  setAssistantMode: (mode: AssistantMode) => void;
 };
 
 export type PreferencesStore = PreferencesState & PreferencesActions;
@@ -50,6 +62,11 @@ const STORAGE_KEYS = {
   player: "musicflow-player",
   wave: "musicflow-wave",
   tabs: "musicflow-tabs",
+  sidebarPosition: "musicflow-sidebar-position",
+  queuePosition: "musicflow-queue-position",
+  lyricsScale: "musicflow-lyrics-scale",
+  assistantEnabled: "musicflow-assistant-enabled",
+  assistantMode: "musicflow-assistant-mode",
 } as const;
 
 // Personalization must be owned by the authenticated account, not the browser
@@ -72,6 +89,11 @@ const DEFAULTS: PreferencesState = {
   playerLayout: "auto",
   showWave: true,
   tabsLayout: "full",
+  sidebarPosition: "left",
+  queuePosition: "right",
+  lyricsScale: 1,
+  assistantEnabled: true,
+  assistantMode: "static",
 };
 
 const listeners = new Set<() => void>();
@@ -138,6 +160,39 @@ const actions: PreferencesActions = {
     updateState({ tabsLayout: layout });
     preferenceStorage.setItem(scopedKey(STORAGE_KEYS.tabs), layout);
   },
+  setSidebarPosition(position) {
+    updateState({ sidebarPosition: position });
+    preferenceStorage.setItem(
+      scopedKey(STORAGE_KEYS.sidebarPosition),
+      position,
+    );
+  },
+  setQueuePosition(position) {
+    updateState({ queuePosition: position });
+    preferenceStorage.setItem(scopedKey(STORAGE_KEYS.queuePosition), position);
+  },
+  setLyricsScale(scale) {
+    const normalized = Math.min(
+      1.2,
+      Math.max(0.85, Number(scale) || DEFAULTS.lyricsScale),
+    );
+    updateState({ lyricsScale: normalized });
+    preferenceStorage.setItem(
+      scopedKey(STORAGE_KEYS.lyricsScale),
+      String(normalized),
+    );
+  },
+  setAssistantEnabled(enabled) {
+    updateState({ assistantEnabled: enabled });
+    preferenceStorage.setItem(
+      scopedKey(STORAGE_KEYS.assistantEnabled),
+      enabled ? "1" : "0",
+    );
+  },
+  setAssistantMode(mode) {
+    updateState({ assistantMode: mode });
+    preferenceStorage.setItem(scopedKey(STORAGE_KEYS.assistantMode), mode);
+  },
   resetPersonalization() {
     updateState({
       accentOverride: DEFAULTS.accentOverride,
@@ -147,6 +202,11 @@ const actions: PreferencesActions = {
       playerLayout: DEFAULTS.playerLayout,
       showWave: DEFAULTS.showWave,
       tabsLayout: DEFAULTS.tabsLayout,
+      sidebarPosition: DEFAULTS.sidebarPosition,
+      queuePosition: DEFAULTS.queuePosition,
+      lyricsScale: DEFAULTS.lyricsScale,
+      assistantEnabled: DEFAULTS.assistantEnabled,
+      assistantMode: DEFAULTS.assistantMode,
     });
     reapplyTheme();
     preferenceStorage.removeItem(scopedKey(STORAGE_KEYS.accent));
@@ -156,6 +216,11 @@ const actions: PreferencesActions = {
     preferenceStorage.removeItem(scopedKey(STORAGE_KEYS.player));
     preferenceStorage.removeItem(scopedKey(STORAGE_KEYS.wave));
     preferenceStorage.removeItem(scopedKey(STORAGE_KEYS.tabs));
+    preferenceStorage.removeItem(scopedKey(STORAGE_KEYS.sidebarPosition));
+    preferenceStorage.removeItem(scopedKey(STORAGE_KEYS.queuePosition));
+    preferenceStorage.removeItem(scopedKey(STORAGE_KEYS.lyricsScale));
+    preferenceStorage.removeItem(scopedKey(STORAGE_KEYS.assistantEnabled));
+    preferenceStorage.removeItem(scopedKey(STORAGE_KEYS.assistantMode));
   },
 };
 
@@ -217,6 +282,30 @@ export function initializePreferences() {
     ["full", "icons", "off"] as const,
     DEFAULTS.tabsLayout,
   );
+  const savedSidebarPosition = readEnum<DockPosition>(
+    scopedKey(STORAGE_KEYS.sidebarPosition),
+    ["left", "right"] as const,
+    DEFAULTS.sidebarPosition,
+  );
+  const savedQueuePosition = readEnum<DockPosition>(
+    scopedKey(STORAGE_KEYS.queuePosition),
+    ["left", "right"] as const,
+    DEFAULTS.queuePosition,
+  );
+  const savedAssistantMode = readEnum<AssistantMode>(
+    scopedKey(STORAGE_KEYS.assistantMode),
+    ["static", "draggable"] as const,
+    DEFAULTS.assistantMode,
+  );
+  const savedLyricsScaleRaw = Number(
+    preferenceStorage.getItem(scopedKey(STORAGE_KEYS.lyricsScale)),
+  );
+  const savedLyricsScale = Number.isFinite(savedLyricsScaleRaw)
+    ? Math.min(1.2, Math.max(0.85, savedLyricsScaleRaw))
+    : DEFAULTS.lyricsScale;
+  const savedAssistantEnabledRaw = preferenceStorage.getItem(
+    scopedKey(STORAGE_KEYS.assistantEnabled),
+  );
 
   state.theme = savedTheme;
   state.language = savedLang;
@@ -227,6 +316,14 @@ export function initializePreferences() {
   state.playerLayout = savedPlayer;
   state.showWave = savedWave === null ? DEFAULTS.showWave : savedWave === "1";
   state.tabsLayout = savedTabs;
+  state.sidebarPosition = savedSidebarPosition;
+  state.queuePosition = savedQueuePosition;
+  state.lyricsScale = savedLyricsScale;
+  state.assistantEnabled =
+    savedAssistantEnabledRaw === null
+      ? DEFAULTS.assistantEnabled
+      : savedAssistantEnabledRaw === "1";
+  state.assistantMode = savedAssistantMode;
 
   applyTheme(savedTheme, {
     accentOverride: state.accentOverride,

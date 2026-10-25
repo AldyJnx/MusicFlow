@@ -1,5 +1,27 @@
 # Reporte de seguridad y errores de MusicFlow
 
+### Preferencias de distribución y gestos de pista no disponibles
+
+- **Identificador:** BUG-2026-037
+- **Fecha:** 2026-10-25
+- **Entorno afectado:** `apps/web/` (navegador y Desktop Electron)
+- **Síntoma:** el panel de cola y el sidebar no podían cambiar de lado desde
+  Ajustes, el tamaño de la letra no era configurable y el asistente no tenía
+  un control unificado de activación/arrastre. Los deslizamientos horizontales
+  del trackpad tampoco avanzaban o retrocedían la pista.
+- **Causa raíz:** las preferencias solo conservaban opciones visuales antiguas
+  y no existía un puente para los eventos nativos de swipe; el navegador no
+  tenía una ruta de respaldo para los eventos horizontales de precisión.
+- **Solución:** se añadieron preferencias persistidas por cuenta para posición
+  del sidebar/cola, escala de letras y estado/modo del asistente. Los paneles
+  respetan esos docks, FlowIA puede ocultarse o arrastrarse y la vista de letras
+  aplica la escala seleccionada. Electron reenvía swipes nativos y web/Electron
+  acumulan el desplazamiento horizontal del trackpad para ejecutar siguiente o
+  anterior sin bloquear el scroll vertical.
+- **Verificación:** `pnpm exec tsc -b` en `apps/web/` correcto; sintaxis
+  Electron pendiente de comprobación final tras el empaquetado.
+- **Estado:** corregido; verificación de empaquetado pendiente.
+
 ### Navbar y cola superpuestos por la barra de título de Electron
 
 - **Identificador:** BUG-2026-036

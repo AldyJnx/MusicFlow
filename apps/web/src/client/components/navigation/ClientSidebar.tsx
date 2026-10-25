@@ -26,6 +26,8 @@ interface ClientSidebarProps {
   /** Opens the rename/delete controls for a library owned by this user. */
   onEditLibrary?: (playlist: Playlist) => void;
   onDeleteLibrary?: (playlist: Playlist) => void;
+  position?: "left" | "right";
+  offset?: number;
 }
 
 const GRADS = [
@@ -75,6 +77,8 @@ export default function ClientSidebar({
   onOpenCreateLibrary,
   onEditLibrary,
   onDeleteLibrary,
+  position = "left",
+  offset = 0,
 }: ClientSidebarProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -117,9 +121,12 @@ export default function ClientSidebar({
 
   return (
     <aside
-      className={`electron-viewport-panel fixed inset-y-0 left-0 z-[60] hidden h-screen flex-none flex-col gap-[3px] overflow-hidden border-r border-[var(--color-line)] bg-[rgba(8,8,16,.42)] py-5 backdrop-blur-[var(--glass-blur)] transition-all duration-300 lg:flex ${
+      className={`electron-viewport-panel fixed inset-y-0 z-[60] hidden h-screen flex-none flex-col gap-[3px] overflow-hidden bg-[rgba(8,8,16,.42)] py-5 backdrop-blur-[var(--glass-blur)] transition-all duration-300 lg:flex ${
+        position === "left" ? "left-0 border-r" : "right-0 border-l"
+      } border-[var(--color-line)] ${
         collapsed ? "w-[72px] px-3" : "w-[196px] px-3.5"
       }`}
+      style={position === "left" ? { left: offset } : { right: offset }}
     >
       {/* Logo row */}
       <div
@@ -149,7 +156,11 @@ export default function ClientSidebar({
             title={t("sidebar.collapse", { defaultValue: "Plegar menú" })}
             className="flex h-8 w-8 flex-none items-center justify-center rounded-lg border border-[var(--color-line)] bg-white/[0.03] text-[var(--color-muted)] transition hover:text-[var(--color-text)]"
           >
-            <ChevronLeft className="h-4 w-4" strokeWidth={2} />
+            {position === "left" ? (
+              <ChevronLeft className="h-4 w-4" strokeWidth={2} />
+            ) : (
+              <ChevronRight className="h-4 w-4" strokeWidth={2} />
+            )}
           </button>
         ) : null}
       </div>
@@ -181,7 +192,13 @@ export default function ClientSidebar({
             style={
               !collapsed
                 ? {
-                    borderLeft: `2px solid ${active ? "var(--color-primary)" : "transparent"}`,
+                    ...(position === "left"
+                      ? {
+                          borderLeft: `2px solid ${active ? "var(--color-primary)" : "transparent"}`,
+                        }
+                      : {
+                          borderRight: `2px solid ${active ? "var(--color-primary)" : "transparent"}`,
+                        }),
                   }
                 : undefined
             }

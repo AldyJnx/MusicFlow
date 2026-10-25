@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { usePlayerStore } from "../stores/playStore";
+import { usePreferences } from "../../shared/hooks/usePreferences";
 
 const GRADS = [
   "linear-gradient(135deg,#7c5ce8,#e85cc0)",
@@ -74,9 +75,13 @@ function QueueBars() {
 export default function RightPanel({
   collapsed,
   onToggle,
+  position = "right",
+  offset = 0,
 }: {
   collapsed: boolean;
   onToggle: () => void;
+  position?: "left" | "right";
+  offset?: number;
 }) {
   const { t } = useTranslation();
   const currentTrack = usePlayerStore((s) => s.currentTrack);
@@ -85,6 +90,7 @@ export default function RightPanel({
   const playTrackList = usePlayerStore((s) => s.playTrackList);
   const openAiPrompt = usePlayerStore((s) => s.openAiPrompt);
   const [tab, setTab] = useState<"queue" | "chat">("queue");
+  const { assistantEnabled } = usePreferences();
 
   const upcoming = queue
     .slice(queueIndex + 1)
@@ -94,16 +100,19 @@ export default function RightPanel({
     return (
       <div
         data-testid="right-panel"
-        className="electron-viewport-panel fixed inset-y-0 right-0 z-[60] hidden h-screen w-16 flex-none flex-col items-center gap-2.5 border-l border-[var(--color-line)] bg-[rgba(8,8,16,.4)] px-0 pb-3.5 pt-[58px] backdrop-blur-[var(--glass-blur)] lg:flex"
+        className={`electron-viewport-panel fixed inset-y-0 z-[60] hidden h-screen w-16 flex-none flex-col items-center gap-2.5 border-[var(--color-line)] bg-[rgba(8,8,16,.4)] px-0 pb-3.5 pt-[58px] backdrop-blur-[var(--glass-blur)] lg:flex ${position === "left" ? "left-0 border-r" : "right-0 border-l"}`}
+        style={position === "left" ? { left: offset } : { right: offset }}
       >
-        <button
-          type="button"
-          onClick={onToggle}
-          title={t("right.expand", { defaultValue: "Expandir panel" })}
-          className="flex h-[34px] w-[34px] flex-none items-center justify-center rounded-[9px] border border-[var(--color-line)] bg-white/[0.03] text-[var(--color-muted)] transition hover:text-[var(--color-text)]"
-        >
-          <ChevronLeft className="h-4 w-4" strokeWidth={2} />
-        </button>
+        {assistantEnabled ? (
+          <button
+            type="button"
+            onClick={onToggle}
+            title={t("right.expand", { defaultValue: "Expandir panel" })}
+            className="flex h-[34px] w-[34px] flex-none items-center justify-center rounded-[9px] border border-[var(--color-line)] bg-white/[0.03] text-[var(--color-muted)] transition hover:text-[var(--color-text)]"
+          >
+            <ChevronLeft className="h-4 w-4" strokeWidth={2} />
+          </button>
+        ) : null}
         <button
           type="button"
           onClick={() => openAiPrompt()}
@@ -159,7 +168,8 @@ export default function RightPanel({
   return (
     <aside
       data-testid="right-panel"
-      className="electron-viewport-panel fixed inset-y-0 right-0 z-[60] hidden h-screen w-[322px] flex-none flex-col border-l border-[var(--color-line)] bg-[rgba(8,8,16,.4)] backdrop-blur-[var(--glass-blur)] lg:flex"
+      className={`electron-viewport-panel fixed inset-y-0 z-[60] hidden h-screen w-[322px] flex-none flex-col border-[var(--color-line)] bg-[rgba(8,8,16,.4)] backdrop-blur-[var(--glass-blur)] lg:flex ${position === "left" ? "left-0 border-r" : "right-0 border-l"}`}
+      style={position === "left" ? { left: offset } : { right: offset }}
     >
       <header className="flex h-[62px] flex-none items-center gap-2 border-b border-[var(--color-line)] px-3">
         <button
@@ -170,7 +180,11 @@ export default function RightPanel({
         >
           <ChevronRight className="h-4 w-4" strokeWidth={2} />
         </button>
-        {(["queue", "chat"] as const).map((id) => (
+        {(
+          ["queue", ...(assistantEnabled ? ["chat"] : [])] as Array<
+            "queue" | "chat"
+          >
+        ).map((id) => (
           <button
             key={id}
             type="button"

@@ -1,9 +1,11 @@
 import { Music } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useTranslation } from "react-i18next";
+import { useState } from "react";
 
 import { usePlayerStore } from "../stores/playStore";
 import BorderGlow from "../../shared/ui/reactbits/BorderGlow";
+import { usePreferences } from "../../shared/hooks/usePreferences";
 
 /**
  * Persistent floating action button for the AI assistant — always within reach
@@ -19,6 +21,9 @@ export default function AIAssistantFab() {
   const aiPromptOpen = usePlayerStore((s) => s.aiPromptOpen);
   const currentTrack = usePlayerStore((s) => s.currentTrack);
   const isExpanded = usePlayerStore((s) => s.isExpanded);
+  const { assistantEnabled, assistantMode } = usePreferences();
+  const [drag, setDrag] = useState({ x: 0, y: 0 });
+  const [dragging, setDragging] = useState(false);
 
   // The mini-player is a 78px sticky bar shown only while a track plays and the
   // player isn't expanded — lift the FAB above it so they never collide.
@@ -27,7 +32,7 @@ export default function AIAssistantFab() {
   // Hide the FAB while the quick prompt is open OR the expanded player is up —
   // the expanded player already has an explicit "Ajustar con IA" CTA, so the
   // floating button would be a redundant second AI entry point there.
-  const hidden = aiPromptOpen || isExpanded;
+  const hidden = !assistantEnabled || aiPromptOpen || isExpanded;
 
   return (
     <AnimatePresence>
@@ -35,10 +40,23 @@ export default function AIAssistantFab() {
         <motion.button
           type="button"
           onClick={() => openAiPrompt()}
+          onPointerDown={(event) => {
+            if (assistantMode !== "draggable") return;
+            setDragging(true);
+            event.currentTarget.setPointerCapture(event.pointerId);
+          }}
+          onPointerMove={(event) => {
+            if (!dragging || assistantMode !== "draggable") return;
+            setDrag((current) => ({
+              x: current.x + event.movementX,
+              y: current.y + event.movementY,
+            }));
+          }}
+          onPointerUp={() => setDragging(false)}
           title={t("right.assistant", { defaultValue: "Asistente IA" })}
           aria-label={t("right.assistant", { defaultValue: "Asistente IA" })}
           initial={reduce ? false : { opacity: 0, scale: 0.6, y: 14 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
+          animate={{ opacity: 1, scale: 1, x: drag.x, y: drag.y }}
           exit={reduce ? { opacity: 0 } : { opacity: 0, scale: 0.6, y: 14 }}
           whileHover={reduce ? undefined : { scale: 1.06 }}
           whileTap={reduce ? undefined : { scale: 0.92 }}
@@ -47,6 +65,12 @@ export default function AIAssistantFab() {
             background:
               "linear-gradient(135deg,var(--color-primary),var(--color-accent))",
             bottom: miniPlayerVisible ? 96 : 20,
+            cursor:
+              assistantMode === "draggable"
+                ? dragging
+                  ? "grabbing"
+                  : "grab"
+                : "pointer",
           }}
           className="group fixed right-5 z-40 flex h-14 w-14 items-center justify-center rounded-full text-white shadow-[0_16px_38px_-8px_var(--color-primary)] lg:right-[84px]"
         >

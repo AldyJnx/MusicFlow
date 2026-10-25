@@ -1,12 +1,11 @@
 import type { ReactNode } from "react";
 import {
-  AudioLines,
   CheckCircle2,
-  CircleDot,
+  GripHorizontal,
   Palette,
-  SlidersHorizontal,
+  PanelRight,
+  Sparkles,
 } from "lucide-react";
-import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import ClientLayout from "../layout/ClientLayout";
@@ -46,7 +45,6 @@ function Toggle({
   return (
     <button
       type="button"
-      disabled
       aria-pressed={enabled}
       onClick={onToggle}
       className={`relative inline-flex h-7 w-12 items-center rounded-full border transition ${
@@ -70,10 +68,68 @@ const LANG_FLAGS = {
 };
 void LANG_FLAGS;
 
+function Choice<T extends string>({
+  value,
+  onChange,
+  options,
+  disabled = false,
+}: {
+  value: T;
+  onChange: (value: T) => void;
+  options: Array<{ value: T; label: string }>;
+  disabled?: boolean;
+}) {
+  return (
+    <div className="flex gap-1 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-alt)] p-1">
+      {options.map((option) => (
+        <button
+          key={option.value}
+          type="button"
+          disabled={disabled}
+          onClick={() => onChange(option.value)}
+          className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${value === option.value ? "bg-[var(--color-primary)] text-white" : "text-[var(--color-muted)] hover:text-[var(--color-text)]"} disabled:cursor-not-allowed disabled:opacity-40`}
+        >
+          {option.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function PreferenceCard({
+  icon,
+  title,
+  description,
+  children,
+}: {
+  icon: ReactNode;
+  title: string;
+  description: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
+      <SectionTitle icon={icon} title={title} subtitle={description} />
+      <div className="mt-5">{children}</div>
+    </div>
+  );
+}
+
 export default function SettingsPage() {
-  const [normalizeVolume, setNormalizeVolume] = useState(true);
-  const [gaplessPlayback, setGaplessPlayback] = useState(true);
-  const { theme: activeTheme, setTheme } = usePreferences();
+  const {
+    theme: activeTheme,
+    setTheme,
+    sidebarPosition,
+    setSidebarPosition,
+    queuePosition,
+    setQueuePosition,
+    lyricsScale,
+    setLyricsScale,
+    assistantEnabled,
+    setAssistantEnabled,
+    assistantMode,
+    setAssistantMode,
+  } = usePreferences();
   const { t } = useTranslation();
 
   return (
@@ -97,10 +153,8 @@ export default function SettingsPage() {
               })}
             </p>
             <p className="mt-2 max-w-2xl text-xs text-[var(--color-muted)]">
-              Temas, colores y personalización se aplican y se guardan. Las
-              opciones de normalización, crossfade y configuración del motor se
-              muestran como próximamente porque todavía no están conectadas al
-              motor de audio.
+              Temas, distribución y preferencias de asistencia se aplican y se
+              guardan por cuenta.
             </p>
           </div>
 
@@ -172,128 +226,88 @@ export default function SettingsPage() {
           </div>
 
           <PersonalizationSection />
-
-          <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-            <div className="flex flex-col gap-4">
-              <SectionTitle
-                icon={<AudioLines className="h-4 w-4" strokeWidth={2.3} />}
-                title={`${t("settings.audio.title")} · próximamente`}
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+            <PreferenceCard
+              icon={<PanelRight className="h-4 w-4" />}
+              title="Sidebar"
+              description="Elige en qué lado se muestra la navegación principal."
+            >
+              <Choice
+                value={sidebarPosition}
+                onChange={setSidebarPosition}
+                options={[
+                  { value: "left", label: "Izquierda" },
+                  { value: "right", label: "Derecha" },
+                ]}
               />
-
-              <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
-                <div className="flex items-start justify-between gap-4 border-b border-[var(--color-border)] pb-5">
-                  <div>
-                    <h3 className="text-lg font-semibold tracking-tight text-[var(--color-text)]">
-                      {t("settings.audio.streamingQuality")}
-                    </h3>
-                    <p className="mt-1 text-sm text-[var(--color-muted)]">
-                      {t("settings.audio.streamingQualityDesc")}
-                    </p>
-                  </div>
-
-                  <span className="rounded-lg border border-[var(--color-primary)] bg-[var(--color-secondary)] px-3 py-1 text-xs font-semibold text-[var(--color-primary)]">
-                    {t("settings.audio.premium")}
+            </PreferenceCard>
+            <PreferenceCard
+              icon={<PanelRight className="h-4 w-4" />}
+              title="Cola - Reproducción"
+              description="El panel de cola se mantiene a la derecha por defecto."
+            >
+              <Choice
+                value={queuePosition}
+                onChange={setQueuePosition}
+                options={[
+                  { value: "left", label: "Izquierda" },
+                  { value: "right", label: "Derecha" },
+                ]}
+              />
+            </PreferenceCard>
+            <PreferenceCard
+              icon={<GripHorizontal className="h-4 w-4" />}
+              title="Letra"
+              description="Ajusta el tamaño de las letras durante la reproducción."
+            >
+              <div className="flex items-center gap-3">
+                <input
+                  aria-label="Escala de letra"
+                  type="range"
+                  min="0.85"
+                  max="1.2"
+                  step="0.05"
+                  value={lyricsScale}
+                  onChange={(event) =>
+                    setLyricsScale(Number(event.target.value))
+                  }
+                  className="w-full accent-[var(--color-primary)]"
+                />
+                <button
+                  type="button"
+                  onClick={() => setLyricsScale(1)}
+                  className="text-xs font-semibold text-[var(--color-primary)]"
+                >
+                  Default
+                </button>
+              </div>
+            </PreferenceCard>
+            <PreferenceCard
+              icon={<Sparkles className="h-4 w-4" />}
+              title="Asistente IA"
+              description="Controla la presencia y el comportamiento del asistente FlowIA."
+            >
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <Toggle
+                    enabled={assistantEnabled}
+                    onToggle={() => setAssistantEnabled(!assistantEnabled)}
+                  />
+                  <span className="text-sm text-[var(--color-muted)]">
+                    {assistantEnabled ? "Activo" : "Desactivado"}
                   </span>
                 </div>
-
-                <div className="flex items-center justify-between gap-4 pt-5">
-                  <div>
-                    <h3 className="text-lg font-semibold tracking-tight text-[var(--color-text)]">
-                      {t("settings.audio.normalize")}
-                    </h3>
-                    <p className="mt-1 text-sm text-[var(--color-muted)]">
-                      {t("settings.audio.normalizeDesc")}
-                    </p>
-                  </div>
-
-                  <Toggle
-                    enabled={normalizeVolume}
-                    onToggle={() => setNormalizeVolume((c) => !c)}
-                  />
-                </div>
+                <Choice
+                  value={assistantMode}
+                  onChange={setAssistantMode}
+                  options={[
+                    { value: "static", label: "Estático" },
+                    { value: "draggable", label: "Arrastrable" },
+                  ]}
+                  disabled={!assistantEnabled}
+                />
               </div>
-            </div>
-
-            <div className="flex flex-col gap-4">
-              <SectionTitle
-                icon={<CircleDot className="h-4 w-4" strokeWidth={2.3} />}
-                title={`${t("settings.playback.title")} · próximamente`}
-              />
-
-              <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
-                <div className="border-b border-[var(--color-border)] pb-5">
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <h3 className="text-lg font-semibold tracking-tight text-[var(--color-text)]">
-                        {t("settings.playback.crossfade")}
-                      </h3>
-                      <p className="mt-1 text-sm text-[var(--color-muted)]">
-                        {t("settings.playback.crossfadeDesc")}
-                      </p>
-                    </div>
-
-                    <span className="text-sm font-semibold text-[var(--color-primary)]">
-                      6.5 s
-                    </span>
-                  </div>
-
-                  <div className="mt-5 h-1.5 rounded-full bg-[var(--color-border)]">
-                    <div className="relative h-full w-[58%] rounded-full bg-[linear-gradient(90deg,var(--color-primary)_0%,var(--color-primary)_100%)]">
-                      <span className="absolute right-0 top-1/2 h-3.5 w-3.5 -translate-y-1/2 rounded-full border-2 border-white bg-[var(--color-primary)]" />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between gap-4 pt-5">
-                  <div>
-                    <h3 className="text-lg font-semibold tracking-tight text-[var(--color-text)]">
-                      {t("settings.playback.gapless")}
-                    </h3>
-                    <p className="mt-1 text-sm text-[var(--color-muted)]">
-                      {t("settings.playback.gaplessDesc")}
-                    </p>
-                  </div>
-
-                  <Toggle
-                    enabled={gaplessPlayback}
-                    onToggle={() => setGaplessPlayback((c) => !c)}
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between gap-6 rounded-3xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
-            <div className="max-w-2xl">
-              <h2 className="text-3xl font-semibold tracking-tight text-[var(--color-text)]">
-                {t("settings.engine.title")}
-              </h2>
-              <p className="mt-3 text-sm leading-7 text-[var(--color-muted)] sm:text-base">
-                {t("settings.engine.description")}
-              </p>
-
-              <div className="mt-6 flex flex-wrap gap-3">
-                <button
-                  type="button"
-                  disabled
-                  className="rounded-xl bg-[linear-gradient(180deg,var(--color-cta-start)_0%,var(--color-cta-end)_100%)] px-5 py-3 text-sm font-semibold text-white shadow-[0_10px_24px_rgba(0,0,0,0.28)] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-45"
-                >
-                  {t("settings.engine.configure")}
-                </button>
-
-                <button
-                  type="button"
-                  disabled
-                  className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-alt)] px-5 py-3 text-sm font-semibold text-[var(--color-text)] transition hover:border-[var(--color-primary)] hover:bg-[var(--color-secondary)] disabled:cursor-not-allowed disabled:opacity-45"
-                >
-                  {t("settings.engine.reset")}
-                </button>
-              </div>
-            </div>
-
-            <div className="hidden rounded-2xl bg-[var(--color-surface-alt)] p-5 text-[var(--color-muted)] lg:block">
-              <SlidersHorizontal className="h-20 w-20" strokeWidth={1.5} />
-            </div>
+            </PreferenceCard>
           </div>
         </div>
       </section>

@@ -21,6 +21,8 @@ import { usePlayerStore } from "../stores/playStore";
 import { useSegmentEngineSync } from "../../shared/hooks/useTrackSegments";
 import { useAutoApplyEQ } from "../../shared/hooks/useAutoApplyEQ";
 import { useRecordPlays } from "../../shared/hooks/useAnalytics";
+import { usePreferences } from "../../shared/hooks/usePreferences";
+import { getElectronAPI } from "../../platform/electronAPI";
 
 export default function ClientLayout({ children }: { children: ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
@@ -34,6 +36,7 @@ export default function ClientLayout({ children }: { children: ReactNode }) {
   const navbarRef = useRef<NavbarRef>(null);
   const navigate = useNavigate();
   const location = useLocation();
+  const { sidebarPosition, queuePosition, lyricsScale } = usePreferences();
 
   useEffect(() => {
     const media = window.matchMedia("(min-width: 1024px)");
@@ -45,6 +48,61 @@ export default function ClientLayout({ children }: { children: ReactNode }) {
 
   const sidebarWidth = isDesktop ? (collapsed ? 72 : 196) : 0;
   const rightPanelWidth = isDesktop ? (rightCollapsed ? 64 : 322) : 0;
+  const sidebarOnLeft = sidebarPosition === "left";
+  const queueOnLeft = queuePosition === "left";
+  const sidebarOffset =
+    sidebarOnLeft && queueOnLeft
+      ? 0
+      : !sidebarOnLeft && !queueOnLeft
+        ? rightPanelWidth
+        : 0;
+  const queueOffset =
+    queueOnLeft && sidebarOnLeft
+      ? sidebarWidth
+      : !queueOnLeft && !sidebarOnLeft
+        ? 0
+        : 0;
+  const contentLeft =
+    (sidebarOnLeft ? sidebarWidth : 0) + (queueOnLeft ? rightPanelWidth : 0);
+  const contentRight =
+    (sidebarOnLeft ? 0 : sidebarWidth) + (queueOnLeft ? 0 : rightPanelWidth);
+
+  useEffect(() => {
+    let accumulated = 0;
+    let resetTimer: number | undefined;
+    let cooldownUntil = 0;
+    const navigateTrack = (direction: "next" | "previous") => {
+      const now = Date.now();
+      if (now < cooldownUntil) return;
+      cooldownUntil = now + 650;
+      accumulated = 0;
+      const player = usePlayerStore.getState();
+      void (direction === "next" ? player.next() : player.previous());
+    };
+    const handleWheel = (event: WheelEvent) => {
+      if (
+        Math.abs(event.deltaX) < Math.abs(event.deltaY) * 1.35 ||
+        Math.abs(event.deltaX) < 8
+      )
+        return;
+      accumulated += event.deltaX;
+      window.clearTimeout(resetTimer);
+      resetTimer = window.setTimeout(() => {
+        accumulated = 0;
+      }, 420);
+      if (Math.abs(accumulated) < 90) return;
+      navigateTrack(accumulated < 0 ? "next" : "previous");
+    };
+    window.addEventListener("wheel", handleWheel, { passive: true });
+    const unsubscribe = getElectronAPI()?.onSwipe?.((direction) =>
+      navigateTrack(direction === "left" ? "next" : "previous"),
+    );
+    return () => {
+      window.removeEventListener("wheel", handleWheel);
+      window.clearTimeout(resetTimer);
+      unsubscribe?.();
+    };
+  }, []);
 
   // Keep the audio engine's segment scheduler in sync with the current track.
   // Mounted exactly once here so MiniPlayer/ExpandedPlayer mounts/unmounts
@@ -73,23 +131,31 @@ export default function ClientLayout({ children }: { children: ReactNode }) {
           setDeleteLibraryOpen(true);
           setEditingLibrary(playlist);
         }}
+        position={sidebarPosition}
+        offset={sidebarOffset}
       />
       <div
         className="relative z-10 flex min-h-screen min-w-0 flex-1 flex-col transition-[margin] duration-300"
-        style={{ marginLeft: sidebarWidth, marginRight: rightPanelWidth }}
+        style={{
+          marginLeft: contentLeft,
+          marginRight: contentRight,
+          ["--lyrics-scale" as string]: lyricsScale,
+        }}
       >
         <Navbar ref={navbarRef} />
         <main className="flex-1">{children}</main>
         <ExpandedPlayer
-          sidebarOffset={sidebarWidth}
-          rightPanelOffset={rightPanelWidth}
+          sidebarOffset={contentLeft}
+          rightPanelOffset={contentRight}
         />
-        <MiniPlayer sidebarOffset={sidebarWidth} />
+        <MiniPlayer sidebarOffset={contentLeft} />
       </div>
 
       <RightPanel
         collapsed={rightCollapsed}
         onToggle={() => setRightCollapsed((c) => !c)}
+        position={queuePosition}
+        offset={queueOffset}
       />
 
       {/* Overlays driven from the persistent player. Mounted once at the

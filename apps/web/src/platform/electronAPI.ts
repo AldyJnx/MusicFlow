@@ -30,6 +30,7 @@ interface ElectronBridge {
     isMaximized(): Promise<boolean>;
     onMaximizedChange(callback: (isMaximized: boolean) => void): () => void;
   };
+  onSwipe(callback: (direction: "left" | "right") => void): () => void;
 }
 
 declare global {

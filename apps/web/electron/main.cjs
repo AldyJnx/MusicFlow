@@ -93,6 +93,11 @@ function createWindow() {
         mainWindow.setIcon(appIcon)
     }
     installZoomShortcuts(mainWindow)
+    // Native trackpad swipes are emitted by Electron on macOS. Forward them
+    // to the renderer; Windows/Linux precision touchpads use the wheel fallback.
+    mainWindow.webContents.on('swipe', (_event, direction) => {
+        mainWindow?.webContents.send('system:swipe', direction)
+    })
 
     // Always open as a centered, windowed desktop app. Do not inherit a
     // maximized/full-screen state from the previous Electron process.

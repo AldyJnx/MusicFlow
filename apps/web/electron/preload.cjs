@@ -34,4 +34,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
             return () => ipcRenderer.removeListener('window:maximized-changed', listener)
         },
     },
+    onSwipe(callback) {
+        const listener = (_event, direction) => callback(direction)
+        ipcRenderer.on('system:swipe', listener)
+        return () => ipcRenderer.removeListener('system:swipe', listener)
+    },
 })
