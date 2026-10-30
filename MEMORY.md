@@ -106,11 +106,19 @@ artistas, álbumes, canciones, portadas o colaboraciones.
 
 ## Coherencia visual, letras y reproducción
 
+- Todas las alertas transitorias de éxito, error, descarga o acción completada
+  deben mostrarse en la zona superior de la interfaz, con un estado semántico,
+  texto claro y una forma de descartarlas. No coloques avisos de este tipo en
+  medio de tablas, formularios o contenido desplazable.
+
 - Cada tema de UI/UX debe aplicarse de manera coherente a todos los elementos
   visuales. Los colores de controles, superficies, estados e iconos deben
   proceder de la paleta del tema activo; no se permiten componentes con colores
   ajenos o contradictorios (por ejemplo, rojo y amarillo en un tema azul y
   blanco) salvo que comuniquen un estado semántico indispensable.
+- Todo gráfico debe incluir leyendas explícitas y legibles para sus ejes X e Y;
+  el título de su tarjeta no sustituye la identificación de la métrica, unidad
+  o periodo que representa cada eje.
 - Las animaciones de letras Clásico y Brillo deben conservar el mismo
   comportamiento perceptible en `apps/web/` y `apps/mobile/`. En particular,
   Brillo debe avanzar de forma fluida, palabra por palabra, conforme avanza el
@@ -123,6 +131,26 @@ artistas, álbumes, canciones, portadas o colaboraciones.
   sonando una pista anterior.
 
 ## Rendimiento y accesibilidad de interacción
+
+## Roles, planes y autorización
+
+- Los roles `CLIENT`, `ARTIST` y `ADMIN` son responsabilidades distintas:
+  `CLIENT` consume MusicFlow, `ARTIST` obtiene permisos mediante una membresía
+  aprobada sobre un perfil concreto y `ADMIN` opera el catálogo y sus revisiones.
+  Nunca se debe deducir acceso por el nombre, correo o una decisión del cliente.
+- La autorización se impone siempre en el backend. Los controles de web y móvil
+  solo reflejan el permiso para evitar acciones engañosas; no sustituyen guards,
+  validaciones ni comprobaciones de membresía en el servidor.
+- El plan FREE permite escuchar y administrar la biblioteca personal. FlowIA,
+  sus accesos en reproductores, ecualizador, cola, rutas y burbujas son una
+  funcionalidad exclusiva de PREMIUM. Un usuario FREE no puede invocarla aunque
+  conserve una URL, estado local o un control de una sesión anterior.
+- El plan PREMIUM incluye FlowIA. Las demás capacidades de pago deben declararse
+  explícitamente en la fuente de verdad de planes antes de mostrarse como tales;
+  no se deben etiquetar funcionalidades como Premium por apariencia.
+- Un sello de artista verificado solo se muestra cuando `Artist.isVerified` fue
+  aprobado por un administrador. Las solicitudes requieren una membresía activa
+  de OWNER o MANAGER y una revisión administrativa; nunca se autoaprueban.
 
 - Prioriza los tiempos de carga y la respuesta de navegación en todos los
   entornos, especialmente en `apps/web/` y `apps/mobile/`. Una navegación no

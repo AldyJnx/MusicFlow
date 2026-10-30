@@ -84,9 +84,65 @@ pruebas. Usa `.env`, variables del entorno o secretos del CI.
    docker compose up -d --build
    ```
 
-> `docker-compose.prod.yml` todavía describe una arquitectura Django/Celery
-> antigua y no corresponde al backend NestJS actual. No debe usarse para un
-> despliegue de MusicFlow hasta que sea reemplazado.
+## Producción en VPS
+
+Estos comandos se ejecutan desde la raíz de `MusicFlow` en la VPS. Requieren un
+archivo `.env.vps` creado a partir de `.env.vps.example`. La guía completa,
+incluidos DNS, TLS, respaldo y recuperación, está en `DEPLOY.md`.
+
+1. Validar variables y la definición de Docker Compose sin iniciar servicios:
+
+   ```bash
+   docker compose --env-file .env.vps -f docker-compose.prod.yml config --quiet
+   ```
+
+2. Construir el backend y la etapa que ejecuta las migraciones:
+
+   ```bash
+   docker compose --env-file .env.vps -f docker-compose.prod.yml build backend migrate
+   ```
+
+3. Iniciar PostgreSQL, Redis, migraciones, backend y Caddy:
+
+   ```bash
+   docker compose --env-file .env.vps -f docker-compose.prod.yml up -d
+   ```
+
+4. Consultar estado y registros de arranque:
+
+   ```bash
+   docker compose --env-file .env.vps -f docker-compose.prod.yml ps
+   docker compose --env-file .env.vps -f docker-compose.prod.yml logs --tail=200 migrate backend caddy
+   ```
+
+5. Seguir únicamente los registros de la API:
+
+   ```bash
+   docker compose --env-file .env.vps -f docker-compose.prod.yml logs -f backend
+   ```
+
+6. Detener los servicios conservando PostgreSQL, Redis y certificados:
+
+   ```bash
+   docker compose --env-file .env.vps -f docker-compose.prod.yml down
+   ```
+
+   No agregues `--volumes` en producción: eliminaría los datos persistentes.
+
+7. Aplicar migraciones pendientes como operación aislada:
+
+   ```bash
+   docker compose --env-file .env.vps -f docker-compose.prod.yml run --rm migrate
+   ```
+
+8. Crear un respaldo PostgreSQL en formato personalizado:
+
+   ```bash
+   mkdir -p backups
+   docker compose --env-file .env.vps -f docker-compose.prod.yml exec -T db \
+     pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Fc \
+     > "backups/musicflow-$(date +%Y%m%d-%H%M%S).dump"
+   ```
 
 ## Backend (`apps/backend/`)
 
@@ -409,6 +465,27 @@ pnpm dlx lighthouse http://127.0.0.1:4173 --output=json --output-path=lighthouse
 Lighthouse mide entrega y experiencia de una página; no sustituye las pruebas
 de concurrencia de API realizadas con k6.
 
+### Perfil de estabilidad y rendimiento móvil
+
+No existe una prueba de carga de red equivalente dentro de Flutter: la carga
+concurrente de la API se mide con k6 desde `apps/backend/`. Para comprobar que
+la aplicación móvil conserva fluidez durante recorridos repetidos, ejecuta las
+pruebas de integración en un dispositivo real o emulador y usa perfil de
+Flutter. No declares una prueba móvil de estrés como completada en Windows,
+Chrome o Edge: esos destinos no representan la ejecución Android/iOS.
+
+```powershell
+# Sustituye ANDROID_ID por el valor mostrado por `flutter devices`.
+flutter run -d ANDROID_ID --profile --trace-startup --dart-define-from-file=config/development.json
+flutter test integration_test -d ANDROID_ID
+
+# Repetición de estabilidad: detén el ciclo si una iteración falla.
+1..10 | ForEach-Object { flutter test integration_test -d ANDROID_ID; if ($LASTEXITCODE -ne 0) { break } }
+```
+
+En macOS se aplica el mismo procedimiento con un simulador o dispositivo iOS
+seleccionado mediante `-d ID_DEL_DISPOSITIVO`.
+
 ## Mobile (`apps/mobile/`)
 
 Ejecuta esta sección desde `apps/mobile/`.
@@ -557,6 +634,27 @@ terminales:
    el empaquetador de distribución activo; Electron Forge está instalado para
    mantener compatibilidad con su flujo de trabajo, pero no genera el release
    para evitar dos configuraciones de empaquetado en conflicto.
+
+### Rendimiento y estabilidad del renderer Electron
+
+Electron comparte el renderer Vite con la web. Mide su entrega con Lighthouse
+contra el servidor de vista previa y comprueba el ciclo nativo de arranque,
+navegación y cierre con las pruebas E2E. La concurrencia contra la API sigue
+siendo responsabilidad de k6 en `apps/backend/`.
+
+```powershell
+# Terminal 1: renderer de producción para tres muestras Lighthouse.
+pnpm --filter web run build
+pnpm --filter web run preview -- --host 127.0.0.1
+
+# Terminal 2: tras una visita de calentamiento.
+pnpm dlx lighthouse http://127.0.0.1:4173 --output=json --output-path=electron-lighthouse-1.json --chrome-flags="--headless"
+pnpm dlx lighthouse http://127.0.0.1:4173 --output=json --output-path=electron-lighthouse-2.json --chrome-flags="--headless"
+pnpm dlx lighthouse http://127.0.0.1:4173 --output=json --output-path=electron-lighthouse-3.json --chrome-flags="--headless"
+
+# Estabilidad del renderer compartido.
+pnpm --filter web run test:e2e -- --project=chromium
+```
 
 7. Generar los instalables de Linux o macOS:
 

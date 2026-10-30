@@ -4,3 +4,7 @@ packages:
   - "packages/*"
   # Flutter app is external to pnpm
   - "!apps/mobile"
+
+overrides:
+  handlebars: 4.7.10
+  proxy-addr: 2.0.8

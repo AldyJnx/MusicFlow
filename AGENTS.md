@@ -38,3 +38,11 @@ objetivo real.
 - Si se agrega, elimina o modifica un script de `package.json`, una tarea de
   Flutter, un flujo Electron, una migración, una herramienta de calidad o un
   procedimiento operativo, actualiza `COMMANDS.md` en la misma tarea.
+
+## Preparación de commits
+
+Cuando el usuario solicite preparar o crear commits, lee completamente
+[`COMMIT.md`](COMMIT.md) y aplica su convención. Agrega únicamente rutas
+explícitas y relacionadas; nunca uses `git add .` ni otra variante de agregado
+masivo. No hagas `push`, `amend`, `force-push`, tags ni pull requests sin una
+solicitud expresa.

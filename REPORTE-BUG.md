@@ -1,5 +1,481 @@
 # Reporte de seguridad y errores de MusicFlow
 
+### La eliminación de géneros musicales no completaba la limpieza del catálogo
+
+- **Identificador:** BUG-2026-055
+- **Fecha:** 2026-10-29
+- **Entorno afectado:** administración web y API de catálogo.
+- **Síntoma:** al confirmar la eliminación de un género, la interfaz mostraba
+  un error y el género permanecía disponible hasta recargar o reiniciar el
+  flujo.
+- **Causa raíz:** las canciones usan una columna histórica `Track.genre` que
+  es obligatoria. La limpieza intentaba asignarle `null`; Prisma rechazaba esa
+  escritura y abortaba toda la transacción, incluida la eliminación del género
+  y la actualización de artistas asociados.
+- **Solución:** la eliminación usa ahora la representación canónica de canción
+  sin clasificar (`""`), elimina el valor de los arreglos de géneros de artistas
+  y mantiene las tres operaciones en una única transacción. Se añadió una
+  prueba unitaria que comprueba esa limpieza completa.
+- **Verificación:** suite focalizada de `AdminService` aprobada (12 pruebas),
+  typecheck, Prettier y ESLint del backend ejecutados sin errores.
+- **Estado:** corregido en código; el backend local se recompila antes de la
+  comprobación manual.
+
+### Catálogo perdía la selección tras eliminar varios artistas
+
+- **Identificador:** BUG-2026-054
+- **Fecha:** 2026-10-29
+- **Entorno afectado:** administración web, módulo Catálogo.
+- **Síntoma:** después de eliminar varios artistas, el panel podía conservar el
+  identificador de un artista que ya no existía. El editor intentaba consultar
+  ese registro y el listado quedaba en un estado inconsistente hasta recargar
+  la página.
+- **Causa raíz:** al completar la mutación se vaciaba la selección antes de que
+  React Query actualizara la lista. El efecto de selección volvía a tomar un
+  elemento de la respuesta obsoleta y el botón aún permitía otra eliminación
+  mientras la operación previa estaba pendiente.
+- **Solución:** la caché de artistas se actualiza inmediatamente al borrar,
+  la selección cambia al primer artista restante o se limpia si no quedan,
+  y el efecto también detecta referencias inexistentes. La mutación invalida
+  catálogo y búsqueda global en paralelo, muestra un aviso superior de éxito o
+  error y bloquea el botón durante la operación.
+- **Verificación:** typecheck y build de web ejecutados tras el cambio; la
+  eliminación ya no necesita una recarga para continuar operando.
+- **Estado:** corregido en código.
+
+### Segmentos temporales rechazaban intervalos válidos y permitían solaparlos al editar
+
+- **Identificador:** BUG-2026-053
+- **Fecha:** 2026-10-29
+- **Entorno afectado:** ecualización y segmentación temporal de usuario en web,
+  mobile y API (`apps/backend/`).
+- **Síntoma:** al crear una segmentación temporal, algunos rangos que no se
+  cruzaban con otros podían ser rechazados como solapados. Al modificar un
+  segmento existente, en cambio, no se verificaba si el nuevo rango invadía
+  otro segmento de la misma canción.
+- **Causa raíz:** la consulta de creación usaba una condición `OR` entre el
+  inicio y final de los rangos, cuando una intersección real exige que ambas
+  condiciones se cumplan. La ruta de actualización no tenía validación de
+  intersección.
+- **Solución:** se aplica la condición matemática correcta
+  `inicioExistente < finNuevo AND finExistente > inicioNuevo` tanto al crear
+  como al editar; la actualización excluye su propio identificador. Se añadieron
+  pruebas unitarias para rangos independientes, rangos solapados y cambios de
+  posición.
+- **Verificación:** `pnpm run test -- configs.service.spec.ts
+segments.service.spec.ts --runInBand` completó con 2 suites y 7 pruebas
+  aprobadas. Las pruebas de interacción móvil requieren un emulador Android o
+  iOS disponible para completar la matriz táctil real.
+- **Estado:** corregido en código; pendiente regenerar Prisma y reiniciar la
+  API local antes de probarlo manualmente desde ambos clientes.
+
+### Portal Artist mostraba analítica incompleta y el perfil no permitía cambiar el nombre
+
+- **Identificador:** BUG-2026-052
+- **Fecha:** 2026-10-29
+- **Entorno afectado:** Portal Artist y perfil de usuario en `apps/web/`.
+- **Síntoma:** Analítica incluía el bloque “Ritmo diario” sin un gráfico
+  analizable y solo dos visualizaciones. Las canciones destacadas no explicaban
+  variación de reproducciones, la campana no avisaba actividad relevante y los
+  nombres de artista/usuario no tenían un flujo de edición desde sus perfiles.
+- **Causa raíz:** el contrato de analítica no exponía oyentes ni vistas por día,
+  y el portal no derivaba cambios semanales de `PlayHistory`. El editor de
+  perfil solo persistía biografía e imagen.
+- **Solución:** la API calcula series completas de reproducciones, tiempo de
+  escucha, oyentes únicos y descubrimiento de perfil, además de variación por
+  canción y notificaciones semanales reales. La interfaz sustituye el bloque
+  vacío por cuatro gráficos interactivos, muestra tendencia por canción,
+  agrega la bandeja de notificaciones, un acceso Perfil en el menú del artista
+  y formularios para editar nombre de artista y de usuario. El aviso de
+  verificación se muestra en la zona superior e informa el plazo aproximado de
+  diez días.
+- **Verificación:** typecheck y build de producción de web y backend ejecutados
+  correctamente; `git diff --check` no reportó errores de espacios.
+- **Estado:** corregido en código; requiere reiniciar la API local para servir
+  los nuevos endpoints de analítica y notificaciones.
+
+- **Actualización 2026-10-29 (perfil, configuración y notificaciones):** se
+  separó el acceso **Mi Perfil** de **Configuración** en el Portal Artist: el
+  menú inferior ahora conserva únicamente Mi Perfil y Cerrar sesión, mientras
+  que las preferencias de tema y posición del sidebar viven exclusivamente en
+  Configuración. Mi Perfil reúne foto, nombre, biografía y verificación en una
+  sola tarjeta. También se añadieron contadores con límite visual `+9` para las
+  campanas, la vista rápida de tres avisos para usuarios y el centro de
+  notificaciones paginado, filtrable y buscable. Los avisos de usuario se
+  derivan de lanzamientos reales publicados después de seguir al artista.
+- **Verificación de la actualización:** typecheck y build de NestJS correctos;
+  build de producción web correcto y `git diff --check` sin errores.
+
+- **Actualización 2026-10-29 (lectura persistente de avisos del artista):** el
+  contador de la campana mostraba el total de avisos derivados, incluso después
+  de abrirlos, y el sidebar no daba acceso a una bandeja completa para artistas.
+  La causa era que los avisos semanales se calculaban en cada lectura sin estado
+  de recepción. Se añadió `artist_notification_reads`, vinculada a usuario,
+  artista e identificador de aviso, y un endpoint protegido que marca solo los
+  avisos actualmente autorizados. Abrir la campana o el nuevo módulo
+  **Notificaciones** marca los avisos como leídos y actualiza el badge a cero;
+  los recibos se conservan entre dispositivos sin inventar actividad.
+- **Verificación de la actualización:** typecheck y build de NestJS, además del
+  build de producción web, completaron correctamente. `prisma generate` llegó
+  a actualizar el cliente de tipos, pero Windows no pudo reemplazar el binario
+  nativo porque estaba bloqueado (`EPERM`); hay que detener cualquier proceso
+  Node/Nest que lo use antes de regenerarlo de nuevo o aplicar la migración.
+
+- **Actualización 2026-10-29 (bandeja y contador de lectura):** la bandeja de
+  artista no tenía búsqueda ni orden, y el contador de usuario normal reflejaba
+  todos los avisos derivados en vez de los pendientes de lectura. Se añadió el
+  recibo `user_notification_reads`, el endpoint autenticado para marcar los
+  avisos de usuario y el marcado optimista al abrir cualquier campana. Ambas
+  bandejas —usuario y artista— ahora muestran solamente avisos no leídos en el
+  badge, lo eliminan al abrir la campana o su módulo y mantienen la lectura en
+  PostgreSQL. La bandeja del artista incorpora búsqueda, filtros Reciente,
+  Antigua, A-Z y Z-A, más paginación de ocho elementos.
+
+- **Actualización 2026-10-29 (fuente real, preferencias y verificación):** las
+  notificaciones se confirman contra `PlayHistory`, lanzamientos publicados y
+  solicitudes de verificación en PostgreSQL; no se generan en el cliente. Las
+  solicitudes de sello pendientes por más de diez días se rechazan cada hora y
+  también al consultar el contexto o la bandeja, se conservan con nota de vencimiento y producen un
+  aviso de aprobación o rechazo para su solicitante. Las preferencias ahora se
+  separan por cuenta y superficie (`client` o `artist`), evitando que el tema
+  del Portal Artist altere el entorno normal. Las bandejas presentan cinco
+  avisos por página y navegación numérica.
+
+- **Actualización 2026-10-29 (tema administrativo y escala del perfil):** la
+  configuración de administrador conservaba solamente el selector compacto y
+  no exponía claramente los temas visuales completos. Se restauró una galería
+  persistente de temas visuales junto al ajuste de color. El perfil del Portal
+  Artist ahora usa una superficie amplia y una escala de avatar equivalente al
+  perfil normal, manteniendo el orden existente de sus datos.
+
+- **Actualización 2026-10-29 (configuración administrativa enfocada):** se
+  retiraron de Configuración los accesos redundantes a cuenta, seguridad,
+  catálogo, IA y roles. La pantalla queda limitada a Tema visual,
+  Personalización avanzada y la elección persistente de sidebar a la izquierda
+  o derecha.
+
+- **Actualización 2026-10-29 (posición del sidebar administrativo):** el
+  selector guardaba la preferencia, pero el layout de administración no la
+  consumía, por lo que el sidebar permanecía a la izquierda. `AdminLayout`
+  ahora invierte su disposición flex al elegir la derecha. Además, las
+  preferencias administrativas se aíslan en el espacio `admin` de la cuenta,
+  evitando que una sesión normal o del Portal Artist altere su posición.
+
+### El CRUD musical no exportaba ni permitía editar todos los metadatos
+
+- **Identificador:** BUG-2026-051
+- **Fecha:** 2026-10-28
+- **Entorno afectado:** Portal Artist web, módulo Música.
+- **Síntoma:** Exportar Excel generaba un archivo XML con extensión `.xls` que
+  algunos equipos no abrían correctamente. La subida pedía solo archivo/título
+  y edición no cargaba siempre los datos existentes de audio, álbum y letras.
+  Álbum y letras no formaban parte del flujo; las acciones destructivas no
+  tenían un diálogo de edición contextual.
+- **Causa raíz:** el contrato inicial del Portal no incluía álbum ni campos de
+  letra, y la descarga dependía exclusivamente de la ruta de exportación del
+  backend recompilado.
+- **Solución:** se incorporó un flujo de subida centrado en tres pasos
+  (archivo, álbum, letra LRC), edición modal precargada con título, URL de
+  audio, álbum y datos LRC reales. Se retiró la letra plana del Portal Artista:
+  no es una entrada válida de este flujo ni puede sobrescribir una letra ya
+  almacenada. El backend expone esos campos explícitamente desde PostgreSQL y
+  la lista de álbumes se obtiene de una ruta propia. Álbumes quedó separado en
+  su módulo y enlace de navegación; crear álbum ya no se ofrece dentro de
+  Música. Las confirmaciones previas para eliminar y suspender se conservan y
+  los avisos se muestran en la parte superior.
+- **Verificación:** el portal se comprobó en navegador: la exportación muestra
+  un aviso superior de descarga, el alta expone un diálogo centrado con pasos
+  1/3, 2/3 y 3/3, edición abre un diálogo con título, audio, álbum y letra
+  LRC, y el módulo Álbumes exige título y portada. Las acciones de desactivar y
+  eliminar muestran confirmación nativa. Prettier y TypeScript de web y backend
+  se verificaron con sus compiladores locales.
+- **Estado:** corregido en código; reinicia la API local si estaba ejecutando
+  un proceso anterior para cargar el `dist` actualizado.
+
+- **Actualización 2026-10-28 (álbumes y letras R2):** el primer módulo de
+  Álbumes solo era de lectura y el editor del Portal confiaba en los campos de
+  letra de la respuesta de listado. A diferencia de Admin, esa respuesta no
+  resolvía el objeto enlazado de Cloudflare R2, por lo que una URL `.lrc`
+  existente podía no aparecer o presentar contenido desactualizado. Álbumes
+  ahora ofrece CRUD autorizado —crear, buscar, ordenar, paginar, editar título,
+  año y portada, y eliminar con confirmación— sobre los álbumes reales del
+  artista. La edición de una canción consulta bajo demanda una ruta autorizada
+  que reutiliza la lectura de letras del catálogo: obtiene URL, contenido LRC y
+  comprueba que el objeto R2 exista, igual que Admin. El cliente además acepta
+  temporalmente la respuesta antigua de álbumes mientras una API local se
+  reinicia.
+- **Verificación de la actualización:** build de producción de web y build de
+  NestJS correctos; TypeScript web y Prettier de archivos modificados sin
+  errores. Estado: corregido; una API que estuviera en ejecución debe
+  reiniciarse para servir las rutas nuevas.
+
+- **Reapertura 2026-10-28 (editor de letras vacío):** el Portal consultaba el
+  endpoint genérico de biblioteca, cuyo contrato de TypeScript no exponía la
+  URL pública `.lrc`; por eso el formulario mostraba vacío aunque PostgreSQL y
+  R2 sí tuvieran la letra. El Portal ahora usa su endpoint autorizado
+  `/artist-portal/artists/:artistId/music/:trackId/lyrics`, que delega en la
+  misma resolución de R2 que Admin. El formulario inicializa también los
+  valores del listado como respaldo, etiqueta por separado el audio WAV/FLAC y
+  la letra `.lrc`, y conserva el contenido cargado desde R2.
+- **Verificación de la reapertura:** build de producción de web y Prettier
+  correctos; `git diff --check` correcto. El typecheck ya no reporta errores de
+  letras; conserva un error previo e independiente en la creación del Blob del
+  PDF (`Uint8Array<ArrayBufferLike>`).
+
+- **Actualización 2026-10-29 (diagnóstico de Ventanilla-Mi-Eden):** se verificó
+  el Portal autenticado y una canción con letra (`El codigo que perdimos`) carga
+  correctamente su URL R2 y 2,030 caracteres LRC. La fila de
+  `Ventanilla-Mi-Eden` tiene `lyrics_url`, `lyrics_lrc` y `lyrics_text` nulos
+  en PostgreSQL, y tampoco existe una clave LRC canónica de ese tema en R2; no
+  hay datos que el cliente pueda mostrar. El editor ahora diferencia ese estado
+  con un aviso explícito y también informa si la consulta falla, evitando que
+  un formulario vacío se interprete como un error de lectura.
+
+### El Portal Artist fallaba al abrir Música con un backend sin recompilar
+
+- **Identificador:** BUG-2026-050
+- **Fecha:** 2026-10-28
+- **Entorno afectado:** `apps/web/` y `apps/backend/` (ruta
+  `/artist-dashboard/music`).
+- **Síntoma:** la pantalla quedaba en blanco y la consola mostraba
+  `Cannot read properties of undefined (reading 'map')` en `MusicGallery`.
+- **Causa raíz:** Vite recibió la respuesta antigua de un `dist` del backend,
+  con `albums/tracks`, mientras el frontend del CRUD esperaba `items` paginados.
+  La transición entre contratos no estaba normalizada.
+- **Solución:** el cliente normaliza temporalmente el contrato anterior para
+  evitar el crash y mantiene la respuesta paginada nueva como fuente
+  preferida. El backend debe reiniciarse después de recompilar para habilitar
+  las rutas CRUD y paginación del Portal.
+- **Verificación:** fallo reproducido con consola del navegador. Después del
+  ajuste, la ruta se comprobó en `http://localhost:5173/artist-dashboard/music`
+  y mostró búsqueda, filtros, paginación/resultado y acciones CRUD. Prettier y
+  `git diff --check` correctos. El backend actualizado aún debe recompilarse y
+  reiniciarse para activar sus nuevas rutas en lugar del `dist` antiguo.
+- **Estado:** crash corregido; backend actualizado pendiente de reinicio.
+
+### El Portal Artista no contaba con un CRUD musical paginado y mostraba Inicio como activo
+
+- **Identificador:** BUG-2026-049
+- **Fecha:** 2026-10-28
+- **Entorno afectado:** Portal Artista web y API `apps/backend/`.
+- **Síntoma:** Música solo mostraba cards de lectura sin gestión, paginación ni
+  exportación; Inicio permanecía visualmente activo al navegar a otro módulo.
+  Además, el gráfico de reproducciones no facilitaba inspeccionar valores y la
+  ayuda de imagen no reflejaba la dimensión requerida.
+- **Causa raíz:** la ruta del Portal reutilizaba una respuesta agrupada por
+  álbumes y el componente compartido del sidebar trataba la ruta base del
+  artista como prefijo activo. La analítica no declaraba explícitamente una
+  zona de interacción para los puntos de la línea.
+- **Solución:** la API ofrece listado plano filtrable/ordenable y paginado en
+  ocho resultados, además de endpoints autorizados por membresía para crear,
+  editar, desactivar, eliminar y exportar música. La vista implementa ese CRUD
+  y la exportación Excel; Inicio se marca como ruta exacta. El gráfico usa
+  tooltip por índice con un área de interacción y el perfil indica 640 × 637 px.
+- **Verificación:** pendiente de typecheck integral por el bloqueo local de
+  Prisma documentado previamente.
+- **Estado:** corregido, pendiente de verificación integral.
+
+### Portal Artista mostraba música agrupada y analítica insuficiente
+
+- **Identificador:** BUG-2026-048
+- **Fecha:** 2026-10-27
+- **Entorno afectado:** Portal Artista web.
+- **Síntoma:** Música se agrupaba por álbum y usaba cards verticales, sin
+  búsqueda ni orden; Analítica solo mostraba un gráfico elemental y la ayuda de
+  foto de perfil priorizaba MB en vez de sus dimensiones visuales.
+- **Causa raíz:** el primer portal devolvía la estructura editorial de álbumes
+  directamente y no calculaba tendencia por canción para una vista de artista.
+- **Solución:** la API calcula reproducciones por canción de los últimos 30
+  días. La interfaz presenta cards horizontales planos, búsqueda y orden por
+  tendencia/título; Analítica incorpora reproducciones, minutos de escucha y
+  ritmo diario. La recomendación de retrato es ahora 640 × 637 px.
+- **Verificación:** Prettier y `git diff --check` correctos. Typecheck completo
+  pendiente del bloqueo local de Prisma previamente documentado.
+- **Estado:** corregido, pendiente de verificación integral.
+
+### FlowIA aparecía o podía abrirse para usuarios FREE
+
+- **Identificador:** BUG-2026-047
+- **Fecha:** 2026-10-27
+- **Entorno afectado:** `apps/web/` y `apps/mobile/`.
+- **Síntoma:** pese a que la API protegía FlowIA, algunos accesos secundarios
+  del reproductor, ecualizador, lista de reproducción o ruta móvil podían
+  seguir mostrando o intentando abrir el asistente con una cuenta FREE.
+- **Causa raíz:** la comprobación de Premium estaba distribuida en varios
+  componentes y no todos consumían el mismo guard de plan.
+- **Solución:** los accesos web se ocultan para FREE y usan el guard de plan al
+  ejecutarse; móvil oculta la burbuja en listas y la pantalla de FlowIA muestra
+  el bloqueo Premium incluso ante navegación directa. El backend mantiene el
+  guard obligatorio para las rutas `/ai`.
+- **Verificación:** `git diff --check` correcto. La regeneración de Prisma y
+  los typechecks quedaron bloqueados en este equipo por un `EPERM` sobre
+  `query_engine-windows.dll.node` y procesos de compilación sin salida;
+  requieren reintento fuera de ese bloqueo local.
+- **Estado:** corregido, verificación de compilación pendiente por bloqueo local.
+
+### Pantalla de artistas preferidos no compilaba en Flutter
+
+- **Identificador:** BUG-2026-046
+- **Fecha:** 2026-10-27
+- **Entorno afectado:** `apps/mobile/`
+- **Síntoma:** `flutter run` fallaba en `kernel_snapshot_program` con
+  `The method '_ArtistPreferencesScreenState.build' has more required arguments
+than those of overridden method 'State.build'`.
+- **Causa raíz:** `_ArtistPreferencesScreenState` hereda de
+  `ConsumerState<ArtistPreferencesScreen>`, cuyo contrato es
+  `Widget build(BuildContext context)`. La pantalla declaraba
+  `build(BuildContext context, WidgetRef ref)`, firma reservada a
+  `ConsumerWidget`; `ConsumerState` ya expone `ref` como propiedad del estado.
+- **Solución:** se ajustó la firma a `Widget build(BuildContext context)` y se
+  usó el `ref` heredado de `ConsumerState`. También se añadieron las líneas en
+  blanco faltantes entre las clases del archivo.
+- **Verificación:** `flutter analyze lib/features/settings/artist_preferences_screen.dart`
+  sin incidencias y `flutter build bundle --debug` correcto (kernel compilado).
+- **Estado:** corregido y verificado.
+
+### Solicitudes del Portal Artista no aislaban evidencias ni facilitaban su revisión
+
+- **Identificador:** BUG-2026-045
+- **Fecha:** 2026-10-27
+- **Entorno afectado:** Portal Artista (`apps/web/`, `apps/backend/`) y
+  administración web.
+- **Síntoma:** una solicitud mostraba el artista elegido también como sugerencia;
+  su estado no explicaba el plazo de revisión; los PDFs compartían el bucket de
+  imágenes del catálogo y el administrador solo podía descargarlos. Además, el
+  listado no era paginado ni permitía ordenar o buscar por solicitante.
+- **Causa raíz:** el flujo inicial reutilizaba el almacenamiento genérico de
+  imágenes y recuperaba todas las solicitudes sin filtros. La interfaz no
+  distinguía una selección confirmada de una búsqueda activa.
+- **Solución:** los PDFs se guardan de forma privada en
+  `portal-artist-evidence/{nombre_usuario}/`, se presentan con URL firmada y
+  vista previa para administradores. La API y la UI incorporan búsqueda
+  diferida por usuario, orden A-Z/Z-A/reciente/antiguo y paginación. El Portal
+  oculta sugerencias al confirmar un perfil, describe un plazo estimado de hasta
+  7 días y consulta nuevamente la membresía mientras la solicitud está pendiente
+  para redirigir al portal tras una aprobación.
+- **Verificación:** typecheck de backend y de web correctos; `git diff --check`
+  correcto. El analizador de Flutter quedó bloqueado sin emitir diagnóstico en
+  este equipo y se canceló tras varios minutos.
+- **Estado:** corregido; análisis Flutter pendiente por bloqueo local.
+
+### La solicitud de verificación mostraba reglas obsoletas y errores concatenados
+
+- **Identificador:** BUG-2026-042
+- **Fecha:** 2026-10-27
+- **Entorno afectado:** Portal de Artistas (`apps/web/`, `apps/backend/`)
+- **Síntoma:** al enviar enlaces oficiales aparecían simultáneamente requisitos
+  antiguos de `artistId` y de un texto de evidencia de 20 caracteres, unidos
+  sin separación legible.
+- **Causa raíz:** el proceso API que atendía `localhost:8000` conservaba una
+  compilación previa al contrato multipart de evidencias; el cliente además
+  renderizaba el arreglo de errores de Nest como una sola cadena.
+- **Solución:** el contrato actual recibe enlaces JSON y PDF opcional, y el
+  cliente muestra los mensajes de validación separados. El perfil seleccionado
+  se confirma visualmente antes del envío. Reiniciar el backend con el `dist`
+  recompilado aplica el DTO actual.
+- **Verificación:** build y typecheck de backend/web correctos; el DTO actual
+  solo valida texto opcional, enlaces JSON y un `artistId` UUID del catálogo.
+- **Estado:** corregido; requiere reiniciar cualquier proceso API previo.
+
+### Roles administrativos podían conservar una sesión en móvil
+
+- **Identificador:** BUG-2026-043
+- **Fecha:** 2026-10-27
+- **Entorno afectado:** `apps/mobile/`
+- **Síntoma:** una cuenta con rol `ADMIN` o `ARTIST` podía completar el inicio
+  de sesión y conservar tokens en la aplicación móvil.
+- **Causa raíz:** el controlador de sesión móvil aceptaba cualquier rol que
+  devolviese el backend.
+- **Solución:** móvil acepta exclusivamente `CLIENT`; las sesiones de otros
+  roles se eliminan antes de persistir tokens y el login muestra “Tipo de
+  usuario no disponible en mobile”.
+- **Verificación:** formato Dart aplicado y contrato revisado; análisis Flutter
+  completo pendiente de finalizar en este equipo.
+- **Estado:** corregido, con análisis completo pendiente.
+
+### La conexión de BullMQ retrasaba el arranque de la API
+
+- **Identificador:** BUG-2026-044
+- **Fecha:** 2026-10-27
+- **Entorno afectado:** `apps/backend/`
+- **Síntoma:** el arranque local esperaba cerca de 8.5 segundos en la segunda
+  inicialización de BullMQ antes de registrar rutas HTTP.
+- **Causa raíz:** ioredis ejecutaba la comprobación de disponibilidad antes de
+  que BullMQ pudiera terminar su inicialización, aun con Redis local sano.
+- **Solución:** la conexión de cola desactiva el readiness check redundante y
+  limita el intento de conexión a 1.5 segundos, manteniendo la reconexión de
+  BullMQ en segundo plano.
+- **Verificación:** trazas de Nest: BullMQ pasó de ~8.5 s a ~659 ms; build y
+  typecheck del backend correctos.
+- **Estado:** corregido.
+
+### Edición de perfil móvil reactivaba el onboarding
+
+- **Identificador:** BUG-2026-040
+- **Fecha:** 2026-10-26
+- **Entorno afectado:** `apps/mobile/` y `apps/backend/`
+- **Síntoma:** después de cambiar el nombre, la app pedía seleccionar otra vez
+  cinco artistas en lugar de confirmar el guardado.
+- **Causa raíz:** `PATCH /users/me` omitía `onboardingCompletedAt`; Flutter
+  reemplazaba el usuario local por esa respuesta incompleta y el router la
+  interpretaba como una cuenta sin onboarding.
+- **Solución:** la actualización devuelve el contrato completo de sesión y la
+  pantalla muestra diálogos explícitos de éxito o error.
+- **Verificación:** typecheck y build backend, `dart analyze` y `flutter test`.
+- **Estado:** corregido.
+
+### El desplazamiento de dos dedos cambiaba canciones
+
+- **Identificador:** BUG-2026-039
+- **Fecha:** 2026-10-26
+- **Entorno afectado:** `apps/web/` y Desktop Electron
+- **Síntoma:** un scroll horizontal normal podía ejecutar anterior/siguiente y
+  el control dejaba de funcionar al perder el foco.
+- **Causa raíz:** el navegador no informa cuántos dedos originan un `wheel`; el
+  respaldo anterior trataba cualquier scroll horizontal como gesto musical.
+- **Solución:** se retiró esa heurística. Se conservan swipes nativos al tener
+  foco y se registran acciones Media Session y teclas multimedia globales para
+  que el gesto de tres dedos configurado por el sistema funcione en segundo
+  plano.
+- **Verificación:** typecheck/build web y validación sintáctica de Electron.
+- **Estado:** corregido; la asignación física de tres dedos depende del sistema
+  operativo y del controlador del touchpad.
+
+### FlowIA era visible y accionable para cuentas gratuitas
+
+- **Identificador:** BUG-2026-038
+- **Fecha:** 2026-10-26
+- **Entorno afectado:** `apps/web/` y `apps/backend/`
+- **Síntoma:** algunos accesos persistentes abrían el asistente aunque el
+  usuario no fuera Premium.
+- **Causa raíz:** varias superficies llamaban directamente al store y la API
+  solo comprobaba una cuota gratuita.
+- **Solución:** el store central, la interfaz y la API aplican Premium; la
+  burbuja y la pestaña del asistente no se muestran en Free y cualquier acceso
+  residual abre la mejora de plan.
+- **Verificación:** typecheck/build backend y web.
+- **Estado:** corregido.
+
+### El portal no tenía un flujo de verificación para solicitar acceso artístico
+
+- **Identificador:** BUG-2026-041
+- **Fecha:** 2026-10-26
+- **Entorno afectado:** Portal de Artistas (`apps/web/`, `apps/backend/`)
+- **Síntoma:** el portal no ofrecía un mecanismo usable para que un artista
+  solicitara acceso a un perfil existente y aportara pruebas verificables.
+- **Causa raíz:** se había retirado la solicitud pública para evitar que una
+  cuenta se presentara como cualquier artista, pero no se sustituyó por una
+  verificación formal.
+- **Solución:** se añadió una solicitud controlada: el usuario selecciona un
+  perfil existente y adjunta enlaces oficiales (redes sociales, YouTube o web)
+  y opcionalmente un PDF de representación. El backend valida las URLs, limita
+  el PDF a 5 MB, lo guarda bajo una clave de evidencia no predecible en R2 y
+  lo presenta al administrador mediante URL firmada; solo un administrador
+  puede aprobarla y crear la membresía.
+- **Verificación:** migración Prisma aplicada, typecheck de backend y web; el
+  endpoint no concede acceso automáticamente ni crea perfiles por el usuario.
+- **Estado:** corregido.
+
 ### Preferencias de distribución y gestos de pista no disponibles
 
 - **Identificador:** BUG-2026-037

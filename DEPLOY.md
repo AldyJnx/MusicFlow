@@ -1,135 +1,218 @@
-# MusicFlow — Guía de Despliegue
+# Despliegue de MusicFlow en una VPS
 
-Deploy temporal con **buen rendimiento y sin cold starts** (para demos / fin de semana).
+Esta guía publica el backend NestJS, PostgreSQL, Redis y el proxy HTTPS en una
+VPS de Contabo mediante Docker Compose. La aplicación web puede permanecer en
+Cloudflare Pages y Cloudflare R2 continúa almacenando audio, imágenes, letras y
+evidencias.
 
-| Componente       | Plataforma           | Notas                                       |
-| ---------------- | -------------------- | ------------------------------------------- |
-| Backend (NestJS) | **Railway** (Docker) | Siempre despierto, red privada con DB/Redis |
-| PostgreSQL       | **Railway**          | Mismo proyecto → baja latencia              |
-| Redis (BullMQ)   | **Railway**          | Mismo proyecto                              |
-| Web (React PWA)  | **Cloudflare Pages** | CDN global, gratis, mismo ecosistema que R2 |
-| Audio/imágenes   | **Cloudflare R2**    | Ya configurado (audio comprimido AAC)       |
+## Arquitectura
 
-> La auth usa tokens en el body (no cookies), así que el cross-site Pages↔Railway no necesita config extra.
->
-> **Validado localmente**: la imagen Docker del backend construye, corre `prisma migrate deploy`, arranca (`node dist/src/main.js`) y responde `/api/health` → `{"status":"ok","database":"up"}`, con login y catálogo funcionando.
+| Componente    | Destino              | Exposición                 |
+| ------------- | -------------------- | -------------------------- |
+| API NestJS    | Contenedor `backend` | Solo a través de Caddy     |
+| PostgreSQL 16 | Contenedor `db`      | Red interna de Docker      |
+| Redis 7       | Contenedor `redis`   | Red interna de Docker      |
+| HTTPS         | Contenedor `caddy`   | Puertos 80 y 443           |
+| Web React     | Cloudflare Pages     | CDN público                |
+| Objetos       | Cloudflare R2        | URLs públicas configuradas |
 
----
+PostgreSQL y Redis no publican puertos en la VPS. Caddy obtiene y renueva el
+certificado TLS y reenvía las solicitudes al backend.
 
-## 0. Requisito: código en GitHub
+## 1. Preparar Contabo
 
-Railway y Cloudflare Pages despliegan desde GitHub. Commitea y pushea la rama:
+Se recomienda Ubuntu 24.04 LTS, acceso mediante clave SSH y un usuario con
+permisos de `sudo`.
 
-```bash
-git push -u origin feat/optimizacion-carga-musica
-```
+1. Actualiza el sistema e instala Docker Engine con el complemento Compose
+   siguiendo la documentación oficial de Docker para Ubuntu.
+2. Permite únicamente SSH, HTTP y HTTPS en el firewall:
 
-Podés desplegar desde esta rama (ambos permiten elegirla) o mergear a `main` primero.
+   ```bash
+   sudo ufw allow OpenSSH
+   sudo ufw allow 80/tcp
+   sudo ufw allow 443/tcp
+   sudo ufw enable
+   ```
 
----
+3. Crea un registro DNS `A`, por ejemplo `api.musicflow.app`, dirigido a la IP
+   pública de la VPS. Antes de iniciar Caddy, confirma que el registro resuelve.
+4. Si se utiliza el proxy de Cloudflare, usa SSL/TLS **Full (strict)**. Durante
+   la primera emisión del certificado puede dejarse el registro como _DNS only_.
 
-## A. Railway — Backend + PostgreSQL + Redis
+No expongas los puertos 5432 ni 6379 en el firewall.
 
-1. https://railway.app → **Login with GitHub** → **New Project**.
-2. **+ New → Database → Add PostgreSQL**.
-3. **+ New → Database → Add Redis**.
-4. **+ New → GitHub Repo →** elegí `MusicFlow` (rama `feat/optimizacion-carga-musica`).
-   - Servicio del backend → **Settings → Source → Root Directory**: `apps/backend`
-   - Railway detecta el `Dockerfile` solo. **No** configures build/start commands.
-5. Backend → **Variables** → agregá lo de la tabla. Para DB/Redis usá referencias de Railway:
-   - `DATABASE_URL` = `${{Postgres.DATABASE_URL}}`
-   - `REDIS_URL` = `${{Redis.REDIS_URL}}`
-   - **No** definas `PORT` (Railway lo inyecta; `main.ts` ya lo lee).
-6. Deploy. El `Dockerfile` corre `prisma migrate deploy` (crea el esquema) y arranca.
-7. Backend → **Settings → Networking → Generate Domain**. Copiá la URL
-   (ej. `musicflow-backend-production.up.railway.app`).
-   - API base = `https://<dominio>/api`
-   - Probá: `https://<dominio>/api/health` → `{"status":"ok","database":"up"}`
+## 2. Preparar variables y secretos
 
-### Variables del backend
-
-| Variable                                                 | Valor                                                     |
-| -------------------------------------------------------- | --------------------------------------------------------- |
-| `NODE_ENV`                                               | `production`                                              |
-| `DATABASE_URL`                                           | `${{Postgres.DATABASE_URL}}`                              |
-| `REDIS_URL`                                              | `${{Redis.REDIS_URL}}`                                    |
-| `JWT_SECRET`                                             | _(cadena larga aleatoria — `openssl rand -hex 32`)_       |
-| `JWT_EXPIRES_IN`                                         | `15m`                                                     |
-| `JWT_REFRESH_SECRET`                                     | _(otra distinta)_                                         |
-| `JWT_REFRESH_EXPIRES_IN`                                 | `7d`                                                      |
-| `CORS_ORIGINS`                                           | `https://<tu-dominio-pages>` _(se completa en el paso D)_ |
-| `R2_ENDPOINT` · `R2_ACCESS_KEY` · `R2_SECRET_ACCESS_KEY` | _(de tu `apps/backend/.env`)_                             |
-| `R2_REGION`                                              | `auto`                                                    |
-| `R2_BUCKET_AUDIO`                                        | `music-flow`                                              |
-| `R2_BUCKET_IMAGES`                                       | `music-flow-images`                                       |
-| `R2_BUCKET_LYRICS`                                       | `music-flow-songs-lyrics`                                 |
-| `R2_BUCKET_ARTIST_IMAGES`                                | `music-flow-artist-image`                                 |
-| `R2_PUBLIC_AUDIO_URL` · `R2_PUBLIC_IMAGES_URL`           | _(de tu `.env`)_                                          |
-| `ANTHROPIC_API_KEY` · `ANTHROPIC_MODEL`                  | _(de tu `.env`)_                                          |
-| `THROTTLE_TTL` / `THROTTLE_LIMIT`                        | `60` / `100`                                              |
-
----
-
-## B. Importar los datos (142 canciones + usuarios + todo)
-
-El esquema lo crea `prisma migrate deploy` en el primer deploy. Después cargá los datos
-exportados de tu DB local (URLs de audio ya transcodificadas a AAC).
-
-1. Railway → **Postgres → Connect →** copiá la **Postgres Connection URL** pública.
-2. Desde tu máquina (con Docker):
+Desde la raíz del repositorio en la VPS:
 
 ```bash
-docker run --rm -i postgres:16-alpine \
-  psql "<URL_PUBLICA_DE_RAILWAY>" < musicflow_import.sql
+cp .env.vps.example .env.vps
+chmod 600 .env.vps
 ```
 
-> El archivo `musicflow_import.sql` (te lo paso aparte) desactiva las FK durante la carga,
-> así el orden no importa y no borra nada del esquema.
+Edita `.env.vps` y reemplaza todos los valores de ejemplo. Genera dos secretos
+JWT distintos:
 
-**Login de prueba** tras importar: `admin@musicflow.app` / `Admin123!`
+```bash
+openssl rand -hex 32
+openssl rand -hex 32
+```
 
----
+Usa una contraseña PostgreSQL larga y compatible con una URL, evitando `@`,
+`:`, `/`, `?` y `#`. Configura además:
 
-## C. Cloudflare Pages — Frontend
+- `API_DOMAIN` con el dominio de la API, sin `https://`.
+- `TLS_EMAIL` con el correo que recibirá avisos del certificado.
+- `CORS_ORIGINS` con los orígenes web permitidos separados por coma.
+- Las credenciales y buckets reales de Cloudflare R2.
+- Las credenciales reales de Google OAuth y las APIs de IA habilitadas.
+- Mercado Pago, SMTP y Sentry solo cuando esas integraciones se habiliten.
 
-1. Cloudflare Dashboard → **Workers & Pages → Create → Pages → Connect to Git →** tu repo.
-2. Build (monorepo pnpm):
-   - **Production branch**: la rama que desplegás
-   - **Framework preset**: `None`
-   - **Root directory**: _(raíz del repo, vacío)_
-   - **Build command**: `pnpm install --frozen-lockfile && pnpm --filter web build`
-   - **Build output directory**: `apps/web/dist`
-3. **Environment variables** (Build):
+En Google Cloud, la URI de retorno de producción debe coincidir exactamente con
+`https://<API_DOMAIN>/api/auth/google/callback`.
 
-   | Variable              | Valor                                                 |
-   | --------------------- | ----------------------------------------------------- |
-   | `VITE_API_URL`        | `https://<tu-dominio-railway>/api` _(¡con `/api`!)_   |
-   | `VITE_R2_AUDIO_BASE`  | `https://pub-f44a489bc1e94270836132b3136f0a8c.r2.dev` |
-   | `VITE_R2_IMAGES_BASE` | `https://pub-7f3d08bcabf44d68b2a57424acfc9d48.r2.dev` |
-   | `PNPM_VERSION`        | `9.0.0`                                               |
-   | `NODE_VERSION`        | `20`                                                  |
+Nunca se debe agregar `.env.vps` a Git.
 
-4. Deploy → queda en `https://<proyecto>.pages.dev`.
-   - `apps/web/public/_redirects` ya hace el fallback SPA (`/* → /index.html 200`), sin 404 al refrescar rutas.
+## 3. Validar y construir
 
----
+Ejecuta primero la validación de Compose:
 
-## D. Conectar (CORS) y verificar
+```bash
+docker compose --env-file .env.vps -f docker-compose.prod.yml config --quiet
+```
 
-1. Railway → Backend → **Variables** → `CORS_ORIGINS` = `https://<tu-dominio-pages>` _(sin barra final)_.
-   - Railway reinicia el backend solo al guardar.
-2. Abrí `https://<tu-dominio-pages>`, logueá (`admin@musicflow.app` / `Admin123!`) y reproducí una canción. 🎧
+Construye la imagen reproducible del backend:
 
----
+```bash
+docker compose --env-file .env.vps -f docker-compose.prod.yml build backend migrate
+```
 
-## Notas
+La construcción usa `pnpm-lock.yaml`, genera Prisma y compila NestJS. No usa
+dependencias instaladas en la máquina anfitriona.
 
-- **Costo**: Railway Hobby (con tarjeta) no cobra por unos días de una app chica; consume centavos. Pages y R2 son gratis.
-- **Apagar al terminar**: en Railway pausá o borrá el proyecto para no gastar crédito.
-- Si cambia el dominio de Pages, actualizá `CORS_ORIGINS` en Railway.
+## 4. Restaurar la base de datos existente
 
-### Alternativa 100% gratis sin tarjeta (con cold starts)
+Antes de copiar datos, crea un respaldo de la base local con PostgreSQL 16. No
+uses exportaciones manuales parciales si necesitas conservar relaciones,
+usuarios y reproducciones.
 
-Existe `render.yaml` para desplegar el backend en **Render Free** (+ Redis en Upstash). Es gratis y sin
-tarjeta, pero el backend **se duerme tras ~15 min** y tarda ~30-60s en despertar. Sirve si no querés usar
-tarjeta y no te molesta el arranque lento del primer request. Para "buenos tiempos de respuesta" preferí Railway.
+Ejemplo local:
+
+```bash
+docker compose exec -T db pg_dump -U musicflow -d musicflow -Fc > musicflow.dump
+```
+
+Copia `musicflow.dump` a la VPS mediante `scp`. Inicia solo PostgreSQL y espera
+que esté saludable:
+
+```bash
+docker compose --env-file .env.vps -f docker-compose.prod.yml up -d db
+docker compose --env-file .env.vps -f docker-compose.prod.yml ps
+```
+
+Restaura el respaldo en una base vacía:
+
+```bash
+docker compose --env-file .env.vps -f docker-compose.prod.yml exec -T db \
+  pg_restore --clean --if-exists --no-owner \
+  -U "$POSTGRES_USER" -d "$POSTGRES_DB" < musicflow.dump
+```
+
+Si la shell no tiene exportadas esas variables, sustituye ambos nombres por los
+valores de `.env.vps`. Mantén una copia del respaldo fuera de la VPS.
+
+## 5. Iniciar producción
+
+```bash
+docker compose --env-file .env.vps -f docker-compose.prod.yml up -d
+docker compose --env-file .env.vps -f docker-compose.prod.yml ps
+docker compose --env-file .env.vps -f docker-compose.prod.yml logs --tail=200 migrate backend caddy
+```
+
+El servicio `migrate` ejecuta `prisma migrate deploy` antes de iniciar la API.
+Un fallo de migración impide que el backend arranque; no lo omitas ni uses
+`prisma migrate dev` en producción.
+
+Comprueba el endpoint público:
+
+```bash
+curl --fail --show-error https://<API_DOMAIN>/api/health
+```
+
+La respuesta debe indicar estado saludable y conexión activa con PostgreSQL.
+Después valida login, catálogo, reproducción, R2, IA y el portal de artistas
+desde la web desplegada.
+
+## 6. Conectar Cloudflare Pages
+
+En el build de `apps/web/` configura, como mínimo:
+
+```text
+VITE_API_URL=https://<API_DOMAIN>/api
+```
+
+Agrega el dominio final de Pages o el dominio personalizado a `CORS_ORIGINS`.
+Si cambia un origen, actualiza `.env.vps` y recrea el backend:
+
+```bash
+docker compose --env-file .env.vps -f docker-compose.prod.yml up -d --force-recreate backend
+```
+
+## 7. Operación y actualizaciones
+
+Antes de cada actualización:
+
+1. Crea y descarga un respaldo PostgreSQL.
+2. Revisa las migraciones incluidas en la nueva versión.
+3. Actualiza el código únicamente desde una rama o etiqueta verificada.
+4. Reconstruye y observa los registros:
+
+   ```bash
+   git pull --ff-only
+   docker compose --env-file .env.vps -f docker-compose.prod.yml build backend migrate
+   docker compose --env-file .env.vps -f docker-compose.prod.yml up -d
+   docker compose --env-file .env.vps -f docker-compose.prod.yml logs --tail=200 migrate backend
+   ```
+
+Comandos útiles:
+
+```bash
+docker compose --env-file .env.vps -f docker-compose.prod.yml ps
+docker compose --env-file .env.vps -f docker-compose.prod.yml logs -f backend
+docker compose --env-file .env.vps -f docker-compose.prod.yml restart backend
+```
+
+`docker compose down` conserva los volúmenes. No ejecutes `down --volumes` en
+producción: eliminaría los datos persistentes.
+
+## 8. Respaldo y recuperación
+
+Automatiza respaldos cifrados fuera de la VPS y prueba su restauración. Un
+respaldo no verificado no debe considerarse recuperable.
+
+```bash
+mkdir -p backups
+docker compose --env-file .env.vps -f docker-compose.prod.yml exec -T db \
+  pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Fc \
+  > "backups/musicflow-$(date +%Y%m%d-%H%M%S).dump"
+```
+
+Conserva varias generaciones y aplica una política de retención. Antes de una
+restauración, detén el backend y crea otro respaldo del estado actual.
+
+## Lista de comprobación previa a publicar
+
+- [ ] DNS de la API apunta a la VPS.
+- [ ] SSH usa claves y el acceso de administrador está restringido.
+- [ ] `.env.vps` tiene secretos únicos y no está versionado.
+- [ ] PostgreSQL y Redis no publican puertos.
+- [ ] `docker compose config --quiet` finaliza correctamente.
+- [ ] La imagen se construye con el lockfile sin errores.
+- [ ] `prisma migrate deploy` finaliza correctamente.
+- [ ] Backend, PostgreSQL, Redis y Caddy aparecen saludables.
+- [ ] `/api/health` responde por HTTPS.
+- [ ] CORS permite únicamente los dominios requeridos.
+- [ ] Login, OAuth, R2, reproducción e IA fueron probados en producción.
+- [ ] Existe un respaldo externo cuya restauración fue comprobada.
+- [ ] Hay monitoreo de disponibilidad, uso de disco y errores.

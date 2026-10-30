@@ -1,43 +1,53 @@
-# =============================================
-# MusicFlow Backend - NestJS + Prisma
-# Build context = apps/backend (self-contained; no workspace deps)
-# =============================================
+# syntax=docker/dockerfile:1.7
 
-# ---- Build stage ----
-FROM node:20-alpine AS builder
+# El contexto de build es la raíz del monorepo. Así se usa el lockfile de pnpm
+# y la imagen es reproducible tanto en la VPS como en CI.
+FROM node:20-alpine AS base
 
-WORKDIR /app
+RUN apk add --no-cache openssl \
+  && corepack enable \
+  && corepack prepare pnpm@9.0.0 --activate
 
-# Prisma needs OpenSSL on Alpine
-RUN apk add --no-cache openssl
+WORKDIR /workspace
 
-# Install ALL dependencies (no lockfile is shipped, so use install not ci)
-COPY package.json ./
-RUN npm install
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
+COPY apps/backend/package.json ./apps/backend/package.json
 
-# Copy source
-COPY . .
+FROM base AS dependencies
 
-# Generate Prisma client + build
-RUN npx prisma generate
-RUN npm run build
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
+  pnpm config set store-dir /pnpm/store \
+  && pnpm install --frozen-lockfile --filter @musicflow/backend...
 
-# ---- Production stage ----
+FROM dependencies AS builder
+
+COPY apps/backend ./apps/backend
+
+RUN pnpm --filter @musicflow/backend run prisma:generate \
+  && pnpm --filter @musicflow/backend run build
+
+# `pnpm deploy` crea un árbol de dependencias de producción aislado. Su
+# instalación no incluye Prisma CLI, por lo que se copia explícitamente el
+# cliente generado durante el build al árbol final.
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
+  pnpm --filter @musicflow/backend deploy --prod /opt/musicflow-backend \
+  && source_client="$(readlink -f /workspace/apps/backend/node_modules/@prisma/client)" \
+  && target_client="$(readlink -f /opt/musicflow-backend/node_modules/@prisma/client)" \
+  && cp -R \
+    "$(dirname "$(dirname "$source_client")")/.prisma/." \
+    "$(dirname "$(dirname "$target_client")")/.prisma/"
+
 FROM node:20-alpine AS production
 
+RUN apk add --no-cache openssl wget \
+  && addgroup -g 1001 -S nodejs \
+  && adduser -S nestjs -u 1001 -G nodejs
+
 WORKDIR /app
 
-RUN apk add --no-cache openssl wget
-
-# Non-root user
-RUN addgroup -g 1001 -S nodejs && \
-    adduser -S nestjs -u 1001
-
-# Copy built app + deps (node_modules includes the generated Prisma client)
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/package.json ./package.json
-COPY --from=builder /app/prisma ./prisma
+COPY --from=builder --chown=nestjs:nodejs /opt/musicflow-backend ./
+COPY --from=builder --chown=nestjs:nodejs /workspace/apps/backend/dist ./dist
+COPY --from=builder --chown=nestjs:nodejs /workspace/apps/backend/prisma ./prisma
 
 ENV NODE_ENV=production
 ENV PORT=8000
@@ -46,10 +56,7 @@ USER nestjs
 
 EXPOSE 8000
 
-# Health check hits the new /api/health endpoint
-HEALTHCHECK --interval=30s --timeout=3s --start-period=15s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:8000/api/health || exit 1
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=5 \
+  CMD wget --no-verbose --tries=1 --spider http://127.0.0.1:8000/api/health || exit 1
 
-# Apply migrations, then start. The build preserves the `src/` root (scripts/
-# live alongside src/), so the entrypoint is dist/src/main.js — not dist/main.js.
-CMD ["sh", "-c", "npx prisma migrate deploy && node dist/src/main.js"]
+CMD ["node", "dist/src/main.js"]
