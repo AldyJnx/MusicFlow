@@ -26,6 +26,7 @@ import { PreferencesModule } from "./modules/preferences/preferences.module";
 import { AdminModule } from "./modules/admin/admin.module";
 import { BillingModule } from "./modules/billing/billing.module";
 import { RecommendationsModule } from "./modules/recommendations/recommendations.module";
+import { ArtistPortalModule } from "./modules/artist-portal/artist-portal.module";
 
 const environment = process.env.NODE_ENV ?? "development";
 const envFilePath = [
@@ -64,6 +65,7 @@ const envFilePath = [
 
     // Personalized ranking and its shared Redis cache.
     RecommendationsModule,
+    ArtistPortalModule,
 
     // Background jobs (BullMQ + Redis)
     QueueModule,

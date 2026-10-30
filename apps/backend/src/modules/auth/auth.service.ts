@@ -31,6 +31,7 @@ export interface SafeUser {
   id: string;
   email: string;
   username: string;
+  bio: string | null;
   role: string;
   isPremium: boolean;
   avatar: string | null;
@@ -52,6 +53,7 @@ function toSafeUser(user: {
   id: string;
   email: string;
   username: string;
+  bio: string | null;
   role: string;
   isPremium: boolean;
   avatar: string | null;
@@ -61,6 +63,7 @@ function toSafeUser(user: {
     id: user.id,
     email: user.email,
     username: user.username,
+    bio: user.bio,
     role: user.role,
     isPremium: user.isPremium,
     avatar: user.avatar,
@@ -244,6 +247,7 @@ export class AuthService {
         id: true,
         email: true,
         username: true,
+        bio: true,
         role: true,
         avatar: true,
         isPremium: true,

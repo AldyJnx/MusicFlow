@@ -31,8 +31,14 @@ import { ReengagementProcessor } from "./reengagement.processor";
             password: parsed.password || undefined,
             // Upstash and other managed Redis providers require TLS (rediss://).
             ...(isTls ? { tls: { servername: parsed.hostname } } : {}),
-            // BullMQ requirement; also avoids noisy reconnect loops on managed Redis.
+            // BullMQ requires this to manage retries itself.
             maxRetriesPerRequest: null,
+            // Redis readiness probing was the dominant local startup cost
+            // (roughly 8.5 seconds). BullMQ reconnects in the background if
+            // Redis is temporarily unavailable, so the API can expose health
+            // endpoints instead of blocking every route registration.
+            enableReadyCheck: false,
+            connectTimeout: 1_500,
           },
         };
       },

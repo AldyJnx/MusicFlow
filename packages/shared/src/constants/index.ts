@@ -41,7 +41,7 @@ export const REFRESH_TOKEN_EXPIRY = "7d";
 // Free Tier Limits
 export const FREE_LIMITS = {
   uploadsTotal: 50,
-  aiRequestsPerMonth: 10,
+  aiRequestsPerMonth: 0,
   customPresets: 5,
 } as const;
 

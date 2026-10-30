@@ -21,10 +21,38 @@ enum UserRole {
   CLIENT
 }
 
+enum ArtistMemberRole {
+  OWNER
+  MANAGER
+  EDITOR
+  ANALYST
+}
+
+enum ArtistMembershipStatus {
+  ACTIVE
+  SUSPENDED
+  REVOKED
+}
+
+enum ArtistAccessRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum ArtistVerificationRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
 model User {
   id        String   @id @default(uuid())
   email     String   @unique
   username  String   @unique
+  bio       String?  @db.Text
   password  String
   role      UserRole @default(CLIENT)
   avatar    String?
@@ -66,8 +94,16 @@ model User {
   preferences               UserPreferences?
   librarySaves              UserLibrarySave[]
   artistFollows             ArtistFollow[]
+  artistProfileViews        ArtistProfileView[]
   recommendationImpressions RecommendationImpression[]
   oauthLoginTickets         OAuthLoginTicket[]
+  artistMemberships         ArtistMembership[]
+  artistAccessRequests      ArtistAccessRequest[]      @relation("ArtistAccessRequester")
+  reviewedArtistRequests    ArtistAccessRequest[]      @relation("ArtistAccessReviewer")
+  artistVerificationRequests ArtistVerificationRequest[] @relation("ArtistVerificationRequester")
+  reviewedArtistVerificationRequests ArtistVerificationRequest[] @relation("ArtistVerificationReviewer")
+  artistNotificationReads   ArtistNotificationRead[]
+  notificationReads         UserNotificationRead[]
 
   @@index([email, role])
   @@map("users")
@@ -238,15 +274,152 @@ model Artist {
   bio            String?  @db.Text
   // An artist can be tagged with several musical genres.
   genres         String[] @default([])
+  isVerified     Boolean  @default(false) @map("is_verified")
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
 
-  albums     Album[]
-  tracks     Track[]
-  followers  ArtistFollow[]
-  featuredOn TrackFeaturedArtist[] @relation("FeaturedCatalogArtist")
+  albums         Album[]
+  tracks         Track[]
+  followers      ArtistFollow[]
+  featuredOn     TrackFeaturedArtist[] @relation("FeaturedCatalogArtist")
+  memberships    ArtistMembership[]
+  accessRequests ArtistAccessRequest[]
+  verificationRequests ArtistVerificationRequest[]
+  profileViews ArtistProfileView[]
+  notificationReads ArtistNotificationRead[]
 
   @@map("artists")
+}
+
+/// Curated vocabulary used by administrators when classifying catalog artists.
+/// Artist.genres remains an array to preserve the existing catalog contract,
+/// while this table makes unassigned genres manageable as first-class data.
+model CatalogGenre {
+  id             String   @id @default(uuid())
+  name           String   @unique
+  normalizedName String   @unique @map("normalized_name")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  @@map("catalog_genres")
+}
+
+/// One unique visitor per artist and UTC day. This provides an auditable,
+/// bounded profile-discovery metric without treating page refreshes as growth.
+model ArtistProfileView {
+  id       String   @id @default(uuid())
+  artistId String   @map("artist_id")
+  userId   String   @map("user_id")
+  viewedOn DateTime @map("viewed_on")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  artist Artist @relation(fields: [artistId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([artistId, userId, viewedOn])
+  @@index([artistId, viewedOn])
+  @@map("artist_profile_views")
+}
+
+/// Read receipts keep artist-portal notifications consistent across browsers
+/// and devices. Notifications themselves are derived from auditable activity.
+model ArtistNotificationRead {
+  id             String   @id @default(uuid())
+  userId         String   @map("user_id")
+  artistId       String   @map("artist_id")
+  notificationId String   @map("notification_id")
+  readAt         DateTime @default(now()) @map("read_at")
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  artist Artist @relation(fields: [artistId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, artistId, notificationId])
+  @@index([artistId, userId])
+  @@map("artist_notification_reads")
+}
+
+/// User-facing release notifications are derived from followed artists. Their
+/// read receipts are stored separately from the notification payload itself.
+model UserNotificationRead {
+  id             String   @id @default(uuid())
+  userId         String   @map("user_id")
+  notificationId String   @map("notification_id")
+  readAt         DateTime @default(now()) @map("read_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, notificationId])
+  @@index([userId, readAt(sort: Desc)])
+  @@map("user_notification_reads")
+}
+
+/// A verified artist badge is granted only after an administrator reviews a
+/// request made by an active owner or manager of that artist's portal.
+model ArtistVerificationRequest {
+  id           String                          @id @default(uuid())
+  artistId     String                          @map("artist_id")
+  requesterUserId String                       @map("requester_user_id")
+  status       ArtistVerificationRequestStatus @default(PENDING)
+  reviewedById String?                         @map("reviewed_by_id")
+  reviewedAt   DateTime?                       @map("reviewed_at")
+  reviewNote   String?                         @map("review_note") @db.Text
+  createdAt    DateTime                        @default(now()) @map("created_at")
+  updatedAt    DateTime                        @updatedAt @map("updated_at")
+
+  artist      Artist @relation(fields: [artistId], references: [id], onDelete: Cascade)
+  requester   User   @relation("ArtistVerificationRequester", fields: [requesterUserId], references: [id], onDelete: Cascade)
+  reviewedBy  User?  @relation("ArtistVerificationReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+
+  @@unique([artistId])
+  @@index([status, createdAt(sort: Desc)])
+  @@map("artist_verification_requests")
+}
+
+/// Verified access to an existing catalog artist. Authentication remains on
+/// User; this relation is the source of truth for Artist Portal permissions.
+model ArtistMembership {
+  id        String                 @id @default(uuid())
+  userId    String                 @map("user_id")
+  artistId  String                 @map("artist_id")
+  role      ArtistMemberRole       @default(EDITOR)
+  status    ArtistMembershipStatus @default(ACTIVE)
+  createdAt DateTime               @default(now()) @map("created_at")
+  updatedAt DateTime               @updatedAt @map("updated_at")
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  artist Artist @relation(fields: [artistId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, artistId])
+  @@index([artistId, status])
+  @@map("artist_memberships")
+}
+
+/// Claim request reviewed by an administrator before portal access is granted.
+model ArtistAccessRequest {
+  id                String                    @id @default(uuid())
+  userId            String                    @map("user_id")
+  artistId          String                    @map("artist_id")
+  evidence          String?                   @db.Text
+  evidenceLinks     Json                      @default("[]") @map("evidence_links")
+  documentKey       String?                   @map("document_key")
+  documentName      String?                   @map("document_name")
+  documentMimeType  String?                   @map("document_mime_type")
+  documentSizeBytes Int?                      @map("document_size_bytes")
+  status            ArtistAccessRequestStatus @default(PENDING)
+  reviewedById      String?                   @map("reviewed_by_id")
+  reviewedAt        DateTime?                 @map("reviewed_at")
+  reviewNote        String?                   @map("review_note") @db.Text
+  createdAt         DateTime                  @default(now()) @map("created_at")
+  updatedAt         DateTime                  @updatedAt @map("updated_at")
+
+  user       User   @relation("ArtistAccessRequester", fields: [userId], references: [id], onDelete: Cascade)
+  reviewedBy User?  @relation("ArtistAccessReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  artist     Artist @relation(fields: [artistId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, artistId])
+  @@index([status, createdAt(sort: Desc)])
+  @@index([artistId])
+  @@map("artist_access_requests")
 }
 
 /// Tombstone written by an admin deletion. R2 is an asset source, never the

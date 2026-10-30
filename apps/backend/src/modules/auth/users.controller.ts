@@ -10,6 +10,7 @@ import {
   UploadedFile,
   HttpCode,
   HttpStatus,
+  Query,
 } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
 import {
@@ -27,6 +28,7 @@ import { JwtAuthGuard } from "@/common/guards/jwt-auth.guard";
 import { CurrentUser } from "@/common/decorators/current-user.decorator";
 import { CompleteOnboardingDto } from "./dto/complete-onboarding.dto";
 import { RecordActivityDto } from "./dto/record-activity.dto";
+import { MarkNotificationsReadDto } from "./dto/mark-notifications-read.dto";
 
 @ApiTags("users")
 @Controller("users")
@@ -60,6 +62,35 @@ export class UsersController {
   @ApiOperation({ summary: "List artists followed by the current user" })
   followedArtists(@CurrentUser("id") userId: string) {
     return this.usersService.listFollowedArtists(userId);
+  }
+
+  @Get("me/notifications")
+  @ApiOperation({
+    summary: "List notifications for releases from followed artists",
+  })
+  notifications(
+    @CurrentUser("id") userId: string,
+    @Query("page") page?: string,
+    @Query("pageSize") pageSize?: string,
+    @Query("sort") sort?: string,
+    @Query("q") q?: string,
+  ) {
+    return this.usersService.listNotifications(userId, {
+      page,
+      pageSize,
+      sort,
+      q,
+    });
+  }
+
+  @Post("me/notifications/read")
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: "Mark current user notifications as read" })
+  markNotificationsRead(
+    @CurrentUser("id") userId: string,
+    @Body() dto: MarkNotificationsReadDto,
+  ) {
+    return this.usersService.markNotificationsRead(userId, dto.notificationIds);
   }
 
   @Post("me/activity")

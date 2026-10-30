@@ -1,5 +1,10 @@
 import { Test, TestingModule } from "@nestjs/testing";
-import { Global, INestApplication, Module, ValidationPipe } from "@nestjs/common";
+import {
+  Global,
+  INestApplication,
+  Module,
+  ValidationPipe,
+} from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
 import * as request from "supertest";
 import * as bcrypt from "bcryptjs";
@@ -78,7 +83,12 @@ describe("Auth (e2e)", () => {
       findFirst: jest.fn(async ({ where }: WhereArg) => {
         for (const u of users.values()) {
           if (where.OR) {
-            if (where.OR.some((cond) => cond.email === u.email || cond.username === u.username)) {
+            if (
+              where.OR.some(
+                (cond) =>
+                  cond.email === u.email || cond.username === u.username,
+              )
+            ) {
               return u;
             }
           }
@@ -134,7 +144,9 @@ describe("Auth (e2e)", () => {
 
     app = module.createNestApplication();
     app.setGlobalPrefix("api");
-    app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
+    app.useGlobalPipes(
+      new ValidationPipe({ whitelist: true, transform: true }),
+    );
     await app.init();
   });
 
@@ -150,7 +162,11 @@ describe("Auth (e2e)", () => {
   it("POST /api/auth/register creates a user and returns tokens", async () => {
     const res = await request(app.getHttpServer())
       .post("/api/auth/register")
-      .send({ email: "new@user.com", username: "newuser", password: "Strong1!" })
+      .send({
+        email: "new@user.com",
+        username: "newuser",
+        password: "Strong1!",
+      })
       .expect(201);
 
     expect(res.body.accessToken).toBeDefined();
@@ -171,7 +187,11 @@ describe("Auth (e2e)", () => {
 
     await request(app.getHttpServer())
       .post("/api/auth/register")
-      .send({ email: "dupe@user.com", username: "newname", password: "Strong1!" })
+      .send({
+        email: "dupe@user.com",
+        username: "newname",
+        password: "Strong1!",
+      })
       .expect(409);
   });
 

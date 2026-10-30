@@ -75,7 +75,9 @@ describe("QuotaService", () => {
       const quota = await service.getAiQuota(freeUser);
       expect(quota.limit).toBe(FREE_LIMITS.aiRequestsPerMonth);
       expect(quota.used).toBe(3);
-      expect(quota.remaining).toBe(FREE_LIMITS.aiRequestsPerMonth - 3);
+      expect(quota.remaining).toBe(
+        Math.max(0, FREE_LIMITS.aiRequestsPerMonth - 3),
+      );
     });
 
     it("uses premium limit for premium users", async () => {

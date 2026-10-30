@@ -1,4 +1,5 @@
 import { Controller, Get } from "@nestjs/common";
+import { SkipThrottle } from "@nestjs/throttler";
 import { ApiTags, ApiOperation } from "@nestjs/swagger";
 import { PrismaService } from "../prisma/prisma.service";
 
@@ -8,6 +9,7 @@ export class HealthController {
   constructor(private readonly prisma: PrismaService) {}
 
   @Get()
+  @SkipThrottle()
   @ApiOperation({
     summary: "Liveness/readiness probe (used by Render & Docker)",
   })

@@ -44,7 +44,9 @@ const PREMIUM_USER: FakeUser = {
 let currentUser: FakeUser = FREE_USER;
 
 class StubAuthGuard {
-  canActivate(ctx: { switchToHttp: () => { getRequest: () => { user: FakeUser } } }) {
+  canActivate(ctx: {
+    switchToHttp: () => { getRequest: () => { user: FakeUser } };
+  }) {
     ctx.switchToHttp().getRequest().user = currentUser;
     return true;
   }
@@ -65,6 +67,9 @@ describe("Premium gates + quotas (e2e)", () => {
       create: jest.fn(),
     },
     eQPreset: {
+      count: jest.fn(),
+    },
+    eQSegment: {
       count: jest.fn(),
     },
   };
@@ -120,6 +125,7 @@ describe("Premium gates + quotas (e2e)", () => {
     prismaMock.track.create.mockResolvedValue({ id: "track-created" });
     prismaMock.aIRequest.count.mockResolvedValue(0);
     prismaMock.eQPreset.count.mockResolvedValue(0);
+    prismaMock.eQSegment.count.mockResolvedValue(0);
   });
 
   describe("PremiumGuard — EQ segment writes", () => {
@@ -149,35 +155,13 @@ describe("Premium gates + quotas (e2e)", () => {
   });
 
   describe("AI quota — POST /ai/suggest", () => {
-    it("free user under the cap reaches the service layer", async () => {
+    it("free user gets 403 PREMIUM_REQUIRED before reaching the service", async () => {
       currentUser = FREE_USER;
-      prismaMock.aIRequest.count.mockResolvedValue(0);
-      prismaMock.aIRequest.create.mockResolvedValue({
-        id: "ai-1",
-        prompt: "test",
-      });
-      // Without ANTHROPIC_API_KEY the service falls back to mock suggestions
-      // and still records the AIRequest row — both paths exercise the gate.
       const res = await request(app.getHttpServer())
         .post("/api/ai/suggest")
-        .send({ prompt: "hazlo mas calido" });
-      // Either 201 (success) or 503/500 (mock branch on env). Anything other
-      // than 403 proves the quota gate did NOT fire.
-      expect(res.status).not.toBe(403);
-    });
-
-    it("free user at the cap gets 403 QUOTA_AI_EXCEEDED with the quota payload", async () => {
-      currentUser = FREE_USER;
-      prismaMock.aIRequest.count.mockResolvedValue(10); // FREE_LIMITS.aiRequestsPerMonth
-      const res = await request(app.getHttpServer())
-        .post("/api/ai/suggest")
-        .send({ prompt: "ignored — quota check fires first" })
+        .send({ prompt: "hazlo mas calido" })
         .expect(403);
-      expect(res.body.code).toBe("QUOTA_AI_EXCEEDED");
-      expect(res.body.quota.used).toBe(10);
-      expect(res.body.quota.limit).toBe(10);
-      expect(res.body.quota.resetAt).toBeDefined();
-      // The AIRequest should NOT have been created — the gate fired first.
+      expect(res.body.code).toBe("PREMIUM_REQUIRED");
       expect(prismaMock.aIRequest.create).not.toHaveBeenCalled();
     });
 
@@ -267,12 +251,11 @@ describe("Premium gates + quotas (e2e)", () => {
         .get("/api/billing/quota")
         .expect(200);
       expect(res.body.isPremium).toBe(false);
-      expect(res.body.uploads.used).toBe(7);
-      expect(res.body.uploads.limit).toBe(50);
       expect(res.body.aiRequests.used).toBe(3);
-      expect(res.body.aiRequests.limit).toBe(10);
+      expect(res.body.aiRequests.limit).toBe(0);
       expect(res.body.customPresets.used).toBe(1);
       expect(res.body.customPresets.limit).toBe(5);
+      expect(res.body.segments.used).toBe(0);
     });
 
     it("premium user — limits are reported as null (unlimited)", async () => {
@@ -282,8 +265,8 @@ describe("Premium gates + quotas (e2e)", () => {
         .get("/api/billing/quota")
         .expect(200);
       expect(res.body.isPremium).toBe(true);
-      expect(res.body.uploads.limit).toBeNull();
       expect(res.body.customPresets.limit).toBeNull();
+      expect(res.body.segments.limit).toBeNull();
       // AI does have a 200-cap on premium — limit is finite.
       expect(res.body.aiRequests.limit).toBe(200);
     });

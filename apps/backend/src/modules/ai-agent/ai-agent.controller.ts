@@ -32,10 +32,13 @@ import {
   AuthUser,
 } from "@/common/decorators/current-user.decorator";
 import { QuotaService } from "@/modules/billing/quota.service";
+import { PremiumGuard } from "@/common/guards/premium.guard";
+import { RequirePremium } from "@/common/decorators/require-premium.decorator";
 
 @ApiTags("ai-agent")
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, PremiumGuard)
+@RequirePremium()
 @Controller("ai")
 export class AiAgentController {
   constructor(

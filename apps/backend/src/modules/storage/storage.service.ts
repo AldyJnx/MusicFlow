@@ -15,7 +15,12 @@ import {
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { v4 as uuidv4 } from "uuid";
 
-export type StorageBucket = "audio" | "images" | "artistImages" | "lyrics";
+export type StorageBucket =
+  | "audio"
+  | "images"
+  | "artistImages"
+  | "lyrics"
+  | "artistEvidence";
 
 export interface UploadResult {
   key: string;
@@ -56,9 +61,12 @@ const CATALOG_AUDIO_MIME_TYPES = [
 
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5 MB
 const MAX_AUDIO_SIZE = 100 * 1024 * 1024; // 100 MB
+const MAX_VERIFICATION_DOCUMENT_SIZE = 5 * 1024 * 1024;
 
 function catalogKeyPart(value: string, label: string): string {
   const cleaned = value
+    // Control characters must be stripped from user-controlled R2 object names.
+    // eslint-disable-next-line no-control-regex
     .replace(/[\\/:*?"<>|\u0000-\u001F]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
@@ -197,6 +205,18 @@ export class StorageService {
         publicBase:
           this.configService.get<string>("R2_PUBLIC_LYRICS_URL")?.trim() ?? "",
       },
+      // Evidence is private and must remain isolated from catalogue artwork.
+      // The dashboard obtains a short-lived signed URL only when an admin needs
+      // to review a request.
+      artistEvidence: {
+        name:
+          this.configService.get<string>("R2_BUCKET_ARTIST_EVIDENCE") ??
+          "portal-artist-evidence",
+        publicBase:
+          this.configService
+            .get<string>("R2_PUBLIC_ARTIST_EVIDENCE_URL")
+            ?.trim() ?? "",
+      },
     };
   }
 
@@ -206,6 +226,30 @@ export class StorageService {
   ): Promise<UploadResult> {
     this.validate(file, IMAGE_MIME_TYPES, MAX_IMAGE_SIZE, "image");
     return this.upload("images", file, folder);
+  }
+
+  /**
+   * Stores verification evidence in its dedicated private bucket.  The folder
+   * is deliberately the requester's username so it can be audited in R2;
+   * the PDF file itself remains unguessable and is only exposed by a signed URL.
+   */
+  async uploadArtistVerificationDocument(
+    file: Express.Multer.File,
+    username: string,
+  ): Promise<UploadResult> {
+    if (
+      file?.mimetype !== "application/pdf" ||
+      !/\.pdf$/i.test(file.originalname)
+    ) {
+      throw new BadRequestException("La evidencia debe ser un PDF.");
+    }
+    if (file.size > MAX_VERIFICATION_DOCUMENT_SIZE) {
+      throw new BadRequestException(
+        "El PDF de evidencia no puede superar 5 MB.",
+      );
+    }
+    const key = `${catalogKeyPart(username, "usuario")}/${uuidv4()}.pdf`;
+    return this.putCanonical("artistEvidence", file, key);
   }
 
   async uploadArtistImage(

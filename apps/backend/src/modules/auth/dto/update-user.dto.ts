@@ -24,6 +24,12 @@ export class UpdateUserDto {
   @IsString()
   avatar?: string;
 
+  @ApiPropertyOptional({ maxLength: 1000 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  bio?: string;
+
   @ApiPropertyOptional({ minLength: 8 })
   @IsOptional()
   @IsString()

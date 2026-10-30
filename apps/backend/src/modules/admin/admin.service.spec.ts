@@ -354,3 +354,47 @@ describe("AdminService.getMusicInsights", () => {
     }
   });
 });
+
+describe("AdminService.deleteCatalogGenre", () => {
+  it("removes a genre from its catalog entry, artists and tracks atomically", async () => {
+    const catalogGenre = {
+      findUnique: jest.fn().mockResolvedValue({ id: "genre-1", name: "Salsa" }),
+      delete: jest.fn().mockResolvedValue(undefined),
+    };
+    const track = {
+      updateMany: jest.fn().mockResolvedValue({ count: 2 }),
+    };
+    const artist = {
+      findMany: jest
+        .fn()
+        .mockResolvedValue([{ id: "artist-1", genres: ["Salsa", "Tropical"] }]),
+      update: jest.fn().mockResolvedValue(undefined),
+    };
+    const prisma = {
+      catalogGenre,
+      track,
+      artist,
+      $transaction: jest.fn(async (operations: Promise<unknown>[]) =>
+        Promise.all(operations),
+      ),
+    };
+    const service = new AdminService(prisma as never);
+
+    await service.deleteCatalogGenre("genre-1");
+
+    expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+    expect(catalogGenre.delete).toHaveBeenCalledWith({
+      where: { id: "genre-1" },
+    });
+    expect(track.updateMany).toHaveBeenCalledWith({
+      where: { genre: "Salsa" },
+      // `genre` is a required legacy column: null would make the transaction
+      // fail and leave the genre undeleted.
+      data: { genre: "" },
+    });
+    expect(artist.update).toHaveBeenCalledWith({
+      where: { id: "artist-1" },
+      data: { genres: ["Tropical"] },
+    });
+  });
+});

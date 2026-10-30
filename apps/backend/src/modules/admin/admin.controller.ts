@@ -22,6 +22,8 @@ import {
 import { AdminService, parseAiUsageScope } from "./admin.service";
 import {
   CreateGlobalEqPresetDto,
+  CreateCatalogGenreDto,
+  UpdateCatalogGenreDto,
   UpdateGlobalEqPresetDto,
   UpdateUserPremiumDto,
   UpdateUserRoleDto,
@@ -195,6 +197,34 @@ export class AdminController {
   @ApiResponse({ status: 404, description: "Preset not found" })
   async deleteGlobalPreset(@Param("id") id: string) {
     await this.adminService.deleteGlobalPreset(id);
+  }
+
+  @Get("genres")
+  @ApiOperation({ summary: "List administrator-managed catalog genres" })
+  async listCatalogGenres() {
+    return this.adminService.listCatalogGenres();
+  }
+
+  @Post("genres")
+  @ApiOperation({ summary: "Create a catalog genre" })
+  async createCatalogGenre(@Body() dto: CreateCatalogGenreDto) {
+    return this.adminService.createCatalogGenre(dto.name);
+  }
+
+  @Patch("genres/:id")
+  @ApiOperation({ summary: "Rename a catalog genre and its catalog usages" })
+  async updateCatalogGenre(
+    @Param("id") id: string,
+    @Body() dto: UpdateCatalogGenreDto,
+  ) {
+    return this.adminService.updateCatalogGenre(id, dto.name);
+  }
+
+  @Delete("genres/:id")
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: "Delete a catalog genre and remove its usages" })
+  async deleteCatalogGenre(@Param("id") id: string) {
+    await this.adminService.deleteCatalogGenre(id);
   }
 
   @Get("ai/costs")

@@ -615,6 +615,7 @@ export class CatalogService {
           name: a.name,
           slug: a.slug,
           imageUrl: a.imageUrl,
+          isVerified: a.isVerified,
           genres: a.genres,
           albumCount: a._count.albums,
           trackCount: a._count.tracks,
@@ -633,6 +634,7 @@ export class CatalogService {
       name: a.name,
       slug: a.slug,
       imageUrl: a.imageUrl,
+      isVerified: a.isVerified,
       genres: a.genres,
       albumCount: a._count.albums,
       trackCount: a._count.tracks,
@@ -841,16 +843,32 @@ export class CatalogService {
       distinct: ["genre"],
       orderBy: { genre: "asc" },
     });
-    const fromArtists = await this.prisma.artist.findMany({
-      select: { genres: true },
-    });
+    const [fromArtists, managedGenres] = await Promise.all([
+      this.prisma.artist.findMany({ select: { genres: true } }),
+      this.prisma.catalogGenre.findMany({
+        select: { name: true },
+        orderBy: { name: "asc" },
+      }),
+    ]);
     const set = new Set<string>();
     for (const r of rows) if (r.genre) set.add(r.genre);
     for (const a of fromArtists) for (const g of a.genres) set.add(g);
+    for (const genre of managedGenres) set.add(genre.name);
     return [...set].sort((x, y) => x.localeCompare(y));
   }
 
   async getArtist(id: string, userId: string) {
+    const viewedOn = new Date();
+    viewedOn.setUTCHours(0, 0, 0, 0);
+    // A visitor is counted once per UTC day. A failed metric write must never
+    // make a public artist profile unavailable.
+    void this.prisma.artistProfileView
+      .upsert({
+        where: { artistId_userId_viewedOn: { artistId: id, userId, viewedOn } },
+        create: { artistId: id, userId, viewedOn },
+        update: {},
+      })
+      .catch(() => undefined);
     const artist = await this.prisma.artist.findUnique({
       where: { id },
       include: {
@@ -877,6 +895,7 @@ export class CatalogService {
       name: artist.name,
       slug: artist.slug,
       imageUrl: artist.imageUrl,
+      isVerified: artist.isVerified,
       bio: artist.bio,
       genres: artist.genres,
       followerCount: artist._count.followers,

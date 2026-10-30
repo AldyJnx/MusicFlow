@@ -77,7 +77,10 @@ export class SegmentsService {
       where: {
         trackId: data.trackId,
         userId,
-        OR: [{ startMs: { lt: data.endMs }, endMs: { gt: data.startMs } }],
+        // Two half-open time ranges overlap only when both conditions hold.
+        // The former OR treated adjacent or distant segments as collisions.
+        startMs: { lt: data.endMs },
+        endMs: { gt: data.startMs },
       },
     });
 
@@ -155,6 +158,20 @@ export class SegmentsService {
 
     if (newEndMs > segment.track.durationMs) {
       throw new BadRequestException("endMs exceeds track duration");
+    }
+
+    const overlapping = await this.prisma.eQSegment.findFirst({
+      where: {
+        trackId: segment.trackId,
+        userId,
+        id: { not: id },
+        startMs: { lt: newEndMs },
+        endMs: { gt: newStartMs },
+      },
+      select: { id: true },
+    });
+    if (overlapping) {
+      throw new BadRequestException("Segment overlaps with existing segment");
     }
 
     return this.prisma.$transaction(async (tx) => {

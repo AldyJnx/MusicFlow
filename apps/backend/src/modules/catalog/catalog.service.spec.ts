@@ -40,6 +40,9 @@ describe("CatalogService", () => {
       deleteMany: jest.Mock;
       upsert: jest.Mock;
     };
+    artistProfileView: {
+      upsert: jest.Mock;
+    };
     $transaction: jest.Mock;
   };
 
@@ -79,6 +82,9 @@ describe("CatalogService", () => {
       deletedCatalogArtist: {
         deleteMany: jest.fn(),
         upsert: jest.fn(),
+      },
+      artistProfileView: {
+        upsert: jest.fn().mockResolvedValue(undefined),
       },
       $transaction: jest.fn(async (operation) =>
         typeof operation === "function"

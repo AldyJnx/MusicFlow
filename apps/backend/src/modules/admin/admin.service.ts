@@ -557,10 +557,16 @@ export class AdminService {
       imageUrl: string | null;
       plays: bigint;
     };
+    type GenreListeningRow = { name: string; plays: bigint };
 
-    const [mostPlayed, leastPlayed, mostListenedArtists, mostFollowedArtists] =
-      await Promise.all([
-        this.prisma.$queryRaw<TrackRankingRow[]>`
+    const [
+      mostPlayed,
+      leastPlayed,
+      mostListenedArtists,
+      mostFollowedArtists,
+      mostListenedGenres,
+    ] = await Promise.all([
+      this.prisma.$queryRaw<TrackRankingRow[]>`
           SELECT t.id, t.title, t.artist, t.cover_art AS "coverArt", COUNT(ph.id)::bigint AS plays
           FROM tracks t
           INNER JOIN artists a ON a.id = t.artist_id
@@ -570,7 +576,7 @@ export class AdminService {
           ORDER BY plays DESC, t.title ASC
           LIMIT ${limit}
         `,
-        this.prisma.$queryRaw<TrackRankingRow[]>`
+      this.prisma.$queryRaw<TrackRankingRow[]>`
           SELECT t.id, t.title, t.artist, t.cover_art AS "coverArt", COUNT(ph.id)::bigint AS plays
           FROM tracks t
           INNER JOIN artists a ON a.id = t.artist_id
@@ -580,7 +586,7 @@ export class AdminService {
           ORDER BY plays ASC, t.title ASC
           LIMIT ${limit}
         `,
-        this.prisma.$queryRaw<ArtistListeningRow[]>`
+      this.prisma.$queryRaw<ArtistListeningRow[]>`
           SELECT a.name, MAX(a.image_url) AS "imageUrl", COUNT(ph.id)::bigint AS plays
           FROM play_history ph
           INNER JOIN tracks t ON t.id = ph.track_id
@@ -590,18 +596,29 @@ export class AdminService {
           ORDER BY plays DESC, name ASC
           LIMIT ${limit}
         `,
-        this.prisma.artist.findMany({
-          where: { tracks: { some: { isCatalog: true } } },
-          orderBy: { followers: { _count: "desc" } },
-          take: limit,
-          select: {
-            id: true,
-            name: true,
-            imageUrl: true,
-            _count: { select: { followers: true } },
-          },
-        }),
-      ]);
+      this.prisma.artist.findMany({
+        where: { tracks: { some: { isCatalog: true } } },
+        orderBy: { followers: { _count: "desc" } },
+        take: limit,
+        select: {
+          id: true,
+          name: true,
+          imageUrl: true,
+          _count: { select: { followers: true } },
+        },
+      }),
+      this.prisma.$queryRaw<GenreListeningRow[]>`
+          SELECT t.genre AS name, COUNT(ph.id)::bigint AS plays
+          FROM play_history ph
+          INNER JOIN tracks t ON t.id = ph.track_id
+          WHERE t.is_catalog = true
+            AND t.genre IS NOT NULL
+            AND btrim(t.genre) <> ''
+          GROUP BY t.genre
+          ORDER BY plays DESC, name ASC
+          LIMIT ${limit}
+        `,
+    ]);
 
     return {
       mostPlayed: mostPlayed.map((track) => ({
@@ -621,6 +638,10 @@ export class AdminService {
         name: artist.name,
         imageUrl: artist.imageUrl,
         followers: artist._count.followers,
+      })),
+      mostListenedGenres: mostListenedGenres.map((genre) => ({
+        name: genre.name,
+        plays: Number(genre.plays),
       })),
     };
   }
@@ -739,6 +760,135 @@ export class AdminService {
     });
     if (!existing) throw new NotFoundException("Global preset not found");
     return this.prisma.eQPreset.delete({ where: { id } });
+  }
+
+  private normalizeCatalogGenre(name: string): string {
+    return name
+      .normalize("NFD")
+      .replace(/\p{Diacritic}/gu, "")
+      .toLocaleLowerCase()
+      .replace(/[^a-z0-9]+/g, "")
+      .trim();
+  }
+
+  private sanitizeCatalogGenre(name: string): string {
+    const value = name.trim().replace(/\s+/g, " ");
+    if (value.length < 2 || value.length > 60) {
+      throw new BadRequestException(
+        "El género debe tener entre 2 y 60 caracteres.",
+      );
+    }
+    return `${value[0].toLocaleUpperCase("es-PE")}${value.slice(1)}`;
+  }
+
+  async listCatalogGenres() {
+    const artistGenres = await this.prisma.artist.findMany({
+      select: { genres: true },
+    });
+    const legacy = new Map<string, string>();
+    for (const artist of artistGenres) {
+      for (const raw of artist.genres) {
+        const name = raw.trim();
+        const normalizedName = this.normalizeCatalogGenre(name);
+        if (name && normalizedName) legacy.set(normalizedName, name);
+      }
+    }
+    if (legacy.size > 0) {
+      await this.prisma.catalogGenre.createMany({
+        data: [...legacy.entries()].map(([normalizedName, name]) => ({
+          name,
+          normalizedName,
+        })),
+        skipDuplicates: true,
+      });
+    }
+
+    const genres = await this.prisma.catalogGenre.findMany({
+      orderBy: { name: "asc" },
+    });
+    const counts = await Promise.all(
+      genres.map((genre) =>
+        this.prisma.artist.count({ where: { genres: { has: genre.name } } }),
+      ),
+    );
+    return genres.map((genre, index) => ({
+      ...genre,
+      artistCount: counts[index] ?? 0,
+    }));
+  }
+
+  async createCatalogGenre(rawName: string) {
+    const name = this.sanitizeCatalogGenre(rawName);
+    return this.prisma.catalogGenre.create({
+      data: { name, normalizedName: this.normalizeCatalogGenre(name) },
+    });
+  }
+
+  async updateCatalogGenre(id: string, rawName?: string) {
+    if (rawName === undefined) {
+      throw new BadRequestException("El nombre del género es obligatorio.");
+    }
+    const current = await this.prisma.catalogGenre.findUnique({
+      where: { id },
+    });
+    if (!current) throw new NotFoundException("Género no encontrado.");
+    const name = this.sanitizeCatalogGenre(rawName);
+    const normalizedName = this.normalizeCatalogGenre(name);
+    if (normalizedName === current.normalizedName) return current;
+
+    const impactedArtists = await this.prisma.artist.findMany({
+      where: { genres: { has: current.name } },
+      select: { id: true, genres: true },
+    });
+    await this.prisma.$transaction([
+      this.prisma.catalogGenre.update({
+        where: { id },
+        data: { name, normalizedName },
+      }),
+      this.prisma.track.updateMany({
+        where: { genre: current.name },
+        data: { genre: name },
+      }),
+      ...impactedArtists.map((artist) =>
+        this.prisma.artist.update({
+          where: { id: artist.id },
+          data: {
+            genres: artist.genres.map((genre) =>
+              genre === current.name ? name : genre,
+            ),
+          },
+        }),
+      ),
+    ]);
+    return this.prisma.catalogGenre.findUniqueOrThrow({ where: { id } });
+  }
+
+  async deleteCatalogGenre(id: string) {
+    const current = await this.prisma.catalogGenre.findUnique({
+      where: { id },
+    });
+    if (!current) throw new NotFoundException("Género no encontrado.");
+    const impactedArtists = await this.prisma.artist.findMany({
+      where: { genres: { has: current.name } },
+      select: { id: true, genres: true },
+    });
+    await this.prisma.$transaction([
+      this.prisma.catalogGenre.delete({ where: { id } }),
+      this.prisma.track.updateMany({
+        where: { genre: current.name },
+        // Track.genre is a required legacy display column. An empty string is
+        // the canonical "unclassified" value and is ignored by genre queries.
+        data: { genre: "" },
+      }),
+      ...impactedArtists.map((artist) =>
+        this.prisma.artist.update({
+          where: { id: artist.id },
+          data: {
+            genres: artist.genres.filter((genre) => genre !== current.name),
+          },
+        }),
+      ),
+    ]);
   }
 
   private validatePresetPayload(
