@@ -7,6 +7,7 @@ import 'package:musicflow_mobile/core/providers/providers.dart';
 import 'package:musicflow_mobile/core/theme/musicflow_theme.dart';
 import 'package:musicflow_mobile/features/library/providers/playlists_providers.dart';
 import 'package:musicflow_mobile/features/player/providers/player_controller.dart';
+import 'package:musicflow_mobile/features/auth/providers/auth_controller.dart';
 import 'package:musicflow_mobile/shared/models/track.dart';
 
 class AiChatScreen extends ConsumerStatefulWidget {
@@ -518,6 +519,35 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = context.musicFlowColors;
+    final isPremium = ref.watch(authControllerProvider).user?.isPremium ?? false;
+
+    if (!isPremium) {
+      return Scaffold(
+        backgroundColor: colors.background,
+        body: SafeArea(
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.workspace_premium_rounded, size: 48, color: _accentCyan),
+                  const SizedBox(height: 16),
+                  Text('FlowIA es exclusivo de Premium', style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
+                  const SizedBox(height: 8),
+                  const Text('Actualiza tu plan para usar el asistente de IA.'),
+                  const SizedBox(height: 20),
+                  FilledButton(
+                    onPressed: () => context.go(AppRoutes.premium),
+                    child: const Text('Ver Premium'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
 
     return Scaffold(
       backgroundColor: colors.background,

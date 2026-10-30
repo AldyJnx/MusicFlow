@@ -101,19 +101,44 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
       setState(() {
         _initialUsername = username;
         _passwordController.clear();
-        _message = 'Perfil actualizado.';
       });
+      await _showResultDialog(
+        title: 'Éxito',
+        message: 'El cambio se guardó correctamente.',
+      );
     } on DioException catch (e) {
       final data = e.response?.data;
       final raw = data is Map ? data['message'] : null;
-      setState(
-        () => _message = raw?.toString() ?? 'No se pudo actualizar el perfil.',
-      );
+      final message = raw?.toString() ?? 'Error al guardar los cambios.';
+      setState(() => _message = message);
+      if (mounted) await _showResultDialog(title: 'Error', message: message);
     } catch (_) {
-      setState(() => _message = 'No se pudo actualizar el perfil.');
+      const message = 'Error al guardar los cambios.';
+      setState(() => _message = message);
+      if (mounted) await _showResultDialog(title: 'Error', message: message);
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
+  }
+
+  Future<void> _showResultDialog({
+    required String title,
+    required String message,
+  }) {
+    return showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF121A21),
+        title: Text(title, style: const TextStyle(color: _text)),
+        content: Text(message, style: const TextStyle(color: _muted)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Aceptar', style: TextStyle(color: _cyan)),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _confirmDeleteAccount() async {

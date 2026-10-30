@@ -136,6 +136,64 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 onTap: () => context.push(AppRoutes.themes),
               ),
               const SizedBox(height: 12),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(18),
+                decoration: BoxDecoration(
+                  color: colors.surface,
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const _LeadingIcon(icon: Icons.format_size_rounded),
+                        const SizedBox(width: 14),
+                        const Expanded(
+                          child: Text(
+                            'Tamaño de letra',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ),
+                        Text(
+                          '${(settings.lyricsScale * 100).round()}%',
+                          style: TextStyle(
+                            color: colors.primary,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ],
+                    ),
+                    Slider(
+                      value: settings.lyricsScale,
+                      min: 0.85,
+                      max: 1.25,
+                      divisions: 8,
+                      activeColor: colors.primary,
+                      onChanged: (value) => ref
+                          .read(appSettingsProvider.notifier)
+                          .setLyricsScale(value),
+                    ),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(
+                        onPressed: settings.lyricsScale == 1
+                            ? null
+                            : () => ref
+                                  .read(appSettingsProvider.notifier)
+                                  .setLyricsScale(1),
+                        child: const Text('Predeterminado'),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
               const SizedBox(height: 28),
               _SectionLabel(title: 'IA Y EXPERIENCIA'),
               const SizedBox(height: 14),

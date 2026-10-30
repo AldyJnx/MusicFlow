@@ -85,6 +85,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           .read(authControllerProvider.notifier)
           .login(_emailController.text.trim(), _passwordController.text);
       // Success: GoRouter redirect handles navigation automatically.
+    } on UnsupportedMobileUserRoleException {
+      await _showLoginError('Tipo de usuario no disponible en mobile');
     } on DioException catch (e) {
       await _showLoginError(_messageForDioException(e));
     } catch (_) {
@@ -104,6 +106,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     try {
       await ref.read(authControllerProvider.notifier).signInWithGoogle();
       // Success: GoRouter redirect handles navigation automatically.
+    } on UnsupportedMobileUserRoleException {
+      await _showLoginError('Tipo de usuario no disponible en mobile');
     } on GoogleSignInCancelled {
       // Android Credential Manager can also surface some OAuth setup failures
       // as cancellation after account selection, so make the outcome visible.

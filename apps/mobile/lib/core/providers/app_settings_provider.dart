@@ -8,11 +8,13 @@ class AppSettingsState {
     this.aiAssistantEnabled = true,
     this.notificationsEnabled = false,
     this.themeId = MusicFlowPalettes.defaultId,
+    this.lyricsScale = 1.0,
   });
 
   final bool aiAssistantEnabled;
   final bool notificationsEnabled;
   final String themeId;
+  final double lyricsScale;
 
   MusicFlowPalette get palette => MusicFlowPalettes.byId(themeId);
 
@@ -20,11 +22,13 @@ class AppSettingsState {
     bool? aiAssistantEnabled,
     bool? notificationsEnabled,
     String? themeId,
+    double? lyricsScale,
   }) {
     return AppSettingsState(
       aiAssistantEnabled: aiAssistantEnabled ?? this.aiAssistantEnabled,
       notificationsEnabled: notificationsEnabled ?? this.notificationsEnabled,
       themeId: themeId ?? this.themeId,
+      lyricsScale: lyricsScale ?? this.lyricsScale,
     );
   }
 }
@@ -42,6 +46,7 @@ class AppSettingsController extends StateNotifier<AppSettingsState> {
   static const _aiAssistantEnabledKey = 'ai_assistant_enabled';
   static const _notificationsEnabledKey = 'notifications_enabled';
   static const _themeIdKey = 'theme_id';
+  static const _lyricsScaleKey = 'lyrics_scale';
   static const _notifications = NotificationPermissionService();
 
   Future<void> _load() async {
@@ -55,6 +60,7 @@ class AppSettingsController extends StateNotifier<AppSettingsState> {
           (storedNotifications ?? systemNotificationsEnabled) &&
           systemNotificationsEnabled,
       themeId: prefs.getString(_themeIdKey) ?? MusicFlowPalettes.defaultId,
+      lyricsScale: (prefs.getDouble(_lyricsScaleKey) ?? 1.0).clamp(0.85, 1.25),
     );
   }
 
@@ -81,5 +87,12 @@ class AppSettingsController extends StateNotifier<AppSettingsState> {
     state = state.copyWith(themeId: safeThemeId);
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_themeIdKey, safeThemeId);
+  }
+
+  Future<void> setLyricsScale(double value) async {
+    final safeValue = value.clamp(0.85, 1.25).toDouble();
+    state = state.copyWith(lyricsScale: safeValue);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble(_lyricsScaleKey, safeValue);
   }
 }

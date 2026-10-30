@@ -2,6 +2,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:musicflow_mobile/core/providers/providers.dart';
 import 'package:musicflow_mobile/shared/models/user.dart';
 
+class UnsupportedMobileUserRoleException implements Exception {
+  const UnsupportedMobileUserRoleException();
+}
+
 class AuthState {
   const AuthState({this.user, this.isInitializing = true});
 
@@ -38,6 +42,11 @@ class AuthController extends StateNotifier<AuthState> {
     }
     try {
       final user = await _ref.read(authRepositoryProvider).me();
+      if (!_isAvailableOnMobile(user)) {
+        await storage.clear();
+        state = state.copyWith(isInitializing: false, clearUser: true);
+        return;
+      }
       state = AuthState(user: user, isInitializing: false);
     } catch (_) {
       await storage.clear();
@@ -48,13 +57,7 @@ class AuthController extends StateNotifier<AuthState> {
   Future<void> login(String email, String password) async {
     final repo = _ref.read(authRepositoryProvider);
     final session = await repo.login(email: email, password: password);
-    await _ref
-        .read(tokenStorageProvider)
-        .saveTokens(
-          accessToken: session.accessToken,
-          refreshToken: session.refreshToken,
-        );
-    state = AuthState(user: session.user, isInitializing: false);
+    await _acceptMobileSession(session);
   }
 
   /// Completes a native Google sign-in: the platform SDK returns an ID token
@@ -66,19 +69,23 @@ class AuthController extends StateNotifier<AuthState> {
     final session = await _ref
         .read(authRepositoryProvider)
         .exchangeGoogleToken(idToken);
-    await _ref
-        .read(tokenStorageProvider)
-        .saveTokens(
-          accessToken: session.accessToken,
-          refreshToken: session.refreshToken,
-        );
-    state = AuthState(user: session.user, isInitializing: false);
+    try {
+      await _acceptMobileSession(session);
+    } on UnsupportedMobileUserRoleException {
+      await _ref.read(googleSignInServiceProvider).signOut();
+      rethrow;
+    }
   }
 
   Future<void> refreshCurrentUser() async {
     if (!state.isAuthenticated) return;
     try {
       final user = await _ref.read(authRepositoryProvider).me();
+      if (!_isAvailableOnMobile(user)) {
+        await _ref.read(tokenStorageProvider).clear();
+        state = state.copyWith(isInitializing: false, clearUser: true);
+        return;
+      }
       state = state.copyWith(user: user, isInitializing: false);
     } catch (_) {
       // Keep the current session if a background refresh fails.
@@ -92,13 +99,7 @@ class AuthController extends StateNotifier<AuthState> {
       username: username,
       password: password,
     );
-    await _ref
-        .read(tokenStorageProvider)
-        .saveTokens(
-          accessToken: session.accessToken,
-          refreshToken: session.refreshToken,
-        );
-    state = AuthState(user: session.user, isInitializing: false);
+    await _acceptMobileSession(session);
   }
 
   Future<void> logout() async {
@@ -123,6 +124,22 @@ class AuthController extends StateNotifier<AuthState> {
     await _ref.read(authRepositoryProvider).deleteAccount();
     await _ref.read(tokenStorageProvider).clear();
     state = state.copyWith(clearUser: true, isInitializing: false);
+  }
+
+  bool _isAvailableOnMobile(AuthUser user) => user.role == UserRole.client;
+
+  Future<void> _acceptMobileSession(AuthSession session) async {
+    if (!_isAvailableOnMobile(session.user)) {
+      await _ref.read(tokenStorageProvider).clear();
+      throw const UnsupportedMobileUserRoleException();
+    }
+    await _ref
+        .read(tokenStorageProvider)
+        .saveTokens(
+          accessToken: session.accessToken,
+          refreshToken: session.refreshToken,
+        );
+    state = AuthState(user: session.user, isInitializing: false);
   }
 }
 

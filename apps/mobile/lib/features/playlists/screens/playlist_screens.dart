@@ -11,6 +11,7 @@ import 'package:musicflow_mobile/core/theme/musicflow_theme.dart';
 import 'package:musicflow_mobile/features/library/providers/playlists_providers.dart';
 import 'package:musicflow_mobile/features/library/providers/tracks_providers.dart';
 import 'package:musicflow_mobile/features/player/providers/player_controller.dart';
+import 'package:musicflow_mobile/features/auth/providers/auth_controller.dart';
 import 'package:musicflow_mobile/shared/models/track.dart';
 
 class PlaylistScreen extends ConsumerWidget {
@@ -226,13 +227,14 @@ class PlaylistScreen extends ConsumerWidget {
 
   Widget _withAiBubble(BuildContext context, WidgetRef ref, Widget child) {
     final assistantEnabled = ref.watch(appSettingsProvider).aiAssistantEnabled;
+    final isPremium = ref.watch(authControllerProvider).user?.isPremium ?? false;
 
     return LayoutBuilder(
       builder: (context, constraints) {
         return Stack(
           children: [
             Positioned.fill(child: child),
-            if (assistantEnabled)
+            if (isPremium && assistantEnabled)
               FloatingAIBubble(
                 boundsSize: constraints.biggest,
                 onTap: () => context.push(AppRoutes.aiAgent),

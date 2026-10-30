@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:musicflow_mobile/core/theme/musicflow_theme.dart';
+import 'package:musicflow_mobile/core/providers/app_settings_provider.dart';
 import 'package:musicflow_mobile/features/player/providers/lyrics_provider.dart';
 import 'package:musicflow_mobile/features/player/providers/player_controller.dart';
 import 'package:musicflow_mobile/shared/models/lyrics.dart';
@@ -36,6 +37,9 @@ class _LyricsScreenState extends ConsumerState<LyricsScreen> {
     final theme = Theme.of(context);
     final colors = context.musicFlowColors;
     final player = ref.watch(playerControllerProvider);
+    final lyricsScale = ref.watch(
+      appSettingsProvider.select((settings) => settings.lyricsScale),
+    );
     final track = player.currentTrack;
 
     return Scaffold(
@@ -118,6 +122,7 @@ class _LyricsScreenState extends ConsumerState<LyricsScreen> {
                             onSeek: (time) => ref
                                 .read(playerControllerProvider.notifier)
                                 .seek(time),
+                            textScale: lyricsScale,
                           ),
                         ),
                   ),
@@ -238,6 +243,7 @@ class _LyricsBody extends StatelessWidget {
     required this.onUserScroll,
     required this.glow,
     required this.onSeek,
+    required this.textScale,
   });
 
   final LyricsResponse lyrics;
@@ -248,6 +254,7 @@ class _LyricsBody extends StatelessWidget {
   final ValueChanged<bool> onUserScroll;
   final bool glow;
   final ValueChanged<Duration> onSeek;
+  final double textScale;
 
   @override
   Widget build(BuildContext context) {
@@ -304,6 +311,7 @@ class _LyricsBody extends StatelessWidget {
                   : isActive
                   ? 1
                   : 0.78 - (distance * 0.12),
+              textScale: textScale,
             );
           },
         ),
@@ -353,6 +361,7 @@ class _LyricRow extends StatelessWidget {
     required this.opacity,
     required this.glow,
     required this.wordProgress,
+    required this.textScale,
     this.onTap,
   });
 
@@ -361,6 +370,7 @@ class _LyricRow extends StatelessWidget {
   final double opacity;
   final bool glow;
   final double wordProgress;
+  final double textScale;
   final VoidCallback? onTap;
 
   @override
@@ -380,7 +390,7 @@ class _LyricRow extends StatelessWidget {
             curve: Curves.easeOutCubic,
             style: TextStyle(
               color: Colors.white,
-              fontSize: isActive ? 24 : 19,
+              fontSize: (isActive ? 24 : 19) * textScale,
               height: 1.16,
               fontWeight: isActive ? FontWeight.w900 : FontWeight.w700,
             ),
