@@ -17,11 +17,13 @@ import {
   useState,
 } from "react";
 import { useTranslation } from "react-i18next";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import QuotaBadge from "../QuotaBadge";
 import OfflineIndicator from "../OfflineIndicator";
 import TierBadge from "../TierBadge";
 import { useAuthStore } from "../../stores/authStore";
+import { getMyNotifications, markMyNotificationsRead } from "../../api/auth";
 import { useGlobalSearch } from "../../hooks/useGlobalSearch";
 import {
   usePlayerStore,
@@ -76,7 +78,9 @@ const Navbar = forwardRef<NavbarRef, NavbarProps>(function Navbar(
   const { query, setQuery, tracks, artists, isLoading } = useGlobalSearch();
   const [focused, setFocused] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [avatarFailed, setAvatarFailed] = useState(false);
+  const queryClient = useQueryClient();
   const containerRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -118,6 +122,42 @@ const Navbar = forwardRef<NavbarRef, NavbarProps>(function Navbar(
   }, [user?.avatar]);
 
   const dropdownOpen = focused && query.trim().length >= 2;
+  const notifications = useQuery({
+    queryKey: ["user-notifications", "quick"],
+    queryFn: () =>
+      getMyNotifications({ page: 1, pageSize: 3, sort: "RECENT", q: "" }),
+    enabled: isAuthenticated,
+    staleTime: 60_000,
+  });
+  const notificationCount = notifications.data?.unreadCount ?? 0;
+  const markNotificationsRead = useMutation({
+    mutationFn: () => markMyNotificationsRead(),
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ["user-notifications"] });
+      queryClient.setQueriesData(
+        { queryKey: ["user-notifications"] },
+        (data: typeof notifications.data) =>
+          data
+            ? {
+                ...data,
+                unreadCount: 0,
+                items: data.items.map((notification) => ({
+                  ...notification,
+                  read: true,
+                })),
+              }
+            : data,
+      );
+    },
+    onSettled: () =>
+      queryClient.invalidateQueries({ queryKey: ["user-notifications"] }),
+  });
+  const toggleNotifications = () => {
+    setNotificationsOpen((open) => {
+      if (!open) markNotificationsRead.mutate();
+      return !open;
+    });
+  };
 
   function handlePick(track: Track) {
     const playable = toPlayerTrack(track);
@@ -282,15 +322,66 @@ const Navbar = forwardRef<NavbarRef, NavbarProps>(function Navbar(
         >
           <SettingsIcon className="h-4 w-4" strokeWidth={2.1} />
         </button>
-        <button
-          type="button"
-          className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[var(--color-muted)] transition hover:bg-white/[0.04] hover:text-[var(--color-text)]"
-          aria-label={t("navbar.notifications", {
-            defaultValue: "Notificaciones",
-          })}
-        >
-          <Bell className="h-4 w-4" strokeWidth={2.1} />
-        </button>
+        {isAuthenticated ? (
+          <div className="relative">
+            <button
+              type="button"
+              onClick={toggleNotifications}
+              className="relative inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[var(--color-muted)] transition hover:bg-white/[0.04] hover:text-[var(--color-text)]"
+              aria-label={t("navbar.notifications", {
+                defaultValue: "Notificaciones",
+              })}
+              aria-expanded={notificationsOpen}
+            >
+              <Bell className="h-4 w-4" strokeWidth={2.1} />
+              {notificationCount ? (
+                <span className="absolute -right-1 -top-1 grid min-w-5 place-items-center rounded-full bg-[var(--color-primary)] px-1 py-0.5 text-[10px] font-black text-[var(--color-primary-contrast)]">
+                  {notificationCount > 9 ? "+9" : notificationCount}
+                </span>
+              ) : null}
+            </button>
+            {notificationsOpen ? (
+              <section className="absolute right-0 top-[calc(100%+8px)] z-50 w-[min(92vw,24rem)] rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-[0_18px_40px_rgba(0,0,0,0.34)]">
+                <div className="flex items-center justify-between gap-3">
+                  <h2 className="font-black">Notificaciones</h2>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNotificationsOpen(false);
+                      navigate("/notifications");
+                    }}
+                    className="text-xs font-bold text-[var(--color-primary)]"
+                  >
+                    Ver todas
+                  </button>
+                </div>
+                <div className="mt-3 space-y-2">
+                  {notifications.isLoading ? (
+                    <p className="text-sm text-[var(--color-muted)]">
+                      Cargando novedades…
+                    </p>
+                  ) : null}
+                  {notifications.data?.items.map((notification) => (
+                    <article
+                      key={notification.id}
+                      className="rounded-xl border border-[var(--color-border)] p-3"
+                    >
+                      <p className="text-sm font-bold">{notification.title}</p>
+                      <p className="mt-1 text-sm text-[var(--color-muted)]">
+                        {notification.message}
+                      </p>
+                    </article>
+                  ))}
+                  {notifications.data && !notifications.data.items.length ? (
+                    <p className="py-4 text-center text-sm text-[var(--color-muted)]">
+                      No tienes nuevas notificaciones.
+                    </p>
+                  ) : null}
+                </div>
+              </section>
+            ) : null}
+          </div>
+        ) : null}
         {isAuthenticated && user ? (
           <div ref={menuRef} className="relative">
             <button

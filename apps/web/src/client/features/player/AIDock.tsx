@@ -3,6 +3,8 @@ import { ArrowUpRight, MessageSquarePlus, Sparkles } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 import { usePlayerStore } from "../../stores/playStore";
+import { usePremiumGate } from "../../../shared/hooks/usePremiumGate";
+import { usePreferences } from "../../../shared/hooks/usePreferences";
 
 type AIDockProps = {
   trackId: string | null;
@@ -26,6 +28,10 @@ export default function AIDock({ trackId }: AIDockProps) {
   const navigate = useNavigate();
   const openAiPrompt = usePlayerStore((s) => s.openAiPrompt);
   const setExpanded = usePlayerStore((s) => s.setExpanded);
+  const { isPremium, guard } = usePremiumGate();
+  const { assistantEnabled } = usePreferences();
+
+  if (!isPremium || !assistantEnabled) return null;
 
   function openFull() {
     setExpanded(false);
@@ -66,7 +72,7 @@ export default function AIDock({ trackId }: AIDockProps) {
       <div className="flex flex-1 flex-col gap-5 overflow-y-auto p-5">
         <button
           type="button"
-          onClick={openAiPrompt}
+          onClick={() => guard("ai", openAiPrompt)}
           className="group relative overflow-hidden rounded-2xl border border-[var(--color-accent)]/40 bg-[linear-gradient(135deg,var(--color-cta-start)_0%,var(--color-cta-end)_100%)] p-5 text-left text-white shadow-[0_18px_40px_rgba(0,0,0,0.25)] transition hover:scale-[1.01]"
         >
           <div className="flex items-start gap-3">
@@ -95,7 +101,7 @@ export default function AIDock({ trackId }: AIDockProps) {
               <button
                 key={key}
                 type="button"
-                onClick={openAiPrompt}
+                onClick={() => guard("ai", openAiPrompt)}
                 className="rounded-full border border-[var(--color-border)] bg-[var(--color-surface-alt)] px-3 py-1.5 text-xs font-medium text-[var(--color-text)] transition hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]"
               >
                 {t(`player.ai.chips.${key}`)}

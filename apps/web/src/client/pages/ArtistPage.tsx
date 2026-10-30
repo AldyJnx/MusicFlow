@@ -1,6 +1,7 @@
 import {
   ArrowLeft,
   Check,
+  BadgeCheck,
   Disc3,
   Eye,
   ListMusic,
@@ -403,8 +404,14 @@ export default function ArtistPage() {
                 <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--color-primary)]">
                   {t("artist.eyebrow", { defaultValue: "Artista" })}
                 </p>
-                <h1 className="text-5xl font-extrabold leading-tight tracking-tight text-[var(--color-text)] sm:text-6xl">
+                <h1 className="flex items-center gap-3 text-5xl font-extrabold leading-tight tracking-tight text-[var(--color-text)] sm:text-6xl">
                   <SplitText text={artistName} />
+                  {catalogArtistQ.data?.isVerified ? (
+                    <BadgeCheck
+                      className="h-8 w-8 shrink-0 text-[var(--color-primary)] sm:h-10 sm:w-10"
+                      aria-label="Artista verificado"
+                    />
+                  ) : null}
                 </h1>
                 <p className="text-sm text-[var(--color-muted)]">
                   {t("artist.trackCount", {

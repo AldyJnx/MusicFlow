@@ -3,6 +3,113 @@ import type { UserRole } from "../stores/authStore";
 
 export type { UserRole };
 
+export type AdminArtistAccessRequest = {
+  id: string;
+  evidence?: string | null;
+  evidenceLinks: string[];
+  documentName?: string | null;
+  documentUrl?: string | null;
+  status: "PENDING" | "APPROVED" | "REJECTED" | "CANCELLED";
+  createdAt: string;
+  artist: { id: string; name: string; imageUrl?: string | null };
+  user: { id: string; username: string; email: string };
+  reviewNote?: string | null;
+};
+
+export type AdminArtistVerificationRequest = {
+  id: string;
+  status: "PENDING" | "APPROVED" | "REJECTED" | "CANCELLED";
+  createdAt: string;
+  reviewNote?: string | null;
+  artist: {
+    id: string;
+    name: string;
+    imageUrl?: string | null;
+    isVerified: boolean;
+  };
+  requester: { id: string; username: string; email: string };
+};
+
+export type ArtistAccessRequestSort =
+  | "RECENT"
+  | "OLDEST"
+  | "USERNAME_ASC"
+  | "USERNAME_DESC";
+
+export type AdminArtistAccessRequestsPage = {
+  items: AdminArtistAccessRequest[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+};
+
+export async function listArtistAccessRequests(params?: {
+  page?: number;
+  pageSize?: number;
+  sort?: ArtistAccessRequestSort;
+  q?: string;
+}) {
+  const { data } = await api.get<AdminArtistAccessRequestsPage>(
+    "/admin/artist-access-requests",
+    { params },
+  );
+  return data;
+}
+
+export async function reviewArtistAccessRequest(
+  id: string,
+  status: "APPROVED" | "REJECTED",
+  note?: string,
+) {
+  const { data } = await api.patch<AdminArtistAccessRequest>(
+    `/admin/artist-access-requests/${id}`,
+    { status, note },
+  );
+  return data;
+}
+
+export async function listArtistVerificationRequests(params?: {
+  page?: number;
+  pageSize?: number;
+  sort?: ArtistAccessRequestSort;
+  q?: string;
+}) {
+  const { data } = await api.get<{
+    items: AdminArtistVerificationRequest[];
+    total: number;
+    page: number;
+    pageSize: number;
+    totalPages: number;
+  }>("/admin/artist-verification-requests", { params });
+  return data;
+}
+
+export async function reviewArtistVerificationRequest(
+  id: string,
+  status: "APPROVED" | "REJECTED",
+  note?: string,
+) {
+  const { data } = await api.patch<AdminArtistVerificationRequest>(
+    `/admin/artist-verification-requests/${id}`,
+    { status, note },
+  );
+  return data;
+}
+
+export async function linkArtistMembership(
+  userId: string,
+  artistId: string,
+  role: "OWNER" | "MANAGER" | "EDITOR" | "ANALYST",
+) {
+  const { data } = await api.post(`/admin/artist-access-requests/link`, {
+    userId,
+    artistId,
+    role,
+  });
+  return data;
+}
+
 export type AppliedTo = "GLOBAL" | "PLAYLIST" | "TRACK" | "SEGMENT";
 export type FeedbackValue = "GOOD" | "BAD" | "NEUTRAL";
 
@@ -211,6 +318,39 @@ export interface GlobalEqPresetPayload {
   reverbAmount?: number;
 }
 
+export interface CatalogGenre {
+  id: string;
+  name: string;
+  normalizedName: string;
+  artistCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export async function listAdminCatalogGenres(): Promise<CatalogGenre[]> {
+  const { data } = await api.get<CatalogGenre[]>("/admin/genres");
+  return data;
+}
+
+export async function createCatalogGenre(name: string): Promise<CatalogGenre> {
+  const { data } = await api.post<CatalogGenre>("/admin/genres", { name });
+  return data;
+}
+
+export async function updateCatalogGenre(
+  id: string,
+  name: string,
+): Promise<CatalogGenre> {
+  const { data } = await api.patch<CatalogGenre>(`/admin/genres/${id}`, {
+    name,
+  });
+  return data;
+}
+
+export async function deleteCatalogGenre(id: string): Promise<void> {
+  await api.delete(`/admin/genres/${id}`);
+}
+
 /**
  * Consumer whose AI usage is being reported. End users and admins have a very
  * different consumption, so the report can be split or merged.
@@ -315,6 +455,7 @@ export interface MusicInsights {
     imageUrl: string | null;
     followers: number;
   }>;
+  mostListenedGenres: Array<{ name: string; plays: number }>;
 }
 
 export interface AIFeedbackStats {

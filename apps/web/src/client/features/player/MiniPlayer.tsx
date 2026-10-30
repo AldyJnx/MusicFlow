@@ -24,6 +24,8 @@ import {
 import ElasticSlider from "../../../shared/ui/reactbits/ElasticSlider";
 import TimelineWithSegments from "./TimelineWithSegments";
 import ArtistCredits from "./ArtistCredits";
+import { usePremiumGate } from "../../../shared/hooks/usePremiumGate";
+import { usePreferences } from "../../../shared/hooks/usePreferences";
 
 type MiniPlayerProps = {
   /** Kept for API compatibility; the bar now docks in-flow. */
@@ -69,6 +71,8 @@ export default function MiniPlayer(_: MiniPlayerProps) {
   const cycleRepeat = usePlayerStore((s) => s.cycleRepeat);
   const openEqDrawer = usePlayerStore((s) => s.openEqDrawer);
   const openAiPrompt = usePlayerStore((s) => s.openAiPrompt);
+  const { isPremium, guard } = usePremiumGate();
+  const { assistantEnabled } = usePreferences();
   const savedCheck = useSavedCheckQuery(currentTrack ? [currentTrack.id] : []);
   const toggleSave = useToggleSave();
 
@@ -253,14 +257,16 @@ export default function MiniPlayer(_: MiniPlayerProps) {
 
       {/* RIGHT — download + EQ + AI + volume + expand */}
       <div className="flex w-[340px] flex-none items-center justify-end gap-3.5">
-        <button
-          type="button"
-          onClick={openAiPrompt}
-          title={t("player.openAi", { defaultValue: "Asistente IA" })}
-          className="flex h-[34px] w-[34px] items-center justify-center rounded-[10px] border border-[var(--color-line)] bg-white/[0.03] text-[var(--color-accent)] transition hover:scale-105 hover:border-[color-mix(in_srgb,var(--color-accent)_50%,transparent)]"
-        >
-          <Sparkles className="h-4 w-4" strokeWidth={2.2} />
-        </button>
+        {isPremium && assistantEnabled ? (
+          <button
+            type="button"
+            onClick={() => guard("ai", openAiPrompt)}
+            title={t("player.openAi", { defaultValue: "Asistente IA" })}
+            className="flex h-[34px] w-[34px] items-center justify-center rounded-[10px] border border-[var(--color-line)] bg-white/[0.03] text-[var(--color-accent)] transition hover:scale-105 hover:border-[color-mix(in_srgb,var(--color-accent)_50%,transparent)]"
+          >
+            <Sparkles className="h-4 w-4" strokeWidth={2.2} />
+          </button>
+        ) : null}
         <button
           type="button"
           onClick={openEqDrawer}

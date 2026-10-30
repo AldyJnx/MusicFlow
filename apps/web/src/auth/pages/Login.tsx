@@ -28,13 +28,7 @@ export default function Login() {
     onSuccess: (data) => {
       setSession(data);
       // Client users see the same short headphones tip as mobile.
-      navigate(
-        data.user.role === "ADMIN"
-          ? "/admin"
-          : data.user.role === "ARTIST"
-            ? "/artist-dashboard"
-            : "/inicio",
-      );
+      navigate(data.user.role === "ADMIN" ? "/admin" : "/inicio");
     },
   });
 
@@ -61,6 +55,7 @@ export default function Login() {
   }
 
   function handleGoogleLogin() {
+    sessionStorage.removeItem("musicflow-auth-destination");
     window.location.assign(`${apiBaseUrl}/auth/google`);
   }
 
@@ -69,13 +64,7 @@ export default function Login() {
   if (resumePersistedSession && persistedUser) {
     return (
       <Navigate
-        to={
-          persistedUser.role === "ADMIN"
-            ? "/admin"
-            : persistedUser.role === "ARTIST"
-              ? "/artist-dashboard"
-              : "/inicio"
-        }
+        to={persistedUser.role === "ADMIN" ? "/admin" : "/inicio"}
         replace
       />
     );
@@ -238,6 +227,12 @@ export default function Login() {
               Crear cuenta
             </Link>
           </p>
+          <Link
+            to="/artist-login"
+            className="mt-4 flex h-11 items-center justify-center rounded-xl border border-cyan-300/30 bg-cyan-300/10 text-sm font-bold text-cyan-100 transition hover:bg-cyan-300/20"
+          >
+            Ir al Portal de Artistas
+          </Link>
         </div>
       </section>
     </main>

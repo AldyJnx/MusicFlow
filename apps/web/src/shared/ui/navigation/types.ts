@@ -1,4 +1,5 @@
 export type SidebarIconKey =
+  | "albums"
   | "library"
   | "search"
   | "playlists"
@@ -22,6 +23,8 @@ export type SidebarItem = {
    */
   labelKey?: string;
   path: string;
+  /** Exact routes must not remain selected for nested pages. */
+  exact?: boolean;
   iconKey: SidebarIconKey;
   badge?: string;
   active?: boolean;

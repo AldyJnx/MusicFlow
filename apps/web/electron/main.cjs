@@ -2,6 +2,7 @@ const {
   app,
   BrowserWindow,
   dialog,
+  globalShortcut,
   ipcMain,
   nativeImage,
   safeStorage,
@@ -105,8 +106,8 @@ function createWindow() {
     mainWindow.setIcon(appIcon);
   }
   installZoomShortcuts(mainWindow);
-  // Native trackpad swipes are emitted by Electron on macOS. Forward them
-  // to the renderer; Windows/Linux precision touchpads use the wheel fallback.
+  // Native trackpad swipes are emitted by Electron on supported platforms.
+  // Two-finger wheel scrolling is deliberately not treated as track control.
   mainWindow.webContents.on("swipe", (_event, direction) => {
     mainWindow?.webContents.send("system:swipe", direction);
   });
@@ -314,6 +315,15 @@ app.whenReady().then(() => {
     app.setAppUserModelId("app.musicflow.desktop");
   }
   createWindow();
+  // A three-finger gesture is owned by the operating system, not by the web
+  // renderer. When it is configured as Previous/Next media, these global
+  // accelerators keep playback controllable while MusicFlow is unfocused.
+  globalShortcut.register("MediaNextTrack", () => {
+    mainWindow?.webContents.send("system:swipe", "left");
+  });
+  globalShortcut.register("MediaPreviousTrack", () => {
+    mainWindow?.webContents.send("system:swipe", "right");
+  });
 
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) {
@@ -321,6 +331,8 @@ app.whenReady().then(() => {
     }
   });
 });
+
+app.on("will-quit", () => globalShortcut.unregisterAll());
 
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") {

@@ -2652,8 +2652,16 @@ export default function CatalogPage() {
   }, [search]);
 
   useEffect(() => {
-    if (!selected && filtered.length) setSelected(filtered[0].id);
-  }, [filtered, selected]);
+    const currentSelectionExists = selected
+      ? filtered.some((artist) => artist.id === selected)
+      : false;
+    if (currentSelectionExists) return;
+    setSelected(pageItems[0]?.id ?? filtered[0]?.id ?? null);
+  }, [filtered, pageItems, selected]);
+
+  useEffect(() => {
+    setPage((current) => Math.min(current, totalPages - 1));
+  }, [totalPages]);
 
   function handleArtistCreated(id: string) {
     setCreating(false);
@@ -2663,11 +2671,24 @@ export default function CatalogPage() {
   }
   const removeArtist = useMutation({
     mutationFn: (id: string) => deleteArtist(id),
-    onSuccess: () => {
-      setSelected(null);
-      void qc.invalidateQueries({ queryKey: ["catalog", "artists"] });
-      void qc.invalidateQueries({ queryKey: ["globalSearch"] });
+    onSuccess: async (_result, deletedId) => {
+      const remainingArtists = artists.filter(
+        (artist) => artist.id !== deletedId,
+      );
+      qc.setQueryData<CatalogArtist[]>(
+        ["catalog", "artists"],
+        remainingArtists,
+      );
+      setSelected((current) =>
+        current === deletedId ? (remainingArtists[0]?.id ?? null) : current,
+      );
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ["catalog", "artists"] }),
+        qc.invalidateQueries({ queryKey: ["globalSearch"] }),
+      ]);
+      showActionNotice("Artista eliminado correctamente.");
     },
+    onError: () => showActionNotice("No se pudo eliminar el artista.", "error"),
   });
 
   return (
@@ -2883,6 +2904,7 @@ export default function CatalogPage() {
                       removeArtist.mutate(selected);
                     }
                   }}
+                  disabled={removeArtist.isPending}
                   className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--color-line)] px-3 py-1.5 text-xs font-semibold text-[var(--color-muted)] hover:border-rose-400/50 hover:text-rose-400"
                 >
                   <Trash2 className="h-3.5 w-3.5" />{" "}

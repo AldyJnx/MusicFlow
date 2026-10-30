@@ -29,7 +29,7 @@ const trendingTrack = {
 async function mockAuthenticatedApi(page: Page) {
   await page.addInitScript(() => {
     localStorage.setItem("musicflow-lang", "es");
-    localStorage.setItem(
+    sessionStorage.setItem(
       "musicflow-auth",
       JSON.stringify({
         state: {
@@ -159,6 +159,13 @@ async function mockAuthenticatedApi(page: Page) {
   await page.route("https://media.musicflow.test/**", (route) =>
     route.fulfill({ status: 204 }),
   );
+  await page.route("https://avatar.musicflow.test/**", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "image/svg+xml",
+      body: '<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"/>',
+    }),
+  );
 }
 
 test("lyrics keep the route behind the expanded player stationary", async ({
@@ -258,12 +265,21 @@ test("library artist cards navigate and player transport controls remain availab
   await page
     .getByRole("button", { name: /^(Reproducir|Play)$/ })
     .dispatchEvent("click");
-  await expect(page.getByTestId("google-cast-button").last()).toBeVisible();
+  const castButton = page.getByTestId("google-cast-button").last();
+  if (process.env.VITE_CAST_RECEIVER_APP_ID) {
+    await expect(castButton).toBeVisible();
+  } else {
+    await expect(castButton).toHaveCount(0);
+  }
   await page
     .getByTitle(/^(Abrir|Expandir) reproductor$|^Expand player$/)
     .last()
     .dispatchEvent("click");
-  await expect(page.getByTestId("google-cast-button").last()).toBeVisible();
+  if (process.env.VITE_CAST_RECEIVER_APP_ID) {
+    await expect(castButton).toBeVisible();
+  } else {
+    await expect(castButton).toHaveCount(0);
+  }
 
   const volumeControl = page.getByTestId("expanded-volume-control");
   await volumeControl.getByRole("button").hover();

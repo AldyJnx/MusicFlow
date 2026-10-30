@@ -25,6 +25,7 @@ import { useTranslation } from "react-i18next";
 import { usePlayerStore } from "../../stores/playStore";
 import { useTrackSegments } from "../../../shared/hooks/useTrackSegments";
 import { usePreferences } from "../../../shared/hooks/usePreferences";
+import { usePremiumGate } from "../../../shared/hooks/usePremiumGate";
 import { useEqualizer } from "../../../shared/hooks/useEqualizer";
 import {
   useCurrentLyricsLineIndex,
@@ -103,6 +104,7 @@ export default function ExpandedPlayer({
 
   const { segments } = useTrackSegments(currentTrack?.id ?? null);
   const { showWave, lyricsScale } = usePreferences();
+  const { isPremium, guard } = usePremiumGate();
   const { bands, syncFromEngine } = useEqualizer();
   const isMuted = muted || volume === 0;
 
@@ -199,7 +201,7 @@ export default function ExpandedPlayer({
   }
 
   function tryOpenAi() {
-    openAiPrompt();
+    guard("ai", openAiPrompt);
   }
 
   function toggleFavorite() {
@@ -328,32 +330,34 @@ export default function ExpandedPlayer({
 
             {/* Transport — heart, prev, play, next, repeat */}
             <div className="mt-6 flex items-center justify-center gap-5 text-white/80 sm:gap-6">
-              <button
-                type="button"
-                onClick={toggleFavorite}
-                disabled={toggleSave.isPending || savedCheck.isLoading}
-                aria-pressed={isSaved}
-                title={
-                  isSaved
-                    ? t("player.removeFavorite", {
-                        defaultValue: "Quitar de favoritos",
-                      })
-                    : t("player.addFavorite", {
-                        defaultValue: "Guardar en favoritos",
-                      })
-                }
-                className={`inline-flex h-11 w-11 items-center justify-center rounded-xl border transition disabled:cursor-wait disabled:opacity-60 ${
-                  isSaved
-                    ? "border-rose-400/50 bg-rose-500/15 text-rose-400"
-                    : "border-white/10 bg-white/5 text-white/70 hover:border-rose-400/50 hover:text-rose-400"
-                }`}
-              >
-                <Heart
-                  className="h-[19px] w-[19px]"
-                  fill={isSaved ? "currentColor" : "none"}
-                  strokeWidth={2.2}
-                />
-              </button>
+              {isPremium ? (
+                <button
+                  type="button"
+                  onClick={toggleFavorite}
+                  disabled={toggleSave.isPending || savedCheck.isLoading}
+                  aria-pressed={isSaved}
+                  title={
+                    isSaved
+                      ? t("player.removeFavorite", {
+                          defaultValue: "Quitar de favoritos",
+                        })
+                      : t("player.addFavorite", {
+                          defaultValue: "Guardar en favoritos",
+                        })
+                  }
+                  className={`inline-flex h-11 w-11 items-center justify-center rounded-xl border transition disabled:cursor-wait disabled:opacity-60 ${
+                    isSaved
+                      ? "border-rose-400/50 bg-rose-500/15 text-rose-400"
+                      : "border-white/10 bg-white/5 text-white/70 hover:border-rose-400/50 hover:text-rose-400"
+                  }`}
+                >
+                  <Heart
+                    className="h-[19px] w-[19px]"
+                    fill={isSaved ? "currentColor" : "none"}
+                    strokeWidth={2.2}
+                  />
+                </button>
+              ) : null}
               <button
                 type="button"
                 onClick={() => setAddToPlaylistOpen(true)}
@@ -423,14 +427,16 @@ export default function ExpandedPlayer({
 
             {/* Primary CTAs — AI adjust + lyrics toggle */}
             <div className="mt-7 flex flex-wrap items-center justify-center gap-3">
-              <button
-                type="button"
-                onClick={tryOpenAi}
-                className="inline-flex h-12 items-center gap-2.5 rounded-2xl bg-[var(--color-primary)] px-6 text-sm font-semibold text-[var(--color-primary-contrast)] shadow-[0_12px_30px_-8px_var(--color-primary)] transition hover:brightness-110"
-              >
-                <Sparkles className="h-4 w-4" strokeWidth={2.4} />
-                {t("player.askAi", { defaultValue: "Ajustar con IA" })}
-              </button>
+              {isPremium ? (
+                <button
+                  type="button"
+                  onClick={tryOpenAi}
+                  className="inline-flex h-12 items-center gap-2.5 rounded-2xl bg-[var(--color-primary)] px-6 text-sm font-semibold text-[var(--color-primary-contrast)] shadow-[0_12px_30px_-8px_var(--color-primary)] transition hover:brightness-110"
+                >
+                  <Sparkles className="h-4 w-4" strokeWidth={2.4} />
+                  {t("player.askAi", { defaultValue: "Ajustar con IA" })}
+                </button>
+              ) : null}
               <button
                 type="button"
                 onClick={() =>

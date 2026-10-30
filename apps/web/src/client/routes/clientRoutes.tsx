@@ -23,6 +23,7 @@ const Agent = lazy(() => import("../features/ai-agent/Agent"));
 const ProfileSettings = lazy(
   () => import("../features/profile/ProfileSettings"),
 );
+const NotificationsPage = lazy(() => import("../pages/NotificationsPage"));
 
 export default function ClientRoutes() {
   // The Provider sits above <Routes> so every page can call usePremiumGate
@@ -45,6 +46,7 @@ export default function ClientRoutes() {
           <Route path="/now-playing" element={<NowPlayingPage />} />
           <Route path="/ai-mixer" element={<Agent />} />
           <Route path="/profile" element={<ProfileSettings />} />
+          <Route path="/notifications" element={<NotificationsPage />} />
           <Route path="/segments" element={<Segments />} />
           <Route path="/studio" element={<StudioPage />} />
           <Route path="/settings" element={<SettingsPage />} />

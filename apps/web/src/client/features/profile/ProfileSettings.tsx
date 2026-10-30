@@ -7,10 +7,12 @@ import {
   Music4,
   Play,
   Settings2,
+  Save,
   UserRound,
   Users,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useMutation } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 
 import ClientLayout from "../../layout/ClientLayout";
@@ -22,6 +24,7 @@ import { usePlayerStore, type PlayerTrack } from "../../stores/playStore";
 import { useAuthStore } from "../../../shared/stores/authStore";
 import type { Track } from "../../../shared/api/tracks";
 import { getAvatarUrl } from "../../../shared/utils/avatar";
+import { updateMyProfile } from "../../../shared/api/auth";
 import {
   formatTrackArtist,
   toPlayerFeaturedArtists,
@@ -56,12 +59,39 @@ export default function ProfileSettings() {
   const recentQ = useRecentlyPlayedQuery(4);
   const playTrack = usePlayerStore((s) => s.playTrack);
   const user = useAuthStore((s) => s.user);
+  const setUser = useAuthStore((s) => s.setUser);
   const [avatarFailed, setAvatarFailed] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [username, setUsername] = useState(user?.username ?? "");
+  const [notice, setNotice] = useState<{
+    tone: "success" | "error";
+    message: string;
+  } | null>(null);
   const avatarUrl = getAvatarUrl(user?.avatar);
 
   useEffect(() => {
     setAvatarFailed(false);
   }, [user?.avatar]);
+
+  useEffect(() => {
+    setUsername(user?.username ?? "");
+  }, [user?.username]);
+
+  const saveProfile = useMutation({
+    mutationFn: () => updateMyProfile({ username: username.trim() }),
+    onSuccess: (updated) => {
+      setUser(updated);
+      setEditing(false);
+      setNotice({ tone: "success", message: "Perfil actualizado con éxito." });
+    },
+    onError: () => {
+      setNotice({
+        tone: "error",
+        message:
+          "No se pudo guardar el cambio. Verifica que el nombre esté disponible.",
+      });
+    },
+  });
 
   const stats = statsQ.data;
   const recent = recentQ.data ?? [];
@@ -110,6 +140,21 @@ export default function ProfileSettings() {
   return (
     <ClientLayout>
       <section className="min-h-screen w-full bg-[radial-gradient(circle_at_top_left,rgba(91,64,255,0.12),transparent_22%),linear-gradient(180deg,#14151d_0%,#111218_100%)] px-6 py-8 text-slate-100 xl:px-8">
+        {notice ? (
+          <div
+            className={`fixed left-1/2 top-5 z-[100] flex w-[min(92vw,34rem)] -translate-x-1/2 items-center justify-between gap-4 rounded-xl border px-4 py-3 text-sm font-semibold shadow-xl ${notice.tone === "error" ? "border-rose-400/50 bg-rose-950 text-rose-100" : "border-emerald-400/50 bg-emerald-950 text-emerald-100"}`}
+            role="status"
+          >
+            <span>{notice.message}</span>
+            <button
+              type="button"
+              onClick={() => setNotice(null)}
+              className="rounded px-2 py-1 text-xs underline"
+            >
+              Cerrar
+            </button>
+          </div>
+        ) : null}
         <div className="mx-auto flex max-w-7xl flex-col gap-8">
           <div className="rounded-[28px] border border-white/6 bg-[#171922] p-7 shadow-[0_20px_60px_rgba(0,0,0,0.28)]">
             <div className="flex flex-col gap-8">
@@ -167,10 +212,10 @@ export default function ProfileSettings() {
                 <div className="flex flex-wrap items-center gap-3">
                   <button
                     type="button"
-                    onClick={() => navigate("/settings")}
+                    onClick={() => setEditing(true)}
                     className="rounded-2xl border border-white/10 bg-white/[0.03] px-5 py-3 text-sm font-medium text-slate-100 transition hover:border-white/20 hover:bg-white/[0.05]"
                   >
-                    Ajustes
+                    Editar
                   </button>
                 </div>
               </div>
@@ -312,6 +357,62 @@ export default function ProfileSettings() {
           </div>
         </div>
       </section>
+      {editing ? (
+        <div
+          className="fixed inset-0 z-[90] grid place-items-center bg-black/65 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="edit-profile-title"
+        >
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              saveProfile.mutate();
+            }}
+            className="w-full max-w-md rounded-3xl border border-white/10 bg-[#171922] p-6 shadow-2xl"
+          >
+            <h2
+              id="edit-profile-title"
+              className="text-xl font-black text-white"
+            >
+              Editar perfil
+            </h2>
+            <label className="mt-5 block text-sm font-semibold text-slate-200">
+              Nombre de usuario
+            </label>
+            <input
+              value={username}
+              onChange={(event) => setUsername(event.target.value)}
+              minLength={3}
+              maxLength={30}
+              required
+              className="mt-2 w-full rounded-xl border border-white/10 bg-[#11131a] px-4 py-3 text-white outline-none focus:border-[#68a0ff]"
+            />
+            <p className="mt-2 text-xs text-slate-500">
+              Entre 3 y 30 caracteres. El nombre debe ser único.
+            </p>
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setEditing(false)}
+                className="rounded-xl px-4 py-3 text-sm font-bold text-slate-300"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                disabled={
+                  saveProfile.isPending || username.trim() === user?.username
+                }
+                className="inline-flex items-center gap-2 rounded-xl bg-[#3b82f6] px-4 py-3 text-sm font-bold text-white disabled:opacity-40"
+              >
+                <Save className="h-4 w-4" />
+                {saveProfile.isPending ? "Guardando..." : "Guardar"}
+              </button>
+            </div>
+          </form>
+        </div>
+      ) : null}
     </ClientLayout>
   );
 }

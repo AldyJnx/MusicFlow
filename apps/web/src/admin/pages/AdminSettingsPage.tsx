@@ -1,17 +1,9 @@
-import {
-  Bell,
-  Database,
-  LockKeyhole,
-  Palette,
-  ShieldCheck,
-  Users,
-} from "lucide-react";
-import { Link } from "react-router-dom";
+import { Palette, PanelLeft } from "lucide-react";
 import type { ReactNode } from "react";
 
 import PersonalizationSection from "../../client/features/settings/PersonalizationSection";
-import { useAuthStore } from "../../shared/stores/authStore";
-import PreferencesMenu from "../../shared/ui/PreferencesMenu";
+import { usePreferences } from "../../shared/hooks/usePreferences";
+import { APP_THEMES } from "../../shared/utils/theme";
 
 function SettingCard({
   icon,
@@ -43,7 +35,8 @@ function SettingCard({
 }
 
 export default function AdminSettingsPage() {
-  const user = useAuthStore((state) => state.user);
+  const { theme, setTheme, sidebarPosition, setSidebarPosition } =
+    usePreferences();
   return (
     <section className="min-h-screen bg-[var(--color-page)] px-4 py-6 text-[var(--color-text)] sm:px-6 xl:px-8">
       <div className="mx-auto flex max-w-6xl flex-col gap-6">
@@ -56,75 +49,55 @@ export default function AdminSettingsPage() {
             Gestiona tu cuenta, personalización y accesos administrativos.
           </p>
         </header>
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <div className="grid gap-4 xl:grid-cols-2">
           <SettingCard
-            icon={<ShieldCheck className="h-5 w-5" />}
-            title="Cuenta administrativa"
-            description="Identidad con la que administras MusicFlow."
+            icon={<Palette className="h-5 w-5" />}
+            title="Tema visual"
+            description="Elige la apariencia completa que se aplica al panel administrativo."
           >
-            <div className="rounded-xl border border-[var(--color-border)] px-3 py-2 text-sm">
-              <p className="font-semibold">
-                {user?.username ?? "Administrador"}
-              </p>
-              <p className="text-xs text-[var(--color-muted)]">
-                {user?.email ?? ""} · Administrador
-              </p>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {APP_THEMES.map((option) => (
+                <button
+                  key={option.id}
+                  type="button"
+                  onClick={() => setTheme(option.id)}
+                  className={`rounded-xl border p-2 text-left transition ${
+                    theme === option.id
+                      ? "border-[var(--color-primary)] bg-[var(--color-primary)]/10"
+                      : "border-[var(--color-border)] hover:border-[var(--color-primary)]"
+                  }`}
+                >
+                  <span
+                    className={`block h-9 rounded-lg ${option.previewClassName}`}
+                  />
+                  <span className="mt-2 block text-xs font-bold capitalize">
+                    {option.id.replaceAll("-", " ")}
+                  </span>
+                </button>
+              ))}
             </div>
           </SettingCard>
           <SettingCard
-            icon={<LockKeyhole className="h-5 w-5" />}
-            title="Seguridad y acceso"
-            description="Revisa usuarios, roles y el estado de sus cuentas."
+            icon={<PanelLeft className="h-5 w-5" />}
+            title="Posición del sidebar"
+            description="Define el lado donde aparece la navegación administrativa."
           >
-            <Link
-              to="/admin/users"
-              className="inline-flex rounded-lg border border-[var(--color-border)] px-3 py-2 text-sm font-semibold hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]"
-            >
-              Gestionar usuarios y roles
-            </Link>
-          </SettingCard>
-          <SettingCard
-            icon={<Database className="h-5 w-5" />}
-            title="Catálogo"
-            description="Administra artistas, álbumes, canciones, letras y géneros."
-          >
-            <Link
-              to="/admin/catalog"
-              className="inline-flex rounded-lg border border-[var(--color-border)] px-3 py-2 text-sm font-semibold hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]"
-            >
-              Abrir catálogo
-            </Link>
-          </SettingCard>
-          <SettingCard
-            icon={<Bell className="h-5 w-5" />}
-            title="Operación IA"
-            description="Consulta consumo, solicitudes y trazabilidad del agente."
-          >
-            <Link
-              to="/admin/ai"
-              className="inline-flex rounded-lg border border-[var(--color-border)] px-3 py-2 text-sm font-semibold hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]"
-            >
-              Ver solicitudes IA
-            </Link>
-          </SettingCard>
-          <SettingCard
-            icon={<Users className="h-5 w-5" />}
-            title="Roles"
-            description="Los permisos se aplican desde el listado de usuarios, no solo en la interfaz."
-          >
-            <Link
-              to="/admin/users"
-              className="inline-flex rounded-lg border border-[var(--color-border)] px-3 py-2 text-sm font-semibold hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]"
-            >
-              Configurar accesos
-            </Link>
-          </SettingCard>
-          <SettingCard
-            icon={<Palette className="h-5 w-5" />}
-            title="Tema"
-            description="Cambia la apariencia general del panel."
-          >
-            <PreferencesMenu />
+            <div className="inline-flex rounded-xl border border-[var(--color-border)] p-1">
+              {(["left", "right"] as const).map((position) => (
+                <button
+                  key={position}
+                  type="button"
+                  onClick={() => setSidebarPosition(position)}
+                  className={`rounded-lg px-4 py-2 text-sm font-bold ${
+                    sidebarPosition === position
+                      ? "bg-[var(--color-primary)] text-[var(--color-primary-contrast)]"
+                      : "text-[var(--color-muted)]"
+                  }`}
+                >
+                  {position === "left" ? "Izquierda" : "Derecha"}
+                </button>
+              ))}
+            </div>
           </SettingCard>
         </div>
         <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-alt)] p-5">

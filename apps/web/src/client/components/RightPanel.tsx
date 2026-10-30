@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 
 import { usePlayerStore } from "../stores/playStore";
 import { usePreferences } from "../../shared/hooks/usePreferences";
+import { useAuthStore } from "../../shared/stores/authStore";
 
 const GRADS = [
   "linear-gradient(135deg,#7c5ce8,#e85cc0)",
@@ -91,6 +92,8 @@ export default function RightPanel({
   const openAiPrompt = usePlayerStore((s) => s.openAiPrompt);
   const [tab, setTab] = useState<"queue" | "chat">("queue");
   const { assistantEnabled } = usePreferences();
+  const assistantAvailable =
+    useAuthStore((state) => state.user?.isPremium === true) && assistantEnabled;
 
   const upcoming = queue
     .slice(queueIndex + 1)
@@ -103,28 +106,28 @@ export default function RightPanel({
         className={`electron-viewport-panel fixed inset-y-0 z-[60] hidden h-screen w-16 flex-none flex-col items-center gap-2.5 border-[var(--color-line)] bg-[rgba(8,8,16,.4)] px-0 pb-3.5 pt-[58px] backdrop-blur-[var(--glass-blur)] lg:flex ${position === "left" ? "left-0 border-r" : "right-0 border-l"}`}
         style={position === "left" ? { left: offset } : { right: offset }}
       >
-        {assistantEnabled ? (
-          <button
-            type="button"
-            onClick={onToggle}
-            title={t("right.expand", { defaultValue: "Expandir panel" })}
-            className="flex h-[34px] w-[34px] flex-none items-center justify-center rounded-[9px] border border-[var(--color-line)] bg-white/[0.03] text-[var(--color-muted)] transition hover:text-[var(--color-text)]"
-          >
-            <ChevronLeft className="h-4 w-4" strokeWidth={2} />
-          </button>
-        ) : null}
         <button
           type="button"
-          onClick={() => openAiPrompt()}
-          title={t("right.assistant", { defaultValue: "Asistente IA" })}
-          className="flex h-10 w-10 flex-none items-center justify-center rounded-[11px] border border-[color-mix(in_srgb,var(--color-primary)_40%,transparent)] bg-[color-mix(in_srgb,var(--color-primary)_12%,transparent)] text-[var(--color-primary)] transition hover:bg-[color-mix(in_srgb,var(--color-primary)_20%,transparent)]"
+          onClick={onToggle}
+          title={t("right.expand", { defaultValue: "Expandir panel" })}
+          className="flex h-[34px] w-[34px] flex-none items-center justify-center rounded-[9px] border border-[var(--color-line)] bg-white/[0.03] text-[var(--color-muted)] transition hover:text-[var(--color-text)]"
         >
-          <Sparkles
-            className="h-[17px] w-[17px]"
-            fill="currentColor"
-            stroke="none"
-          />
+          <ChevronLeft className="h-4 w-4" strokeWidth={2} />
         </button>
+        {assistantAvailable ? (
+          <button
+            type="button"
+            onClick={() => openAiPrompt()}
+            title={t("right.assistant", { defaultValue: "Asistente IA" })}
+            className="flex h-10 w-10 flex-none items-center justify-center rounded-[11px] border border-[color-mix(in_srgb,var(--color-primary)_40%,transparent)] bg-[color-mix(in_srgb,var(--color-primary)_12%,transparent)] text-[var(--color-primary)] transition hover:bg-[color-mix(in_srgb,var(--color-primary)_20%,transparent)]"
+          >
+            <Sparkles
+              className="h-[17px] w-[17px]"
+              fill="currentColor"
+              stroke="none"
+            />
+          </button>
+        ) : null}
         <div className="my-0.5 h-px w-[26px] flex-none bg-[var(--color-line)]" />
         {currentTrack ? (
           <div
@@ -181,7 +184,7 @@ export default function RightPanel({
           <ChevronRight className="h-4 w-4" strokeWidth={2} />
         </button>
         {(
-          ["queue", ...(assistantEnabled ? ["chat"] : [])] as Array<
+          ["queue", ...(assistantAvailable ? ["chat"] : [])] as Array<
             "queue" | "chat"
           >
         ).map((id) => (

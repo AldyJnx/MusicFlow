@@ -5,6 +5,7 @@ export interface CatalogArtist {
   name: string;
   slug: string;
   imageUrl: string | null;
+  isVerified: boolean;
   genres: string[];
   albumCount: number;
   trackCount: number;
@@ -56,6 +57,7 @@ export interface CatalogArtistDetail {
   genres: string[];
   followerCount: number;
   isFollowed: boolean;
+  isVerified: boolean;
   albums: CatalogAlbumSummary[];
   tracks: CatalogTrackCard[];
 }

@@ -4,6 +4,8 @@ import { getAudioEngine } from "../../audio/engine";
 import { resolvePlayableUrl } from "../../shared/stores/downloadsStore";
 import { resolveLocalUrl } from "../../shared/offline/localLibrary";
 import { googleCast } from "../../shared/cast/googleCast";
+import { useAuthStore } from "../../shared/stores/authStore";
+import { useUpsellStore } from "../../shared/stores/upsellStore";
 
 // ─── Track shape ────────────────────────────────────────────────────────────
 
@@ -526,6 +528,13 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
       },
       closeEqDrawer: () => set({ eqDrawerOpen: false }),
       openAiPrompt: () => {
+        if (!useAuthStore.getState().user?.isPremium) {
+          useUpsellStore.getState().show({
+            reason: "PREMIUM_REQUIRED",
+            message: "El asistente FlowIA está disponible con Premium.",
+          });
+          return;
+        }
         // No track guard here: the assistant works globally too (it can tune
         // the global EQ or just chat), so it must open from anywhere — e.g. the
         // floating assistant button with nothing playing.

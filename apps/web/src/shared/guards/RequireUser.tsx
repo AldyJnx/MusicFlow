@@ -12,10 +12,8 @@ export function RequireUser({ children }: { children: ReactNode }) {
     return <Navigate to="/" state={{ from: location }} replace />;
   }
 
-  if (user?.role !== "CLIENT") {
-    const destination =
-      user?.role === "ARTIST" ? "/artist-dashboard" : "/admin";
-    return <Navigate to={destination} replace />;
+  if (user?.role === "ADMIN") {
+    return <Navigate to="/admin" replace />;
   }
 
   return <>{children}</>;

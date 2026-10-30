@@ -18,6 +18,24 @@ export interface AuthResponse {
   refreshToken: string;
 }
 
+export type UserNotification = {
+  id: string;
+  title: string;
+  artistName: string;
+  message: string;
+  createdAt: string;
+  read: boolean;
+};
+
+export type UserNotificationsPage = {
+  items: UserNotification[];
+  total: number;
+  unreadCount: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+};
+
 export async function login(payload: LoginPayload): Promise<AuthResponse> {
   const { data } = await api.post<AuthResponse>("/auth/login", payload);
   return data;
@@ -45,6 +63,42 @@ export async function logout(): Promise<void> {
 
 export async function me(): Promise<AuthUser> {
   const { data } = await api.get<AuthUser>("/auth/me");
+  return data;
+}
+
+export async function updateMyProfile(payload: {
+  username: string;
+  bio?: string;
+}): Promise<AuthUser> {
+  const { data } = await api.patch<AuthUser>("/users/me", payload);
+  return data;
+}
+
+export async function uploadMyAvatar(file: File): Promise<AuthUser> {
+  const form = new FormData();
+  form.append("file", file);
+  const { data } = await api.post<AuthUser>("/users/me/avatar", form);
+  return data;
+}
+
+export async function getMyNotifications(params: {
+  page: number;
+  pageSize: number;
+  sort: "RECENT" | "OLDEST" | "TITLE_ASC" | "TITLE_DESC";
+  q: string;
+}): Promise<UserNotificationsPage> {
+  const { data } = await api.get<UserNotificationsPage>(
+    "/users/me/notifications",
+    { params },
+  );
+  return data;
+}
+
+export async function markMyNotificationsRead(notificationIds?: string[]) {
+  const { data } = await api.post<{ readCount: number }>(
+    "/users/me/notifications/read",
+    notificationIds ? { notificationIds } : {},
+  );
   return data;
 }
 

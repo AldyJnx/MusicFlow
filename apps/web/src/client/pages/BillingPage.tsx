@@ -222,7 +222,8 @@ export default function BillingPage() {
                     <li>
                       ▸{" "}
                       {t("billing.benefits.ai", {
-                        defaultValue: "200 sugerencias de IA por mes",
+                        defaultValue:
+                          "Asistente FlowIA exclusivo y 200 solicitudes por mes",
                       })}
                     </li>
                     <li>

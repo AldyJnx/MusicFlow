@@ -9,10 +9,12 @@ import { sidebarAdmin } from "../components/navigation/sidebarAdmin";
 import AdminAccountMenu from "../components/navigation/AdminAccountMenu";
 import AdminNvidiaAssistant from "../components/AdminNvidiaAssistant";
 import { usePlayerStore } from "../../client/stores/playStore";
+import { usePreferences } from "../../shared/hooks/usePreferences";
 
 export default function AdminLayout({ children }: { children?: ReactNode }) {
   const { t } = useTranslation();
   const [collapsed, setCollapsed] = useState(false);
+  const { sidebarPosition } = usePreferences();
 
   useEffect(() => {
     const state = usePlayerStore.getState();
@@ -23,7 +25,11 @@ export default function AdminLayout({ children }: { children?: ReactNode }) {
   }, []);
 
   return (
-    <div className="flex min-h-screen bg-[var(--color-page)] text-[var(--color-text)]">
+    <div
+      className={`flex min-h-screen bg-[var(--color-page)] text-[var(--color-text)] ${
+        sidebarPosition === "right" ? "flex-row-reverse" : ""
+      }`}
+    >
       <Sidebar
         items={sidebarAdmin}
         version={t("admin.layout.panel")}

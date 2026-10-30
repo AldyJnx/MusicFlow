@@ -86,40 +86,19 @@ export default function ClientLayout({ children }: { children: ReactNode }) {
     (sidebarOnLeft ? 0 : sidebarWidth) + (queueOnLeft ? 0 : rightPanelWidth);
 
   useEffect(() => {
-    let accumulated = 0;
-    let resetTimer: number | undefined;
     let cooldownUntil = 0;
     const navigateTrack = (direction: "next" | "previous") => {
       const now = Date.now();
       if (now < cooldownUntil) return;
       cooldownUntil = now + 650;
-      accumulated = 0;
       const player = usePlayerStore.getState();
       void (direction === "next" ? player.next() : player.previous());
-    };
-    const handleWheel = (event: WheelEvent) => {
-      if (
-        Math.abs(event.deltaX) < Math.abs(event.deltaY) * 1.35 ||
-        Math.abs(event.deltaX) < 2
-      )
-        return;
-      accumulated += event.deltaX;
-      window.clearTimeout(resetTimer);
-      resetTimer = window.setTimeout(() => {
-        accumulated = 0;
-      }, 420);
-      if (Math.abs(accumulated) < 30) return;
-      navigateTrack(accumulated < 0 ? "next" : "previous");
     };
     const handleGestureEnd = (event: Event) => {
       const gesture = event as Event & { direction?: string };
       if (gesture.direction === "left") navigateTrack("next");
       if (gesture.direction === "right") navigateTrack("previous");
     };
-    window.addEventListener("wheel", handleWheel, {
-      capture: true,
-      passive: true,
-    });
     window.addEventListener(
       "gestureend",
       handleGestureEnd as EventListener,
@@ -128,15 +107,36 @@ export default function ClientLayout({ children }: { children: ReactNode }) {
     const unsubscribe = getElectronAPI()?.onSwipe?.((direction) =>
       navigateTrack(direction === "left" ? "next" : "previous"),
     );
+    // Browsers cannot expose the number of fingers used by a touchpad and do
+    // not receive input while unfocused. Media Session is the standards-based
+    // background path when the OS maps its three-finger gesture to media keys.
+    if ("mediaSession" in navigator) {
+      try {
+        navigator.mediaSession.setActionHandler("nexttrack", () =>
+          navigateTrack("next"),
+        );
+        navigator.mediaSession.setActionHandler("previoustrack", () =>
+          navigateTrack("previous"),
+        );
+      } catch {
+        // Some browser/OS combinations expose Media Session without actions.
+      }
+    }
     return () => {
-      window.removeEventListener("wheel", handleWheel, true);
       window.removeEventListener(
         "gestureend",
         handleGestureEnd as EventListener,
         true,
       );
-      window.clearTimeout(resetTimer);
       unsubscribe?.();
+      if ("mediaSession" in navigator) {
+        try {
+          navigator.mediaSession.setActionHandler("nexttrack", null);
+          navigator.mediaSession.setActionHandler("previoustrack", null);
+        } catch {
+          // Ignore partial implementations during teardown.
+        }
+      }
     };
   }, []);
 

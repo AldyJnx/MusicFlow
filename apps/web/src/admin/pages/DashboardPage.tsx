@@ -10,7 +10,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Crown,
-  HardDrive,
   ListMusic,
   Loader2,
   Minus,
@@ -669,24 +668,6 @@ function BucketBars({
       })}
     </ul>
   );
-}
-
-function formatBytes(bytes: number): string {
-  if (bytes <= 0) return "0 B";
-  const units = ["B", "KB", "MB", "GB", "TB"];
-  const i = Math.min(units.length - 1, Math.floor(Math.log10(bytes) / 3));
-  const v = bytes / Math.pow(1000, i);
-  return `${v.toFixed(v >= 100 || i === 0 ? 0 : 1)} ${units[i]}`;
-}
-
-function formatDuration(ms: number): string {
-  const totalMin = Math.floor(ms / 60000);
-  if (totalMin < 60) return `${totalMin} min`;
-  const h = Math.floor(totalMin / 60);
-  const m = totalMin % 60;
-  if (h < 24) return `${h}h ${m}min`;
-  const d = Math.floor(h / 24);
-  return `${d}d ${h % 24}h`;
 }
 
 /** Coarse "hace 5 min / hace 3h / hace 2d" — enough resolution for a list. */
@@ -1479,6 +1460,15 @@ export default function DashboardPage() {
                   }),
                 )}
               />
+              <RankingList
+                title="Géneros más escuchados"
+                metric="reproducciones"
+                items={musicInsightsQ.data.mostListenedGenres.map((genre) => ({
+                  name: genre.name,
+                  detail: "Reproducciones de canciones del género",
+                  value: genre.plays,
+                }))}
+              />
             </div>
           </section>
         ) : musicInsightsQ.isError ? (
@@ -1679,22 +1669,6 @@ export default function DashboardPage() {
                     : undefined
                 }
               />
-              <StatCard
-                tone="primary"
-                icon={<HardDrive className="h-4 w-4" />}
-                label={t("admin.dashboard.storage", {
-                  defaultValue: "Almacenamiento",
-                })}
-                value={catalog ? formatBytes(catalog.totalBytes) : "—"}
-                subtitle={
-                  catalog
-                    ? t("admin.dashboard.audioTotal", {
-                        defaultValue: "{{dur}} de audio",
-                        dur: formatDuration(catalog.totalDurationMs),
-                      })
-                    : undefined
-                }
-              />
             </div>
           </section>
         ) : null}
@@ -1771,18 +1745,6 @@ export default function DashboardPage() {
                           {catalog.totalTracks}
                         </strong>{" "}
                         {t("admin.dashboard.catalogTracks")}
-                      </span>
-                      <span>
-                        <strong className="text-[var(--color-text)]">
-                          {formatBytes(catalog.totalBytes)}
-                        </strong>{" "}
-                        {t("admin.dashboard.catalogOnDisk")}
-                      </span>
-                      <span>
-                        <strong className="text-[var(--color-text)]">
-                          {formatDuration(catalog.totalDurationMs)}
-                        </strong>{" "}
-                        {t("admin.dashboard.catalogOfAudio")}
                       </span>
                     </div>
 

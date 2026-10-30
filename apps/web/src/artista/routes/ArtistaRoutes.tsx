@@ -16,12 +16,29 @@ export default function ArtistaRoutes() {
           <Route element={<ArtistLayout />}>
             <Route index element={<ArtistDashboardPage />} />
             <Route
-              path="releases"
-              element={<ArtistWorkspacePage view="releases" />}
+              path="music"
+              element={<ArtistWorkspacePage view="music" />}
+            />
+            <Route
+              path="albums"
+              element={<ArtistWorkspacePage view="albums" />}
+            />
+            <Route path="team" element={<ArtistWorkspacePage view="team" />} />
+            <Route
+              path="settings"
+              element={<ArtistWorkspacePage view="settings" />}
+            />
+            <Route
+              path="profile"
+              element={<ArtistWorkspacePage view="profile" />}
             />
             <Route
               path="analytics"
               element={<ArtistWorkspacePage view="analytics" />}
+            />
+            <Route
+              path="notifications"
+              element={<ArtistWorkspacePage view="notifications" />}
             />
           </Route>
           <Route

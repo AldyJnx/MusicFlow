@@ -13,6 +13,7 @@ export interface AuthUser {
   id: string;
   email: string;
   username: string;
+  bio?: string | null;
   role: UserRole;
   isPremium: boolean;
   avatar?: string | null;

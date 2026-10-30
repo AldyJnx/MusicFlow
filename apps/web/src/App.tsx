@@ -1,6 +1,12 @@
 import { lazy, Suspense, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { BrowserRouter, HashRouter, Route, Routes } from "react-router-dom";
+import {
+  BrowserRouter,
+  HashRouter,
+  Route,
+  Routes,
+  useLocation,
+} from "react-router-dom";
 import ChangePassword from "./auth/pages/ChangePassword";
 import ForgotPassword from "./auth/pages/ForgotPassword";
 import Login from "./auth/pages/Login";
@@ -9,6 +15,7 @@ import Register from "./auth/pages/Register";
 import VerifyCode from "./auth/pages/VerifyCode";
 import AccountDeletion from "./auth/pages/AccountDeletion";
 import GoogleOAuthCallback from "./auth/pages/GoogleOAuthCallback";
+import ArtistLogin from "./auth/pages/ArtistLogin";
 import RouteFallback from "./shared/ui/RouteFallback";
 import PWAInstallBanner from "./shared/ui/PWAInstallBanner";
 import UpsellModal from "./shared/ui/UpsellModal";
@@ -54,9 +61,7 @@ function App() {
   //      the full user list / AI costs).
   useEffect(() => {
     let wasAuthed = useAuthStore.getState().isAuthenticated;
-    setPreferencesOwner(useAuthStore.getState().user?.id);
     return useAuthStore.subscribe((state) => {
-      setPreferencesOwner(state.user?.id);
       if (wasAuthed && !state.isAuthenticated) {
         usePlayerStore.getState().stop();
         queryClient.clear();
@@ -71,12 +76,14 @@ function App() {
 
   return (
     <AppRouter>
+      <PreferenceScope />
       <DesktopWindowControls />
       <Suspense fallback={<RouteFallback />}>
         <Routes>
           <Route path="/" element={<Login />} />
           <Route path="/headphones-tip" element={<HeadphonesTip />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/artist-login" element={<ArtistLogin />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/verify-code" element={<VerifyCode />} />
           <Route path="/change-password" element={<ChangePassword />} />
@@ -98,3 +105,19 @@ function App() {
 }
 
 export default App;
+
+function PreferenceScope() {
+  const { pathname } = useLocation();
+  const userId = useAuthStore((state) => state.user?.id);
+
+  useEffect(() => {
+    const surface = pathname.startsWith("/artist-dashboard")
+      ? "artist"
+      : pathname.startsWith("/admin")
+        ? "admin"
+        : "client";
+
+    setPreferencesOwner(userId, surface);
+  }, [pathname, userId]);
+  return null;
+}

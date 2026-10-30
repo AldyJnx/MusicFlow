@@ -334,8 +334,11 @@ export function initializePreferences() {
 }
 
 /** Switches the persisted preference namespace when the authenticated account changes. */
-export function setPreferencesOwner(userId: string | null | undefined) {
-  const nextOwner = userId || "anonymous";
+export function setPreferencesOwner(
+  userId: string | null | undefined,
+  surface: "client" | "artist" | "admin" = "client",
+) {
+  const nextOwner = `${userId || "anonymous"}:${surface}`;
   if (nextOwner === activePreferenceOwner) return;
   activePreferenceOwner = nextOwner;
   initializePreferences();

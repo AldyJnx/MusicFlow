@@ -12,6 +12,8 @@ import ClientLayout from "../layout/ClientLayout";
 import PersonalizationSection from "../features/settings/PersonalizationSection";
 import { usePreferences } from "../../shared/hooks/usePreferences";
 import { APP_THEMES } from "../../shared/utils/theme";
+import { useAuthStore } from "../../shared/stores/authStore";
+import { usePremiumGate } from "../../shared/hooks/usePremiumGate";
 
 function SectionTitle({
   icon,
@@ -38,15 +40,18 @@ function SectionTitle({
 function Toggle({
   enabled,
   onToggle,
+  disabled = false,
 }: {
   enabled: boolean;
   onToggle: () => void;
+  disabled?: boolean;
 }) {
   return (
     <button
       type="button"
       aria-pressed={enabled}
       onClick={onToggle}
+      disabled={disabled}
       className={`relative inline-flex h-7 w-12 items-center rounded-full border transition ${
         enabled
           ? "border-[var(--color-primary)] bg-[var(--color-primary)]"
@@ -116,6 +121,8 @@ function PreferenceCard({
 }
 
 export default function SettingsPage() {
+  const isPremium = useAuthStore((state) => state.user?.isPremium === true);
+  const { openUpgrade } = usePremiumGate();
   const {
     theme: activeTheme,
     setTheme,
@@ -290,11 +297,20 @@ export default function SettingsPage() {
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
                   <Toggle
-                    enabled={assistantEnabled}
-                    onToggle={() => setAssistantEnabled(!assistantEnabled)}
+                    enabled={isPremium && assistantEnabled}
+                    disabled={!isPremium}
+                    onToggle={() =>
+                      isPremium
+                        ? setAssistantEnabled(!assistantEnabled)
+                        : openUpgrade("ai")
+                    }
                   />
                   <span className="text-sm text-[var(--color-muted)]">
-                    {assistantEnabled ? "Activo" : "Desactivado"}
+                    {!isPremium
+                      ? "Premium"
+                      : assistantEnabled
+                        ? "Activo"
+                        : "Desactivado"}
                   </span>
                 </div>
                 <Choice
@@ -304,7 +320,7 @@ export default function SettingsPage() {
                     { value: "static", label: "Estático" },
                     { value: "draggable", label: "Arrastrable" },
                   ]}
-                  disabled={!assistantEnabled}
+                  disabled={!isPremium || !assistantEnabled}
                 />
               </div>
             </PreferenceCard>

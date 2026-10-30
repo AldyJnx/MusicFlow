@@ -1,4 +1,4 @@
-import { LogOut, Settings2 } from "lucide-react";
+import { LogOut, UserRound } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 
 import { useAuthStore } from "../../../shared/stores/authStore";
@@ -62,12 +62,12 @@ export default function AdminAccountMenu({
         className={`invisible absolute bottom-full z-50 mb-2 w-52 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-1.5 opacity-0 shadow-xl transition group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100 ${collapsed ? "left-full ml-2" : "left-0"}`}
       >
         <Link
-          to="/admin/settings"
+          to="/admin/profile"
           role="menuitem"
           className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold text-[var(--color-text)] hover:bg-[var(--color-surface-alt)]"
         >
-          <Settings2 className="h-4 w-4 text-[var(--color-primary)]" />
-          Configuración
+          <UserRound className="h-4 w-4 text-[var(--color-primary)]" />
+          Mi Perfil
         </Link>
         <button
           type="button"

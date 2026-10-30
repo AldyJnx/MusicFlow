@@ -26,6 +26,11 @@ export const sidebarAdmin: SidebarItem[] = [
     iconKey: "equalizer",
   },
   {
+    label: "Géneros",
+    path: "/admin/genres",
+    iconKey: "library",
+  },
+  {
     label: "AI Requests",
     labelKey: "admin.nav.aiRequests",
     path: "/admin/ai",
@@ -35,5 +40,15 @@ export const sidebarAdmin: SidebarItem[] = [
     label: "Configuración",
     path: "/admin/settings",
     iconKey: "settings",
+  },
+  {
+    label: "Acceso de artistas",
+    path: "/admin/artist-access",
+    iconKey: "nowPlaying",
+  },
+  {
+    label: "Verificación de artistas",
+    path: "/admin/artist-verifications",
+    iconKey: "nowPlaying",
   },
 ];

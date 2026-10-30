@@ -23,11 +23,15 @@ export default function GoogleOAuthCallback() {
       .then((session) => {
         if (!active) return;
         setSession(session);
+        const destination = sessionStorage.getItem(
+          "musicflow-auth-destination",
+        );
+        sessionStorage.removeItem("musicflow-auth-destination");
         navigate(
-          session.user.role === "ADMIN"
-            ? "/admin"
-            : session.user.role === "ARTIST"
-              ? "/artist-dashboard"
+          destination === "artist"
+            ? "/artist-dashboard"
+            : session.user.role === "ADMIN"
+              ? "/admin"
               : "/headphones-tip",
           { replace: true },
         );

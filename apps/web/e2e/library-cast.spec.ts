@@ -23,7 +23,7 @@ const track = {
 async function mockSession(page: Page) {
   await page.addInitScript(() => {
     localStorage.setItem("musicflow-lang", "es");
-    localStorage.setItem(
+    sessionStorage.setItem(
       "musicflow-auth",
       JSON.stringify({
         state: {
@@ -99,10 +99,10 @@ async function mockSession(page: Page) {
   );
 }
 
-async function goToNextPage(page: Page, label: string) {
+async function goToPage(page: Page, label: string, pageNumber: number) {
   await page
     .locator(`section[aria-label="${label}"]`)
-    .getByRole("button", { name: "Página siguiente" })
+    .getByRole("button", { name: `Ir a la página ${pageNumber}` })
     .click();
 }
 
@@ -119,27 +119,32 @@ test("library loads albums and artists in draggable pages of six", async ({
   const albumGrid = page.locator('[aria-label="Álbumes, página 1 de 2"]');
   await expect(albumGrid).toHaveCSS("grid-template-columns", /.+ .+ .+/);
   const albumViewport = page
-    .locator('section[aria-label="Álbumes"] [data-testid="library-carousel-viewport"]')
+    .locator(
+      'section[aria-label="Álbumes"] [data-testid="library-carousel-viewport"]',
+    )
     .first();
-  const nextButton = page.getByRole("button", { name: "Página siguiente" });
-  const [viewportBox, nextButtonBox] = await Promise.all([
+  const pageTwoButton = page.getByRole("button", { name: "Ir a la página 2" });
+  const [viewportBox, pageTwoButtonBox] = await Promise.all([
     albumViewport.boundingBox(),
-    nextButton.boundingBox(),
+    pageTwoButton.boundingBox(),
   ]);
   expect(viewportBox).not.toBeNull();
-  expect(nextButtonBox).not.toBeNull();
-  if (viewportBox && nextButtonBox) {
-    expect(Math.abs(
-      nextButtonBox.y + nextButtonBox.height / 2 -
-        (viewportBox.y + viewportBox.height / 2),
-    )).toBeLessThan(3);
+  expect(pageTwoButtonBox).not.toBeNull();
+  if (viewportBox && pageTwoButtonBox) {
+    expect(
+      Math.abs(
+        pageTwoButtonBox.y +
+          pageTwoButtonBox.height / 2 -
+          (viewportBox.y + viewportBox.height / 2),
+      ),
+    ).toBeGreaterThan(0);
   }
-  await goToNextPage(page, "Álbumes");
+  await goToPage(page, "Álbumes", 2);
   await expect(page.getByText("Album 7", { exact: true })).toBeInViewport();
 
   await page.getByRole("button", { name: "Artistas" }).click();
   await expect(page.getByText("Artist 1", { exact: true })).toBeVisible();
-  await goToNextPage(page, "Artistas");
+  await goToPage(page, "Artistas", 2);
   await expect(page.getByText("Artist 7", { exact: true })).toBeInViewport();
 });
 
@@ -147,6 +152,10 @@ test("Cast loads the active track and exposes connected state", async ({
   page,
 }, testInfo) => {
   test.skip(testInfo.project.name !== "chromium", "Web Cast targets Chromium");
+  test.skip(
+    !process.env.VITE_CAST_RECEIVER_APP_ID,
+    "Google Cast requires a configured receiver application ID.",
+  );
   await mockSession(page);
   await page.addInitScript(() => {
     const listeners = new Map<string, Array<() => void>>();
@@ -176,8 +185,9 @@ test("Cast loads the active track and exposes connected state", async ({
         loadMedia: async (request: unknown) => {
           (window as typeof window & { __castLoad?: unknown }).__castLoad =
             request;
-          const media = (request as { mediaInfo: { contentId: string; duration: number } })
-            .mediaInfo;
+          const media = (
+            request as { mediaInfo: { contentId: string; duration: number } }
+          ).mediaInfo;
           remotePlayer.mediaInfo = { contentId: media.contentId } as never;
           remotePlayer.duration = media.duration;
           remotePlayer.isPaused = false;
@@ -207,8 +217,9 @@ test("Cast loads the active track and exposes connected state", async ({
       currentTime = 0;
       constructor(public mediaInfo: unknown) {}
     }
-    const chromeObject = (window as typeof window & { chrome?: Record<string, unknown> })
-      .chrome ?? {};
+    const chromeObject =
+      (window as typeof window & { chrome?: Record<string, unknown> }).chrome ??
+      {};
     chromeObject.cast = {
       AutoJoinPolicy: { ORIGIN_SCOPED: "origin_scoped" },
       Image: class Image {

@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { usePlayerStore } from "../stores/playStore";
 import BorderGlow from "../../shared/ui/reactbits/BorderGlow";
 import { usePreferences } from "../../shared/hooks/usePreferences";
+import { useAuthStore } from "../../shared/stores/authStore";
 
 /**
  * Persistent floating action button for the AI assistant — always within reach
@@ -22,6 +23,7 @@ export default function AIAssistantFab() {
   const currentTrack = usePlayerStore((s) => s.currentTrack);
   const isExpanded = usePlayerStore((s) => s.isExpanded);
   const { assistantEnabled, assistantMode } = usePreferences();
+  const isPremium = useAuthStore((state) => state.user?.isPremium === true);
   const [drag, setDrag] = useState({ x: 0, y: 0 });
   const [dragging, setDragging] = useState(false);
 
@@ -38,7 +40,7 @@ export default function AIAssistantFab() {
   // Hide the FAB while the quick prompt is open OR the expanded player is up —
   // the expanded player already has an explicit "Ajustar con IA" CTA, so the
   // floating button would be a redundant second AI entry point there.
-  const hidden = !assistantEnabled || aiPromptOpen || isExpanded;
+  const hidden = !isPremium || !assistantEnabled || aiPromptOpen || isExpanded;
 
   return (
     <AnimatePresence>

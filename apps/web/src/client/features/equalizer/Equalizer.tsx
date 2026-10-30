@@ -12,6 +12,7 @@ import Aurora from "../../../shared/ui/reactbits/Aurora";
 import { useEqualizer } from "../../../shared/hooks/useEqualizer";
 import { useEqCascade } from "../../../shared/hooks/useEqCascade";
 import { usePlayerStore } from "../../stores/playStore";
+import { usePremiumGate } from "../../../shared/hooks/usePremiumGate";
 import { upsertConfig } from "../../../shared/api/equalizer";
 import type {
   EQPreset,
@@ -175,6 +176,7 @@ export default function Equalizer() {
     syncFromEngine,
   } = useEqualizer();
   const openAiPrompt = usePlayerStore((s) => s.openAiPrompt);
+  const { isPremium, guard } = usePremiumGate();
   const currentTrack = usePlayerStore((s) => s.currentTrack);
   const queryClient = useQueryClient();
 
@@ -592,47 +594,51 @@ export default function Equalizer() {
           </motion.div>
 
           {/* AI quick row (pretesis) */}
-          <div className="flex flex-col gap-3 rounded-2xl border border-[color-mix(in_srgb,var(--color-primary)_30%,transparent)] bg-[linear-gradient(180deg,color-mix(in_srgb,var(--color-primary)_6%,transparent),color-mix(in_srgb,var(--color-accent)_2%,transparent))] p-4">
-            <button
-              type="button"
-              onClick={openAiPrompt}
-              className="flex items-center gap-3 text-left"
-            >
-              <span
-                className="flex h-8 w-8 flex-none items-center justify-center rounded-[10px] text-white shadow-[0_6px_16px_-4px_var(--color-primary)]"
-                style={{
-                  background:
-                    "linear-gradient(145deg,var(--color-primary),var(--color-accent))",
-                }}
+          {isPremium ? (
+            <div className="flex flex-col gap-3 rounded-2xl border border-[color-mix(in_srgb,var(--color-primary)_30%,transparent)] bg-[linear-gradient(180deg,color-mix(in_srgb,var(--color-primary)_6%,transparent),color-mix(in_srgb,var(--color-accent)_2%,transparent))] p-4">
+              <button
+                type="button"
+                onClick={() => guard("ai", openAiPrompt)}
+                className="flex items-center gap-3 text-left"
               >
-                <Sparkles
-                  className="h-[17px] w-[17px]"
-                  fill="currentColor"
-                  stroke="none"
-                />
-              </span>
-              <span className="flex-1 text-[13.5px] font-medium text-[var(--color-muted)]">
-                {t("eq.ai.placeholder", {
-                  defaultValue: "Describe cómo quieres que suene…",
-                })}{" "}
-                <span className="font-bold text-[var(--color-accent)]">
-                  {t("eq.ai.open", { defaultValue: "abrir asistente →" })}
-                </span>
-              </span>
-            </button>
-            <div className="flex flex-wrap gap-2">
-              {(["warmer", "brighter", "punch", "vocal"] as const).map((k) => (
-                <button
-                  key={k}
-                  type="button"
-                  onClick={openAiPrompt}
-                  className="rounded-full border border-[var(--color-line)] bg-white/[0.04] px-3.5 py-1.5 text-xs font-semibold text-[var(--color-muted)] transition hover:scale-105 hover:border-[color-mix(in_srgb,var(--color-accent)_50%,transparent)] hover:text-[var(--color-accent)]"
+                <span
+                  className="flex h-8 w-8 flex-none items-center justify-center rounded-[10px] text-white shadow-[0_6px_16px_-4px_var(--color-primary)]"
+                  style={{
+                    background:
+                      "linear-gradient(145deg,var(--color-primary),var(--color-accent))",
+                  }}
                 >
-                  {t(`player.ai.chips.${k}`)}
-                </button>
-              ))}
+                  <Sparkles
+                    className="h-[17px] w-[17px]"
+                    fill="currentColor"
+                    stroke="none"
+                  />
+                </span>
+                <span className="flex-1 text-[13.5px] font-medium text-[var(--color-muted)]">
+                  {t("eq.ai.placeholder", {
+                    defaultValue: "Describe cómo quieres que suene…",
+                  })}{" "}
+                  <span className="font-bold text-[var(--color-accent)]">
+                    {t("eq.ai.open", { defaultValue: "abrir asistente →" })}
+                  </span>
+                </span>
+              </button>
+              <div className="flex flex-wrap gap-2">
+                {(["warmer", "brighter", "punch", "vocal"] as const).map(
+                  (k) => (
+                    <button
+                      key={k}
+                      type="button"
+                      onClick={() => guard("ai", openAiPrompt)}
+                      className="rounded-full border border-[var(--color-line)] bg-white/[0.04] px-3.5 py-1.5 text-xs font-semibold text-[var(--color-muted)] transition hover:scale-105 hover:border-[color-mix(in_srgb,var(--color-accent)_50%,transparent)] hover:text-[var(--color-accent)]"
+                    >
+                      {t(`player.ai.chips.${k}`)}
+                    </button>
+                  ),
+                )}
+              </div>
             </div>
-          </div>
+          ) : null}
         </div>
       </section>
     </ClientLayout>

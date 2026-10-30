@@ -28,6 +28,14 @@ function SidebarIcon({
   };
 
   switch (iconKey) {
+    case "albums":
+      return (
+        <svg {...baseProps}>
+          <circle cx="12" cy="12" r="8" />
+          <circle cx="12" cy="12" r="2" fill="currentColor" stroke="none" />
+        </svg>
+      );
+
     case "library":
       return (
         <svg {...baseProps}>
@@ -189,7 +197,9 @@ export default function Sidebar({
           <NavLink
             key={item.path}
             to={item.path}
-            end={item.path === "/library" || item.path === "/admin"}
+            end={
+              item.exact ?? (item.path === "/library" || item.path === "/admin")
+            }
             className={({ isActive }) =>
               `group relative flex items-center transition ${
                 isActive

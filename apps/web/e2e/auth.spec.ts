@@ -3,7 +3,9 @@ import { expect, test } from "@playwright/test";
 test("login stays usable without an API response", async ({ page }) => {
   await page.goto("/");
 
-  await expect(page.getByRole("heading", { name: "Bienvenido de nuevo" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Bienvenido de nuevo" }),
+  ).toBeVisible();
   const submit = page.getByRole("button", { name: /Iniciar Sesión/i });
   await expect(submit).toBeDisabled();
 
@@ -12,14 +14,13 @@ test("login stays usable without an API response", async ({ page }) => {
   await expect(submit).toBeEnabled();
 
   await page.getByRole("button", { name: "Mostrar contraseña" }).click();
-  await expect(
-    page.getByLabel("Contraseña", { exact: true }),
-  ).toHaveAttribute("type", "text");
+  await expect(page.getByLabel("Contraseña", { exact: true })).toHaveAttribute(
+    "type",
+    "text",
+  );
 });
 
-test("client login shows the headphones tip before entering the library", async ({
-  page,
-}) => {
+test("client login opens Discover after authentication", async ({ page }) => {
   await page.route("**/api/auth/login", (route) =>
     route.fulfill({
       contentType: "application/json",
@@ -42,17 +43,16 @@ test("client login shows the headphones tip before entering the library", async 
   await page.getByLabel("Contraseña", { exact: true }).fill("secret123");
   await page.getByRole("button", { name: /Iniciar Sesión/i }).click();
 
-  await expect(
-    page.getByRole("heading", { name: "Mejor experiencia con audifonos" }),
-  ).toBeVisible();
-  await expect(page).toHaveURL(/\/headphones-tip$/);
+  // Discover is the normal user's initial destination. The headphones tip is
+  // shown only during registration, matching the current product flow.
+  await expect(page).toHaveURL(/\/inicio$/);
 });
 
 test("a persisted client session resumes when the root page is reopened", async ({
   page,
 }) => {
   await page.addInitScript(() => {
-    localStorage.setItem(
+    sessionStorage.setItem(
       "musicflow-auth",
       JSON.stringify({
         state: {
@@ -77,5 +77,5 @@ test("a persisted client session resumes when the root page is reopened", async 
   );
 
   await page.goto("/");
-  await expect(page).toHaveURL(/\/library$/);
+  await expect(page).toHaveURL(/\/inicio$/);
 });

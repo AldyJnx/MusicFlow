@@ -1,6 +1,7 @@
 import {
   ChevronLeft,
   ChevronRight,
+  Bell,
   Home,
   Library,
   Pencil,
@@ -118,6 +119,12 @@ export default function ClientSidebar({
       icon: <Settings className="h-[18px] w-[18px]" strokeWidth={2.2} />,
       to: "/settings",
       match: ["/settings", "/profile"],
+    },
+    {
+      label: "Notificaciones",
+      icon: <Bell className="h-[18px] w-[18px]" strokeWidth={2.2} />,
+      to: "/notifications",
+      match: ["/notifications"],
     },
   ];
 
