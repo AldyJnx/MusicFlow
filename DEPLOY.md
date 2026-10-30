@@ -67,6 +67,8 @@ Usa una contraseña PostgreSQL larga y compatible con una URL, evitando `@`,
 - `CORS_ORIGINS` con los orígenes web permitidos separados por coma.
 - Las credenciales y buckets reales de Cloudflare R2.
 - Las credenciales reales de Google OAuth y las APIs de IA habilitadas.
+- `FIREBASE_SERVICE_ACCOUNT_JSON` si se enviarán notificaciones push; el valor
+  debe ser el JSON completo de la cuenta de servicio en una sola línea.
 - Mercado Pago, SMTP y Sentry solo cuando esas integraciones se habiliten.
 
 En Google Cloud, la URI de retorno de producción debe coincidir exactamente con
