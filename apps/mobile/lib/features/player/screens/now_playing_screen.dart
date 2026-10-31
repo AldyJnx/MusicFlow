@@ -150,7 +150,8 @@ class NowPlayingScreen extends ConsumerWidget {
                                                   final queued =
                                                       player.queue[index];
                                                   final isCurrent =
-                                                      index == player.queueIndex;
+                                                      index ==
+                                                      player.queueIndex;
                                                   return SizedBox(
                                                     width: 142,
                                                     child: Material(
@@ -176,25 +177,28 @@ class NowPlayingScreen extends ConsumerWidget {
                                                           decoration: BoxDecoration(
                                                             color: isCurrent
                                                                 ? colors.primary
-                                                                    .withValues(
-                                                                      alpha: 0.2,
-                                                                    )
+                                                                      .withValues(
+                                                                        alpha:
+                                                                            0.2,
+                                                                      )
                                                                 : Colors.white
-                                                                    .withValues(
-                                                                      alpha: 0.06,
-                                                                    ),
+                                                                      .withValues(
+                                                                        alpha:
+                                                                            0.06,
+                                                                      ),
                                                             borderRadius:
                                                                 BorderRadius.circular(
                                                                   18,
                                                                 ),
                                                             border: Border.all(
                                                               color: isCurrent
-                                                                  ? colors.primary
+                                                                  ? colors
+                                                                        .primary
                                                                   : Colors.white
-                                                                      .withValues(
-                                                                        alpha:
-                                                                            0.1,
-                                                                      ),
+                                                                        .withValues(
+                                                                          alpha:
+                                                                              0.1,
+                                                                        ),
                                                             ),
                                                           ),
                                                           child: Padding(
@@ -213,14 +217,15 @@ class NowPlayingScreen extends ConsumerWidget {
                                                                         BorderRadius.circular(
                                                                           12,
                                                                         ),
-                                                                    child: queued
-                                                                                .coverArt
-                                                                                ?.isNotEmpty ==
+                                                                    child:
+                                                                        queued.coverArt?.isNotEmpty ==
                                                                             true
                                                                         ? Image.network(
                                                                             queued.coverArt!,
-                                                                            width: double.infinity,
-                                                                            fit: BoxFit.cover,
+                                                                            width:
+                                                                                double.infinity,
+                                                                            fit:
+                                                                                BoxFit.cover,
                                                                             errorBuilder:
                                                                                 (
                                                                                   _,
@@ -255,12 +260,14 @@ class NowPlayingScreen extends ConsumerWidget {
                                                                       TextOverflow
                                                                           .ellipsis,
                                                                   style: TextStyle(
-                                                                    color: isCurrent
+                                                                    color:
+                                                                        isCurrent
                                                                         ? colors
-                                                                            .primary
+                                                                              .primary
                                                                         : Colors
-                                                                            .white60,
-                                                                    fontSize: 12,
+                                                                              .white60,
+                                                                    fontSize:
+                                                                        12,
                                                                   ),
                                                                 ),
                                                               ],
@@ -632,7 +639,8 @@ class _OrbitalPlayerControls extends StatelessWidget {
                   child: GestureDetector(
                     behavior: HitTestBehavior.translucent,
                     onTapDown: (details) => seekFromArc(details.localPosition),
-                    onPanUpdate: (details) => seekFromArc(details.localPosition),
+                    onPanUpdate: (details) =>
+                        seekFromArc(details.localPosition),
                   ),
                 ),
               ),

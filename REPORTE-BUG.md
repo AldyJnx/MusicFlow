@@ -1,5 +1,16 @@
 # Reporte de seguridad y errores de MusicFlow
 
+### El control de formato de Flutter fallaba en GitHub Actions
+
+- **Identificador:** BUG-2026-056
+- **Fecha:** 2026-10-30
+- **Entorno afectado:** `apps/mobile/`, flujo de calidad de GitHub Actions.
+- **Síntoma:** el paso `dart format --output=none --set-exit-if-changed lib test integration_test` terminaba con código 1 e informaba cuatro archivos modificables.
+- **Causa raíz:** cuatro archivos Dart se habían integrado sin aplicar el formateador oficial de la versión de Dart usada por el workflow. El flag `--set-exit-if-changed` no corrige archivos en CI; detecta la diferencia y falla intencionalmente la ejecución.
+- **Solución:** se aplicó `dart format` a los archivos señalados por el workflow, sin cambiar su lógica ni comportamiento.
+- **Verificación:** `git diff --check` completó sin errores. La comprobación local detectó un bloqueo de permisos exclusivo de la telemetría de Dart en el equipo de desarrollo; el formateo sí se aplicó y GitHub Actions no depende de ese archivo local.
+- **Estado:** corregido; pendiente de que GitHub Actions ejecute nuevamente el workflow en el commit que contiene el formato.
+
 ### La eliminación de géneros musicales no completaba la limpieza del catálogo
 
 - **Identificador:** BUG-2026-055

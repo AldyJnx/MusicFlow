@@ -519,7 +519,8 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = context.musicFlowColors;
-    final isPremium = ref.watch(authControllerProvider).user?.isPremium ?? false;
+    final isPremium =
+        ref.watch(authControllerProvider).user?.isPremium ?? false;
 
     if (!isPremium) {
       return Scaffold(
@@ -531,9 +532,18 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.workspace_premium_rounded, size: 48, color: _accentCyan),
+                  const Icon(
+                    Icons.workspace_premium_rounded,
+                    size: 48,
+                    color: _accentCyan,
+                  ),
                   const SizedBox(height: 16),
-                  Text('FlowIA es exclusivo de Premium', style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
+                  Text(
+                    'FlowIA es exclusivo de Premium',
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
                   const SizedBox(height: 8),
                   const Text('Actualiza tu plan para usar el asistente de IA.'),
                   const SizedBox(height: 20),

@@ -227,7 +227,8 @@ class PlaylistScreen extends ConsumerWidget {
 
   Widget _withAiBubble(BuildContext context, WidgetRef ref, Widget child) {
     final assistantEnabled = ref.watch(appSettingsProvider).aiAssistantEnabled;
-    final isPremium = ref.watch(authControllerProvider).user?.isPremium ?? false;
+    final isPremium =
+        ref.watch(authControllerProvider).user?.isPremium ?? false;
 
     return LayoutBuilder(
       builder: (context, constraints) {

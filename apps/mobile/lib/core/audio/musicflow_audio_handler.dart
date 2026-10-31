@@ -115,10 +115,7 @@ class MusicFlowAudioHandler extends BaseAudioHandler with SeekHandler {
   ///
   /// Named `setLoop` because [BaseAudioHandler.setRepeatMode] is reserved for
   /// the `AudioServiceRepeatMode` contract used by the platform controls.
-  Future<void> setLoop({
-    required bool repeatAll,
-    required bool repeatOne,
-  }) {
+  Future<void> setLoop({required bool repeatAll, required bool repeatOne}) {
     final mode = repeatOne
         ? LoopMode.one
         : (repeatAll ? LoopMode.all : LoopMode.off);
@@ -129,8 +126,7 @@ class MusicFlowAudioHandler extends BaseAudioHandler with SeekHandler {
   Future<void> setRepeatMode(AudioServiceRepeatMode repeatMode) {
     return switch (repeatMode) {
       AudioServiceRepeatMode.one => setLoop(repeatAll: true, repeatOne: true),
-      AudioServiceRepeatMode.all ||
-      AudioServiceRepeatMode.group => setLoop(
+      AudioServiceRepeatMode.all || AudioServiceRepeatMode.group => setLoop(
         repeatAll: true,
         repeatOne: false,
       ),
