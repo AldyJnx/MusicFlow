@@ -133,6 +133,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+      - name: Configure Java 17 for Gradle
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
@@ -159,6 +165,12 @@ jobs:
     needs: [mobile]
     steps:
       - uses: actions/checkout@v6
+      - name: Configure Java 17 for Gradle
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
       - uses: subosito/flutter-action@v2
         with:
           channel: stable

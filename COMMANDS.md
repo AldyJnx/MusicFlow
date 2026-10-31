@@ -561,6 +561,10 @@ Ejecuta esta sección desde `apps/mobile/`.
 
 ### Builds móviles
 
+Los workflows de GitHub Actions fijan Eclipse Temurin Java 17 antes de invocar
+Gradle. Esta versión es compatible con el wrapper Gradle 8.14 y evita que el
+runner `ubuntu-latest` seleccione una versión futura de Java incompatible.
+
 1. Generar APK de desarrollo o release:
 
    ```powershell

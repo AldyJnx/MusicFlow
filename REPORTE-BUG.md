@@ -1,5 +1,16 @@
 # Reporte de seguridad y errores de MusicFlow
 
+### El bundle Android fallaba por Java 25 incompatible con Gradle
+
+- **Identificador:** BUG-2026-057
+- **Fecha:** 2026-10-30
+- **Entorno afectado:** `apps/mobile/`, builds Android de GitHub Actions.
+- **Síntoma:** `flutter build appbundle --release` terminaba con código 1 en `bundleRelease` y reportaba que Java `25.0.5` era incompatible con Gradle `8.14`.
+- **Causa raíz:** `ubuntu-latest` dejó disponible Java 25 y los workflows no fijaban el JDK usado por Gradle. El warning sobre `System::load` era informativo y no la causa del fallo.
+- **Solución:** los workflows de CI, integración Android y release firmado configuran Eclipse Temurin Java 17 mediante `actions/setup-java` antes de instalar Flutter y ejecutar Gradle. Java 17 coincide con `sourceCompatibility`, `targetCompatibility` y `jvmTarget` del proyecto.
+- **Verificación:** configuración YAML revisada; el build local queda pendiente de un entorno Android/Gradle equivalente al runner. El cambio evita depender del JDK predeterminado de `ubuntu-latest`.
+- **Estado:** corregido en código; pendiente de ejecutar nuevamente GitHub Actions.
+
 ### El control de formato de Flutter fallaba en GitHub Actions
 
 - **Identificador:** BUG-2026-056
